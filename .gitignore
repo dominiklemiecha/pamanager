@@ -69,6 +69,8 @@ desktop.ini
 /public/export-db.php
 /public/export-uploads.php
 /public/fix-migrations.php
+# NOTA: import-db.php e import-uploads.php sono inclusi nel repo SOLO per la
+# migrazione una tantum. Rimuoverli (e ricommit) appena finito l'import.
 
 # Endpoint pericolosi/diagnostici da non esporre in produzione
 /public/reset-admin.php
