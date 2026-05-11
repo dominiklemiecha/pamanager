@@ -1,0 +1,88 @@
+# =========================================================
+# PAManager — .gitignore
+# =========================================================
+
+# Segreti / configurazioni locali
+.env
+.env.local
+.env.*.local
+config/database.local.php
+config/*.local.php
+/config/certs/
+
+# Dipendenze (composer install gira nel Docker build)
+/vendor/
+/node_modules/
+
+# Dati utente / volumi runtime (Docker volumes in produzione)
+/public/uploads/
+/storage/documents/*
+/storage/logs/*
+/storage/vapid_keys.json
+!/storage/documents/.gitkeep
+!/storage/logs/.gitkeep
+/logs/*
+!/logs/.gitkeep
+
+# Dump DB e uploads zippati (DATI SENSIBILI)
+/tools/*.sql
+/tools/*.sql.sql
+/tools/*.zip
+/tools/*.tar.gz
+prod-dump*.sql
+*-dump.sql
+backup_*.sql
+*.sql
+!database/schema.sql
+!database/install_full.sql
+!database/migrations/**/*.sql
+
+# Cache / artifacts
+*.cache
+.phpunit.result.cache
+*.log
+*.swp
+*.swo
+*~
+*.tmp
+*.temp
+*.bak
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Script di install/seed/wipe (lascio FUORI dal repo per sicurezza prod)
+/install.php
+/install_connecteed.php
+/seed.php
+/seed_connecteed.php
+/wipe_data.php
+/debug.php
+/diagnose.php
+/database/seed_demo_employees.php
+
+# Endpoint export (una tantum per migrazione; rimuovere dopo uso)
+/public/export-db.php
+/public/export-uploads.php
+/public/fix-migrations.php
+
+# Endpoint pericolosi/diagnostici da non esporre in produzione
+/public/reset-admin.php
+/public/login-debug.php
+/public/push-client-debug.php
+/public/admin/install-composer.php
+/public/admin/security-test.php
+/public/admin/test-chat.php
+/public/admin/fix-communications.php
+/public/admin/setup-push.php
+
+# Documentazione interna deploy (non pubblicare in repo open)
+DEPLOY.md
+# public/migrate.php resta nel repo (protetto da MIGRATION_TOKEN, usato anche da entrypoint Docker)
+
+# Override docker-compose (solo per dev locale)
+docker-compose.override.yml

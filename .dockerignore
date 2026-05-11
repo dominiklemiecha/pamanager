@@ -1,0 +1,43 @@
+# Build artifacts e file non necessari
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+*.log
+*.swp
+
+# Dipendenze e cache (verranno reinstallate nel container)
+vendor/
+node_modules/
+.composer/
+
+# Dati locali da NON copiare nell'immagine (i volumes Docker li gestiscono)
+public/uploads/
+logs/
+storage/logs/
+
+# Configurazioni locali (sostituite da env vars)
+config/database.local.php
+
+# File temporanei/di test
+*.bak
+*.tmp
+docker-compose.override.yml
+.env
+.env.local
+
+# Documentazione di setup XAMPP (non serve nel container)
+SECURITY_DOCUMENTATION.md
+install.php
+install_connecteed.php
+debug.php
+diagnose.php
+seed.php
+seed_connecteed.php
+wipe_data.php
+database/seed_demo_employees.php
+
+# Docker meta (lascio docker/ accessibile al build context!)
+# Dockerfile, docker-compose.yml e docker/ DEVONO essere disponibili al build.
+DEPLOY.md
