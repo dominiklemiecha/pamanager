@@ -1,0 +1,71 @@
+# PAManager — Docker Compose per Dokploy / self-host
+#
+# Su Dokploy:
+#  - Imposta variabili dal pannello UI (App > Environment): DB_PASS, DB_ROOT_PASS, APP_URL, MIGRATION_TOKEN, JWT_SECRET
+#  - Dokploy gestisce HTTPS via Traefik. Non serve esporre porte: usa le labels traefik.
+#  - I volumi nominati persistono i dati (uploads, logs, dbdata).
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-pamanager}
+      DB_USER: ${DB_USER:-pamanager}
+      DB_PASS: ${DB_PASS}
+      APP_URL: ${APP_URL:-http://localhost}
+      MIGRATION_TOKEN: ${MIGRATION_TOKEN:-pamanager_migrate_2024}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
+      PHP_TIMEZONE: "Europe/Rome"
+    volumes:
+      - uploads:/var/www/html/public/uploads
+      - logs:/var/www/html/logs
+      - storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pamanager
+    # In ambiente Dokploy esponi via Traefik (labels gestite da Dokploy UI).
+    # In standalone (docker compose up) decommenta la riga ports per accedere su http://localhost:8080
+    # ports:
+    #   - "8080:80"
+
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MARIADB_DATABASE: ${DB_NAME:-pamanager}
+      MARIADB_USER: ${DB_USER:-pamanager}
+      MARIADB_PASSWORD: ${DB_PASS}
+      MARIADB_AUTO_UPGRADE: "1"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_allowed_packet=64M
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - pamanager
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  uploads:
+  logs:
+  storage:
+  dbdata:
+
+networks:
+  pamanager:
+    driver: bridge
