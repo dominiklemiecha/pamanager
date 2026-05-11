@@ -21,7 +21,16 @@ if (!$expectedToken || !hash_equals($expectedToken, $providedToken)) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['file'])) {
-    echo "Usage:\n  curl -F \"file=@uploads.zip\" \"" . ($_SERVER['REQUEST_SCHEME'] ?? 'https') . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'] . "?token=<TOKEN>\"\n";
+    echo "=== DEBUG (no file received) ===\n";
+    echo "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
+    echo "Content-Length: " . ($_SERVER['CONTENT_LENGTH'] ?? '?') . " bytes\n";
+    echo "post_max_size (effective): " . ini_get('post_max_size') . "\n";
+    echo "upload_max_filesize (effective): " . ini_get('upload_max_filesize') . "\n";
+    echo "memory_limit: " . ini_get('memory_limit') . "\n";
+    echo "FILES count: " . count($_FILES) . "\n";
+    if (!empty($_FILES)) echo print_r($_FILES, true);
+    echo "POST count: " . count($_POST) . "\n";
+    echo "\nUsage:\n  curl -F \"file=@uploads.zip\" \"https://" . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'] . "?token=<TOKEN>\"\n";
     exit;
 }
 
