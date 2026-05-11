@@ -50,31 +50,18 @@ $user = $dbConfig['username'];
 $pass = $dbConfig['password'];
 $db   = $dbConfig['database'];
 
-$rootPass = getenv('DB_ROOT_PASS') ?: '';
-if (!$rootPass) {
-    @unlink($tmpPath);
-    http_response_code(500);
-    die("ERR: DB_ROOT_PASS env var non impostata, impossibile dropare e ricreare il DB.\n");
-}
+// Usiamo l'utente normale del DB (ha GRANT ALL ON dbname.*) — il dump fa DROP TABLE
+// e CREATE TABLE per ogni tabella, quindi non serve dropare il database stesso.
 
-// Drop + ricrea schema
-$dropCmd = sprintf(
-    "mariadb --skip-ssl -h%s -P%s -uroot -p'%s' -e %s 2>&1",
-    escapeshellarg($host),
-    escapeshellarg($port),
-    addslashes($rootPass),
-    escapeshellarg("DROP DATABASE IF EXISTS `$db`; CREATE DATABASE `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL ON `$db`.* TO '$user'@'%';")
-);
-$out1 = shell_exec($dropCmd);
-echo "[3/4] DB '$db' droppato e ricreato\n";
-if ($out1) echo "       output: $out1\n";
+echo "[3/4] Pulizia tabelle pre-esistenti (DROP + CREATE saranno nel dump)...\n";
 
 // Import dump
 $importCmd = sprintf(
-    "mariadb --skip-ssl -h%s -P%s -uroot -p'%s' %s < %s 2>&1",
+    "mariadb --skip-ssl -h%s -P%s -u%s -p'%s' %s < %s 2>&1",
     escapeshellarg($host),
     escapeshellarg($port),
-    addslashes($rootPass),
+    escapeshellarg($user),
+    addslashes($pass),
     escapeshellarg($db),
     escapeshellarg($tmpPath)
 );
@@ -83,17 +70,21 @@ $out2 = shell_exec($importCmd);
 echo "[4/4] Import completato\n";
 if ($out2 && trim($out2) !== '') echo "       output: $out2\n";
 
-// Verifica conteggi tabelle principali
-$countsCmd = sprintf(
-    "mariadb --skip-ssl -h%s -P%s -u%s -p'%s' %s -e %s 2>&1",
-    escapeshellarg($host),
-    escapeshellarg($port),
-    escapeshellarg($user),
-    addslashes($pass),
-    escapeshellarg($db),
-    escapeshellarg("SELECT 'employees' AS tab, COUNT(*) AS n FROM employees UNION ALL SELECT 'users', COUNT(*) FROM users UNION ALL SELECT 'departments', COUNT(*) FROM departments UNION ALL SELECT 'leave_requests', COUNT(*) FROM leave_requests UNION ALL SELECT 'communications', COUNT(*) FROM communications UNION ALL SELECT 'companies', COUNT(*) FROM companies;")
-);
-$counts = shell_exec($countsCmd);
+// Verifica conteggi tabelle principali (via PDO, evita problemi shell quoting)
+$counts = '';
+try {
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4", $user, $pass);
+    foreach (['employees','users','departments','leave_requests','communications','companies'] as $t) {
+        try {
+            $n = (int)$pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn();
+            $counts .= sprintf("  %-20s %d\n", $t, $n);
+        } catch (Throwable $e) {
+            $counts .= sprintf("  %-20s (tabella mancante)\n", $t);
+        }
+    }
+} catch (Throwable $e) {
+    $counts = "Errore PDO: " . $e->getMessage() . "\n";
+}
 echo "\n=== Conteggi tabelle ===\n";
 echo $counts;
 echo "\nImport DB completato. Prosegui con import-uploads.php per le foto.\n";
