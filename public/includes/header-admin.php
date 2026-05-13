@@ -8,7 +8,9 @@ $currentUser = Auth::getUser();
 $currentPage = basename($_SERVER['PHP_SELF'], '.php');
 $baseUrl = PUBLIC_URL;
 $isAdmin = Auth::isAdmin();
-$area = $isAdmin ? 'admin' : 'accountant';
+$isConsulente = ($currentUser['role'] ?? '') === 'consulente_lavoro';
+$isAccountant = ($currentUser['role'] ?? '') === 'accountant';
+$area = $isAdmin ? 'admin' : ($isConsulente ? 'consulente-lavoro' : 'accountant');
 $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
 $userName = htmlspecialchars($currentUser['name']);
 ?>
@@ -121,6 +123,12 @@ $userName = htmlspecialchars($currentUser['name']);
                     </svg>
                     <span>Commercialisti</span>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/admin/consulente-lavoro.php" class="nav-item <?php echo $currentPage === 'consulente-lavoro' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/>
+                    </svg>
+                    <span>Consulenti lavoro</span>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/admin/departments.php" class="nav-item <?php echo $currentPage === 'departments' ? 'active' : ''; ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                         <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
@@ -182,6 +190,53 @@ $userName = htmlspecialchars($currentUser['name']);
                     <span>Chat</span>
                     <?php if ($unreadChatsAdmin > 0): ?>
                         <span class="nav-badge"><?php echo $unreadChatsAdmin; ?></span>
+                    <?php endif; ?>
+                </a>
+            <?php elseif ($isConsulente): ?>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/" class="nav-item <?php echo $currentPage === 'index' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/employees.php" class="nav-item <?php echo $currentPage === 'employees' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                    </svg>
+                    <span>Anagrafica</span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/documents.php" class="nav-item <?php echo $currentPage === 'documents' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15.01l1.41 1.41L11 14.84V19h2v-4.16l1.59 1.59L16 15.01 12.01 11 8 15.01z"/>
+                    </svg>
+                    <span>Buste paga/CUD</span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/employee-documents.php" class="nav-item <?php echo $currentPage === 'employee-documents' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    <span>Documenti dipendente</span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/leave-requests.php" class="nav-item <?php echo $currentPage === 'leave-requests' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    <span>Ferie/Permessi</span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/presenze-export.php" class="nav-item <?php echo $currentPage === 'presenze-export' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14H5v-2h5v2zm0-4H5v-2h5v2zm0-4H5V7h5v2zm4.5 7l-3.5-3.5 1.41-1.41 2.09 2.08 4.59-4.58L19.5 10l-6 6z"/>
+                    </svg>
+                    <span>Export presenze</span>
+                </a>
+                <?php $unreadChatsCons = Chat::countUnread('consulente_lavoro', $currentUser['id']); ?>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                    </svg>
+                    <span>Chat</span>
+                    <?php if ($unreadChatsCons > 0): ?>
+                        <span class="nav-badge"><?php echo $unreadChatsCons; ?></span>
                     <?php endif; ?>
                 </a>
             <?php else: ?>
