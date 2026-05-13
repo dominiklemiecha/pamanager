@@ -106,60 +106,56 @@ $usernameValue = htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')
     <link rel="stylesheet" href="<?= PUBLIC_URL ?>/assets/css/theme.css?v=<?php echo time(); ?>">
     <?php echo $csrfMeta; ?>
     <style>
-    .pwa-install {
-        margin-top: 1.25rem;
-    }
+    .pwa-install { margin-top: 1rem; }
     .pwa-install-btn {
         width: 100%;
-        padding: 0.85rem 1.25rem;
-        border: 2px dashed rgba(255,255,255,0.5);
-        border-radius: 12px;
-        background: rgba(255,255,255,0.1);
-        color: white;
-        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+        border: 1px dashed #cbd5e0;
+        border-radius: 10px;
+        background: #f7fafc;
+        color: #3182ce;
+        font-size: 0.85rem;
         font-weight: 600;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.6rem;
-        transition: all 0.25s;
-        backdrop-filter: blur(10px);
+        gap: 0.5rem;
+        transition: all 0.2s;
     }
     .pwa-install-btn:hover {
-        background: rgba(255,255,255,0.2);
-        border-color: rgba(255,255,255,0.85);
-        transform: translateY(-2px);
+        background: #edf2f7;
+        border-color: #3182ce;
+        border-style: solid;
     }
-    .pwa-install-btn svg { width: 18px; height: 18px; }
+    .pwa-install-btn svg { width: 16px; height: 16px; }
 
     .ios-install-guide {
-        background: rgba(255,255,255,0.12);
-        border-radius: 14px;
-        padding: 1.1rem 1.1rem 1rem;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.18);
+        background: #f7fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
     }
     .ios-install-title {
         display: flex; align-items: center; justify-content: center;
-        gap: 0.5rem; color: white; font-weight: 600;
-        font-size: 0.95rem; margin-bottom: 0.85rem;
+        gap: 0.4rem; color: #2d3748; font-weight: 600;
+        font-size: 0.85rem; margin-bottom: 0.75rem;
     }
-    .ios-install-title svg { width: 18px; height: 18px; }
-    .ios-install-steps { display: flex; flex-direction: column; gap: 0.5rem; }
+    .ios-install-title svg { width: 16px; height: 16px; color: #3182ce; }
+    .ios-install-steps { display: flex; flex-direction: column; gap: 0.4rem; }
     .ios-step {
-        display: flex; align-items: center; gap: 0.7rem;
-        background: rgba(255,255,255,0.1);
-        padding: 0.55rem 0.8rem; border-radius: 10px;
-        color: white; font-size: 0.8rem; line-height: 1.4;
+        display: flex; align-items: center; gap: 0.6rem;
+        background: white;
+        border: 1px solid #edf2f7;
+        padding: 0.45rem 0.7rem; border-radius: 8px;
+        color: #4a5568; font-size: 0.78rem; line-height: 1.4;
     }
     .ios-step-num {
-        width: 22px; height: 22px; background: #3182ce;
+        width: 20px; height: 20px; background: #3182ce; color: white;
         border-radius: 50%; display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 0.72rem; flex-shrink: 0;
+        font-weight: 700; font-size: 0.7rem; flex-shrink: 0;
     }
-    .ios-step strong { color: #90cdf4; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .ios-step strong { color: #2d3748; }
     </style>
 </head>
 <body class="login-page">
