@@ -1,0 +1,5 @@
+# Forza LF su file eseguibili Linux: previene il bug
+# "exec entrypoint.sh: no such file or directory" su Docker da host Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker/* text eol=lf
