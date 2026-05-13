@@ -116,6 +116,7 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                                 <th>Email</th>
                                 <th>Telefono</th>
                                 <th>Stato</th>
+                                <th>Azioni</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -142,6 +143,9 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                                         <span class="badge <?= $emp['is_active'] ? 'badge-success' : 'badge-danger' ?>">
                                             <?= $emp['is_active'] ? 'Attivo' : 'Inattivo' ?>
                                         </span>
+                                    </td>
+                                    <td>
+                                        <a href="employee-documents.php?employee_id=<?= (int) $emp['id'] ?>" class="btn btn-sm btn-info">Documenti</a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
