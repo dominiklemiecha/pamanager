@@ -469,7 +469,12 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                 <div class="chat-avatar">
                     <?php
                         $name = $selectedConv['other_name'] ?? '';
-                        echo e(strtoupper(mb_substr($name, 0, 2)));
+                        $photo = $selectedConv['other_photo'] ?? null;
+                        if (!empty($photo)) {
+                            echo '<img src="' . e(PUBLIC_URL . '/' . ltrim($photo, '/')) . '" alt="' . e($name) . '" loading="lazy" decoding="async">';
+                        } else {
+                            echo e(strtoupper(mb_substr($name, 0, 2)));
+                        }
                     ?>
                 </div>
                 <div style="flex:1;">
