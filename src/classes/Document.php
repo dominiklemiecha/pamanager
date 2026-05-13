@@ -265,7 +265,7 @@ class Document
                           . "- Periodo: {$period}\n\n"
                           . "Accedi: {$loginUrl}";
 
-                    Mailer::send($employee['email'], $fullName, "Nuovo documento disponibile: {$typeLabel} {$period}", $html, $text);
+                    Mailer::sendToEmployee((int) $employee['id'], "Nuovo documento disponibile: {$typeLabel} {$period}", $html, $text);
                 }
             } catch (Exception $mailErr) {
                 error_log('[Document] Email notification error: ' . $mailErr->getMessage());
