@@ -378,7 +378,7 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                            data-search="<?= e(strtolower($name . ' ' . ($conv['last_message'] ?? ''))) ?>">
                             <div class="chat-avatar">
                                 <?php if (!empty($conv['other_photo'])): ?>
-                                    <img src="<?= e($conv['other_photo']) ?>" alt="" loading="lazy" decoding="async">
+                                    <img src="<?= e(PUBLIC_URL . '/' . ltrim($conv['other_photo'], '/')) ?>" alt="" loading="lazy" decoding="async">
                                 <?php else: ?>
                                     <?= e($initials) ?>
                                 <?php endif; ?>
