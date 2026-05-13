@@ -233,6 +233,14 @@ class PushNotification
      */
     public static function sendToUser(string $userType, int $userId, array $payload): array
     {
+        // Rispetta il flag notify_push del dipendente (opt-out lato user)
+        if ($userType === 'employee') {
+            $pref = Database::fetchOne("SELECT notify_push FROM employees WHERE id = ?", [$userId]);
+            if ($pref && (int) ($pref['notify_push'] ?? 1) === 0) {
+                return ['success' => true, 'sent' => 0, 'message' => 'Push disattivate dal dipendente'];
+            }
+        }
+
         $subscriptions = self::getUserSubscriptions($userType, $userId);
 
         if (empty($subscriptions)) {
@@ -1042,7 +1050,7 @@ class PushNotification
     /**
      * Notifica nuova richiesta ferie (per admin reparto)
      */
-    public static function notifyNewLeaveRequest(int $adminRepartoId, string $employeeName, string $leaveType): array
+    public static function notifyNewLeaveRequest(int $adminId, string $employeeName, string $leaveType, string $role = 'admin_reparto'): array
     {
         $types = [
             'ferie' => 'Ferie',
@@ -1053,10 +1061,14 @@ class PushNotification
             'altro' => 'Altro'
         ];
 
-        return self::sendToUser('admin_reparto', $adminRepartoId, [
+        $url = $role === 'admin'
+            ? '/admin/leave-requests.php'
+            : '/admin-reparto/leave-requests.php';
+
+        return self::sendToUser($role, $adminId, [
             'title' => 'Nuova richiesta ' . ($types[$leaveType] ?? $leaveType),
             'body' => $employeeName . ' ha inviato una richiesta',
-            'url' => '/admin-reparto/leave-requests.php',
+            'url' => $url,
             'tag' => 'leave-request-' . time(),
             'icon' => '/assets/images/icon.php?size=192'
         ]);

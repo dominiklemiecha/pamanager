@@ -345,7 +345,7 @@ class EmployeeDocument
         }
 
         try {
-            if (!empty($employee['email']) && class_exists('Mailer') && Mailer::isConfigured()) {
+            if (class_exists('Mailer') && Mailer::isConfigured()) {
                 $loginUrl = function_exists('buildPublicUrl')
                     ? buildPublicUrl('/auth/login-employee.php')
                     : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login-employee.php' : '');
@@ -357,10 +357,34 @@ class EmployeeDocument
                       . "<p><strong>{$docSafe}</strong></p>"
                       . "<p><a href=\"{$loginUrl}\">Accedi al portale per consultarlo</a></p>";
                 $text = "Ciao {$fullName},\n\nNuovo documento disponibile: {$documentName}\n\nAccedi: {$loginUrl}";
-                Mailer::send($employee['email'], $fullName, "Nuovo documento disponibile: {$documentName}", $html, $text);
+                Mailer::sendToEmployee((int) $employee['id'], "Nuovo documento disponibile: {$documentName}", $html, $text);
             }
         } catch (Throwable $e) {
             error_log('[EmployeeDocument] mail error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Conta documenti personali visibili al dipendente non ancora scaricati.
+     * Usato per il badge nella sidebar.
+     */
+    public static function getUnreadCountForEmployee(int $employeeId): int
+    {
+        try {
+            return (int) Database::fetchColumn(
+                "SELECT COUNT(*) FROM employee_documents ed
+                 WHERE ed.employee_id = ?
+                   AND ed.visible_to_employee = 1
+                   AND NOT EXISTS (
+                       SELECT 1 FROM employee_document_downloads dd
+                       WHERE dd.employee_document_id = ed.id
+                         AND dd.user_type = 'employee'
+                         AND dd.user_id = ?
+                   )",
+                [$employeeId, $employeeId]
+            );
+        } catch (Throwable $e) {
+            return 0;
         }
     }
 }

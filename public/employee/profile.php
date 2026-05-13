@@ -86,6 +86,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+    } elseif ($action === 'update_notifications') {
+        $notifyEmail = !empty($_POST['notify_email']) ? 1 : 0;
+        $notifyPush  = !empty($_POST['notify_push']) ? 1 : 0;
+        Database::update('employees', [
+            'notify_email' => $notifyEmail,
+            'notify_push'  => $notifyPush,
+        ], 'id = ?', [$employeeId]);
+        header('Location: profile.php?message=notifications_updated');
+        exit;
     } elseif ($action === 'remove_photo') {
         if (!empty($employee['photo_path'])) {
             $old = ROOT_PATH . '/public/' . ltrim($employee['photo_path'], '/');
@@ -104,7 +113,8 @@ if (isset($_GET['message'])) {
     $messages = [
         'updated' => 'Profilo aggiornato',
         'photo_updated' => 'Foto profilo aggiornata',
-        'photo_removed' => 'Foto rimossa'
+        'photo_removed' => 'Foto rimossa',
+        'notifications_updated' => 'Preferenze notifiche aggiornate'
     ];
     $message = $messages[$_GET['message']] ?? '';
 }
@@ -220,6 +230,27 @@ input[type=file] { font-size: 0.85rem; }
             </div>
             <div class="profile-actions">
                 <button type="submit" class="btn-inline btn-primary">Salva modifiche</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="profile-card">
+        <h2>Notifiche</h2>
+        <form method="POST">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="update_notifications">
+            <div style="display:flex;flex-direction:column;gap:.75rem;">
+                <label style="display:flex;align-items:center;gap:.6rem;font-size:.9rem;">
+                    <input type="checkbox" name="notify_email" value="1" <?= (int) ($employee['notify_email'] ?? 1) === 1 ? 'checked' : '' ?>>
+                    <span><strong>Email</strong> &mdash; ricevi notifiche via email (nuovi documenti, comunicazioni, ecc.)</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.6rem;font-size:.9rem;">
+                    <input type="checkbox" name="notify_push" value="1" <?= (int) ($employee['notify_push'] ?? 1) === 1 ? 'checked' : '' ?>>
+                    <span><strong>Push</strong> &mdash; ricevi notifiche push sul browser/dispositivo</span>
+                </label>
+            </div>
+            <div class="profile-actions">
+                <button type="submit" class="btn-inline btn-primary">Salva preferenze</button>
             </div>
         </form>
     </div>

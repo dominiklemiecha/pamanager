@@ -19,6 +19,47 @@ class Mailer
     }
 
     /**
+     * Invia email a un dipendente rispettando il flag notify_email.
+     * Aggiunge footer con link unsubscribe usando il token persistente.
+     */
+    public static function sendToEmployee(int $employeeId, string $subject, string $htmlBody, string $textBody = ''): bool
+    {
+        $emp = Database::fetchOne(
+            "SELECT id, email, first_name, last_name, notify_email, email_unsubscribe_token FROM employees WHERE id = ?",
+            [$employeeId]
+        );
+        if (!$emp || empty($emp['email']) || (int) ($emp['notify_email'] ?? 1) === 0) {
+            return false;
+        }
+
+        // Garantisce token unsubscribe
+        $token = $emp['email_unsubscribe_token'];
+        if (empty($token)) {
+            $token = bin2hex(random_bytes(24));
+            try {
+                Database::update('employees', ['email_unsubscribe_token' => $token], 'id = ?', [$employeeId]);
+            } catch (Throwable $e) {
+                error_log('[Mailer] failed to persist unsubscribe token: ' . $e->getMessage());
+            }
+        }
+
+        $unsubUrl = function_exists('buildPublicUrl')
+            ? buildPublicUrl('/employee/unsubscribe.php?token=' . urlencode($token))
+            : (defined('PUBLIC_URL') ? PUBLIC_URL . '/employee/unsubscribe.php?token=' . urlencode($token) : '');
+
+        $footerHtml = "<hr style=\"border:none;border-top:1px solid #e2e8f0;margin:24px 0 12px;\">"
+                    . "<p style=\"color:#a0aec0;font-size:12px;line-height:1.5;\">"
+                    . "Ricevi questa email perche' sei iscritto al portale aziendale. "
+                    . "Se non vuoi piu' ricevere queste notifiche, "
+                    . "<a href=\"" . htmlspecialchars($unsubUrl) . "\" style=\"color:#3182ce;\">disattiva le email qui</a>."
+                    . "</p>";
+        $footerText = "\n\n---\nNon vuoi piu' ricevere queste email? Disattivale qui: " . $unsubUrl;
+
+        $fullName = trim($emp['first_name'] . ' ' . $emp['last_name']);
+        return self::send($emp['email'], $fullName, $subject, $htmlBody . $footerHtml, $textBody . $footerText);
+    }
+
+    /**
      * Invia email tramite SMTP configurato.
      */
     public static function send(string $toEmail, string $toName, string $subject, string $htmlBody, string $textBody = ''): bool

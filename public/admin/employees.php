@@ -221,6 +221,12 @@ $showInactive = isset($_GET['show_inactive']);
 
 if ($action === 'list') {
     $employees = Employee::getAll(!$showInactive, $search);
+    // Calcola stato push subscription (chi ha almeno un device registrato)
+    $_pushSubscribed = [];
+    try {
+        $rows = Database::fetchAll("SELECT DISTINCT user_id FROM push_subscriptions WHERE user_type = 'employee'");
+        foreach ($rows as $r) { $_pushSubscribed[(int) $r['user_id']] = true; }
+    } catch (Throwable $e) {}
 } elseif ($action === 'edit' && $id) {
     $employee = Employee::getById($id);
     if (!$employee) {
@@ -393,6 +399,18 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                     <a href="?action=view&id=<?php echo $emp['id']; ?>">
                                         <?php echo htmlspecialchars($emp['last_name'] . ' ' . $emp['first_name']); ?>
                                     </a>
+                                    <?php
+                                        $_emailOn = (int) ($emp['notify_email'] ?? 1) === 1 && !empty($emp['email']);
+                                        $_pushOn  = (int) ($emp['notify_push'] ?? 1) === 1 && !empty($_pushSubscribed[(int)$emp['id']]);
+                                    ?>
+                                    <span class="notif-icons" style="display:inline-flex;gap:.25rem;margin-left:.5rem;vertical-align:middle;">
+                                        <span title="Email <?= $_emailOn ? 'attive' : 'disattive' ?>" style="display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;border-radius:4px;background:<?= $_emailOn ? '#c6f6d5' : '#edf2f7' ?>;color:<?= $_emailOn ? '#276749' : '#a0aec0' ?>;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                                        </span>
+                                        <span title="Push <?= $_pushOn ? 'attive' : 'disattive' ?>" style="display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;border-radius:4px;background:<?= $_pushOn ? '#bee3f8' : '#edf2f7' ?>;color:<?= $_pushOn ? '#2c5282' : '#a0aec0' ?>;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                                        </span>
+                                    </span>
                                 </td>
                                 <td data-label="Username"><code><?php echo htmlspecialchars($emp['username']); ?></code></td>
                                 <td data-label="CF"><code><?php echo htmlspecialchars($emp['fiscal_code']); ?></code></td>
