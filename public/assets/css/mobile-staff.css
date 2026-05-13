@@ -1,0 +1,241 @@
+/*
+ * Mobile optimization for staff areas (admin, accountant, consulente-lavoro, admin-reparto).
+ * Pattern-based regole responsive che catturano i layout ricorrenti delle pagine staff.
+ * Caricato da header-admin.php dopo style.css/theme.css.
+ */
+
+/* ----- Tablet (<= 960px) ----- */
+@media (max-width: 960px) {
+    /* Stats-grid: max 2 colonne */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    /* Cons-emp-card / cons-emp-body: 1 colonna interna */
+    .cons-emp-body {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+}
+
+/* ----- Mobile (<= 720px) ----- */
+@media (max-width: 720px) {
+    /* Header pagina: stack titolo sopra, azioni sotto */
+    .page-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.75rem;
+    }
+    .page-header h1 {
+        font-size: 1.1rem !important;
+    }
+    .page-header .page-subtitle,
+    .page-header p {
+        font-size: 0.75rem !important;
+    }
+    .page-header > div:last-child,
+    .page-header [style*="display:flex"] {
+        width: 100%;
+    }
+    .page-header > div:last-child .btn,
+    .page-header .btn {
+        flex: 1;
+    }
+
+    /* Stats grid: una colonna */
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.6rem !important;
+    }
+    .stat-card {
+        padding: 0.85rem 1rem !important;
+    }
+    .stat-value {
+        font-size: 1.35rem !important;
+    }
+
+    /* Dashboard cards: padding ridotto */
+    .dashboard-card .card-header {
+        padding: 0.85rem 1rem !important;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .dashboard-card .card-header h3 {
+        font-size: 0.95rem !important;
+    }
+    .dashboard-card .card-body,
+    .cons-emp-body {
+        padding: 0.85rem 1rem !important;
+    }
+
+    /* Tabelle: solo se NON hanno classe responsive vengono forzate */
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .data-table:not(.responsive) th,
+    .data-table:not(.responsive) td {
+        padding: 0.5rem 0.4rem !important;
+        font-size: 0.78rem;
+    }
+
+    /* Form filtri: stack verticale */
+    .filters-section .filters-row,
+    .filters-row,
+    form.filters-card,
+    .filters-card {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.6rem !important;
+    }
+    .filter-item,
+    .filters-card select,
+    .filters-card input,
+    .filters-section input,
+    .filters-section select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Upload form (commercialista/consulente) */
+    .upload-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+    .upload-header {
+        padding: 0.85rem 1rem !important;
+    }
+    .upload-form {
+        padding: 1rem !important;
+    }
+    .upload-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Inline form actions (modifica/elimina) */
+    .inline-form { display: inline-flex; }
+    .actions {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+    .actions .btn,
+    .actions form {
+        flex: 1 1 auto;
+    }
+    .actions .btn {
+        font-size: 0.72rem !important;
+        padding: 0.4rem 0.55rem !important;
+        white-space: nowrap;
+    }
+
+    /* Modali: full screen su mobile */
+    .lp-modal-overlay,
+    .modal-overlay,
+    [id$="-upload-modal"],
+    [id$="Modal"] {
+        padding: 0 !important;
+    }
+    .lp-modal,
+    .modal,
+    [id$="-upload-modal"] > div,
+    [id*="ed-upload-modal"] > div {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 100vh;
+        border-radius: 0 !important;
+        overflow-y: auto;
+    }
+
+    /* Forms (form-card, urm-form-card): padding ridotto */
+    .form-card,
+    .urm-form-card {
+        padding: 1rem !important;
+    }
+    .urm-form-grid,
+    .form-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* URM (gestione utenti staff) - card */
+    .urm-card-top { gap: 0.6rem !important; padding: 0.85rem 1rem !important; }
+    .urm-avatar { width: 36px !important; height: 36px !important; font-size: 0.85rem !important; }
+    .urm-card-info .name { font-size: 0.9rem !important; }
+    .urm-card-body { padding: 0.6rem 1rem !important; }
+    .urm-card-actions { padding: 0.6rem 1rem !important; gap: 0.3rem !important; }
+    .urm-card-actions .urm-btn { font-size: 0.68rem !important; padding: 5px 9px !important; flex: 1; justify-content: center; }
+    .urm-grid { grid-template-columns: 1fr !important; }
+    .urm-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .urm-header-left { gap: 0.5rem; }
+    .urm-header h1 { font-size: 1rem !important; }
+    .urm-header > a.urm-btn { width: 100%; justify-content: center; }
+    .urm-pw-banner {
+        flex-wrap: wrap;
+        padding: 0.85rem 1rem !important;
+    }
+    .urm-pw-banner button.copy { width: 100%; margin-top: 0.5rem; }
+
+    /* Login info paragraphs more compact on mobile */
+    .login-info { font-size: 0.78rem; }
+
+    /* Tenant switcher: full width */
+    .tenant-switcher,
+    .tenant-popover,
+    .tenant-popover summary { width: 100%; }
+    .tenant-popover .tenant-list {
+        position: static !important;
+        width: 100% !important;
+        margin-top: 0.3rem;
+    }
+
+    /* Doc rows (employee-documents lato admin/consulente) */
+    .doc-row,
+    .cl-doc-row {
+        flex-wrap: wrap;
+        gap: 0.5rem !important;
+    }
+    .doc-row .doc-actions,
+    .cl-doc-row .actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    .doc-info, .cl-doc-row .info { min-width: 0; flex: 1 1 60%; }
+    .doc-badge, .cl-badge { order: -1; }
+
+    /* Leave-requests detail modal rows */
+    .lp-modal-row {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 0.2rem !important;
+    }
+
+    /* Hide subtle muted helper text on small screens to save space */
+    .page-header .page-subtitle small { display: none; }
+}
+
+/* ----- Phone narrow (<= 480px) ----- */
+@media (max-width: 480px) {
+    /* Tipografia leggermente piu' compatta */
+    body { font-size: 0.92rem; }
+    .stat-label { font-size: 0.7rem !important; }
+    .stat-value { font-size: 1.25rem !important; }
+
+    /* Buttons piu' compatti */
+    .btn { padding: 0.5rem 0.85rem; font-size: 0.85rem; }
+    .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.78rem; }
+
+    /* Card header h3 piu' piccolo */
+    .dashboard-card .card-header h3 { font-size: 0.88rem !important; }
+
+    /* Tenant switcher label nascosto */
+    .tenant-switcher .tenant-label { display: none; }
+}
+
+/* ----- Safe-area iOS ----- */
+@supports (padding: max(0px)) {
+    .admin-main {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+}
