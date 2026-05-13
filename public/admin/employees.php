@@ -686,6 +686,118 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     </div>
                 <?php endif; ?>
             </div>
+
+            <!-- Documenti dipendente generici (contratti, certificati, ecc.) -->
+            <?php
+            $_edDocs = EmployeeDocument::getByEmployee((int) $employee['id']);
+            $_edStatus = $_GET['ed_status'] ?? '';
+            ?>
+            <div id="docs" class="docs-section">
+                <div class="docs-header">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>Documenti dipendente</h3>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('ed-upload-modal').style.display='flex';">Carica documento</button>
+                </div>
+
+                <?php if ($_edStatus === 'uploaded'): ?>
+                    <div class="alert alert-success" style="margin:0.5rem 0;">Documento caricato.</div>
+                <?php elseif ($_edStatus === 'updated'): ?>
+                    <div class="alert alert-success" style="margin:0.5rem 0;">Documento aggiornato.</div>
+                <?php elseif ($_edStatus === 'deleted'): ?>
+                    <div class="alert alert-success" style="margin:0.5rem 0;">Documento eliminato.</div>
+                <?php elseif (strpos((string) $_edStatus, 'error') === 0): ?>
+                    <div class="alert alert-danger" style="margin:0.5rem 0;">Errore: <?= htmlspecialchars(substr((string) $_edStatus, 6)) ?></div>
+                <?php endif; ?>
+
+                <?php if (empty($_edDocs)): ?>
+                    <div class="empty-msg">Nessun documento caricato</div>
+                <?php else: ?>
+                <div style="overflow-x:auto;">
+                <table class="table" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Dimensione</th>
+                            <th>Visibile</th>
+                            <th>Scadenza</th>
+                            <th>Caricato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($_edDocs as $d): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($d['name']) ?></td>
+                            <td><?= number_format($d['file_size'] / 1024, 1) ?> KB</td>
+                            <td>
+                                <form method="post" action="employee-documents.php" style="display:inline;">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="toggle_visibility">
+                                    <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                                    <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
+                                    <button type="submit" class="btn btn-sm <?= $d['visible_to_employee'] ? 'btn-success' : 'btn-secondary' ?>">
+                                        <?= $d['visible_to_employee'] ? 'Si' : 'No' ?>
+                                    </button>
+                                </form>
+                            </td>
+                            <td><?= $d['expires_on'] ? htmlspecialchars($d['expires_on']) : '<span class="text-muted">-</span>' ?></td>
+                            <td><?= htmlspecialchars(date('d/m/Y', strtotime($d['created_at']))) ?><br><small class="text-muted"><?= htmlspecialchars($d['uploaded_by_name']) ?></small></td>
+                            <td style="white-space:nowrap;">
+                                <a href="employee-documents.php?download=<?= (int) $d['id'] ?>" class="btn btn-sm btn-info">Scarica</a>
+                                <button type="button" class="btn btn-sm btn-secondary"
+                                        onclick="var n=prompt('Nuovo nome:', <?= json_encode($d['name']) ?>); if(n){var f=document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">Rinomina</button>
+                                <form id="ed-rename-<?= (int) $d['id'] ?>" method="post" action="employee-documents.php" style="display:none;">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="rename">
+                                    <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                                    <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
+                                    <input type="hidden" name="name" value="">
+                                </form>
+                                <form method="post" action="employee-documents.php" style="display:inline;" onsubmit="return confirm('Eliminare definitivamente?');">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                                    <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-danger">Elimina</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Modale upload documento dipendente -->
+            <div id="ed-upload-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+                <div style="background:#fff;padding:2rem;border-radius:10px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.3);">
+                    <h3 style="margin-top:0;">Carica documento</h3>
+                    <form method="post" action="employee-documents.php" enctype="multipart/form-data">
+                        <?= CSRF::field() ?>
+                        <input type="hidden" name="action" value="upload">
+                        <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                        <div style="margin-bottom:1rem;">
+                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">Nome documento *</label>
+                            <input type="text" name="name" required maxlength="255" class="form-control" placeholder="es. Contratto 2026" style="width:100%;">
+                        </div>
+                        <div style="margin-bottom:1rem;">
+                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">File *</label>
+                            <input type="file" name="document" required class="form-control" style="width:100%;">
+                        </div>
+                        <div style="margin-bottom:1rem;">
+                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">Scadenza (opzionale)</label>
+                            <input type="date" name="expires_on" class="form-control" style="width:100%;">
+                        </div>
+                        <div style="margin-bottom:1.25rem;">
+                            <label><input type="checkbox" name="visible_to_employee" value="1"> Rendi visibile al dipendente (invia notifica)</label>
+                        </div>
+                        <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('ed-upload-modal').style.display='none';">Annulla</button>
+                            <button type="submit" class="btn btn-primary">Carica</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <style>
