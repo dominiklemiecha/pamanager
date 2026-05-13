@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Consulente — PAManager mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="_tokens.css">
+<link rel="stylesheet" href="_components.css">
+<style>
+.tenant-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-3) var(--sp-4);
+    margin-bottom: var(--sp-5);
+    display: flex; align-items: center; gap: var(--sp-3);
+    box-shadow: var(--shadow-xs);
+}
+.tenant-bar .ic {
+    width: 36px; height: 36px; border-radius: var(--r-md);
+    background: var(--primary-50); color: var(--primary-600);
+    display: flex; align-items: center; justify-content: center;
+}
+.tenant-bar .ic svg { width: 18px; height: 18px; }
+.tenant-bar .info { flex: 1; }
+.tenant-bar .info .lbl { font-size: var(--text-xs); color: var(--muted); }
+.tenant-bar .info .name { font-size: var(--text-base); font-weight: var(--weight-semibold); color: var(--ink); }
+.tenant-bar select {
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    font-family: inherit; font-size: var(--text-sm); color: var(--ink);
+    cursor: pointer;
+}
+
+.quick-jump {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-6);
+}
+@media (max-width: 768px) { .quick-jump { grid-template-columns: repeat(2, 1fr); } }
+.q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-4);
+    display: flex; flex-direction: column; gap: var(--sp-2);
+    cursor: pointer; text-decoration: none; color: inherit;
+    transition: all var(--duration-base) var(--ease);
+}
+.q-card:hover { border-color: var(--primary-300); box-shadow: var(--shadow-md); transform: translateY(-2px); text-decoration: none; }
+.q-card .ic { width: 40px; height: 40px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; }
+.q-card .ic svg { width: 20px; height: 20px; }
+.q-card .ic.a { background: var(--primary-50); color: var(--primary-600); }
+.q-card .ic.b { background: var(--success-50); color: var(--success-600); }
+.q-card .ic.c { background: var(--warning-50); color: var(--warning-600); }
+.q-card .ic.d { background: var(--info-50); color: var(--info-600); }
+.q-card h4 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--ink); }
+.q-card p { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+.q-card .arrow { margin-left: auto; opacity: 0.4; }
+
+.dual { display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--sp-5); }
+@media (max-width: 1024px) { .dual { grid-template-columns: 1fr; } }
+
+.emp-mini {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    text-decoration: none; color: inherit;
+    transition: background var(--duration-fast) var(--ease);
+}
+.emp-mini:hover { background: var(--slate-50); }
+.emp-mini:last-child { border-bottom: none; }
+.emp-mini .info { flex: 1; min-width: 0; }
+.emp-mini .info .n { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--ink); }
+.emp-mini .info .s { font-size: var(--text-xs); color: var(--muted); margin-top: 2px; }
+.emp-mini .arrow { color: var(--muted); }
+
+.deadline-item {
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: var(--sp-3);
+}
+.deadline-item:last-child { border-bottom: none; }
+.deadline-date {
+    text-align: center;
+    background: var(--primary-50);
+    color: var(--primary-700);
+    border-radius: var(--r-md);
+    padding: var(--sp-1) var(--sp-2);
+    width: 56px; flex-shrink: 0;
+}
+.deadline-date .d { font-size: var(--text-base); font-weight: var(--weight-bold); line-height: 1; }
+.deadline-date .m { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+.deadline-date.urgent { background: var(--danger-50); color: var(--danger-700); }
+.deadline-item .info { flex: 1; }
+.deadline-item .info .t { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--ink); }
+.deadline-item .info .s { font-size: var(--text-xs); color: var(--muted); margin-top: 2px; }
+
+.viewport-bar { position: fixed; bottom: var(--sp-4); right: var(--sp-4); background: var(--slate-900); color: white; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-pill); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: var(--sp-2); z-index: 100; font-size: var(--text-xs); }
+.viewport-bar svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+    <aside class="app-sidebar">
+        <div class="brand">
+            <div class="brand-mark">P</div>
+            <div><div class="brand-name">PAManager</div><div style="font-size:var(--text-xs); color:var(--muted)">Consulente lavoro</div></div>
+        </div>
+        <nav class="nav">
+            <a class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3v6h8V3h-8zM3 21h8V11H3v10zM3 9h8V3H3v6zm10 12h8V11h-8v10z"/></svg><span class="nav-label">Dashboard</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3z"/></svg><span class="nav-label">Anagrafica</span><span class="nav-badge">48</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z"/></svg><span class="nav-label">Buste paga / CUD</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg><span class="nav-label">Documenti dipendente</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg><span class="nav-label">Ferie/Permessi</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14H5v-2h5v2zm4.5 0L11 13.5l1.41-1.41 2.09 2.08 4.59-4.58L20.5 11l-6 6z"/></svg><span class="nav-label">Export presenze</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span class="nav-label">Chat</span></a>
+        </nav>
+    </aside>
+    <div class="app-overlay"></div>
+
+    <div class="app-main">
+        <header class="app-header">
+            <button class="header-btn mobile-menu-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
+            <div class="header-search">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+                <input type="search" placeholder="Cerca dipendenti, documenti...">
+            </div>
+            <div class="header-actions">
+                <button class="header-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></button>
+                <div class="user-chip"><div class="av av-sm user-chip-avatar">MR</div><span class="user-chip-name">M. Rossi</span></div>
+            </div>
+        </header>
+
+        <main class="app-content">
+            <div class="page-h">
+                <div>
+                    <h1>Benvenuto, Mario 👋</h1>
+                    <div class="sub">Giovedì 14 Maggio 2026 · 3 aziende assegnate</div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Export presenze</button>
+                    <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z"/></svg> Carica busta paga</button>
+                </div>
+            </div>
+
+            <div class="tenant-bar">
+                <div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2z"/></svg></div>
+                <div class="info">
+                    <div class="lbl">AZIENDA ATTIVA</div>
+                    <div class="name">Connecteed Srl</div>
+                </div>
+                <select>
+                    <option>Connecteed Srl (48 dipendenti)</option>
+                    <option>ePrice Italia (12 dipendenti)</option>
+                    <option>Studio Marini (5 dipendenti)</option>
+                </select>
+            </div>
+
+            <section class="stats">
+                <div class="stat">
+                    <span class="stat-label"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3z"/></svg> Dipendenti</span>
+                    <span class="stat-value">48</span>
+                    <span class="stat-trend up">▲ 2 nuovi questo mese</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg> Buste maggio</span>
+                    <span class="stat-value">42<span style="font-size: 1rem; color: var(--muted); font-weight: 400;"> / 48</span></span>
+                    <span class="stat-trend flat">6 da caricare</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg> Ferie nel mese</span>
+                    <span class="stat-value">128<span style="font-size: 1rem; color: var(--muted); font-weight: 400;"> giorni</span></span>
+                    <span class="stat-trend down">▼ 18% vs aprile</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-6h2v6zm0-8h-2V7h2v4z"/></svg> Scadenze imminenti</span>
+                    <span class="stat-value">3</span>
+                    <span class="stat-trend down">Prossimi 7 gg</span>
+                </div>
+            </section>
+
+            <div class="quick-jump">
+                <a class="q-card">
+                    <div class="ic a"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3z"/></svg></div>
+                    <h4>Anagrafica completa</h4>
+                    <p>CF · IBAN · RAL · Contratto</p>
+                </a>
+                <a class="q-card">
+                    <div class="ic b"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+                    <h4>Carica buste paga</h4>
+                    <p>Bulk upload mese corrente</p>
+                </a>
+                <a class="q-card">
+                    <div class="ic c"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2z"/></svg></div>
+                    <h4>Export presenze</h4>
+                    <p>XLSX Connecteed format</p>
+                </a>
+                <a class="q-card">
+                    <div class="ic d"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></div>
+                    <h4>Ferie / malattie</h4>
+                    <p>Cedolini correlati</p>
+                </a>
+            </div>
+
+            <div class="dual">
+                <div class="card">
+                    <div class="card-h">
+                        <h3>Buste paga mancanti — Maggio 2026</h3>
+                        <a href="#" style="font-size:var(--text-sm); color:var(--primary-600)">Carica tutte →</a>
+                    </div>
+                    <a class="emp-mini">
+                        <div class="av">FE</div>
+                        <div class="info">
+                            <div class="n">Fezai Chadha</div>
+                            <div class="s">Sviluppatore Junior · Connecteed</div>
+                        </div>
+                        <span class="badge badge-warning">Manca</span>
+                    </a>
+                    <a class="emp-mini">
+                        <div class="av">LL</div>
+                        <div class="info">
+                            <div class="n">Leone Luca</div>
+                            <div class="s">Sviluppatore · Connecteed</div>
+                        </div>
+                        <span class="badge badge-warning">Manca</span>
+                    </a>
+                    <a class="emp-mini">
+                        <div class="av">TP</div>
+                        <div class="info">
+                            <div class="n">Pepe Tonino</div>
+                            <div class="s">Amministrazione · Connecteed</div>
+                        </div>
+                        <span class="badge badge-warning">Manca</span>
+                    </a>
+                    <a class="emp-mini">
+                        <div class="av">KH</div>
+                        <div class="info">
+                            <div class="n">Khalili Morteza</div>
+                            <div class="s">Sviluppatore · Connecteed</div>
+                        </div>
+                        <span class="badge badge-warning">Manca</span>
+                    </a>
+                    <a class="emp-mini">
+                        <div class="av">DB</div>
+                        <div class="info">
+                            <div class="n">Barreto Diego</div>
+                            <div class="s">Sviluppatore · Connecteed</div>
+                        </div>
+                        <span class="badge badge-warning">Manca</span>
+                    </a>
+                </div>
+
+                <div>
+                    <div class="card" style="margin-bottom: var(--sp-4)">
+                        <div class="card-h"><h3>Scadenze fiscali</h3></div>
+                        <div class="deadline-item">
+                            <div class="deadline-date urgent">
+                                <div class="d">16</div><div class="m">Mag</div>
+                            </div>
+                            <div class="info">
+                                <div class="t">F24 — Ritenute aprile</div>
+                                <div class="s">3 giorni · Tutte le aziende</div>
+                            </div>
+                            <span class="badge badge-danger badge-dot">Urgente</span>
+                        </div>
+                        <div class="deadline-item">
+                            <div class="deadline-date">
+                                <div class="d">20</div><div class="m">Mag</div>
+                            </div>
+                            <div class="info">
+                                <div class="t">UniEmens</div>
+                                <div class="s">7 giorni · Tutte le aziende</div>
+                            </div>
+                            <span class="badge badge-warning badge-dot">Settimana</span>
+                        </div>
+                        <div class="deadline-item">
+                            <div class="deadline-date">
+                                <div class="d">31</div><div class="m">Mag</div>
+                            </div>
+                            <div class="info">
+                                <div class="t">Versamento contributi</div>
+                                <div class="s">18 giorni</div>
+                            </div>
+                            <span class="badge badge-neutral">Pianificata</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-h"><h3>Aziende assegnate</h3></div>
+                        <a class="emp-mini">
+                            <div class="av" style="background: linear-gradient(135deg, var(--primary-500), var(--primary-700))">CO</div>
+                            <div class="info">
+                                <div class="n">Connecteed Srl</div>
+                                <div class="s">48 dipendenti · Milano</div>
+                            </div>
+                            <span class="badge badge-success badge-dot">Attiva</span>
+                        </a>
+                        <a class="emp-mini">
+                            <div class="av" style="background: linear-gradient(135deg, var(--info-500), var(--info-600))">EP</div>
+                            <div class="info">
+                                <div class="n">ePrice Italia</div>
+                                <div class="s">12 dipendenti · Milano</div>
+                            </div>
+                        </a>
+                        <a class="emp-mini">
+                            <div class="av" style="background: linear-gradient(135deg, var(--success-500), var(--success-600))">SM</div>
+                            <div class="info">
+                                <div class="n">Studio Marini</div>
+                                <div class="s">5 dipendenti · Roma</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="viewport-bar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4z"/></svg><span id="vpSize">—</span></div>
+<script>
+function updVp() { document.getElementById('vpSize').textContent = window.innerWidth + ' × ' + window.innerHeight; }
+window.addEventListener('resize', updVp); updVp();
+if (window.self !== window.top) { document.documentElement.classList.add('in-iframe'); document.querySelector('.viewport-bar').style.display = 'none'; }
+const force = new URLSearchParams(location.search).get('force');
+if (force === 'desktop' || force === 'tablet' || force === 'mobile') { document.documentElement.classList.add('force-' + force); }
+</script>
+</body>
+</html>
