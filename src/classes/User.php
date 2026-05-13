@@ -108,7 +108,7 @@ class User
             return ['success' => false, 'error' => 'Nome obbligatorio'];
         }
 
-        if (!in_array($data['role'], ['admin', 'accountant', 'admin_reparto'])) {
+        if (!in_array($data['role'], ['admin', 'accountant', 'admin_reparto', 'consulente_lavoro'])) {
             return ['success' => false, 'error' => 'Ruolo non valido'];
         }
 
