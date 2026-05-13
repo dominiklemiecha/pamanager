@@ -130,7 +130,7 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
     <div class="dashboard-card dashboard-card-full">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
             <h3 style="margin:0;">Documenti di <?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?></h3>
-            <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('ed-upload-modal').style.display='flex';">Carica documento</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.document.getElementById('ed-upload-modal').style.display='flex';">Carica documento</button>
         </div>
 
         <div class="card-body">
@@ -180,7 +180,7 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                         <td style="white-space:nowrap;">
                             <a href="employee-documents.php?download=<?= (int) $d['id'] ?>" class="btn btn-sm btn-info">Scarica</a>
                             <button type="button" class="btn btn-sm btn-secondary"
-                                    onclick="var n=prompt('Nuovo nome:', <?= json_encode($d['name']) ?>); if(n){var f=document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">Rinomina</button>
+                                    onclick="var n=prompt('Nuovo nome:', <?= json_encode($d['name']) ?>); if(n){var f=window.document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">Rinomina</button>
                             <form id="ed-rename-<?= (int) $d['id'] ?>" method="post" action="employee-documents.php" style="display:none;">
                                 <?= CSRF::field() ?>
                                 <input type="hidden" name="action" value="rename">
@@ -230,7 +230,7 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                 <label><input type="checkbox" name="visible_to_employee" value="1"> Rendi visibile al dipendente (invia notifica)</label>
             </div>
             <div style="display:flex;gap:.5rem;justify-content:flex-end;">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('ed-upload-modal').style.display='none';">Annulla</button>
+                <button type="button" class="btn btn-secondary" onclick="window.document.getElementById('ed-upload-modal').style.display='none';">Annulla</button>
                 <button type="submit" class="btn btn-primary">Carica</button>
             </div>
         </form>
