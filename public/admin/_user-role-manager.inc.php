@@ -78,6 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if ($result['success']) {
+                $companyIds = $_POST['company_ids'] ?? [];
+                if (is_array($companyIds) && !empty($companyIds)) {
+                    Tenant::setUserCompanies((int)$result['id'], $companyIds);
+                }
                 $emailRes = urm_send_credentials_email(
                     $_POST['email'] ?? '',
                     $_POST['name'] ?? '',
@@ -114,6 +118,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'is_active' => isset($_POST['is_active']),
                 ]);
                 if ($result['success']) {
+                    $companyIds = $_POST['company_ids'] ?? [];
+                    Tenant::setUserCompanies($id, is_array($companyIds) ? $companyIds : []);
                     header("Location: {$SELF}?message=updated");
                     exit;
                 }
@@ -572,6 +578,26 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <input type="checkbox" name="is_active" <?= $current['is_active'] ? 'checked' : '' ?>>
                             <span>Account attivo (l'utente puo' accedere al portale)</span>
                         </label>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+                $allCompanies = Database::fetchAll("SELECT id, name FROM companies WHERE is_active = 1 ORDER BY name");
+                $assignedCompanyIds = $current ? Tenant::getUserCompanyIds((int)$current['id']) : [];
+                ?>
+                <?php if (!empty($allCompanies)): ?>
+                    <div class="urm-field full">
+                        <label>Aziende assegnate</label>
+                        <small style="margin-bottom:.5rem;">L'utente potra' vedere e gestire i dipendenti SOLO delle aziende selezionate. Se non selezioni nulla, vedra' tutte le aziende (caso single-tenant).</small>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:.5rem;margin-top:.5rem;">
+                            <?php foreach ($allCompanies as $co): ?>
+                                <label class="urm-toggle" style="background:#f7fafc;padding:.55rem .7rem;border-radius:7px;border:1px solid #e2e8f0;cursor:pointer;">
+                                    <input type="checkbox" name="company_ids[]" value="<?= (int)$co['id'] ?>"
+                                        <?= in_array((int)$co['id'], $assignedCompanyIds, true) ? 'checked' : '' ?>>
+                                    <span style="font-size:.85rem !important;"><?= e($co['name']) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 <?php endif; ?>
             </div>
