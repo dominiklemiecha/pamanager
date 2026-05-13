@@ -125,12 +125,6 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
                 </svg>
                 <span>Ferie/Permessi</span>
             </a>
-            <a href="<?php echo $baseUrl; ?>/employee/medical-certificate.php" class="nav-item <?php echo $currentPage === 'medical-certificate' ? 'active' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                    <path d="M19 8h-2v3h-3v2h3v3h2v-3h3v-2h-3V8zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>
-                </svg>
-                <span>Certificato medico</span>
-            </a>
             <?php
                 $unreadChats = Chat::countUnread('employee', $currentEmployee['id']);
             ?>

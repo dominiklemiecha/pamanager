@@ -14,6 +14,26 @@ $user = Auth::getUser();
 $message = '';
 $error = '';
 
+// Download allegato richiesta
+if (isset($_GET['download_attachment'])) {
+    $result = LeaveRequest::downloadAttachment((int) $_GET['download_attachment']);
+    if (!$result['success']) {
+        http_response_code(403);
+        exit(htmlspecialchars($result['error']));
+    }
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (function_exists('setDownloadHeaders')) {
+        setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
+    } else {
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: attachment; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+    }
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($result['file_path']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
 
@@ -493,6 +513,9 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                 ];
                                 ?>
                                 <button type="button" class="lp-btn lp-btn-view js-detail" data-detail="<?= htmlspecialchars(json_encode($detailPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">Dettagli</button>
+                                <?php if (!empty($req['attachment_path'])): ?>
+                                    <a class="lp-btn lp-btn-view" href="?download_attachment=<?= (int) $req['id'] ?>" title="Scarica allegato">Allegato</a>
+                                <?php endif; ?>
                                 <?php if ($req['status'] === 'pending'): ?>
                                     <form method="POST" style="display:inline; margin:0;">
                                         <?= CSRF::field() ?>

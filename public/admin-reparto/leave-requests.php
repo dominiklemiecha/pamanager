@@ -24,6 +24,26 @@ if (!$departmentId) {
 $message = '';
 $error = '';
 
+// Download allegato richiesta
+if (isset($_GET['download_attachment'])) {
+    $result = LeaveRequest::downloadAttachment((int) $_GET['download_attachment']);
+    if (!$result['success']) {
+        http_response_code(403);
+        exit(htmlspecialchars($result['error']));
+    }
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (function_exists('setDownloadHeaders')) {
+        setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
+    } else {
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: attachment; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+    }
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($result['file_path']);
+    exit;
+}
+
 // Gestione azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
@@ -493,6 +513,13 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                         <?php if ($req['rejection_reason']): ?>
                             <div class="request-reason" style="border-color: #f56565; background: #fff5f5;">
                                 <strong style="color: #c53030;">Motivo rifiuto:</strong> <?= e($req['rejection_reason']) ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($req['attachment_path'])): ?>
+                            <div style="margin-top:.75rem;">
+                                <a href="?download_attachment=<?= (int) $req['id'] ?>" class="btn btn-sm btn-info">
+                                    Scarica allegato<?php if (!empty($req['attachment_name'])): ?>: <?= e($req['attachment_name']) ?><?php endif; ?>
+                                </a>
                             </div>
                         <?php endif; ?>
                     </div>
