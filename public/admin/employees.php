@@ -711,62 +711,91 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <?php if (empty($_edDocs)): ?>
                     <div class="empty-msg">Nessun documento caricato</div>
                 <?php else: ?>
-                <div style="overflow-x:auto;">
-                <table class="table" style="width:100%;">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Dimensione</th>
-                            <th>Visibile</th>
-                            <th>Scadenza</th>
-                            <th>Caricato</th>
-                            <th>Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($_edDocs as $d): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($d['name']) ?></td>
-                            <td><?= number_format($d['file_size'] / 1024, 1) ?> KB</td>
-                            <td>
-                                <form method="post" action="employee-documents.php" style="display:inline;">
-                                    <?= CSRF::field() ?>
-                                    <input type="hidden" name="action" value="toggle_visibility">
-                                    <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
-                                    <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
-                                    <button type="submit" class="btn btn-sm <?= $d['visible_to_employee'] ? 'btn-success' : 'btn-secondary' ?>">
-                                        <?= $d['visible_to_employee'] ? 'Si' : 'No' ?>
+                    <div class="docs-list">
+                        <?php foreach ($_edDocs as $d): ?>
+                            <div class="doc-row">
+                                <div class="doc-type other"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+                                <div class="doc-info">
+                                    <span class="name"><?= htmlspecialchars($d['name']) ?></span>
+                                    <span class="date">
+                                        <?= number_format($d['file_size'] / 1024, 1) ?> KB · <?= htmlspecialchars(date('d/m/Y', strtotime($d['created_at']))) ?>
+                                        <?php if ($d['expires_on']): ?> · scade <?= htmlspecialchars(date('d/m/Y', strtotime($d['expires_on']))) ?><?php endif; ?>
+                                    </span>
+                                </div>
+                                <span class="doc-badge <?= $d['visible_to_employee'] ? 'visible' : 'hidden' ?>" title="<?= $d['visible_to_employee'] ? 'Visibile al dipendente' : 'Nascosto al dipendente' ?>">
+                                    <?= $d['visible_to_employee'] ? 'Visibile' : 'Nascosto' ?>
+                                </span>
+                                <div class="doc-actions">
+                                    <a href="employee-documents.php?download=<?= (int) $d['id'] ?>" class="doc-dl" title="Scarica">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                    </a>
+                                    <form method="post" action="employee-documents.php" class="doc-action-form">
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="toggle_visibility">
+                                        <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                                        <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
+                                        <button type="submit" class="doc-dl" title="<?= $d['visible_to_employee'] ? 'Nascondi al dipendente' : 'Rendi visibile al dipendente' ?>">
+                                            <?php if ($d['visible_to_employee']): ?>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                            <?php else: ?>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+                                            <?php endif; ?>
+                                        </button>
+                                    </form>
+                                    <button type="button" class="doc-dl" title="Rinomina"
+                                            onclick="var n=prompt('Nuovo nome:', <?= htmlspecialchars(json_encode($d['name']), ENT_QUOTES, 'UTF-8') ?>); if(n){var f=window.document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                                     </button>
-                                </form>
-                            </td>
-                            <td><?= $d['expires_on'] ? htmlspecialchars($d['expires_on']) : '<span class="text-muted">-</span>' ?></td>
-                            <td><?= htmlspecialchars(date('d/m/Y', strtotime($d['created_at']))) ?><br><small class="text-muted"><?= htmlspecialchars($d['uploaded_by_name']) ?></small></td>
-                            <td style="white-space:nowrap;">
-                                <a href="employee-documents.php?download=<?= (int) $d['id'] ?>" class="btn btn-sm btn-info">Scarica</a>
-                                <button type="button" class="btn btn-sm btn-secondary"
-                                        onclick="var n=prompt('Nuovo nome:', <?= htmlspecialchars(json_encode($d['name']), ENT_QUOTES, 'UTF-8') ?>); if(n){var f=window.document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">Rinomina</button>
-                                <form id="ed-rename-<?= (int) $d['id'] ?>" method="post" action="employee-documents.php" style="display:none;">
-                                    <?= CSRF::field() ?>
-                                    <input type="hidden" name="action" value="rename">
-                                    <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
-                                    <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
-                                    <input type="hidden" name="name" value="">
-                                </form>
-                                <form method="post" action="employee-documents.php" style="display:inline;" onsubmit="return confirm('Eliminare definitivamente?');">
-                                    <?= CSRF::field() ?>
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
-                                    <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
-                                    <button type="submit" class="btn btn-sm btn-danger">Elimina</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-                </div>
+                                    <form id="ed-rename-<?= (int) $d['id'] ?>" method="post" action="employee-documents.php" style="display:none;">
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="rename">
+                                        <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                                        <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
+                                        <input type="hidden" name="name" value="">
+                                    </form>
+                                    <form method="post" action="employee-documents.php" class="doc-action-form" onsubmit="return confirm('Eliminare definitivamente?');">
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
+                                        <input type="hidden" name="document_id" value="<?= (int) $d['id'] ?>">
+                                        <button type="submit" class="doc-dl doc-danger" title="Elimina">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
+
+            <style>
+            .doc-badge {
+                font-size: 0.65rem;
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-weight: 600;
+                flex-shrink: 0;
+                margin-right: 0.5rem;
+            }
+            .doc-badge.visible { background: #c6f6d5; color: #276749; }
+            .doc-badge.hidden { background: #e2e8f0; color: #718096; }
+            .doc-actions {
+                display: flex;
+                align-items: center;
+                gap: 0.3rem;
+                flex-shrink: 0;
+            }
+            .doc-action-form { display: inline; margin: 0; }
+            .doc-actions button.doc-dl {
+                background: #edf2f7;
+                border: none;
+                padding: 0;
+                cursor: pointer;
+            }
+            .doc-actions button.doc-dl:hover { background: #3182ce; color: white; }
+            .doc-actions button.doc-danger:hover { background: #e53e3e; color: white; }
+            </style>
 
             <!-- Modale upload documento dipendente -->
             <div id="ed-upload-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
