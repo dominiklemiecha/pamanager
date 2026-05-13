@@ -458,6 +458,10 @@ if (window.self !== window.top) {
     document.documentElement.classList.add('in-iframe');
     document.querySelector('.viewport-bar').style.display = 'none';
 }
+const force = new URLSearchParams(location.search).get('force');
+if (force === 'desktop' || force === 'tablet' || force === 'mobile') {
+    document.documentElement.classList.add('force-' + force);
+}
 </script>
 </body>
 </html>

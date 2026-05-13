@@ -18,13 +18,51 @@
     height: 100vh;
     overflow-y: auto;
 }
-/* Quando renderizzato dentro un iframe (mockup showcase) disabilito sticky
-   per evitare che la sidebar copra il content durante lo scroll esterno */
+/* In iframe showcase: sidebar non sticky per non coprire il content */
 html.in-iframe .app-sidebar {
     position: relative;
     height: auto;
     min-height: 100vh;
 }
+
+/* ============================================================
+   FORCE DESKTOP LAYOUT (?force=desktop nel URL del mockup).
+   Override aggressivo dei media query mobile, indipendentemente
+   dalla larghezza effettiva del viewport (utile per le anteprime
+   in iframe ridimensionate).
+   ============================================================ */
+html.force-desktop .app { grid-template-columns: var(--sidebar-w) 1fr !important; }
+html.force-desktop .app-sidebar {
+    position: relative !important;
+    left: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    width: var(--sidebar-w) !important;
+}
+html.force-desktop .app-overlay { display: none !important; }
+html.force-desktop .mobile-menu-btn { display: none !important; }
+html.force-desktop .header-search { display: block !important; }
+html.force-desktop .stats { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; }
+html.force-desktop .app-content { padding: var(--sp-6) !important; }
+html.force-desktop .app-header { padding: 0 var(--sp-6) !important; }
+
+/* FORCE TABLET LAYOUT */
+html.force-tablet .app { grid-template-columns: 1fr !important; }
+html.force-tablet .app-sidebar { display: none !important; }
+html.force-tablet .mobile-menu-btn { display: inline-flex !important; }
+html.force-tablet .stats { grid-template-columns: repeat(2, 1fr) !important; }
+
+/* FORCE MOBILE LAYOUT */
+html.force-mobile .app { grid-template-columns: 1fr !important; }
+html.force-mobile .app-sidebar { display: none !important; }
+html.force-mobile .mobile-menu-btn { display: inline-flex !important; }
+html.force-mobile .header-search { display: none !important; }
+html.force-mobile .stats { grid-template-columns: 1fr !important; gap: var(--sp-3) !important; }
+html.force-mobile .app-content { padding: var(--sp-4) !important; }
+html.force-mobile .app-header { padding: 0 var(--sp-4) !important; }
+html.force-mobile .page-h h1 { font-size: var(--text-xl) !important; }
+html.force-mobile .stat-value { font-size: var(--text-2xl) !important; }
+html.force-mobile .user-chip-name { display: none; }
 .app-main {
     display: flex;
     flex-direction: column;
