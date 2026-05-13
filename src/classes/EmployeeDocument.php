@@ -275,23 +275,38 @@ class EmployeeDocument
         }
     }
 
+    private const ALLOWED_EXT = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'odt', 'ods'];
+    private const ALLOWED_MIME = [
+        'application/pdf',
+        'image/jpeg', 'image/png', 'image/gif',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/csv', 'text/plain',
+        'application/vnd.oasis.opendocument.text',
+        'application/vnd.oasis.opendocument.spreadsheet',
+        'application/octet-stream',
+    ];
+    private const MAX_SIZE = 30 * 1024 * 1024; // 30MB
+
     private static function validateFile(array $file): array
     {
         if ($file['error'] !== UPLOAD_ERR_OK) {
             return ['valid' => false, 'error' => 'Errore upload (codice ' . $file['error'] . ')'];
         }
-        if ($file['size'] > MAX_FILE_SIZE) {
-            $maxMb = MAX_FILE_SIZE / 1024 / 1024;
+        if ($file['size'] > self::MAX_SIZE) {
+            $maxMb = self::MAX_SIZE / 1024 / 1024;
             return ['valid' => false, 'error' => "File troppo grande. Massimo {$maxMb}MB"];
         }
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($extension, ALLOWED_EXTENSIONS, true)) {
-            return ['valid' => false, 'error' => 'Estensione file non consentita'];
+        if (!in_array($extension, self::ALLOWED_EXT, true)) {
+            return ['valid' => false, 'error' => 'Estensione non consentita: .' . $extension . ' (permesse: ' . implode(', ', self::ALLOWED_EXT) . ')'];
         }
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($file['tmp_name']);
-        if (!in_array($mimeType, ALLOWED_MIME_TYPES, true)) {
-            return ['valid' => false, 'error' => 'Tipo file non consentito'];
+        if (!in_array($mimeType, self::ALLOWED_MIME, true)) {
+            return ['valid' => false, 'error' => 'Tipo MIME non consentito: ' . $mimeType];
         }
         return ['valid' => true, 'mime_type' => $mimeType];
     }

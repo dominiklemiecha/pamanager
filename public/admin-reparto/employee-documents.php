@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    header('Location: employee-documents.php?employee_id=' . $employeeId . '&ed_status=' . urlencode($status));
+    header('Location: employee-documents.php?employee_id=' . $employeeId . '&ed_status=' . urlencode($status) . '#docs');
     exit;
 }
 
