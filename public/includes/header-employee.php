@@ -22,7 +22,8 @@ if ($currentPage !== 'change-password') {
 }
 $employeeDepartmentId = $currentEmployee['department_id'] ?? null;
 $unreadCommCount = Communication::countUnread($currentEmployee['id'], $employeeDepartmentId);
-$unreadDocsCount = Document::getUnreadCountForEmployee($currentEmployee['id']);
+$unreadDocsCount = Document::getUnreadCountForEmployee($currentEmployee['id'])
+    + (class_exists('EmployeeDocument') ? EmployeeDocument::getUnreadCountForEmployee($currentEmployee['id']) : 0);
 $employeeName = htmlspecialchars($currentEmployee['first_name'] . ' ' . $currentEmployee['last_name']);
 $employeeInitials = strtoupper(substr($currentEmployee['first_name'], 0, 1) . substr($currentEmployee['last_name'], 0, 1));
 // Carica eventuale foto profilo (colonna photo_path aggiunta con migration 010)
