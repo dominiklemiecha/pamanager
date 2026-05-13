@@ -405,6 +405,10 @@
 <script>
 function updVp() { document.getElementById('vpSize').textContent = window.innerWidth + ' × ' + window.innerHeight; }
 window.addEventListener('resize', updVp); updVp();
+if (window.self !== window.top) {
+    document.documentElement.classList.add('in-iframe');
+    document.querySelector('.viewport-bar').style.display = 'none';
+}
 </script>
 </body>
 </html>
