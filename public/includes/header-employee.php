@@ -110,6 +110,12 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
                     <span class="nav-badge"><?php echo $unreadDocsCount; ?></span>
                 <?php endif; ?>
             </a>
+            <a href="<?php echo $baseUrl; ?>/employee/my-documents.php" class="nav-item <?php echo $currentPage === 'my-documents' ? 'active' : ''; ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+                <span>I miei documenti</span>
+            </a>
             <a href="<?php echo $baseUrl; ?>/employee/communications.php" class="nav-item <?php echo $currentPage === 'communications' ? 'active' : ''; ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                     <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
