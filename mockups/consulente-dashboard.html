@@ -329,5 +329,6 @@ if (window.self !== window.top) { document.documentElement.classList.add('in-ifr
 const force = new URLSearchParams(location.search).get('force');
 if (force === 'desktop' || force === 'tablet' || force === 'mobile') { document.documentElement.classList.add('force-' + force); }
 </script>
+<script src="_shared.js" defer></script>
 </body>
 </html>
