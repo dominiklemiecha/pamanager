@@ -107,9 +107,18 @@ body {
     display: block;
 }
 
-/* Desktop: dimensioni vere, container 100% larghezza */
-.device-frame.desktop { width: 100%; height: 720px; }
-.device-frame.desktop iframe { width: 100%; height: 100%; }
+/* Desktop: larghezza fissa 1400px (scroll orizzontale dentro il container se serve) */
+.device-frame.desktop {
+    width: 100%;
+    height: 720px;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.device-frame.desktop iframe {
+    width: 1400px;   /* sopra il breakpoint 1024 dei mockup -> layout desktop garantito */
+    height: 720px;
+    display: block;
+}
 
 /* Tablet: 768 in larghezza, no scaling */
 .device-frame.tablet { width: 768px; height: 900px; max-width: 100%; }
@@ -180,7 +189,7 @@ body {
             <h2>
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4z"/></svg>
                 Desktop
-                <span class="dim">∞ × 720 (responsive nel container)</span>
+                <span class="dim">1400 × 720 — scrolla orizzontalmente se la finestra e' stretta</span>
                 <a class="openlink" id="open-desktop" target="_blank">↗ apri full-size</a>
             </h2>
             <div class="device-frame desktop">
