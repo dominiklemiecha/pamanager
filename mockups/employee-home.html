@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Dipendente Home — PAManager mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="_tokens.css">
+<link rel="stylesheet" href="_components.css">
+<style>
+.hero-emp {
+    background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-900) 60%, #312e81 100%);
+    border-radius: var(--r-xl);
+    padding: var(--sp-8);
+    margin-bottom: var(--sp-6);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+.hero-emp::before {
+    content:""; position: absolute; right:-100px; top:-100px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(96,165,250,0.4), transparent 70%);
+}
+.hero-emp::after {
+    content:""; position: absolute; right:50px; bottom:-100px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(59,130,246,0.3), transparent 70%);
+}
+.hero-grid { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-6); align-items: center; position: relative; z-index: 1; }
+@media (max-width: 720px) { .hero-grid { grid-template-columns: 1fr; } }
+.hero-emp h1 { margin: 0 0 var(--sp-2); font-size: var(--text-2xl); letter-spacing: -0.02em; }
+.hero-emp .greeting { opacity: 0.85; font-size: var(--text-sm); margin-bottom: var(--sp-5); }
+.quick-stats { display: flex; gap: var(--sp-5); flex-wrap: wrap; }
+.quick-stat { color: white; }
+.quick-stat .num { font-size: var(--text-2xl); font-weight: var(--weight-bold); letter-spacing: -0.02em; line-height: 1; }
+.quick-stat .lbl { font-size: var(--text-xs); opacity: 0.75; margin-top: 4px; display: block; }
+.hero-avatar {
+    width: 88px; height: 88px; border-radius: var(--r-pill);
+    background: linear-gradient(135deg, white, var(--primary-100));
+    color: var(--primary-700);
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--text-2xl); font-weight: var(--weight-bold);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25), inset 0 0 0 4px rgba(255,255,255,0.4);
+}
+
+.actions-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-6);
+}
+@media (max-width: 720px) { .actions-row { grid-template-columns: repeat(2, 1fr); } }
+
+.action-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-4);
+    text-decoration: none;
+    color: inherit;
+    transition: all var(--duration-base) var(--ease);
+    display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.action-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-300);
+    text-decoration: none;
+}
+.action-tile .ic {
+    width: 40px; height: 40px; border-radius: var(--r-md);
+    background: var(--primary-50); color: var(--primary-600);
+    display: flex; align-items: center; justify-content: center;
+}
+.action-tile .ic svg { width: 20px; height: 20px; }
+.action-tile h4 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--ink); }
+.action-tile p { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+
+.split { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--sp-5); }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+.doc-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+}
+.doc-row:last-child { border-bottom: none; }
+.doc-row .ic {
+    width: 36px; height: 36px; border-radius: var(--r-md);
+    background: var(--primary-50); color: var(--primary-600);
+    display: flex; align-items: center; justify-content: center;
+}
+.doc-row .ic.cud { background: var(--warning-50); color: var(--warning-600); }
+.doc-row .ic.other { background: var(--slate-100); color: var(--slate-600); }
+.doc-row .ic svg { width: 18px; height: 18px; }
+.doc-row .info { flex: 1; min-width: 0; }
+.doc-row .info p.t { margin:0; font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--ink); }
+.doc-row .info p.s { margin:0; font-size: var(--text-xs); color: var(--muted); }
+.doc-row .dl {
+    width: 32px; height: 32px; border-radius: var(--r-md);
+    background: var(--slate-100); color: var(--primary-600);
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+    transition: all var(--duration-fast) var(--ease);
+}
+.doc-row .dl:hover { background: var(--primary-600); color: white; }
+.doc-row .dl svg { width: 16px; height: 16px; }
+.new-dot {
+    width: 8px; height: 8px; background: var(--primary-600);
+    border-radius: 50%; display: inline-block;
+}
+
+.comm-card {
+    padding: var(--sp-4);
+    border-left: 3px solid var(--primary-500);
+    background: var(--primary-50);
+    border-radius: var(--r-md);
+    margin-bottom: var(--sp-2);
+}
+.comm-card.urgent { border-color: var(--danger-500); background: var(--danger-50); }
+.comm-card h4 { margin: 0 0 4px; font-size: var(--text-sm); color: var(--ink); }
+.comm-card p { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+
+.viewport-bar {
+    position: fixed; bottom: var(--sp-4); right: var(--sp-4);
+    background: var(--slate-900); color: white;
+    padding: var(--sp-2) var(--sp-3); border-radius: var(--r-pill);
+    box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: var(--sp-2);
+    z-index: 100; font-size: var(--text-xs);
+}
+.viewport-bar svg { width: 14px; height: 14px; }
+
+.leave-progress {
+    display: flex; flex-direction: column; gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5);
+}
+.leave-bar {
+    height: 8px; background: var(--slate-100); border-radius: var(--r-pill);
+    overflow: hidden;
+    position: relative;
+}
+.leave-bar .fill {
+    height: 100%; background: linear-gradient(90deg, var(--primary-500), var(--primary-700));
+    border-radius: var(--r-pill);
+}
+.leave-bar.warning .fill { background: linear-gradient(90deg, var(--warning-500), var(--warning-600)); }
+.leave-line { display: flex; justify-content: space-between; font-size: var(--text-xs); }
+.leave-line .label { color: var(--ink-2); font-weight: var(--weight-medium); }
+.leave-line .value { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+    <aside class="app-sidebar">
+        <div class="brand">
+            <div class="brand-mark">P</div>
+            <div>
+                <div class="brand-name">PAManager</div>
+                <div style="font-size:var(--text-xs); color:var(--muted)">Connecteed Srl</div>
+            </div>
+        </div>
+        <nav class="nav">
+            <a class="nav-item active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                <span class="nav-label">Home</span>
+            </a>
+            <a class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                <span class="nav-label">Documenti</span>
+                <span class="nav-badge">2</span>
+            </a>
+            <a class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                <span class="nav-label">Comunicazioni</span>
+            </a>
+            <a class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                <span class="nav-label">Ferie e Permessi</span>
+            </a>
+            <a class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                <span class="nav-label">Chat</span>
+                <span class="nav-badge">1</span>
+            </a>
+            <div class="nav-section">Account</div>
+            <a class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <span class="nav-label">Il mio profilo</span>
+            </a>
+        </nav>
+    </aside>
+    <div class="app-overlay"></div>
+
+    <div class="app-main">
+        <header class="app-header">
+            <button class="header-btn mobile-menu-btn" onclick="document.querySelector('.app-sidebar').classList.toggle('open')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <div class="header-search">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="search" placeholder="Cerca documenti, comunicazioni...">
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" title="Notifiche">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                    <span class="dot"></span>
+                </button>
+                <div class="user-chip">
+                    <div class="av av-sm user-chip-avatar">DL</div>
+                    <span class="user-chip-name">Dominik</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="app-content">
+            <div class="hero-emp">
+                <div class="hero-grid">
+                    <div>
+                        <p class="greeting">Mercoledì, 13 Maggio 2026</p>
+                        <h1>Ciao Dominik 👋</h1>
+                        <div class="quick-stats">
+                            <div class="quick-stat">
+                                <div class="num">18</div>
+                                <span class="lbl">Giorni ferie residui</span>
+                            </div>
+                            <div class="quick-stat">
+                                <div class="num">12</div>
+                                <span class="lbl">Buste paga 2026</span>
+                            </div>
+                            <div class="quick-stat">
+                                <div class="num">2</div>
+                                <span class="lbl">Documenti nuovi</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hero-avatar">DL</div>
+                </div>
+            </div>
+
+            <div class="actions-row">
+                <a class="action-tile">
+                    <div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>
+                    <h4>Richiedi ferie</h4>
+                    <p>Crea una nuova richiesta</p>
+                </a>
+                <a class="action-tile">
+                    <div class="ic" style="background:var(--warning-50); color:var(--warning-600)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 8h-2v3h-3v2h3v3h2v-3h3v-2h-3z"/><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
+                    <h4>Certificato malattia</h4>
+                    <p>Allega documento medico</p>
+                </a>
+                <a class="action-tile">
+                    <div class="ic" style="background:var(--success-50); color:var(--success-600)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></div>
+                    <h4>Ultima busta paga</h4>
+                    <p>Aprile 2026 — scarica</p>
+                </a>
+                <a class="action-tile">
+                    <div class="ic" style="background:var(--info-50); color:var(--info-600)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
+                    <h4>Chat HR</h4>
+                    <p>Parla con amministrazione</p>
+                </a>
+            </div>
+
+            <div class="split">
+                <div>
+                    <div class="card" style="margin-bottom: var(--sp-4)">
+                        <div class="card-h">
+                            <h3>I tuoi documenti</h3>
+                            <a href="#" style="font-size:var(--text-sm); color:var(--primary-600)">Vedi tutto →</a>
+                        </div>
+                        <div class="doc-row">
+                            <div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+                            <div class="info">
+                                <p class="t">Busta paga · Aprile 2026 <span class="new-dot"></span></p>
+                                <p class="s">Caricato oggi · 156 KB · PDF</p>
+                            </div>
+                            <a class="dl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></a>
+                        </div>
+                        <div class="doc-row">
+                            <div class="ic cud"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+                            <div class="info">
+                                <p class="t">CU 2026 — Redditi 2025 <span class="new-dot"></span></p>
+                                <p class="s">Caricato 7 maggio · 412 KB · PDF</p>
+                            </div>
+                            <a class="dl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></a>
+                        </div>
+                        <div class="doc-row">
+                            <div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+                            <div class="info">
+                                <p class="t">Busta paga · Marzo 2026</p>
+                                <p class="s">Caricato 5 aprile · 154 KB · PDF</p>
+                            </div>
+                            <a class="dl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></a>
+                        </div>
+                        <div class="doc-row">
+                            <div class="ic other"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
+                            <div class="info">
+                                <p class="t">Contratto integrativo 2026</p>
+                                <p class="s">Caricato 15 marzo · 234 KB · PDF · Documento personale</p>
+                            </div>
+                            <a class="dl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></a>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-h">
+                            <h3>Le tue richieste recenti</h3>
+                            <a href="#" style="font-size:var(--text-sm); color:var(--primary-600)">Nuova →</a>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="tbl" style="border-radius:0">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Periodo</th>
+                                        <th>Giorni</th>
+                                        <th>Stato</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="cell-strong">Ferie</td>
+                                        <td>12-16 Mag</td>
+                                        <td>5</td>
+                                        <td><span class="badge badge-success badge-dot">Approvata</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="cell-strong">Permesso 104</td>
+                                        <td>3 Mag (4h)</td>
+                                        <td>0.5</td>
+                                        <td><span class="badge badge-success badge-dot">Approvata</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="cell-strong">Ferie</td>
+                                        <td>5-10 Giu</td>
+                                        <td>5</td>
+                                        <td><span class="badge badge-warning badge-dot">In attesa</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card" style="margin-bottom: var(--sp-4)">
+                        <div class="card-h">
+                            <h3>Saldo ferie</h3>
+                        </div>
+                        <div class="leave-progress">
+                            <div>
+                                <div class="leave-line">
+                                    <span class="label">Ferie 2026</span>
+                                    <span class="value">18 / 25 giorni</span>
+                                </div>
+                                <div class="leave-bar"><div class="fill" style="width:72%"></div></div>
+                            </div>
+                            <div>
+                                <div class="leave-line">
+                                    <span class="label">Permessi</span>
+                                    <span class="value">22 / 32 ore</span>
+                                </div>
+                                <div class="leave-bar"><div class="fill" style="width:68%"></div></div>
+                            </div>
+                            <div>
+                                <div class="leave-line">
+                                    <span class="label">Banca ore</span>
+                                    <span class="value">12 / 40 ore</span>
+                                </div>
+                                <div class="leave-bar warning"><div class="fill" style="width:30%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-h">
+                            <h3>Comunicazioni</h3>
+                            <span class="badge badge-primary">3</span>
+                        </div>
+                        <div class="card-b">
+                            <div class="comm-card urgent">
+                                <h4>⚠️ Chiusura aziendale ferragosto</h4>
+                                <p>Connecteed sarà chiusa dal 13 al 17 agosto · Pubblicato oggi</p>
+                            </div>
+                            <div class="comm-card">
+                                <h4>Nuova polizza sanitaria UniSalute</h4>
+                                <p>Dal 1° giugno parte il nuovo piano · 2 giorni fa</p>
+                            </div>
+                            <div class="comm-card">
+                                <h4>Welfare 2026: voucher disponibili</h4>
+                                <p>Verifica il tuo plafond personale · 5 giorni fa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="viewport-bar">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4z"/></svg>
+    <span id="vpSize">—</span>
+</div>
+<script>
+function updVp() { document.getElementById('vpSize').textContent = window.innerWidth + ' × ' + window.innerHeight; }
+window.addEventListener('resize', updVp); updVp();
+</script>
+</body>
+</html>
