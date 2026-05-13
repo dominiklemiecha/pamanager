@@ -395,11 +395,108 @@
         });
     }
 
+    // ---- Inject tenant switcher in alto alla sidebar (solo staff) ----
+    function injectSidebarTenant() {
+        if (!isStaff) return;
+        const sidebar = document.querySelector('.app-sidebar');
+        if (!sidebar) return;
+        if (sidebar.querySelector('.tenant-switcher')) return;
+        const brand = sidebar.querySelector('.brand');
+        if (!brand) return;
+
+        const current = COMPANIES.find(c => c.current) || COMPANIES[0];
+        const wrap = document.createElement('div');
+        wrap.className = 'tenant-switcher';
+        wrap.id = 'sidebar-tenant';
+        let html = `<div class="tenant-switcher-row">
+            <div class="tenant-mark">${current.code}</div>
+            <div class="tenant-info">
+                <div class="tenant-label">Azienda</div>
+                <div class="tenant-name">${current.name}</div>
+            </div>
+            <svg class="tenant-caret" viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+        </div>
+        <div class="tenant-menu">`;
+        COMPANIES.forEach(c => {
+            html += `<a class="tenant-menu-item${c.current ? ' active' : ''}">
+                <div class="tenant-mark">${c.code}</div>
+                <div class="info">
+                    <div class="n">${c.name}</div>
+                    <div class="s">${c.count} dipendenti</div>
+                </div>
+                ${c.current ? '<svg class="check" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
+            </a>`;
+        });
+        html += `<div class="tenant-menu-footer">${COMPANIES.length} aziende assegnate</div>`;
+        html += `</div>`;
+        wrap.innerHTML = html;
+        brand.insertAdjacentElement('afterend', wrap);
+
+        wrap.querySelector('.tenant-switcher-row').addEventListener('click', e => {
+            e.stopPropagation();
+            wrap.classList.toggle('open');
+        });
+        document.addEventListener('click', e => {
+            if (!wrap.contains(e.target)) wrap.classList.remove('open');
+        });
+    }
+
+    // ---- Inject toggle button collapsible nella brand area ----
+    function injectCollapseToggle() {
+        const brand = document.querySelector('.brand');
+        if (!brand || brand.querySelector('.sidebar-collapse-btn')) return;
+
+        // Wrappa il contenuto esistente in .brand-text se non lo e' gia'
+        const existingMark = brand.querySelector('.brand-mark');
+        const existingName = brand.querySelector('.brand-name');
+        if (existingMark && existingName && !brand.querySelector('.brand-text')) {
+            const textWrap = document.createElement('div');
+            textWrap.className = 'brand-text';
+            // Sposta tutto eccetto brand-mark dentro brand-text
+            while (existingMark.nextSibling) {
+                textWrap.appendChild(existingMark.nextSibling);
+            }
+            brand.appendChild(textWrap);
+        }
+
+        const btn = document.createElement('button');
+        btn.className = 'sidebar-collapse-btn';
+        btn.id = 'sidebar-collapse';
+        btn.setAttribute('aria-label', 'Comprimi/espandi menu');
+        btn.title = 'Comprimi menu';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>';
+        brand.appendChild(btn);
+
+        // Restore stato salvato
+        if (localStorage.getItem('sidebarMini') === '1') {
+            document.documentElement.classList.add('sidebar-mini');
+        }
+
+        btn.addEventListener('click', () => {
+            const isMini = document.documentElement.classList.toggle('sidebar-mini');
+            localStorage.setItem('sidebarMini', isMini ? '1' : '0');
+            btn.title = isMini ? 'Espandi menu' : 'Comprimi menu';
+        });
+    }
+
+    // ---- Tooltip data per nav-item in mini mode ----
+    function enrichNavTooltips() {
+        document.querySelectorAll('.nav-item').forEach(a => {
+            const label = a.querySelector('.nav-label')?.textContent?.trim();
+            if (label && !a.dataset.tooltip) {
+                a.dataset.tooltip = label;
+            }
+        });
+    }
+
     // ---- Run ----
     document.addEventListener('DOMContentLoaded', () => {
         injectFooter();
         injectBottomNav();
         injectSheet();
+        injectSidebarTenant();
+        injectCollapseToggle();
+        enrichNavTooltips();
         patchSidebar();
         patchInternalLinks();
         patchButtons();
