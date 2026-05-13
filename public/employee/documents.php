@@ -12,6 +12,22 @@ Auth::requireEmployee();
 
 $employee = Auth::getEmployee();
 
+// Gestione download documento personale (EmployeeDocument)
+if (isset($_GET['download_personal'])) {
+    $docId = (int) $_GET['download_personal'];
+    $result = EmployeeDocument::download($docId);
+    if ($result['success']) {
+        $doc = $result['document'];
+        $filePath = $result['file_path'];
+        $downloadName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $doc['original_name'] ?? $doc['file_name']);
+        setDownloadHeaders($downloadName, $doc['mime_type'], filesize($filePath));
+        if (ob_get_level()) { ob_end_clean(); }
+        readfile($filePath);
+        exit;
+    }
+    $error = $result['error'];
+}
+
 // Gestione download
 if (isset($_GET['download'])) {
     $docId = (int) $_GET['download'];
@@ -59,6 +75,9 @@ $unreadCount = Document::getUnreadCountForEmployee($employee['id']);
 
 // Carica documenti con stato download
 $documents = Document::getByEmployeeWithStatus($employee['id'], $filterYear, null, $filterType);
+
+// Carica documenti personali (visibili)
+$personalDocs = EmployeeDocument::getByEmployee((int) $employee['id'], true);
 
 // Raggruppa per anno/mese
 $groupedDocs = [];
@@ -362,6 +381,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 .doc-card-icon.payslip { background: #c6f6d5; color: #276749; }
 .doc-card-icon.cud { background: #fefcbf; color: #975a16; }
 .doc-card-icon.other { background: #e2e8f0; color: #4a5568; }
+.doc-card-icon.personal { background: #bee3f8; color: #2c5282; }
 
 .doc-card-info {
     flex: 1;
@@ -381,6 +401,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 .type-badge.payslip { background: #c6f6d5; color: #276749; }
 .type-badge.cud { background: #fefcbf; color: #975a16; }
 .type-badge.other { background: #e2e8f0; color: #4a5568; }
+.type-badge.personal { background: #bee3f8; color: #2c5282; }
 
 .doc-card-info h3 {
     font-size: 0.85rem;
@@ -692,6 +713,44 @@ include dirname(__DIR__) . '/includes/header-employee.php';
             </div>
         </div>
     <?php endforeach; ?>
+<?php endif; ?>
+
+<?php if (!empty($personalDocs)): ?>
+    <div class="year-section">
+        <div class="year-header">
+            <h2>Documenti personali</h2>
+            <span class="count"><?php echo count($personalDocs); ?> doc</span>
+        </div>
+        <div class="docs-grid">
+            <?php foreach ($personalDocs as $doc): ?>
+                <div class="doc-card">
+                    <div class="doc-card-top">
+                        <div class="doc-card-icon personal">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                            </svg>
+                        </div>
+                        <div class="doc-card-info">
+                            <span class="type-badge personal">Personale</span>
+                            <h3><?php echo htmlspecialchars($doc['name']); ?></h3>
+                            <?php if (!empty($doc['expires_on'])): ?>
+                                <span class="period">Scade il <?php echo htmlspecialchars(date('d/m/Y', strtotime($doc['expires_on']))); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="doc-card-bottom">
+                        <span class="meta"><?php echo formatFileSize($doc['file_size']); ?> · <?php echo formatDate($doc['created_at']); ?></span>
+                        <a href="?download_personal=<?php echo (int) $doc['id']; ?>" class="dl-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                            </svg>
+                            Scarica
+                        </a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
 <?php endif; ?>
 
 <!-- Modal Info Documenti -->
