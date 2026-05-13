@@ -229,6 +229,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .type-badge.malattia { background: #f8d7da; color: #721c24; }
 .type-badge.permesso_104 { background: #e2d5f1; color: #563d7c; }
 .type-badge.congedo_parentale { background: #fce4ec; color: #880e4f; }
+.type-badge.congedo_separazione { background: #edf2f7; color: #2d3748; }
+.type-badge.congedo_mestruale { background: #ffe0e6; color: #b83a4b; }
 .type-badge.altro { background: #e2e8f0; color: #4a5568; }
 
 .dept-badge {

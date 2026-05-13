@@ -15,6 +15,8 @@ class LeaveRequest
         'malattia' => 'Malattia',
         'permesso_104' => 'Permesso L.104',
         'congedo_parentale' => 'Congedo Parentale',
+        'congedo_separazione' => 'Congedo Separazione',
+        'congedo_mestruale' => 'Congedo Mestruale',
         'altro' => 'Altro',
         'chiusura' => 'Chiusura aziendale'
     ];
