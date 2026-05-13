@@ -424,14 +424,6 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                 <td data-label="Azioni" class="actions">
                                     <a href="?action=view&id=<?php echo $emp['id']; ?>" class="btn btn-sm btn-info" title="Visualizza">Vedi</a>
                                     <a href="?action=edit&id=<?php echo $emp['id']; ?>" class="btn btn-sm btn-secondary" title="Modifica">Modifica</a>
-                                    <form method="POST" class="inline-form" onsubmit="return confirm('Confermi?')">
-                                        <?php echo CSRF::field(); ?>
-                                        <input type="hidden" name="action" value="toggle_active">
-                                        <input type="hidden" name="id" value="<?php echo $emp['id']; ?>">
-                                        <button type="submit" class="btn btn-sm btn-<?php echo $emp['is_active'] ? 'warning' : 'success'; ?>">
-                                            <?php echo $emp['is_active'] ? 'Off' : 'On'; ?>
-                                        </button>
-                                    </form>
                                     <form method="POST" class="inline-form" onsubmit="return confirm('Eliminare definitivamente <?php echo e($emp['username']); ?>? I documenti associati verranno rimossi. Operazione IRREVERSIBILE.')">
                                         <?php echo CSRF::field(); ?>
                                         <input type="hidden" name="action" value="delete">
