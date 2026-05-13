@@ -83,6 +83,14 @@ class User
     }
 
     /**
+     * Lista tutti i consulenti del lavoro
+     */
+    public static function getConsulentiLavoro(): array
+    {
+        return self::getAll('consulente_lavoro');
+    }
+
+    /**
      * Crea un nuovo utente
      */
     public static function create(array $data): array

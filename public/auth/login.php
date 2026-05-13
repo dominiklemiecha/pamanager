@@ -15,6 +15,7 @@ if (Auth::isUserLoggedIn()) {
     $redirect = match($user['role']) {
         'admin' => PUBLIC_URL . '/admin/',
         'admin_reparto' => PUBLIC_URL . '/admin-reparto/',
+        'consulente_lavoro' => PUBLIC_URL . '/consulente-lavoro/',
         default => PUBLIC_URL . '/accountant/'
     };
     header('Location: ' . $redirect);
@@ -42,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $redirect = match($result['user']['role']) {
                     'admin' => PUBLIC_URL . '/admin/',
                     'admin_reparto' => PUBLIC_URL . '/admin-reparto/',
+                    'consulente_lavoro' => PUBLIC_URL . '/consulente-lavoro/',
                     default => PUBLIC_URL . '/accountant/'
                 };
                 header('Location: ' . $redirect);
