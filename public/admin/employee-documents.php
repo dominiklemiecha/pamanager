@@ -12,10 +12,11 @@ Auth::requireUser('admin');
 
 function ed_redirect_back(int $employeeId, string $status = ''): void
 {
-    $url = 'employees.php?action=view&id=' . $employeeId . '#docs';
+    $url = 'employees.php?action=view&id=' . $employeeId;
     if ($status !== '') {
         $url .= '&ed_status=' . urlencode($status);
     }
+    $url .= '#docs';
     header('Location: ' . $url);
     exit;
 }
