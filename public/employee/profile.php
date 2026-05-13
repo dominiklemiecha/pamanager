@@ -54,17 +54,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($f['size'] > 3 * 1024 * 1024) {
                 $error = 'File troppo grande (max 3MB)';
             } else {
-                $ext = $allowed[$finfo];
                 $cid = (int)($employee['company_id'] ?? (class_exists('Tenant') ? Tenant::currentCompanyId() : 1));
                 $dir = ROOT_PATH . '/public/uploads/co-' . $cid . '/profile_photos';
                 if (!is_dir($dir)) {
                     @mkdir($dir, 0775, true);
                 }
-                $filename = 'emp_' . $employeeId . '_' . substr(bin2hex(random_bytes(4)), 0, 8) . '.' . $ext;
+                $filename = 'emp_' . $employeeId . '_' . substr(bin2hex(random_bytes(4)), 0, 8) . '.webp';
                 $dest = $dir . '/' . $filename;
 
-                if (move_uploaded_file($f['tmp_name'], $dest)) {
-                    // Rimuovi vecchia foto se esiste
+                // Salva temporaneo, poi resize+webp
+                $tmpDest = $f['tmp_name'];
+                $useWebp = class_exists('ImageProcessor') && ImageProcessor::isAvailable();
+                $ok = false;
+
+                if ($useWebp) {
+                    // Conversione foto profilo a WebP 256x256 (avatar grande)
+                    $result = ImageProcessor::toWebp($tmpDest, $dest, 256, 82);
+                    $ok = $result['success'];
+                    if (!$ok) {
+                        $error = 'Conversione foto fallita: ' . ($result['error'] ?? 'errore sconosciuto');
+                    }
+                } else {
+                    // Fallback: salva originale
+                    $ext = $allowed[$finfo];
+                    $filename = 'emp_' . $employeeId . '_' . substr(bin2hex(random_bytes(4)), 0, 8) . '.' . $ext;
+                    $dest = $dir . '/' . $filename;
+                    $ok = move_uploaded_file($tmpDest, $dest);
+                    if (!$ok) $error = 'Caricamento file fallito';
+                }
+
+                if ($ok) {
+                    // Rimuovi vecchia foto
                     if (!empty($employee['photo_path'])) {
                         $old = ROOT_PATH . '/public/' . ltrim($employee['photo_path'], '/');
                         if (is_file($old)) @unlink($old);
@@ -81,8 +101,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         @unlink($dest);
                         $error = 'Errore salvataggio foto';
                     }
-                } else {
-                    $error = 'Caricamento file fallito';
                 }
             }
         }
@@ -179,7 +197,7 @@ input[type=file] { font-size: 0.85rem; }
         <div class="photo-section">
             <div class="photo-preview">
                 <?php if ($photoUrl): ?>
-                    <img src="<?= e($photoUrl) ?>?v=<?= time() ?>" alt="Foto profilo">
+                    <img src="<?= e($photoUrl) ?>?v=<?= time() ?>" alt="Foto profilo" loading="lazy" decoding="async">
                 <?php else: ?>
                     <?= strtoupper(substr($employee['first_name'], 0, 1) . substr($employee['last_name'], 0, 1)) ?>
                 <?php endif; ?>
