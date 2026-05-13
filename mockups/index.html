@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>PAManager — Mockups Index</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="_tokens.css">
+<link rel="stylesheet" href="_components.css">
+<style>
+body { background: var(--slate-100); padding: var(--sp-8) var(--sp-4); }
+.wrap { max-width: 1100px; margin: 0 auto; }
+.hero {
+    background: linear-gradient(135deg, var(--primary-700), var(--primary-900));
+    color: white;
+    padding: var(--sp-10) var(--sp-8);
+    border-radius: var(--r-2xl);
+    margin-bottom: var(--sp-8);
+    position: relative; overflow: hidden;
+}
+.hero::before {
+    content: "";
+    position: absolute; top: -50%; right: -10%; width: 50%; height: 200%;
+    background: radial-gradient(closest-side, rgba(255,255,255,0.1), transparent);
+}
+.hero h1 { font-size: var(--text-3xl); margin: 0 0 var(--sp-2); letter-spacing: -0.02em; }
+.hero p { margin: 0; opacity: 0.85; font-size: var(--text-base); max-width: 640px; }
+.hero .tag {
+    display: inline-block; background: rgba(255,255,255,0.15);
+    padding: 4px var(--sp-2); border-radius: var(--r-pill); font-size: var(--text-xs);
+    margin-bottom: var(--sp-3); letter-spacing: 0.05em; font-weight: var(--weight-semibold);
+}
+
+.section-title {
+    font-size: var(--text-lg); font-weight: var(--weight-bold);
+    margin: var(--sp-8) 0 var(--sp-4); color: var(--ink);
+    letter-spacing: -0.01em;
+}
+.mockup-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--sp-4);
+}
+.mockup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: all var(--duration-base) var(--ease);
+    text-decoration: none;
+    color: inherit;
+}
+.mockup-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-300);
+    text-decoration: none;
+}
+.mockup-preview {
+    height: 140px;
+    background: linear-gradient(135deg, var(--primary-50), var(--surface));
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--border);
+    position: relative; overflow: hidden;
+}
+.mockup-preview svg { width: 60%; height: auto; opacity: 0.6; }
+.mockup-body { padding: var(--sp-4); }
+.mockup-role {
+    font-size: var(--text-xs); color: var(--primary-600);
+    font-weight: var(--weight-semibold); letter-spacing: 0.05em;
+    text-transform: uppercase; margin-bottom: var(--sp-1);
+}
+.mockup-title {
+    font-size: var(--text-base); color: var(--ink);
+    font-weight: var(--weight-semibold); margin: 0 0 var(--sp-1);
+}
+.mockup-desc { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+
+.palette-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-5);
+}
+.palette-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.swatch {
+    flex: 1; min-width: 80px;
+    display: flex; flex-direction: column;
+    border-radius: var(--r-md); overflow: hidden;
+    border: 1px solid var(--border);
+}
+.swatch-color { height: 60px; }
+.swatch-label {
+    padding: var(--sp-2);
+    font-size: var(--text-xs); color: var(--ink-2);
+    font-family: var(--font-mono);
+    background: var(--surface);
+}
+.swatch-label strong { display: block; color: var(--ink); font-family: var(--font-sans); margin-bottom: 2px; }
+
+.components-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: center; margin-bottom: var(--sp-4); }
+.coming-soon {
+    opacity: 0.5; pointer-events: none;
+    background: var(--slate-100);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="hero">
+        <span class="tag">DESIGN SYSTEM v1</span>
+        <h1>PAManager — Factorial-blue</h1>
+        <p>Mockup navigabili dell'intera interfaccia ridisegnata. Ispirazione visiva: Factorial HR. Palette principale: blu (#2563eb) con neutri slate. Apri ogni mockup nel browser e ridimensiona la finestra per testare i breakpoint mobile/tablet/desktop.</p>
+    </div>
+
+    <h2 class="section-title">Palette</h2>
+    <div class="palette-card">
+        <div class="palette-row">
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-50)"></div><div class="swatch-label"><strong>Primary 50</strong>#eff6ff</div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-100)"></div><div class="swatch-label"><strong>100</strong>#dbeafe</div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-300)"></div><div class="swatch-label"><strong>300</strong>#93c5fd</div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-500)"></div><div class="swatch-label"><strong>500</strong>#3b82f6</div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-600)"></div><div class="swatch-label" style="color:white;background:var(--primary-600)"><strong style="color:white">600 ★</strong>#2563eb</div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-700)"></div><div class="swatch-label" style="color:white;background:var(--primary-700)"><strong style="color:white">700</strong>#1d4ed8</div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--primary-900)"></div><div class="swatch-label" style="color:white;background:var(--primary-900)"><strong style="color:white">900</strong>#1e3a8a</div></div>
+        </div>
+        <div class="palette-row">
+            <div class="swatch"><div class="swatch-color" style="background:var(--slate-50)"></div><div class="swatch-label"><strong>Slate 50</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--slate-200)"></div><div class="swatch-label"><strong>200</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--slate-500)"></div><div class="swatch-label"><strong>500</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--slate-700)"></div><div class="swatch-label" style="color:white;background:var(--slate-700)"><strong style="color:white">700</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--slate-900)"></div><div class="swatch-label" style="color:white;background:var(--slate-900)"><strong style="color:white">900</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--success-500)"></div><div class="swatch-label" style="color:white;background:var(--success-500)"><strong style="color:white">Success</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--warning-500)"></div><div class="swatch-label" style="color:white;background:var(--warning-500)"><strong style="color:white">Warning</strong></div></div>
+            <div class="swatch"><div class="swatch-color" style="background:var(--danger-500)"></div><div class="swatch-label" style="color:white;background:var(--danger-500)"><strong style="color:white">Danger</strong></div></div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Componenti</h2>
+    <div class="palette-card">
+        <div class="components-row">
+            <button class="btn btn-primary">Primary</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <button class="btn btn-ghost">Ghost</button>
+            <button class="btn btn-danger">Danger</button>
+            <button class="btn btn-primary btn-sm">Small</button>
+            <button class="btn btn-primary btn-lg">Large</button>
+        </div>
+        <div class="components-row">
+            <span class="badge badge-primary badge-dot">Active</span>
+            <span class="badge badge-success badge-dot">Approvato</span>
+            <span class="badge badge-warning badge-dot">In attesa</span>
+            <span class="badge badge-danger badge-dot">Rifiutato</span>
+            <span class="badge badge-neutral">Bozza</span>
+        </div>
+        <div class="components-row">
+            <div class="av av-sm">JD</div>
+            <div class="av">DL</div>
+            <div class="av av-lg">MG</div>
+            <div class="av av-xl">PA</div>
+            <div class="av-group">
+                <div class="av av-sm">DL</div>
+                <div class="av av-sm">MG</div>
+                <div class="av av-sm">SR</div>
+                <div class="av av-sm" style="background:var(--slate-300);color:var(--slate-700)">+5</div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Mockup pagine</h2>
+    <div class="mockup-grid">
+        <a class="mockup-card" href="admin-dashboard.html">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="25" height="60" fill="#2563eb" opacity="0.2"/><rect x="30" y="10" width="20" height="15" rx="2" fill="#2563eb" opacity="0.4"/><rect x="55" y="10" width="20" height="15" rx="2" fill="#2563eb" opacity="0.4"/><rect x="80" y="10" width="15" height="15" rx="2" fill="#2563eb" opacity="0.4"/><rect x="30" y="30" width="65" height="25" rx="2" fill="#2563eb" opacity="0.25"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Admin</div>
+                <h3 class="mockup-title">Dashboard</h3>
+                <p class="mockup-desc">Stats, dipendenti recenti, attività team, richieste pending</p>
+            </div>
+        </a>
+
+        <a class="mockup-card" href="employee-home.html">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="25" height="60" fill="#2563eb" opacity="0.2"/><rect x="30" y="8" width="65" height="18" rx="3" fill="#2563eb" opacity="0.3"/><rect x="30" y="30" width="30" height="25" rx="2" fill="#2563eb" opacity="0.25"/><rect x="65" y="30" width="30" height="25" rx="2" fill="#2563eb" opacity="0.25"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Dipendente</div>
+                <h3 class="mockup-title">Home personale</h3>
+                <p class="mockup-desc">Welcome card, prossime ferie, documenti recenti, comunicazioni</p>
+            </div>
+        </a>
+
+        <a class="mockup-card" href="chat.html">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="35" height="60" fill="#2563eb" opacity="0.2"/><circle cx="10" cy="15" r="3" fill="#2563eb" opacity="0.5"/><rect x="17" y="13" width="15" height="4" fill="#2563eb" opacity="0.4"/><circle cx="10" cy="25" r="3" fill="#2563eb" opacity="0.5"/><rect x="17" y="23" width="15" height="4" fill="#2563eb" opacity="0.4"/><rect x="40" y="8" width="55" height="8" rx="2" fill="#2563eb" opacity="0.25"/><rect x="40" y="20" width="30" height="6" rx="3" fill="#2563eb" opacity="0.5"/><rect x="60" y="32" width="35" height="6" rx="3" fill="#2563eb" opacity="0.3"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Tutti i ruoli</div>
+                <h3 class="mockup-title">Chat</h3>
+                <p class="mockup-desc">Sidebar conversazioni + contatti, messaggi, allegati, ricerca</p>
+            </div>
+        </a>
+
+        <div class="mockup-card coming-soon">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="80" height="40" rx="2" fill="#2563eb" opacity="0.2"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Admin</div>
+                <h3 class="mockup-title">Anagrafica dipendenti</h3>
+                <p class="mockup-desc">Lista, filtri, dettaglio dipendente — coming soon</p>
+            </div>
+        </div>
+
+        <div class="mockup-card coming-soon">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="80" height="40" rx="2" fill="#2563eb" opacity="0.2"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Dipendente</div>
+                <h3 class="mockup-title">Documenti / Buste paga</h3>
+                <p class="mockup-desc">Lista documenti, filtri anno/tipo — coming soon</p>
+            </div>
+        </div>
+
+        <div class="mockup-card coming-soon">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="80" height="40" rx="2" fill="#2563eb" opacity="0.2"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Tutti</div>
+                <h3 class="mockup-title">Ferie / Permessi</h3>
+                <p class="mockup-desc">Richiesta + lista + approvazione — coming soon</p>
+            </div>
+        </div>
+
+        <div class="mockup-card coming-soon">
+            <div class="mockup-preview"><svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="80" height="40" rx="2" fill="#2563eb" opacity="0.2"/></svg></div>
+            <div class="mockup-body">
+                <div class="mockup-role">Consulente lavoro</div>
+                <h3 class="mockup-title">Anagrafica completa</h3>
+                <p class="mockup-desc">CF / IBAN / RAL / contratto — coming soon</p>
+            </div>
+        </div>
+    </div>
+
+    <p style="margin-top:var(--sp-12); text-align:center; color:var(--muted); font-size:var(--text-xs);">
+        File: <code>mockups/_tokens.css</code> + <code>_components.css</code> + pagine. Tutto in puro HTML/CSS.
+    </p>
+</div>
+</body>
+</html>
