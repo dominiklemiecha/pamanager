@@ -58,55 +58,74 @@ body {
 }
 
 .viewports {
-    display: grid;
-    grid-template-columns: auto auto auto;
-    gap: var(--sp-6);
-    justify-content: center;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+    align-items: center;
 }
-@media (max-width: 1700px) { .viewports { grid-template-columns: auto auto; } }
-@media (max-width: 1100px) { .viewports { grid-template-columns: auto; } }
-
-.device {
-    display: flex; flex-direction: column; align-items: center;
-    gap: var(--sp-3);
+.viewport-section {
+    width: 100%;
+    max-width: 1400px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--r-xl);
+    padding: var(--sp-6);
 }
-.device-label {
+.viewport-section h2 {
+    margin: 0 0 var(--sp-4);
+    font-size: var(--text-base);
+    font-weight: 600;
     display: flex; align-items: center; gap: var(--sp-2);
-    background: rgba(255,255,255,0.08);
-    padding: 6px var(--sp-3);
-    border-radius: var(--r-pill);
-    font-size: var(--text-xs); font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    color: rgba(255,255,255,0.95);
 }
-.device-label svg { width: 14px; height: 14px; }
-.device-label .dim { opacity: 0.55; font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.viewport-section h2 svg { width: 18px; height: 18px; }
+.viewport-section h2 .dim {
+    margin-left: auto;
+    font-weight: 400;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: rgba(255,255,255,0.5);
+}
+.viewport-section h2 .openlink {
+    color: var(--primary-300);
+    text-decoration: none;
+    font-size: var(--text-xs);
+    font-weight: 500;
+}
+.viewport-section h2 .openlink:hover { color: white; text-decoration: underline; }
 
 .device-frame {
     background: white;
     border-radius: var(--r-lg);
-    overflow: hidden;
+    overflow: auto;
     box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
     position: relative;
+    margin: 0 auto;
 }
 .device-frame iframe {
     border: none;
     display: block;
-    transform-origin: top left;
 }
 
-/* Mobile: 375 × 667 - mostra a 0.75 scala = 281 × 500 */
-.device.mobile .device-frame { width: 281px; height: 500px; }
-.device.mobile iframe { width: 375px; height: 667px; transform: scale(0.75); }
+/* Desktop: dimensioni vere, container 100% larghezza */
+.device-frame.desktop { width: 100%; height: 720px; }
+.device-frame.desktop iframe { width: 100%; height: 100%; }
 
-/* Tablet: 820 × 1180 - mostra a 0.45 scala = 369 × 531 */
-.device.tablet .device-frame { width: 369px; height: 531px; }
-.device.tablet iframe { width: 820px; height: 1180px; transform: scale(0.45); }
+/* Tablet: 768 in larghezza, no scaling */
+.device-frame.tablet { width: 768px; height: 900px; max-width: 100%; }
+.device-frame.tablet iframe { width: 768px; height: 900px; }
 
-/* Desktop: 1440 × 900 - mostra a 0.42 scala = 605 × 378 */
-.device.desktop .device-frame { width: 605px; height: 525px; }
-.device.desktop iframe { width: 1440px; height: 1250px; transform: scale(0.42); }
+/* Mobile: 390 (iPhone) */
+.device-frame.mobile { width: 390px; height: 780px; max-width: 100%; }
+.device-frame.mobile iframe { width: 390px; height: 780px; }
+
+.section-grid {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: var(--sp-6);
+    justify-content: center;
+}
+@media (max-width: 1180px) { .section-grid { grid-template-columns: 1fr; } }
 
 .actions {
     display: flex; gap: var(--sp-2); margin-top: var(--sp-2);
@@ -157,55 +176,42 @@ body {
     </div>
 
     <div class="viewports">
-
-        <div class="device mobile">
-            <div class="device-label">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
-                Mobile <span class="dim">375 × 667</span>
-            </div>
-            <div class="device-frame">
-                <iframe id="mockup-mobile" src="admin-dashboard.html"></iframe>
-            </div>
-            <div class="actions">
-                <a class="action-btn" id="open-mobile" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-                    Apri full-size
-                </a>
-            </div>
-        </div>
-
-        <div class="device tablet">
-            <div class="device-label">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 4H3c-1.1 0-1.99.9-1.99 2L1 18c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-1 14H4V6h16v12z"/></svg>
-                Tablet <span class="dim">820 × 1180</span>
-            </div>
-            <div class="device-frame">
-                <iframe id="mockup-tablet" src="admin-dashboard.html"></iframe>
-            </div>
-            <div class="actions">
-                <a class="action-btn" id="open-tablet" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-                    Apri full-size
-                </a>
-            </div>
-        </div>
-
-        <div class="device desktop">
-            <div class="device-label">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
-                Desktop <span class="dim">1440 × 900</span>
-            </div>
-            <div class="device-frame">
+        <div class="viewport-section">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4z"/></svg>
+                Desktop
+                <span class="dim">∞ × 720 (responsive nel container)</span>
+                <a class="openlink" id="open-desktop" target="_blank">↗ apri full-size</a>
+            </h2>
+            <div class="device-frame desktop">
                 <iframe id="mockup-desktop" src="admin-dashboard.html"></iframe>
             </div>
-            <div class="actions">
-                <a class="action-btn" id="open-desktop" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
-                    Apri full-size
-                </a>
-            </div>
         </div>
 
+        <div class="section-grid">
+            <div class="viewport-section">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 4H3c-1.1 0-1.99.9-1.99 2L1 18c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-1 14H4V6h16v12z"/></svg>
+                    Tablet
+                    <span class="dim">768 × 900</span>
+                    <a class="openlink" id="open-tablet" target="_blank">↗</a>
+                </h2>
+                <div class="device-frame tablet">
+                    <iframe id="mockup-tablet" src="admin-dashboard.html"></iframe>
+                </div>
+            </div>
+            <div class="viewport-section" style="max-width:480px;">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                    Mobile
+                    <span class="dim">390 × 780</span>
+                    <a class="openlink" id="open-mobile" target="_blank">↗</a>
+                </h2>
+                <div class="device-frame mobile">
+                    <iframe id="mockup-mobile" src="admin-dashboard.html"></iframe>
+                </div>
+            </div>
+        </div>
     </div>
 
     <p class="note">
