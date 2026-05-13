@@ -1,0 +1,55 @@
+# PAManager — Anteprima design v2 in container parallelo
+#
+# Lancia un secondo container app affiancato a quello di produzione,
+# attaccato allo stesso DB e ai medesimi volumi (uploads/logs/storage).
+# Esposto su http://localhost:8889.
+#
+# Workflow consigliato (worktree separato per la branch preview):
+#   git worktree add ../gestionalepa-preview preview/v2-design
+#   cd ../gestionalepa-preview
+#   docker compose -f docker-compose.preview.yml up -d --build
+#
+# Il network "gestionalepa_pamanager" e' creato dal compose principale
+# in esecuzione (deve restare su) — questo file lo referenzia come external.
+
+services:
+  app-preview:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gestionalepa-app-preview
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-pamanager}
+      DB_USER: ${DB_USER:-pamanager}
+      DB_PASS: ${DB_PASS:-devpassword123}
+      APP_URL: "http://localhost:8889"
+      MIGRATION_TOKEN: "pamanager_migrate_2024"
+      JWT_SECRET: "preview-only-secret"
+      RUN_MIGRATIONS: "false"
+      PHP_TIMEZONE: "Europe/Rome"
+      DEBUG_MODE: "true"
+    ports:
+      - "8889:80"
+    networks:
+      - pamanager
+    volumes:
+      - uploads_shared:/var/www/html/public/uploads
+      - logs_preview:/var/www/html/logs
+      - storage_shared:/var/www/html/storage
+
+networks:
+  pamanager:
+    external: true
+    name: gestionalepa_pamanager
+
+volumes:
+  uploads_shared:
+    external: true
+    name: gestionalepa_uploads
+  storage_shared:
+    external: true
+    name: gestionalepa_storage
+  logs_preview:

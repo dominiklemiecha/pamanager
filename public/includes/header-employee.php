@@ -68,6 +68,7 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
     <!-- CSS -->
     <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/style.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/theme.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/theme-v2.css?v=<?php echo time(); ?>">
 
     <!-- CSRF Token -->
     <?php echo CSRF::metaTag(); ?>
@@ -75,7 +76,11 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
     <!-- Base URL for JS -->
     <script>window.PAM = { baseUrl: '<?php echo $baseUrl; ?>' };</script>
 </head>
-<body class="admin-body">
+<body class="admin-body has-v2-banner">
+    <div class="v2-banner">
+        Anteprima nuovo design v2
+        <span>· stessi dati di produzione, look in valutazione</span>
+    </div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="admin-sidebar">
         <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Chiudi menu">
