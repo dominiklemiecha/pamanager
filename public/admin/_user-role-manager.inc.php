@@ -356,8 +356,24 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <div class="body">
                     <?= $message ?>
                 </div>
-                <button type="button" class="copy" onclick="navigator.clipboard.writeText(<?= json_encode($generatedPassword) ?>).then(()=>{this.textContent='Copiata!';setTimeout(()=>this.textContent='Copia password',2000);})">Copia password</button>
+                <button type="button" class="copy" id="urmCopyPwBtn" data-pw="<?= e($generatedPassword) ?>">Copia password</button>
             </div>
+            <script>
+                (function(){
+                    var btn = document.getElementById('urmCopyPwBtn');
+                    if (!btn) return;
+                    btn.addEventListener('click', function(){
+                        var pw = btn.getAttribute('data-pw') || '';
+                        navigator.clipboard.writeText(pw).then(function(){
+                            btn.textContent = 'Copiata!';
+                            setTimeout(function(){ btn.textContent = 'Copia password'; }, 2000);
+                        }).catch(function(){
+                            btn.textContent = 'Errore copia';
+                            setTimeout(function(){ btn.textContent = 'Copia password'; }, 2000);
+                        });
+                    });
+                })();
+            </script>
         <?php else: ?>
             <div class="alert alert-success" style="border-radius:10px;"><?= $message ?></div>
         <?php endif; ?>
