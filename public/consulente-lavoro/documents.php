@@ -116,23 +116,25 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 
 .upload-header {
-    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    background: #f7fafc;
     padding: 1rem 1.25rem;
-    color: white;
+    color: #2d3748;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    border-bottom: 1px solid #edf2f7;
 }
 
 .upload-header h2 {
     margin: 0;
     font-size: 1rem;
-    color: white;
+    color: #2d3748;
 }
 
 .upload-header svg {
     width: 20px;
     height: 20px;
+    color: #3182ce;
 }
 
 .upload-form {
@@ -177,8 +179,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .upload-grid select:focus,
 .upload-grid textarea:focus {
     outline: none;
-    border-color: #38a169;
-    box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.1);
+    border-color: #3182ce;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 
 .upload-grid small {
@@ -218,12 +220,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .autocomplete-input:focus {
     outline: none;
-    border-color: #38a169;
-    box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.1);
+    border-color: #3182ce;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 .autocomplete-input.has-value {
-    background: #f0fff4;
-    border-color: #38a169;
+    background: #ebf8ff;
+    border-color: #3182ce;
 }
 .autocomplete-dropdown {
     position: absolute;
@@ -254,7 +256,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .autocomplete-item:hover,
 .autocomplete-item.active {
-    background: #f0fff4;
+    background: #ebf8ff;
 }
 .autocomplete-item .name {
     font-weight: 600;
@@ -623,7 +625,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             </div>
 
             <div class="upload-actions">
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
                     </svg>
