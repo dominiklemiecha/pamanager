@@ -744,7 +744,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <td style="white-space:nowrap;">
                                 <a href="employee-documents.php?download=<?= (int) $d['id'] ?>" class="btn btn-sm btn-info">Scarica</a>
                                 <button type="button" class="btn btn-sm btn-secondary"
-                                        onclick="var n=prompt('Nuovo nome:', <?= json_encode($d['name']) ?>); if(n){var f=window.document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">Rinomina</button>
+                                        onclick="var n=prompt('Nuovo nome:', <?= htmlspecialchars(json_encode($d['name']), ENT_QUOTES, 'UTF-8') ?>); if(n){var f=window.document.getElementById('ed-rename-<?= (int) $d['id'] ?>'); f.querySelector('input[name=name]').value=n; f.submit();}">Rinomina</button>
                                 <form id="ed-rename-<?= (int) $d['id'] ?>" method="post" action="employee-documents.php" style="display:none;">
                                     <?= CSRF::field() ?>
                                     <input type="hidden" name="action" value="rename">
