@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>PAManager — Showcase mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="_tokens.css">
+<style>
+body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: white;
+    min-height: 100vh;
+    padding: var(--sp-6) var(--sp-4);
+    font-family: var(--font-sans);
+}
+.wrap { max-width: 1800px; margin: 0 auto; }
+
+.head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--sp-4); margin-bottom: var(--sp-6); flex-wrap: wrap;
+}
+.head h1 {
+    margin: 0; font-size: var(--text-xl); letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: var(--sp-2);
+}
+.head h1 .mark {
+    width: 32px; height: 32px; border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.head .sub { font-size: var(--text-sm); opacity: 0.7; margin-top: 4px; }
+
+.page-tabs {
+    display: flex; gap: var(--sp-2); flex-wrap: wrap;
+    margin-bottom: var(--sp-6);
+    background: rgba(255,255,255,0.05);
+    padding: 4px;
+    border-radius: var(--r-pill);
+    width: fit-content;
+}
+.page-tab {
+    padding: var(--sp-2) var(--sp-4);
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    border: none; cursor: pointer;
+    font-size: var(--text-sm); font-weight: 600;
+    font-family: inherit;
+    transition: all 150ms ease;
+    white-space: nowrap;
+}
+.page-tab:hover { color: white; background: rgba(255,255,255,0.05); }
+.page-tab.active {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+    color: white;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+}
+
+.viewports {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    gap: var(--sp-6);
+    justify-content: center;
+    align-items: start;
+}
+@media (max-width: 1700px) { .viewports { grid-template-columns: auto auto; } }
+@media (max-width: 1100px) { .viewports { grid-template-columns: auto; } }
+
+.device {
+    display: flex; flex-direction: column; align-items: center;
+    gap: var(--sp-3);
+}
+.device-label {
+    display: flex; align-items: center; gap: var(--sp-2);
+    background: rgba(255,255,255,0.08);
+    padding: 6px var(--sp-3);
+    border-radius: var(--r-pill);
+    font-size: var(--text-xs); font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.device-label svg { width: 14px; height: 14px; }
+.device-label .dim { opacity: 0.55; font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+
+.device-frame {
+    background: white;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    position: relative;
+}
+.device-frame iframe {
+    border: none;
+    display: block;
+    transform-origin: top left;
+}
+
+/* Mobile: 375 × 667 - mostra a 0.75 scala = 281 × 500 */
+.device.mobile .device-frame { width: 281px; height: 500px; }
+.device.mobile iframe { width: 375px; height: 667px; transform: scale(0.75); }
+
+/* Tablet: 820 × 1180 - mostra a 0.45 scala = 369 × 531 */
+.device.tablet .device-frame { width: 369px; height: 531px; }
+.device.tablet iframe { width: 820px; height: 1180px; transform: scale(0.45); }
+
+/* Desktop: 1440 × 900 - mostra a 0.42 scala = 605 × 378 */
+.device.desktop .device-frame { width: 605px; height: 525px; }
+.device.desktop iframe { width: 1440px; height: 1250px; transform: scale(0.42); }
+
+.actions {
+    display: flex; gap: var(--sp-2); margin-top: var(--sp-2);
+}
+.action-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px var(--sp-2);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.85);
+    border-radius: var(--r-sm);
+    text-decoration: none;
+    font-size: 11px; font-weight: 600;
+    transition: background 150ms ease;
+}
+.action-btn:hover { background: rgba(255,255,255,0.15); color: white; text-decoration: none; }
+.action-btn svg { width: 12px; height: 12px; }
+
+.note {
+    text-align: center;
+    margin-top: var(--sp-8);
+    font-size: var(--text-sm);
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+}
+.note kbd {
+    padding: 2px 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header class="head">
+        <div>
+            <h1><span class="mark">P</span> PAManager — Mockup Showcase</h1>
+            <div class="sub">Anteprima delle pagine ridisegnate in 3 viewport. Clicca un'anteprima per aprirla a schermo intero.</div>
+        </div>
+        <a href="index.html" style="color: rgba(255,255,255,0.7); font-size: var(--text-sm); text-decoration: none;">← Indice completo</a>
+    </header>
+
+    <div class="page-tabs" id="tabs">
+        <button class="page-tab active" data-page="admin-dashboard.html" data-label="Admin Dashboard">Admin Dashboard</button>
+        <button class="page-tab" data-page="employee-home.html" data-label="Home Dipendente">Home Dipendente</button>
+        <button class="page-tab" data-page="chat.html" data-label="Chat">Chat</button>
+    </div>
+
+    <div class="viewports">
+
+        <div class="device mobile">
+            <div class="device-label">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                Mobile <span class="dim">375 × 667</span>
+            </div>
+            <div class="device-frame">
+                <iframe id="mockup-mobile" src="admin-dashboard.html"></iframe>
+            </div>
+            <div class="actions">
+                <a class="action-btn" id="open-mobile" target="_blank">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    Apri full-size
+                </a>
+            </div>
+        </div>
+
+        <div class="device tablet">
+            <div class="device-label">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 4H3c-1.1 0-1.99.9-1.99 2L1 18c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-1 14H4V6h16v12z"/></svg>
+                Tablet <span class="dim">820 × 1180</span>
+            </div>
+            <div class="device-frame">
+                <iframe id="mockup-tablet" src="admin-dashboard.html"></iframe>
+            </div>
+            <div class="actions">
+                <a class="action-btn" id="open-tablet" target="_blank">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    Apri full-size
+                </a>
+            </div>
+        </div>
+
+        <div class="device desktop">
+            <div class="device-label">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                Desktop <span class="dim">1440 × 900</span>
+            </div>
+            <div class="device-frame">
+                <iframe id="mockup-desktop" src="admin-dashboard.html"></iframe>
+            </div>
+            <div class="actions">
+                <a class="action-btn" id="open-desktop" target="_blank">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    Apri full-size
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <p class="note">
+        Le anteprime sono ridotte in scala per mostrarle insieme.<br>
+        Premi <kbd>Apri full-size</kbd> sotto un device per vedere quel mockup alla risoluzione nativa, in un'altra tab.
+    </p>
+</div>
+
+<script>
+const tabs = document.querySelectorAll('.page-tab');
+const iframes = ['mockup-mobile', 'mockup-tablet', 'mockup-desktop'];
+const openers = ['open-mobile', 'open-tablet', 'open-desktop'];
+
+function setPage(url) {
+    iframes.forEach(id => document.getElementById(id).src = url);
+    openers.forEach(id => document.getElementById(id).href = url);
+}
+
+tabs.forEach(t => {
+    t.addEventListener('click', () => {
+        tabs.forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        setPage(t.dataset.page);
+    });
+});
+setPage('admin-dashboard.html');
+</script>
+</body>
+</html>
