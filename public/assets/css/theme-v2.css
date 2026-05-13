@@ -1,0 +1,267 @@
+/*
+ * PAManager v2 — Theme override (Factorial-blue)
+ *
+ * Strategia: ridefinisce le CSS variables globali usate dal theme.css legacy
+ * per applicare la nuova palette + tipografia senza dover riscrivere ogni
+ * componente. Aggiunge regole mirate per sidebar collassabile e tenant
+ * switcher (markup iniettato da v2.js).
+ *
+ * Caricato dopo theme.css e mobile-staff.css.
+ */
+
+@import url('https://rsms.me/inter/inter.css');
+
+:root {
+    /* Brand palette */
+    --primary-50:  #eff6ff;
+    --primary-100: #dbeafe;
+    --primary-200: #bfdbfe;
+    --primary-300: #93c5fd;
+    --primary-400: #60a5fa;
+    --primary-500: #3b82f6;
+    --primary-600: #2563eb;
+    --primary-700: #1d4ed8;
+    --primary-800: #1e40af;
+    --primary-900: #1e3a8a;
+
+    --slate-50:  #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+
+    /* Override legacy variables */
+    --accent:       #2563eb;
+    --accent-dark:  #1d4ed8;
+    --accent-soft:  #eff6ff;
+    --accent-border:#bfdbfe;
+    --bg:           #f8fafc;
+    --surface:      #ffffff;
+    --border:       #e2e8f0;
+    --border-strong:#cbd5e1;
+    --ink:          #0f172a;
+    --ink-2:        #334155;
+    --ink-3:        #475569;
+    --muted:        #64748b;
+    --muted-2:      #94a3b8;
+    --subtle:       #f1f5f9;
+    --font:         "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    --sidebar-w:      252px;
+    --sidebar-w-mini: 72px;
+
+    --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px;
+    --shadow-xs: 0 1px 1px rgba(15,23,42,0.04);
+    --shadow-sm: 0 1px 2px rgba(15,23,42,0.05), 0 1px 3px rgba(15,23,42,0.04);
+    --shadow-md: 0 4px 6px -1px rgba(15,23,42,0.06), 0 2px 4px -2px rgba(15,23,42,0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(15,23,42,0.08), 0 4px 6px -4px rgba(15,23,42,0.05);
+    --shadow-focus: 0 0 0 3px var(--primary-100);
+}
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+}
+
+.btn-primary, .btn.btn-primary {
+    background: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+    color: white !important;
+    border-radius: var(--r-md);
+    font-weight: 600;
+    transition: background .15s ease;
+}
+.btn-primary:hover, .btn.btn-primary:hover {
+    background: var(--primary-700) !important;
+    border-color: var(--primary-700) !important;
+}
+.btn { border-radius: var(--r-md); font-weight: 500; }
+.btn-secondary { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
+.btn-secondary:hover { background: var(--slate-50); }
+
+.dashboard-card, .card, .form-card {
+    border-radius: var(--r-lg) !important;
+    box-shadow: var(--shadow-xs);
+    border-color: var(--border);
+}
+.dashboard-card:hover, .card:hover { box-shadow: var(--shadow-sm); }
+
+.admin-sidebar, .app-sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    transition: width .18s cubic-bezier(.4,0,.2,1);
+}
+.admin-sidebar .nav-item, .app-sidebar .nav-item {
+    border-radius: var(--r-md);
+    font-weight: 500;
+    transition: all .12s ease;
+}
+.admin-sidebar .nav-item.active, .app-sidebar .nav-item.active {
+    background: var(--primary-50);
+    color: var(--primary-700) !important;
+}
+.admin-sidebar .nav-item.active svg, .app-sidebar .nav-item.active svg { color: var(--primary-700); }
+
+.admin-header, .app-header { background: var(--surface); border-bottom: 1px solid var(--border); }
+
+.badge { border-radius: 999px; font-weight: 600; }
+.badge-success { background: #ecfdf5; color: #047857; }
+.badge-warning { background: #fffbeb; color: #b45309; }
+.badge-danger  { background: #fef2f2; color: #b91c1c; }
+.badge-info, .badge-primary { background: var(--primary-50); color: var(--primary-700); }
+
+.av {
+    background: linear-gradient(135deg, var(--primary-400), var(--primary-700));
+    border-radius: 999px;
+}
+
+/* Sidebar collassabile */
+.sidebar-collapse-btn {
+    width: 26px; height: 26px;
+    border-radius: var(--r-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .12s ease;
+    margin-left: auto;
+}
+.sidebar-collapse-btn:hover { background: var(--slate-100); color: var(--ink); border-color: var(--border); }
+.sidebar-collapse-btn svg { transition: transform .18s ease; }
+html.sidebar-mini .sidebar-collapse-btn svg { transform: rotate(180deg); }
+
+html.sidebar-mini .admin-sidebar,
+html.sidebar-mini .app-sidebar { width: var(--sidebar-w-mini) !important; }
+html.sidebar-mini .admin-content,
+html.sidebar-mini .app-main { margin-left: var(--sidebar-w-mini) !important; }
+html.sidebar-mini .admin-sidebar .nav-item span:not(.nav-badge),
+html.sidebar-mini .app-sidebar .nav-item span:not(.nav-badge) { display: none; }
+html.sidebar-mini .admin-sidebar .brand-text,
+html.sidebar-mini .app-sidebar .brand-text,
+html.sidebar-mini .admin-sidebar .nav-section,
+html.sidebar-mini .app-sidebar .nav-section { display: none; }
+html.sidebar-mini .admin-sidebar .nav-item,
+html.sidebar-mini .app-sidebar .nav-item { justify-content: center; padding: .55rem !important; position: relative; }
+html.sidebar-mini .nav-item .nav-badge {
+    position: absolute; top: 2px; right: 2px;
+    font-size: 9px; padding: 0 4px; min-width: 14px;
+    border: 1.5px solid var(--surface);
+}
+html.sidebar-mini .nav-item[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+    background: var(--slate-900); color: white;
+    padding: 4px 10px; border-radius: var(--r-sm);
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Tenant switcher in sidebar */
+.tenant-switcher {
+    margin: 0 .75rem 1rem;
+    padding: .5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--slate-50);
+    cursor: pointer;
+    position: relative;
+    transition: all .12s ease;
+}
+.tenant-switcher:hover { background: var(--surface); border-color: var(--primary-300); box-shadow: var(--shadow-xs); }
+.tenant-switcher.open { background: var(--surface); border-color: var(--primary-400); }
+.tenant-switcher-row { display: flex; align-items: center; gap: .5rem; }
+.tenant-mark {
+    width: 32px; height: 32px;
+    border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 11px; flex-shrink: 0;
+}
+.tenant-info { flex: 1; min-width: 0; }
+.tenant-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.tenant-name { font-size: 13px; color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tenant-caret { width: 16px; height: 16px; color: var(--muted); transition: transform .15s ease; flex-shrink: 0; }
+.tenant-switcher.open .tenant-caret { transform: rotate(180deg); }
+
+.tenant-menu {
+    display: none;
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+    z-index: 100; overflow: hidden;
+}
+.tenant-switcher.open .tenant-menu { display: block; }
+.tenant-menu-item {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .75rem;
+    cursor: pointer; text-decoration: none; color: inherit;
+    transition: background .12s ease;
+}
+.tenant-menu-item:hover { background: var(--slate-50); text-decoration: none; }
+.tenant-menu-item.active { background: var(--primary-50); }
+.tenant-menu-item .tenant-mark { width: 28px; height: 28px; font-size: 10px; }
+.tenant-menu-item .info { flex: 1; min-width: 0; }
+.tenant-menu-item .info .n { font-size: 13px; color: var(--ink); font-weight: 500; }
+.tenant-menu-item .info .s { font-size: 10px; color: var(--muted); }
+.tenant-menu-item .check { color: var(--primary-600); width: 14px; height: 14px; }
+.tenant-menu-footer {
+    padding: .5rem .75rem;
+    border-top: 1px solid var(--border);
+    background: var(--slate-50);
+    font-size: 11px; color: var(--muted);
+}
+
+html.sidebar-mini .tenant-switcher { margin: 0 .25rem 1rem; padding: .25rem; }
+html.sidebar-mini .tenant-info, html.sidebar-mini .tenant-caret { display: none; }
+html.sidebar-mini .tenant-switcher-row { justify-content: center; }
+html.sidebar-mini .tenant-mark { width: 36px; height: 36px; font-size: 12px; }
+html.sidebar-mini .tenant-menu {
+    left: calc(100% + 8px); right: auto; top: 0; min-width: 240px;
+}
+
+/* Powered by Connecteed footer */
+.v2-powered {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+    display: flex; align-items: center; justify-content: center;
+    gap: .5rem;
+}
+.v2-powered img {
+    height: 18px; width: auto; opacity: .7;
+    vertical-align: middle; transition: opacity .12s ease;
+}
+.v2-powered a:hover img { opacity: 1; }
+
+h1, h2, h3 { letter-spacing: -0.015em; }
+
+/* Banner anteprima v2 */
+.v2-banner {
+    position: fixed; left: 0; right: 0; top: 0;
+    background: linear-gradient(135deg, var(--primary-700), var(--primary-900));
+    color: white;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    z-index: 999;
+    letter-spacing: 0.02em;
+}
+.v2-banner span { opacity: 0.8; font-weight: 500; margin-left: 8px; }
+body.has-v2-banner .admin-sidebar,
+body.has-v2-banner .app-sidebar { top: 28px; height: calc(100vh - 28px); }
+body.has-v2-banner .admin-content,
+body.has-v2-banner .app-main { padding-top: 28px; }

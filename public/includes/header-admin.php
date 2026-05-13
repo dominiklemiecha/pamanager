@@ -33,14 +33,48 @@ $userName = htmlspecialchars($currentUser['name']);
     <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/style.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/theme.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/mobile-staff.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="<?php echo $baseUrl; ?>/assets/css/theme-v2.css?v=<?php echo time(); ?>">
 
     <!-- CSRF Token -->
     <?php echo CSRF::metaTag(); ?>
 
     <!-- Base URL for JS -->
     <script>window.PAM = { baseUrl: '<?php echo $baseUrl; ?>' };</script>
+
+    <!-- v2 preview: dati tenant per sidebar switcher (JSON consumato da v2.js) -->
+    <?php
+    $__v2_companies = [];
+    $__v2_current_id = 0;
+    if (class_exists('Tenant')) {
+        try {
+            $__v2_current_id = (int) Tenant::currentCompanyId();
+            $__v2_raw = Tenant::getAccessibleCompanies();
+            foreach ($__v2_raw as $__c) {
+                $__name = $__c['name'] ?? ('Azienda #' . $__c['id']);
+                $__code = strtoupper(mb_substr(preg_replace('/[^a-zA-Z]/', '', $__name), 0, 2)) ?: '??';
+                $__count = 0;
+                try { $__count = (int) Database::fetchColumn("SELECT COUNT(*) FROM employees WHERE company_id = ? AND is_active = TRUE", [$__c['id']]); } catch (Throwable $e) {}
+                $__v2_companies[] = [
+                    'id'              => (int) $__c['id'],
+                    'name'            => $__name,
+                    'code'            => $__code,
+                    'is_current'      => ((int)$__c['id'] === $__v2_current_id),
+                    'employee_count'  => $__count,
+                ];
+            }
+        } catch (Throwable $e) {}
+    }
+    ?>
+    <script type="application/json" id="tenant-data"><?php echo json_encode([
+        'companies'  => $__v2_companies,
+        'switch_url' => $baseUrl . '/auth/switch-tenant.php',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
 </head>
-<body class="admin-body">
+<body class="admin-body has-v2-banner">
+    <div class="v2-banner">
+        Anteprima nuovo design v2
+        <span>· stessi dati di produzione, look in valutazione</span>
+    </div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="admin-sidebar">
         <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Chiudi menu">
