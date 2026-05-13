@@ -458,8 +458,8 @@ class Communication
             }
 
             $loginUrl = function_exists('buildPublicUrl')
-                ? buildPublicUrl('/auth/login-employee.php')
-                : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login-employee.php' : '');
+                ? buildPublicUrl('/auth/login.php')
+                : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login.php' : '');
 
             $priorityLabels = [
                 'low' => 'Bassa',

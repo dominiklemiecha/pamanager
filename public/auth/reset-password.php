@@ -135,7 +135,7 @@ $pageTitle = 'Reimposta Password - PAManager';
                 // Determina il login corretto in base al tipo utente
                 $isEmployee = ($tokenData['user_type'] ?? '') === 'employee';
                 $loginUrl = $isEmployee
-                    ? PUBLIC_URL . '/auth/login-employee.php'
+                    ? PUBLIC_URL . '/auth/login.php'
                     : PUBLIC_URL . '/auth/login.php';
                 $loginLabel = $isEmployee ? 'Accedi come Dipendente' : 'Vai al Login';
             ?>
@@ -207,7 +207,7 @@ $pageTitle = 'Reimposta Password - PAManager';
             <div class="login-footer">
                 <?php
                 $footerLoginUrl = (($tokenData['user_type'] ?? '') === 'employee')
-                    ? PUBLIC_URL . '/auth/login-employee.php'
+                    ? PUBLIC_URL . '/auth/login.php'
                     : PUBLIC_URL . '/auth/login.php';
                 ?>
                 <a href="<?= htmlspecialchars($footerLoginUrl) ?>" class="back-link">Torna al login</a>
