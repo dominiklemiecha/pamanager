@@ -511,6 +511,63 @@ class LeaveRequest
     }
 
     /**
+     * Download allegato richiesta. Controlli accesso:
+     *  - admin: tutto
+     *  - admin_reparto: solo richieste del proprio reparto
+     *  - employee: solo le proprie
+     */
+    public static function downloadAttachment(int $id): array
+    {
+        $request = self::getById($id);
+        if (!$request) {
+            return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (empty($request['attachment_path']) || !file_exists($request['attachment_path'])) {
+            return ['success' => false, 'error' => 'Allegato non disponibile'];
+        }
+
+        $user = Auth::getUser();
+        $employee = Auth::getEmployee();
+
+        if ($user) {
+            if ($user['role'] === 'admin_reparto') {
+                $emp = Employee::getById((int) $request['employee_id']);
+                if (!$emp || (int) ($emp['department_id'] ?? 0) !== (int) ($user['department_id'] ?? -1)) {
+                    if (class_exists('AuditLog')) {
+                        AuditLog::logUnauthorizedAccess('leave_attachment', [
+                            'request_id' => $id, 'user_id' => $user['id'], 'reason' => 'department_scope'
+                        ]);
+                    }
+                    return ['success' => false, 'error' => 'Accesso non autorizzato'];
+                }
+            }
+            // admin e accountant: ok
+        } elseif ($employee) {
+            if ((int) $request['employee_id'] !== (int) $employee['id']) {
+                if (class_exists('AuditLog')) {
+                    AuditLog::logUnauthorizedAccess('leave_attachment', [
+                        'request_id' => $id, 'employee_id' => $employee['id']
+                    ]);
+                }
+                return ['success' => false, 'error' => 'Accesso non autorizzato'];
+            }
+        } else {
+            return ['success' => false, 'error' => 'Autenticazione richiesta'];
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($request['attachment_path']) ?: 'application/octet-stream';
+
+        return [
+            'success' => true,
+            'request' => $request,
+            'file_path' => $request['attachment_path'],
+            'filename' => $request['attachment_name'] ?? basename($request['attachment_path']),
+            'mime' => $mime
+        ];
+    }
+
+    /**
      * Crea notifica per il dipendente
      */
     private static function createNotification(int $employeeId, string $type, array $request, string $reason = ''): void
@@ -566,16 +623,27 @@ class LeaveRequest
                 ? Department::getAdmins((int) $employee['department_id'])
                 : [];
 
-            // Fallback: se il reparto non ha admin_reparto, notifica gli admin (scope per azienda
-            // del dipendente: admin globali NULL + admin specifici della stessa company)
-            if (empty($admins)) {
-                $empCid = (int)($employee['company_id'] ?? 1);
-                $admins = Database::fetchAll(
-                    "SELECT id, name, email, role FROM users
-                     WHERE role = 'admin' AND is_active = TRUE
-                       AND (company_id = ? OR company_id IS NULL)",
-                    [$empCid]
-                );
+            // Notifica SEMPRE anche gli admin della company del dipendente
+            // (admin globali con company_id NULL + admin specifici della stessa company)
+            $empCid = (int)($employee['company_id'] ?? 1);
+            $companyAdmins = Database::fetchAll(
+                "SELECT id, name, email, role FROM users
+                 WHERE role = 'admin' AND is_active = TRUE
+                   AND (company_id = ? OR company_id IS NULL)",
+                [$empCid]
+            );
+
+            // Merge evitando duplicati (per id+role)
+            $seen = [];
+            foreach ($admins as $a) {
+                $seen[($a['role'] ?? 'admin_reparto') . ':' . $a['id']] = true;
+            }
+            foreach ($companyAdmins as $a) {
+                $key = ($a['role'] ?? 'admin') . ':' . $a['id'];
+                if (!isset($seen[$key])) {
+                    $admins[] = $a;
+                    $seen[$key] = true;
+                }
             }
 
             $employeeName = $employee['first_name'] . ' ' . $employee['last_name'];
@@ -606,7 +674,8 @@ class LeaveRequest
                     PushNotification::notifyNewLeaveRequest(
                         (int) $admin['id'],
                         $employeeName,
-                        $requestData['leave_type']
+                        $requestData['leave_type'],
+                        $recipientType
                     );
                 } catch (Throwable $pushErr) {
                     error_log('Push notify leave request failed: ' . $pushErr->getMessage());
