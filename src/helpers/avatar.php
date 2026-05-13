@@ -24,7 +24,7 @@ function employeeAvatarHtml(array $emp, string $cssClass, string $extraStyle = '
         $url = PUBLIC_URL . '/' . ltrim($emp['photo_path'], '/');
         $url = htmlspecialchars($url, ENT_QUOTES);
         return '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES) . ' has-photo"' . $style . '>'
-             . '<img src="' . $url . '" alt="' . $altName . '">'
+             . '<img src="' . $url . '" alt="' . $altName . '" loading="lazy" decoding="async">'
              . '</div>';
     }
 
@@ -44,7 +44,7 @@ function chatAvatarHtml(string $name, ?string $photoPath, string $cssClass): str
         $url = htmlspecialchars(PUBLIC_URL . '/' . ltrim($photoPath, '/'), ENT_QUOTES);
         $alt = htmlspecialchars($name, ENT_QUOTES);
         return '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES) . ' has-photo">'
-             . '<img src="' . $url . '" alt="' . $alt . '"></div>';
+             . '<img src="' . $url . '" alt="' . $alt . '" loading="lazy" decoding="async"></div>';
     }
     return '<div class="' . htmlspecialchars($cssClass, ENT_QUOTES) . '">'
          . htmlspecialchars($initials, ENT_QUOTES) . '</div>';
