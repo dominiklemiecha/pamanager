@@ -403,7 +403,11 @@ class Chat
                           . "<p><a href=\"{$loginUrl}\">Apri la chat per rispondere</a></p>";
                     $text = "Ciao {$recipient['name']},\n\nNuovo messaggio da {$senderName}:\n\n{$preview}\n\nApri la chat: {$loginUrl}";
 
-                    Mailer::send($recipient['email'], $recipient['name'], 'Nuovo messaggio da ' . $senderName, $html, $text);
+                    if ($recipientType === 'employee') {
+                        Mailer::sendToEmployee((int) $recipientId, 'Nuovo messaggio da ' . $senderName, $html, $text);
+                    } else {
+                        Mailer::send($recipient['email'], $recipient['name'], 'Nuovo messaggio da ' . $senderName, $html, $text);
+                    }
                 }
             }
         } catch (Exception $e) {

@@ -497,7 +497,7 @@ class Communication
                       . $excerpt . "\n\n"
                       . "Accedi: {$loginUrl}";
 
-                Mailer::send($emp['email'], $fullName, $subject, $html, $text);
+                Mailer::sendToEmployee((int) $emp['id'], $subject, $html, $text);
             }
         } catch (Exception $e) {
             error_log('[Communication] Email notification error: ' . $e->getMessage());
