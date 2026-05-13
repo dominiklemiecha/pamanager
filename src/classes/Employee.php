@@ -198,8 +198,8 @@ class Employee
             $emailError = null;
             if (class_exists('Mailer') && Mailer::isConfigured()) {
                 $loginUrl = function_exists('buildPublicUrl')
-                    ? buildPublicUrl('/auth/login-employee.php')
-                    : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login-employee.php' : '/auth/login-employee.php');
+                    ? buildPublicUrl('/auth/login.php')
+                    : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login.php' : '/auth/login.php');
                 $fullName = trim($data['first_name'] . ' ' . $data['last_name']);
                 $usernameSafe = htmlspecialchars($data['username']);
                 $passwordSafe = htmlspecialchars($data['password']);

@@ -243,8 +243,8 @@ class Document
                 if (!empty($employee['email']) && class_exists('Mailer') && Mailer::isConfigured()) {
                     $typeLabel = self::TYPES[$data['type']] ?? $data['type'];
                     $loginUrl = function_exists('buildPublicUrl')
-                        ? buildPublicUrl('/auth/login-employee.php')
-                        : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login-employee.php' : '');
+                        ? buildPublicUrl('/auth/login.php')
+                        : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login.php' : '');
                     $fullName = trim($employee['first_name'] . ' ' . $employee['last_name']);
                     $nameSafe = htmlspecialchars($fullName);
                     $titleSafe = htmlspecialchars($title);

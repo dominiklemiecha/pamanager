@@ -13,6 +13,45 @@
 
 $user   = Auth::getUser();
 $action = $_GET['action'] ?? 'list';
+
+/**
+ * Invia email di benvenuto con credenziali al nuovo utente.
+ */
+function urm_send_credentials_email(string $email, string $name, string $username, string $password, string $roleLabel): array
+{
+    if (empty($email) || !class_exists('Mailer') || !Mailer::isConfigured()) {
+        return ['sent' => false, 'error' => 'SMTP non configurato o email mancante'];
+    }
+    $loginUrl = function_exists('buildPublicUrl')
+        ? buildPublicUrl('/auth/login.php')
+        : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login.php' : '/auth/login.php');
+    $nameSafe = htmlspecialchars($name);
+    $usernameSafe = htmlspecialchars($username);
+    $passwordSafe = htmlspecialchars($password);
+    $roleSafe = htmlspecialchars($roleLabel);
+
+    $html = "<p>Ciao {$nameSafe},</p>"
+          . "<p>E' stato creato un account come <strong>{$roleSafe}</strong> nel portale PAManager. Queste sono le tue credenziali di accesso:</p>"
+          . "<ul>"
+          . "<li><strong>Username:</strong> {$usernameSafe}</li>"
+          . "<li><strong>Password temporanea:</strong> <code>{$passwordSafe}</code></li>"
+          . "</ul>"
+          . "<p><a href=\"{$loginUrl}\" style=\"display:inline-block;padding:10px 20px;background:#3182ce;color:white;border-radius:6px;text-decoration:none;font-weight:600;\">Accedi al portale</a></p>"
+          . "<p style=\"font-size:13px;color:#718096;\">Per motivi di sicurezza, ti consigliamo di cambiare la password al primo accesso. Non condividere queste credenziali con altre persone.</p>";
+
+    $text = "Ciao {$name},\n\n"
+          . "E' stato creato un account come {$roleLabel} nel portale PAManager.\n\n"
+          . "Username: {$username}\n"
+          . "Password temporanea: {$password}\n\n"
+          . "Login: {$loginUrl}\n\n"
+          . "Ti consigliamo di cambiare la password al primo accesso.";
+
+    $ok = Mailer::send($email, $name, "Le tue credenziali di accesso PAManager", $html, $text);
+    return $ok
+        ? ['sent' => true, 'error' => null]
+        : ['sent' => false, 'error' => Mailer::getLastError() ?: 'Invio email fallito'];
+}
+
 $id     = isset($_POST['id']) && $_POST['id'] !== ''
     ? (int) $_POST['id']
     : (isset($_GET['id']) ? (int) $_GET['id'] : null);
@@ -39,12 +78,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if ($result['success']) {
+                $emailRes = urm_send_credentials_email(
+                    $_POST['email'] ?? '',
+                    $_POST['name'] ?? '',
+                    $_POST['username'] ?? '',
+                    $password,
+                    $LABEL
+                );
+                $action = 'list';
                 if ($autogen) {
                     $generatedPassword = $password;
-                    $action  = 'list';
-                    $message = "{$LABEL} creato. Password generata: <code>" . e($password) . "</code> &mdash; <strong>copiala adesso, non sara' piu' visualizzata.</strong>";
+                    $emailNote = $emailRes['sent']
+                        ? " Le credenziali sono state inviate via email a <strong>" . e($_POST['email'] ?? '') . "</strong>."
+                        : ($emailRes['error'] ? " <em>(Email NON inviata: " . e($emailRes['error']) . ". Comunicale manualmente.)</em>" : '');
+                    $message = "{$LABEL} creato. Password generata: <code>" . e($password) . "</code> &mdash; <strong>copiala adesso, non sara' piu' visualizzata.</strong>{$emailNote}";
                 } else {
-                    header("Location: {$SELF}?message=created");
+                    $emailNote = $emailRes['sent']
+                        ? ' Credenziali inviate via email.'
+                        : ($emailRes['error'] ? " (Email NON inviata: " . e($emailRes['error']) . ")" : '');
+                    header("Location: {$SELF}?message=created" . ($emailRes['sent'] ? '&email=ok' : '&email=fail'));
                     exit;
                 }
             } else {
@@ -86,7 +138,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = User::resetPassword($id);
                 if ($result['success']) {
                     $generatedPassword = $result['password'];
-                    $message = "Nuova password generata: <code>" . e($result['password']) . "</code> &mdash; <strong>comunicala al {$LABEL}, non sara' piu' visualizzata.</strong>";
+                    $u = User::getById($id);
+                    $emailRes = $u ? urm_send_credentials_email(
+                        $u['email'] ?? '',
+                        $u['name'] ?? '',
+                        $u['username'] ?? '',
+                        $result['password'],
+                        $LABEL
+                    ) : ['sent' => false, 'error' => 'Utente non trovato'];
+                    $emailNote = $emailRes['sent']
+                        ? " La nuova password e' stata inviata via email a <strong>" . e($u['email'] ?? '') . "</strong>."
+                        : ($emailRes['error'] ? " <em>(Email NON inviata: " . e($emailRes['error']) . ". Comunicale manualmente.)</em>" : '');
+                    $message = "Nuova password generata: <code>" . e($result['password']) . "</code> &mdash; <strong>copiala adesso.</strong>{$emailNote}";
                 } else {
                     $error = $result['error'];
                 }
@@ -111,8 +174,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ---- Messaggi GET ----
 if (isset($_GET['message']) && !$message) {
+    $emailStatus = $_GET['email'] ?? '';
+    $emailSuffix = $_GET['message'] === 'created'
+        ? ($emailStatus === 'ok'
+            ? ' &mdash; credenziali inviate via email.'
+            : ($emailStatus === 'fail' ? ' &mdash; email <strong>NON inviata</strong>, comunica le credenziali manualmente.' : ''))
+        : '';
     $messages = [
-        'created' => "{$LABEL} creato con successo",
+        'created' => "{$LABEL} creato con successo{$emailSuffix}",
         'updated' => "{$LABEL} aggiornato",
         'deleted' => "{$LABEL} eliminato",
     ];
@@ -476,10 +545,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 </div>
 
                 <div class="urm-field full">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" maxlength="100"
+                    <label for="email">Email<?= $action === 'new' ? ' *' : '' ?></label>
+                    <input type="email" id="email" name="email" maxlength="100" <?= $action === 'new' ? 'required' : '' ?>
                            value="<?= e($current['email'] ?? $_POST['email'] ?? '') ?>">
-                    <small>Usata per reset password e notifiche</small>
+                    <small>Le credenziali di accesso verranno inviate a questa email</small>
                 </div>
 
                 <?php if ($action === 'new'): ?>

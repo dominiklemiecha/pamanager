@@ -549,7 +549,7 @@ class Auth
     public static function requireEmployee(): void
     {
         if (!self::isEmployeeLoggedIn()) {
-            header('Location: ' . PUBLIC_URL . '/auth/login-employee.php');
+            header('Location: ' . PUBLIC_URL . '/auth/login.php');
             exit;
         }
     }
