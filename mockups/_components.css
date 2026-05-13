@@ -39,6 +39,7 @@ html.in-iframe .app-sidebar {
    in iframe ridimensionate).
    ============================================================ */
 html.force-desktop .app { grid-template-columns: var(--sidebar-w) 1fr !important; }
+html.force-desktop.sidebar-mini .app { grid-template-columns: var(--sidebar-w-mini) 1fr !important; }
 html.force-desktop .app-sidebar {
     position: relative !important;
     left: 0 !important;
@@ -46,6 +47,7 @@ html.force-desktop .app-sidebar {
     box-shadow: none !important;
     width: var(--sidebar-w) !important;
 }
+html.force-desktop.sidebar-mini .app-sidebar { width: var(--sidebar-w-mini) !important; }
 html.force-desktop .app-overlay { display: none !important; }
 html.force-desktop .mobile-menu-btn { display: none !important; }
 html.force-desktop .header-search { display: block !important; }
