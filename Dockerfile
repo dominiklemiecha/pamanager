@@ -8,13 +8,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev unzip \
         libicu-dev libonig-dev \
         libcurl4-openssl-dev libssl-dev \
-        libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+        libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev \
         libgmp-dev \
         default-mysql-client \
         ca-certificates \
         cron \
     && rm -rf /var/lib/apt/lists/* \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
         pdo_mysql mysqli zip intl mbstring gd gmp bcmath opcache \
     && a2enmod rewrite headers expires deflate
