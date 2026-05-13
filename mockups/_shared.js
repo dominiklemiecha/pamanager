@@ -253,10 +253,155 @@
         }
     }
 
+    // ---- Page mapping: tutte le pagine mockup disponibili ----
+    const EXISTING_PAGES = new Set([
+        'admin-dashboard.html',
+        'admin-employees.html',
+        'consulente-dashboard.html',
+        'employee-home.html',
+        'employee-payslips.html',
+        'leave-requests.html',
+        'chat.html',
+        'index.html',
+        'showcase.html',
+    ]);
+
+    // ---- Propaga ?force= ai link interni ----
+    function patchInternalLinks() {
+        const force = new URLSearchParams(location.search).get('force');
+        document.querySelectorAll('a[href]').forEach(a => {
+            const href = a.getAttribute('href');
+            if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+            // Link che termina con .html: aggiungi ?force= se non gia presente
+            if (href.match(/\.html(\?|$|#)/)) {
+                if (force && !href.includes('force=')) {
+                    const sep = href.includes('?') ? '&' : '?';
+                    a.setAttribute('href', href + sep + 'force=' + force);
+                }
+                // Verifica pagina esistente
+                const baseName = href.split('?')[0].split('#')[0];
+                if (!EXISTING_PAGES.has(baseName)) {
+                    a.dataset.demoComingSoon = baseName;
+                    a.addEventListener('click', e => {
+                        e.preventDefault();
+                        toast('Pagina demo "' + baseName + '" non ancora disegnata');
+                    });
+                }
+                return;
+            }
+
+            // Link "#" o ancora: toast demo
+            if (href === '#' || href.startsWith('#')) {
+                a.addEventListener('click', e => {
+                    if (href === '#' || a.getAttribute('data-demo') === 'true') {
+                        e.preventDefault();
+                        const action = a.textContent.trim() || a.getAttribute('title') || 'Link demo';
+                        toast('Demo: "' + action.slice(0, 40) + '"');
+                    }
+                });
+            }
+        });
+    }
+
+    // ---- Intercetta button senza onclick: toast demo ----
+    function patchButtons() {
+        document.querySelectorAll('button').forEach(b => {
+            if (b.type === 'submit') return;
+            if (b.hasAttribute('onclick')) return;
+            // Bottoni gia gestiti (close sheet, bn-more, ecc.)
+            if (b.id === 'bn-more' || b.id === 'sheet-close' || b.id === 'tenant-swap') return;
+            if (b.classList.contains('year-tab') || b.classList.contains('chip') || b.classList.contains('page-tab')) return;
+            if (b.classList.contains('heatmap-legend-btn') || b.classList.contains('heatmap-nav-btn')) return;
+
+            b.addEventListener('click', e => {
+                const label = b.textContent.trim() || b.getAttribute('title') || b.getAttribute('aria-label') || 'Azione';
+                toast('Demo: "' + label.slice(0, 60) + '"');
+            });
+        });
+    }
+
+    // ---- Toast notifications ----
+    let toastTimer = null;
+    function toast(msg) {
+        let el = document.getElementById('demo-toast');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'demo-toast';
+            el.style.cssText = `
+                position: fixed; left: 50%; bottom: 24px;
+                transform: translateX(-50%) translateY(120%);
+                background: var(--slate-900); color: white;
+                padding: 12px 20px; border-radius: 12px;
+                font-size: 14px; font-weight: 500;
+                box-shadow: 0 20px 50px rgba(15,23,42,0.3);
+                z-index: 9999; max-width: 90%;
+                transition: transform .25s cubic-bezier(.4,0,.2,1);
+                pointer-events: none;
+                font-family: var(--font-sans);
+            `;
+            document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.transform = 'translateX(-50%) translateY(0)';
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            el.style.transform = 'translateX(-50%) translateY(120%)';
+        }, 2200);
+    }
+
+    // ---- Sidebar enrichment: trasforma .nav-item (a senza href reale) in link verso le pagine note ----
+    function patchSidebar() {
+        const role = detectRole();
+        const map = {
+            'Dashboard':          'admin-dashboard.html',
+            'Home':               'employee-home.html',
+            'Dipendenti':         'admin-employees.html',
+            'Anagrafica':         'consulente-dashboard.html',
+            'Ferie e Permessi':   'leave-requests.html',
+            'Ferie/Permessi':     'leave-requests.html',
+            'Documenti':          'employee-payslips.html',
+            'Buste paga/CUD':     'consulente-dashboard.html',
+            'Documenti dipendente':'consulente-dashboard.html',
+            'Export presenze':    'consulente-dashboard.html',
+            'Chat':               'chat.html',
+            'Comunicazioni':      null,
+            'Reparti':            null,
+            'Commercialisti':     null,
+            'Consulenti lavoro':  null,
+            'Impostazioni':       null,
+            'Profilo':            null,
+            'Il mio profilo':     null,
+        };
+
+        document.querySelectorAll('.nav-item').forEach(a => {
+            // Se non e' un <a> non fare nulla
+            if (a.tagName !== 'A') return;
+            if (a.getAttribute('href') && a.getAttribute('href') !== '#' && !a.getAttribute('href').startsWith('javascript')) return;
+
+            const label = a.querySelector('.nav-label')?.textContent?.trim();
+            if (!label) return;
+            const target = map[label];
+            if (target) {
+                a.setAttribute('href', target);
+            } else {
+                // Pagina non esistente -> toast on click
+                a.setAttribute('href', '#');
+                a.addEventListener('click', e => {
+                    e.preventDefault();
+                    toast('Pagina "' + label + '" non ancora disegnata');
+                });
+            }
+        });
+    }
+
     // ---- Run ----
     document.addEventListener('DOMContentLoaded', () => {
         injectFooter();
         injectBottomNav();
         injectSheet();
+        patchSidebar();
+        patchInternalLinks();
+        patchButtons();
     });
 })();
