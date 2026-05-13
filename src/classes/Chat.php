@@ -129,7 +129,9 @@ class Chat
         int $senderId,
         string $message,
         ?string $attachmentPath = null,
-        ?string $attachmentName = null
+        ?string $attachmentName = null,
+        ?int $attachmentSize = null,
+        ?string $attachmentMime = null
     ): array {
         if (empty(trim($message)) && empty($attachmentPath)) {
             return ['success' => false, 'error' => 'Messaggio vuoto'];
@@ -162,6 +164,8 @@ class Chat
                 'message' => trim($message),
                 'attachment_path' => $attachmentPath,
                 'attachment_name' => $attachmentName,
+                'attachment_size' => $attachmentSize,
+                'attachment_mime' => $attachmentMime,
                 'is_read' => 0
             ]);
 
@@ -252,35 +256,62 @@ class Chat
 
         switch ($userType) {
             case 'admin':
-                // Admin può contattare tutti
-                $contacts['admin_reparto'] = User::getAdminReparto();
-                $contacts['accountant'] = User::getAccountants();
-                $contacts['employee'] = Employee::getAll(true);
+                $contacts['admin_reparto']     = User::getAdminReparto();
+                $contacts['accountant']        = User::getAccountants();
+                $contacts['consulente_lavoro'] = method_exists('User', 'getConsulentiLavoro') ? User::getConsulentiLavoro() : [];
+                $contacts['employee']          = Employee::getAll(true);
                 break;
 
             case 'accountant':
-                // Commercialista può contattare admin, admin_reparto e dipendenti
-                $contacts['admin'] = User::getAll('admin');
-                $contacts['admin_reparto'] = User::getAdminReparto();
-                $contacts['employee'] = Employee::getAll(true);
+                $contacts['admin']             = User::getAll('admin');
+                $contacts['admin_reparto']     = User::getAdminReparto();
+                $contacts['consulente_lavoro'] = method_exists('User', 'getConsulentiLavoro') ? User::getConsulentiLavoro() : [];
+                $contacts['employee']          = Employee::getAll(true);
+                break;
+
+            case 'consulente_lavoro':
+                $contacts['admin']             = User::getAll('admin');
+                $contacts['admin_reparto']     = User::getAdminReparto();
+                $contacts['accountant']        = User::getAccountants();
+                $contacts['employee']          = Employee::getAll(true);
                 break;
 
             case 'admin_reparto':
-                // Admin reparto può contattare admin, commercialisti e dipendenti del suo reparto
-                $contacts['admin'] = User::getAll('admin');
-                $contacts['accountant'] = User::getAccountants();
+                $contacts['admin']             = User::getAll('admin');
+                $contacts['accountant']        = User::getAccountants();
+                $contacts['consulente_lavoro'] = method_exists('User', 'getConsulentiLavoro') ? User::getConsulentiLavoro() : [];
                 if ($departmentId) {
                     $contacts['employee'] = Department::getEmployees($departmentId, true);
                 }
                 break;
 
             case 'employee':
-                // Dipendente può contattare solo admin_reparto del suo reparto e commercialisti
-                $contacts['accountant'] = User::getAccountants();
-                if ($departmentId) {
-                    $contacts['admin_reparto'] = Department::getAdmins($departmentId, true);
-                }
+                // Dipendente puo' contattare admin, admin_reparto, accountant, consulente e ALTRI dipendenti
+                $contacts['admin']             = User::getAll('admin');
+                $contacts['admin_reparto']     = User::getAdminReparto();
+                $contacts['accountant']        = User::getAccountants();
+                $contacts['consulente_lavoro'] = method_exists('User', 'getConsulentiLavoro') ? User::getConsulentiLavoro() : [];
+                $allEmployees = Employee::getAll(true);
+                // Escludi se stesso dalla lista
+                $contacts['employee'] = array_values(array_filter($allEmployees, fn($e) => (int)$e['id'] !== $userId));
                 break;
+        }
+
+        // Filtro tenant: per ogni gruppo, escludi entita' di altre aziende quando applicabile
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : null;
+        if ($cid) {
+            foreach (['admin_reparto', 'accountant', 'consulente_lavoro'] as $g) {
+                if (!empty($contacts[$g])) {
+                    $contacts[$g] = array_values(array_filter($contacts[$g], function($u) use ($cid) {
+                        return empty($u['company_id']) || (int)$u['company_id'] === (int)$cid;
+                    }));
+                }
+            }
+            if (!empty($contacts['employee'])) {
+                $contacts['employee'] = array_values(array_filter($contacts['employee'], function($e) use ($cid) {
+                    return (int)($e['company_id'] ?? 0) === (int)$cid;
+                }));
+            }
         }
 
         return $contacts;
@@ -293,23 +324,21 @@ class Chat
         string $fromType, int $fromId, ?int $fromDeptId,
         string $toType, int $toId
     ): bool {
-        // Admin può contattare tutti
-        if ($fromType === 'admin') {
+        // Niente self-chat
+        if ($fromType === $toType && $fromId === $toId) {
+            return false;
+        }
+
+        // Admin / accountant / consulente_lavoro: contattano tutti
+        if (in_array($fromType, ['admin', 'accountant', 'consulente_lavoro'], true)) {
             return true;
         }
 
-        // Commercialista può contattare tutti tranne altri commercialisti
-        if ($fromType === 'accountant') {
-            return $toType !== 'accountant' || $toId !== $fromId;
-        }
-
-        // Admin reparto
+        // Admin reparto: puo' contattare staff e dipendenti del proprio reparto
         if ($fromType === 'admin_reparto') {
-            // Può contattare admin e commercialisti
-            if (in_array($toType, ['admin', 'accountant'])) {
+            if (in_array($toType, ['admin', 'accountant', 'consulente_lavoro', 'admin_reparto'], true)) {
                 return true;
             }
-            // Può contattare solo dipendenti del suo reparto
             if ($toType === 'employee' && $fromDeptId) {
                 $employee = Employee::getById($toId);
                 return $employee && ($employee['department_id'] ?? null) == $fromDeptId;
@@ -317,20 +346,13 @@ class Chat
             return false;
         }
 
-        // Dipendente
+        // Dipendente: puo' contattare staff e ALTRI dipendenti
         if ($fromType === 'employee') {
-            // Non può contattare admin o altri dipendenti
-            if (in_array($toType, ['admin', 'employee'])) {
-                return false;
-            }
-            // Può contattare commercialisti
-            if ($toType === 'accountant') {
+            if (in_array($toType, ['admin', 'admin_reparto', 'accountant', 'consulente_lavoro'], true)) {
                 return true;
             }
-            // Può contattare admin_reparto solo del suo reparto
-            if ($toType === 'admin_reparto' && $fromDeptId) {
-                $adminUser = User::getById($toId);
-                return $adminUser && ($adminUser['department_id'] ?? null) == $fromDeptId;
+            if ($toType === 'employee') {
+                return $toId !== $fromId; // se stesso no, altri si
             }
             return false;
         }
@@ -443,8 +465,90 @@ class Chat
             'admin' => PUBLIC_URL . '/admin/chat.php',
             'accountant' => PUBLIC_URL . '/accountant/chat.php',
             'admin_reparto' => PUBLIC_URL . '/admin-reparto/chat.php',
+            'consulente_lavoro' => PUBLIC_URL . '/consulente-lavoro/chat.php',
             'employee' => PUBLIC_URL . '/employee/chat.php',
             default => PUBLIC_URL
         };
+    }
+
+    /**
+     * Salva un file allegato sul filesystem (sotto storage/chat-attachments/<conv_id>/).
+     * Ritorna array con i metadati da passare a sendMessage().
+     */
+    public static function handleAttachmentUpload(array $file, int $conversationId): array
+    {
+        if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'error' => 'Errore upload (codice ' . ($file['error'] ?? '?') . ')'];
+        }
+
+        $maxSize = 20 * 1024 * 1024; // 20MB
+        if ($file['size'] > $maxSize) {
+            return ['success' => false, 'error' => 'File troppo grande (max 20MB)'];
+        }
+
+        $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'odt', 'ods', 'zip'];
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($extension, $allowedExt, true)) {
+            return ['success' => false, 'error' => 'Estensione non consentita (.' . $extension . ')'];
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($file['tmp_name']) ?: 'application/octet-stream';
+
+        $dir = STORAGE_PATH . '/chat-attachments/' . $conversationId;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $fileName = bin2hex(random_bytes(12)) . '.' . $extension;
+        $filePath = $dir . '/' . $fileName;
+
+        if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+            return ['success' => false, 'error' => 'Errore salvataggio file'];
+        }
+
+        return [
+            'success' => true,
+            'path' => $filePath,
+            'name' => $file['name'],
+            'size' => (int) $file['size'],
+            'mime' => $mime
+        ];
+    }
+
+    /**
+     * Recupera l'allegato di un messaggio con controllo accesso (solo partecipante).
+     */
+    public static function getAttachment(int $messageId, string $userType, int $userId): array
+    {
+        $msg = Database::fetchOne(
+            "SELECT m.*, c.participant1_type, c.participant1_id, c.participant2_type, c.participant2_id
+             FROM chat_messages m
+             JOIN chat_conversations c ON c.id = m.conversation_id
+             WHERE m.id = ?",
+            [$messageId]
+        );
+
+        if (!$msg) return ['success' => false, 'error' => 'Messaggio non trovato'];
+        if (empty($msg['attachment_path']) || !file_exists($msg['attachment_path'])) {
+            return ['success' => false, 'error' => 'Allegato non disponibile'];
+        }
+
+        $isParticipant = ($msg['participant1_type'] === $userType && (int)$msg['participant1_id'] === $userId)
+                      || ($msg['participant2_type'] === $userType && (int)$msg['participant2_id'] === $userId);
+
+        if (!$isParticipant) {
+            if (class_exists('AuditLog')) {
+                AuditLog::logUnauthorizedAccess('chat_attachment', ['message_id' => $messageId, 'user' => $userType . ':' . $userId]);
+            }
+            return ['success' => false, 'error' => 'Accesso non autorizzato'];
+        }
+
+        return [
+            'success' => true,
+            'file_path' => $msg['attachment_path'],
+            'filename' => $msg['attachment_name'] ?? basename($msg['attachment_path']),
+            'mime' => $msg['attachment_mime'] ?? 'application/octet-stream',
+        ];
     }
 }
