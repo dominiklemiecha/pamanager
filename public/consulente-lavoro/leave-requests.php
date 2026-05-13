@@ -289,17 +289,6 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 </style>
 
 <div class="leave-page">
-    <!-- Info Box -->
-    <div class="info-box">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-        </svg>
-        <div class="info-box-text">
-            <h3>Ferie e Permessi Approvati</h3>
-            <p>Questa sezione mostra tutte le richieste approvate per la gestione delle buste paga.</p>
-        </div>
-    </div>
-
     <!-- Filtri -->
     <div class="filters-section">
         <form method="GET" class="filters-row">
