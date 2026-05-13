@@ -18,6 +18,13 @@
     height: 100vh;
     overflow-y: auto;
 }
+/* Quando renderizzato dentro un iframe (mockup showcase) disabilito sticky
+   per evitare che la sidebar copra il content durante lo scroll esterno */
+html.in-iframe .app-sidebar {
+    position: relative;
+    height: auto;
+    min-height: 100vh;
+}
 .app-main {
     display: flex;
     flex-direction: column;
