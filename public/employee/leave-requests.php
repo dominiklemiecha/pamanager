@@ -301,6 +301,8 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 .request-icon.malattia { background: linear-gradient(135deg, #fc8181 0%, #f56565 100%); }
 .request-icon.permesso_104 { background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%); }
 .request-icon.congedo_parentale { background: linear-gradient(135deg, #ed64a6 0%, #d53f8c 100%); }
+.request-icon.congedo_separazione { background: linear-gradient(135deg, #a0aec0 0%, #4a5568 100%); }
+.request-icon.congedo_mestruale { background: linear-gradient(135deg, #fbb6ce 0%, #d53f8c 100%); }
 .request-icon.altro { background: linear-gradient(135deg, #a0aec0 0%, #718096 100%); }
 
 .request-info {

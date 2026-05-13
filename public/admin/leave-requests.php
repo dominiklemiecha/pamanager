@@ -185,6 +185,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .lp-type.malattia { background: #f8d7da; color: #721c24; }
 .lp-type.permesso_104 { background: #e2d5f1; color: #563d7c; }
 .lp-type.congedo_parentale { background: #fce4ec; color: #880e4f; }
+.lp-type.congedo_separazione { background: #edf2f7; color: #2d3748; }
+.lp-type.congedo_mestruale { background: #ffe0e6; color: #b83a4b; }
 .lp-type.altro { background: #e2e8f0; color: #4a5568; }
 
 .lp-status {
