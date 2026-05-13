@@ -105,12 +105,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($result['success']) { header('Location: leave-requests.php?message=rejected'); exit; }
                 $error = $result['error'];
                 break;
+            case 'admin_edit':
+                $result = LeaveRequest::adminUpdate($requestId, [
+                    'leave_type' => $_POST['leave_type'] ?? null,
+                    'start_date' => $_POST['start_date'] ?? null,
+                    'end_date'   => $_POST['end_date'] ?? null,
+                    'is_full_day'=> isset($_POST['is_full_day']),
+                    'start_time' => $_POST['start_time'] ?? null,
+                    'end_time'   => $_POST['end_time'] ?? null,
+                    'reason'     => $_POST['reason'] ?? null,
+                    'notes'      => $_POST['notes'] ?? null,
+                    'status'     => $_POST['status'] ?? null,
+                ]);
+                if ($result['success']) { header('Location: leave-requests.php?message=updated'); exit; }
+                $error = $result['error'];
+                break;
+            case 'admin_delete':
+                $result = LeaveRequest::delete($requestId);
+                if ($result['success']) { header('Location: leave-requests.php?message=deleted'); exit; }
+                $error = $result['error'];
+                break;
         }
     }
 }
 
 if (isset($_GET['message'])) {
-    $known = ['approved' => 'Richiesta approvata con successo', 'rejected' => 'Richiesta rifiutata'];
+    $known = ['approved' => 'Richiesta approvata con successo', 'rejected' => 'Richiesta rifiutata', 'updated' => 'Richiesta aggiornata', 'deleted' => 'Richiesta eliminata'];
     $message = $known[$_GET['message']] ?? $_GET['message'];
 }
 
@@ -514,10 +534,32 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                     "is_pending" => $req["status"] === "pending"
                                 ];
                                 ?>
+                                <?php
+                                $editPayload = [
+                                    'id' => (int) $req['id'],
+                                    'name' => $req['last_name'] . ' ' . $req['first_name'],
+                                    'leave_type' => $req['leave_type'],
+                                    'start_date' => $req['start_date'],
+                                    'end_date' => $req['end_date'],
+                                    'is_full_day' => (int) $req['is_full_day'],
+                                    'start_time' => $req['start_time'] ? substr($req['start_time'], 0, 5) : '',
+                                    'end_time' => $req['end_time'] ? substr($req['end_time'], 0, 5) : '',
+                                    'reason' => $req['reason'] ?? '',
+                                    'notes' => $req['notes'] ?? '',
+                                    'status' => $req['status'],
+                                ];
+                                ?>
                                 <button type="button" class="lp-btn lp-btn-view js-detail" data-detail="<?= htmlspecialchars(json_encode($detailPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">Dettagli</button>
                                 <?php if (!empty($req['attachment_path'])): ?>
                                     <a class="lp-btn lp-btn-view" href="?download_attachment=<?= (int) $req['id'] ?>" title="Scarica allegato">Allegato</a>
                                 <?php endif; ?>
+                                <button type="button" class="lp-btn lp-btn-view js-edit" data-edit="<?= htmlspecialchars(json_encode($editPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>" style="background:#ed8936;color:white;">Modifica</button>
+                                <form method="POST" style="display:inline;margin:0;" onsubmit="return confirm('Eliminare definitivamente questa richiesta? L\'operazione non e\' reversibile.');">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="admin_delete">
+                                    <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
+                                    <button type="submit" class="lp-btn lp-btn-reject" title="Elimina richiesta">Elimina</button>
+                                </form>
                                 <?php if ($req['status'] === 'pending'): ?>
                                     <form method="POST" style="display:inline; margin:0;">
                                         <?= CSRF::field() ?>
@@ -638,7 +680,87 @@ document.querySelectorAll('.js-detail').forEach(function(btn) {
         }
     });
 });
+
+// Bind dei pulsanti "Modifica" — apre modale edit con i dati della richiesta
+document.querySelectorAll('.js-edit').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        try {
+            const d = JSON.parse(btn.getAttribute('data-edit'));
+            const f = document.getElementById('editForm');
+            f.querySelector('[name=request_id]').value = d.id;
+            f.querySelector('[name=leave_type]').value = d.leave_type;
+            f.querySelector('[name=start_date]').value = d.start_date;
+            f.querySelector('[name=end_date]').value = d.end_date;
+            f.querySelector('[name=is_full_day]').checked = !!d.is_full_day;
+            f.querySelector('[name=start_time]').value = d.start_time || '';
+            f.querySelector('[name=end_time]').value = d.end_time || '';
+            f.querySelector('[name=reason]').value = d.reason || '';
+            f.querySelector('[name=notes]').value = d.notes || '';
+            f.querySelector('[name=status]').value = d.status;
+            document.getElementById('editModalTitle').textContent = 'Modifica richiesta — ' + d.name;
+            document.getElementById('editModal').classList.add('show');
+        } catch (err) { console.error(err); }
+    });
+});
+function hideEdit() { document.getElementById('editModal').classList.remove('show'); }
+document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) hideEdit(); });
 </script>
+
+<!-- Modal Modifica Admin -->
+<div class="lp-modal-overlay" id="editModal">
+    <div class="lp-modal" style="max-width:560px;">
+        <h3 id="editModalTitle">Modifica richiesta</h3>
+        <form method="POST" id="editForm">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="admin_edit">
+            <input type="hidden" name="request_id" value="">
+
+            <div class="lp-modal-row"><strong>Tipo</strong>
+                <select name="leave_type" required style="flex:1;padding:.4rem;border:1px solid #ddd;border-radius:6px;">
+                    <?php foreach (LeaveRequest::LEAVE_TYPES as $k => $label): ?>
+                        <option value="<?= e($k) ?>"><?= e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="lp-modal-row"><strong>Stato</strong>
+                <select name="status" required style="flex:1;padding:.4rem;border:1px solid #ddd;border-radius:6px;">
+                    <?php foreach (LeaveRequest::STATUSES as $k => $label): ?>
+                        <option value="<?= e($k) ?>"><?= e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="lp-modal-row"><strong>Dal</strong>
+                <input type="date" name="start_date" required style="flex:1;padding:.4rem;border:1px solid #ddd;border-radius:6px;">
+            </div>
+            <div class="lp-modal-row"><strong>Al</strong>
+                <input type="date" name="end_date" required style="flex:1;padding:.4rem;border:1px solid #ddd;border-radius:6px;">
+            </div>
+            <div class="lp-modal-row">
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;">
+                    <input type="checkbox" name="is_full_day" value="1"> Giornata intera
+                </label>
+            </div>
+            <div class="lp-modal-row"><strong>Dalle</strong>
+                <input type="time" name="start_time" style="flex:1;padding:.4rem;border:1px solid #ddd;border-radius:6px;">
+            </div>
+            <div class="lp-modal-row"><strong>Alle</strong>
+                <input type="time" name="end_time" style="flex:1;padding:.4rem;border:1px solid #ddd;border-radius:6px;">
+            </div>
+            <div class="lp-modal-block">
+                <div class="lp-modal-block-title">Motivazione</div>
+                <textarea name="reason" rows="2" style="width:100%;padding:.4rem;border:1px solid #ddd;border-radius:6px;"></textarea>
+            </div>
+            <div class="lp-modal-block">
+                <div class="lp-modal-block-title">Note</div>
+                <textarea name="notes" rows="2" style="width:100%;padding:.4rem;border:1px solid #ddd;border-radius:6px;"></textarea>
+            </div>
+            <div class="lp-modal-actions">
+                <button type="button" class="lp-btn lp-btn-view" onclick="hideEdit()">Annulla</button>
+                <button type="submit" class="lp-btn lp-btn-approve" style="background:#ed8936;">Salva modifiche</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script>
 (function() {

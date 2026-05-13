@@ -411,6 +411,60 @@ class LeaveRequest
     }
 
     /**
+     * Aggiornamento forzato lato admin: tipo, date, orari, motivazione, note, stato.
+     * Salta il check delle sovrapposizioni e l'approvazione (admin sa cosa sta facendo).
+     */
+    public static function adminUpdate(int $id, array $data): array
+    {
+        $request = self::getById($id);
+        if (!$request) {
+            return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+
+        $update = [];
+
+        if (isset($data['leave_type']) && isset(self::LEAVE_TYPES[$data['leave_type']])) {
+            $update['leave_type'] = $data['leave_type'];
+        }
+        if (!empty($data['start_date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['start_date'])) {
+            $update['start_date'] = $data['start_date'];
+        }
+        if (!empty($data['end_date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['end_date'])) {
+            $update['end_date'] = $data['end_date'];
+        }
+        if (isset($data['is_full_day'])) {
+            $update['is_full_day'] = !empty($data['is_full_day']) ? 1 : 0;
+        }
+        if (array_key_exists('start_time', $data)) {
+            $update['start_time'] = $data['start_time'] ?: null;
+        }
+        if (array_key_exists('end_time', $data)) {
+            $update['end_time'] = $data['end_time'] ?: null;
+        }
+        if (isset($data['reason'])) {
+            $update['reason'] = trim($data['reason']);
+        }
+        if (array_key_exists('notes', $data)) {
+            $update['notes'] = $data['notes'] !== '' ? $data['notes'] : null;
+        }
+        if (isset($data['status']) && isset(self::STATUSES[$data['status']])) {
+            $update['status'] = $data['status'];
+        }
+
+        if (empty($update)) {
+            return ['success' => false, 'error' => 'Nessun dato da aggiornare'];
+        }
+
+        try {
+            Database::update('leave_requests', $update, 'id = ?', [$id]);
+            self::logAction('leave_request_admin_update', $id, $request, $update);
+            return ['success' => true];
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => 'Errore durante l\'aggiornamento: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Verifica sovrapposizioni di date
      */
     public static function hasOverlap(int $employeeId, string $startDate, string $endDate, ?int $excludeId = null): bool
