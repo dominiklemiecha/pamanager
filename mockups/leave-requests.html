@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Ferie e Permessi — PAManager mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="_tokens.css">
+<link rel="stylesheet" href="_components.css">
+<style>
+.leave-shell { display: grid; grid-template-columns: 1fr 320px; gap: var(--sp-5); }
+@media (max-width: 1024px) { .leave-shell { grid-template-columns: 1fr; } }
+
+.req-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    transition: background var(--duration-fast) var(--ease);
+}
+.req-row:hover { background: var(--slate-50); }
+.req-row:last-child { border-bottom: none; }
+.req-info { flex: 1; min-width: 0; }
+.req-info .who { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 2px; }
+.req-info .who .n { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--ink); }
+.req-info .who .t { font-size: var(--text-xs); color: var(--muted); }
+.req-info .when { font-size: var(--text-xs); color: var(--ink-2); }
+.req-actions { display: flex; gap: var(--sp-1); flex-shrink: 0; }
+.req-actions button {
+    width: 32px; height: 32px; border-radius: var(--r-md);
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all var(--duration-fast) var(--ease);
+}
+.req-actions button.approve:hover { border-color: var(--success-500); color: var(--success-600); background: var(--success-50); }
+.req-actions button.reject:hover { border-color: var(--danger-500); color: var(--danger-600); background: var(--danger-50); }
+.req-actions button.view:hover { border-color: var(--primary-400); color: var(--primary-600); background: var(--primary-50); }
+.req-actions button svg { width: 14px; height: 14px; }
+
+.type-tag {
+    display: inline-block; padding: 2px var(--sp-2);
+    border-radius: var(--r-sm); font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+}
+.type-tag.ferie     { background: var(--primary-50); color: var(--primary-700); }
+.type-tag.malattia  { background: var(--danger-50); color: var(--danger-700); }
+.type-tag.permesso  { background: var(--info-50); color: var(--info-700); }
+.type-tag.l104      { background: #f3e8ff; color: #6b21a8; }
+.type-tag.cong-par  { background: #fce7f3; color: #be185d; }
+
+/* Calendar */
+.cal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-4);
+}
+.cal-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-3); }
+.cal-h .month { font-weight: var(--weight-semibold); font-size: var(--text-base); }
+.cal-h .nav-btn {
+    width: 28px; height: 28px; border-radius: var(--r-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.cal-h .nav-btn:hover { background: var(--slate-50); }
+.cal-h .nav-btn svg { width: 14px; height: 14px; color: var(--muted); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-grid .dow {
+    text-align: center; font-size: 10px;
+    color: var(--muted); font-weight: var(--weight-semibold);
+    padding: var(--sp-1);
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+.cal-grid .day {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--text-xs);
+    color: var(--ink-2);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    position: relative;
+}
+.cal-grid .day:hover { background: var(--primary-50); color: var(--primary-700); }
+.cal-grid .day.off { color: var(--muted-2); opacity: 0.4; }
+.cal-grid .day.today { background: var(--primary-600); color: white; font-weight: var(--weight-bold); }
+.cal-grid .day.approved { background: var(--success-100); color: var(--success-800); font-weight: var(--weight-semibold); }
+.cal-grid .day.pending { background: var(--warning-100); color: var(--warning-800); font-weight: var(--weight-semibold); }
+.cal-legend {
+    display: flex; gap: var(--sp-3); margin-top: var(--sp-3); padding-top: var(--sp-3);
+    border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.cal-legend .item {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: var(--text-xs); color: var(--muted);
+}
+.cal-legend .item .sw {
+    width: 12px; height: 12px; border-radius: 3px;
+}
+
+.viewport-bar { position: fixed; bottom: var(--sp-4); right: var(--sp-4); background: var(--slate-900); color: white; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-pill); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: var(--sp-2); z-index: 100; font-size: var(--text-xs); }
+.viewport-bar svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+    <aside class="app-sidebar">
+        <div class="brand">
+            <div class="brand-mark">P</div>
+            <div><div class="brand-name">PAManager</div><div style="font-size:var(--text-xs); color:var(--muted)">Connecteed Srl</div></div>
+        </div>
+        <nav class="nav">
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3v6h8V3h-8zM3 21h8V11H3v10zM3 9h8V3H3v6zm10 12h8V11h-8v10z"/></svg><span class="nav-label">Dashboard</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3z"/></svg><span class="nav-label">Dipendenti</span></a>
+            <a class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg><span class="nav-label">Ferie e Permessi</span><span class="nav-badge">5</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg><span class="nav-label">Documenti</span></a>
+            <a class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span class="nav-label">Chat</span></a>
+        </nav>
+    </aside>
+    <div class="app-overlay"></div>
+
+    <div class="app-main">
+        <header class="app-header">
+            <button class="header-btn mobile-menu-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
+            <div class="header-search"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg><input type="search" placeholder="Cerca richieste..."></div>
+            <div class="header-actions"><button class="header-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg><span class="dot"></span></button><div class="user-chip"><div class="av av-sm user-chip-avatar">DL</div><span class="user-chip-name">Dominik</span></div></div>
+        </header>
+
+        <main class="app-content">
+            <div class="page-h">
+                <div>
+                    <h1>Ferie e Permessi</h1>
+                    <div class="sub">5 in attesa di approvazione · 128 giorni questo mese</div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2z"/></svg> Calendario completo</button>
+                    <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nuova richiesta</button>
+                </div>
+            </div>
+
+            <section class="stats">
+                <div class="stat">
+                    <span class="stat-label">In attesa</span>
+                    <span class="stat-value" style="color: var(--warning-600)">5</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Approvate</span>
+                    <span class="stat-value" style="color: var(--success-600)">42</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Rifiutate</span>
+                    <span class="stat-value" style="color: var(--danger-600)">3</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Giorni totali mese</span>
+                    <span class="stat-value">128</span>
+                </div>
+            </section>
+
+            <div class="leave-shell">
+                <div class="card">
+                    <div class="card-h">
+                        <h3>Richieste recenti</h3>
+                        <div style="display:flex; gap: var(--sp-2);">
+                            <select style="padding: var(--sp-1) var(--sp-2); border:1px solid var(--border); border-radius:var(--r-sm); font-size:var(--text-xs); background:var(--surface);">
+                                <option>Tutte</option>
+                                <option>In attesa</option>
+                                <option>Approvate</option>
+                                <option>Rifiutate</option>
+                            </select>
+                            <select style="padding: var(--sp-1) var(--sp-2); border:1px solid var(--border); border-radius:var(--r-sm); font-size:var(--text-xs); background:var(--surface);">
+                                <option>Tutti i tipi</option>
+                                <option>Ferie</option>
+                                <option>Permesso</option>
+                                <option>Malattia</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="req-row">
+                        <div class="av">FM</div>
+                        <div class="req-info">
+                            <div class="who"><span class="n">Federico Matturro</span><span class="type-tag malattia">Malattia</span></div>
+                            <div class="when">13-15 Maggio · 3 giorni · Allegato cert. medico</div>
+                        </div>
+                        <span class="badge badge-warning badge-dot">In attesa</span>
+                        <div class="req-actions">
+                            <button class="view" title="Vedi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></button>
+                            <button class="approve" title="Approva"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button>
+                            <button class="reject" title="Rifiuta"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+                        </div>
+                    </div>
+
+                    <div class="req-row">
+                        <div class="av">KH</div>
+                        <div class="req-info">
+                            <div class="who"><span class="n">Morteza Khalili</span><span class="type-tag ferie">Ferie</span></div>
+                            <div class="when">20-25 Maggio · 5 giorni</div>
+                        </div>
+                        <span class="badge badge-warning badge-dot">In attesa</span>
+                        <div class="req-actions">
+                            <button class="view"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></button>
+                            <button class="approve"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button>
+                            <button class="reject"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+                        </div>
+                    </div>
+
+                    <div class="req-row">
+                        <div class="av">SR</div>
+                        <div class="req-info">
+                            <div class="who"><span class="n">Sara De Vincenti</span><span class="type-tag permesso">Permesso</span></div>
+                            <div class="when">14 Maggio · 4 ore (09:00-13:00)</div>
+                        </div>
+                        <span class="badge badge-warning badge-dot">In attesa</span>
+                        <div class="req-actions">
+                            <button class="view"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></button>
+                            <button class="approve"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button>
+                            <button class="reject"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+                        </div>
+                    </div>
+
+                    <div class="req-row">
+                        <div class="av">GP</div>
+                        <div class="req-info">
+                            <div class="who"><span class="n">Giulia Pignatelli</span><span class="type-tag ferie">Ferie</span></div>
+                            <div class="when">12-16 Maggio · 5 giorni · Approvata da Dominik 11 Mag</div>
+                        </div>
+                        <span class="badge badge-success badge-dot">Approvata</span>
+                        <div class="req-actions">
+                            <button class="view"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></button>
+                        </div>
+                    </div>
+
+                    <div class="req-row">
+                        <div class="av">TP</div>
+                        <div class="req-info">
+                            <div class="who"><span class="n">Tonino Pepe</span><span class="type-tag l104">L. 104</span></div>
+                            <div class="when">3 Maggio · 1 giorno · Approvata 30 Apr</div>
+                        </div>
+                        <span class="badge badge-success badge-dot">Approvata</span>
+                        <div class="req-actions">
+                            <button class="view"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></button>
+                        </div>
+                    </div>
+
+                    <div class="req-row">
+                        <div class="av">LL</div>
+                        <div class="req-info">
+                            <div class="who"><span class="n">Luca Leone</span><span class="type-tag cong-par">Cong. parentale</span></div>
+                            <div class="when">5-10 Giugno · 5 giorni</div>
+                        </div>
+                        <span class="badge badge-warning badge-dot">In attesa</span>
+                        <div class="req-actions">
+                            <button class="view"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/></svg></button>
+                            <button class="approve"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button>
+                            <button class="reject"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="cal">
+                        <div class="cal-h">
+                            <button class="nav-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg></button>
+                            <div class="month">Maggio 2026</div>
+                            <button class="nav-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg></button>
+                        </div>
+                        <div class="cal-grid">
+                            <div class="dow">Lun</div><div class="dow">Mar</div><div class="dow">Mer</div><div class="dow">Gio</div><div class="dow">Ven</div><div class="dow">Sab</div><div class="dow">Dom</div>
+                            <div class="day off">27</div><div class="day off">28</div><div class="day off">29</div><div class="day off">30</div><div class="day">1</div><div class="day off">2</div><div class="day off">3</div>
+                            <div class="day">4</div><div class="day">5</div><div class="day">6</div><div class="day">7</div><div class="day">8</div><div class="day off">9</div><div class="day off">10</div>
+                            <div class="day">11</div><div class="day approved">12</div><div class="day approved">13</div><div class="day today">14</div><div class="day approved">15</div><div class="day off">16</div><div class="day off">17</div>
+                            <div class="day">18</div><div class="day">19</div><div class="day pending">20</div><div class="day pending">21</div><div class="day pending">22</div><div class="day off">23</div><div class="day off">24</div>
+                            <div class="day pending">25</div><div class="day">26</div><div class="day">27</div><div class="day">28</div><div class="day">29</div><div class="day off">30</div><div class="day off">31</div>
+                        </div>
+                        <div class="cal-legend">
+                            <div class="item"><span class="sw" style="background: var(--success-100)"></span>Approvate</div>
+                            <div class="item"><span class="sw" style="background: var(--warning-100)"></span>In attesa</div>
+                            <div class="item"><span class="sw" style="background: var(--primary-600)"></span>Oggi</div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: var(--sp-4)">
+                        <div class="card-h"><h3>Statistiche mese</h3></div>
+                        <div class="card-b">
+                            <div style="display: flex; justify-content: space-between; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm);">
+                                <span>Ferie</span><strong>85 gg</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm);">
+                                <span>Permessi</span><strong>22 h</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm);">
+                                <span>Malattia</span><strong>12 gg</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: var(--sp-2) 0; font-size: var(--text-sm);">
+                                <span>L. 104</span><strong>6 gg</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="viewport-bar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4z"/></svg><span id="vpSize">—</span></div>
+<script>
+function updVp() { document.getElementById('vpSize').textContent = window.innerWidth + ' × ' + window.innerHeight; }
+window.addEventListener('resize', updVp); updVp();
+if (window.self !== window.top) { document.documentElement.classList.add('in-iframe'); document.querySelector('.viewport-bar').style.display = 'none'; }
+const force = new URLSearchParams(location.search).get('force');
+if (force === 'desktop' || force === 'tablet' || force === 'mobile') { document.documentElement.classList.add('force-' + force); }
+</script>
+</body>
+</html>
