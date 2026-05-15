@@ -437,14 +437,13 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 
                     <div class="form-group">
                         <label for="start_date">Data Inizio *</label>
-                        <input type="date" id="start_date" name="start_date" required
-                               min="<?= date('Y-m-d') ?>">
+                        <input type="date" id="start_date" name="start_date" required>
+                        <small style="color:#94a3b8;">Puoi inserire anche date passate (richiesta retroattiva).</small>
                     </div>
 
                     <div class="form-group">
                         <label for="end_date">Data Fine *</label>
-                        <input type="date" id="end_date" name="end_date" required
-                               min="<?= date('Y-m-d') ?>">
+                        <input type="date" id="end_date" name="end_date" required>
                     </div>
 
                     <div class="form-group">
