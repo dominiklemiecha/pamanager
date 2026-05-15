@@ -103,7 +103,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     try { FieldVisibility::saveConfig($visCfg, (int)Auth::getUser()['id']); } catch (Throwable $e) {}
                 }
 
+                // Orario lavorativo: se override non spuntato -> null (usa default azienda)
+                $hasOverride = isset($_POST['working_days_override']) && $_POST['working_days_override'] === '1';
+                if ($hasOverride) {
+                    $wdPosted = $_POST['working_days'] ?? [];
+                    $allowed = LeaveBalance::allDayKeys();
+                    $clean = is_array($wdPosted) ? array_values(array_intersect($allowed, $wdPosted)) : [];
+                    $updateData['working_days'] = implode(',', $clean);
+                    $hpdPosted = trim($_POST['hours_per_day'] ?? '');
+                    $updateData['hours_per_day'] = $hpdPosted === '' ? null : (float) str_replace(',', '.', $hpdPosted);
+                } else {
+                    $updateData['working_days'] = null;
+                    $updateData['hours_per_day'] = null;
+                }
+
                 $result = Employee::update($id, $updateData);
+
+                // Salva saldi ferie/permessi
+                if ($result['success'] && isset($_POST['balance']) && is_array($_POST['balance'])) {
+                    $companyId = (int) ($_POST['_balance_company_id'] ?? 0);
+                    $userId    = (int) (Auth::getUser()['id'] ?? 0);
+                    foreach (LeaveBalance::TYPES as $bt) {
+                        $b = $_POST['balance'][$bt] ?? [];
+                        $year = (int) ($b['year'] ?? date('Y'));
+                        $entitled = (float) str_replace(',', '.', (string) ($b['entitled'] ?? '0'));
+                        $carried  = (float) str_replace(',', '.', (string) ($b['carried']  ?? '0'));
+                        $manual   = (float) str_replace(',', '.', (string) ($b['manual_used'] ?? '0'));
+                        $notes    = trim((string) ($b['notes'] ?? '')) ?: null;
+                        if ($year > 1900 && $year < 2100) {
+                            LeaveBalance::save($id, $companyId, $year, $bt, $entitled, $carried, $manual, $notes, $userId);
+                        }
+                    }
+                }
 
                 if ($result['success']) {
                     header('Location: employees.php?message=updated');
@@ -564,13 +595,93 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                            value="<?php echo htmlspecialchars($employee['iban'] ?? $_POST['iban'] ?? ''); ?>">
                 </div>
 
-                <?php if ($action === 'edit'): ?>
+                <?php if ($action === 'edit'):
+                    $compDefaults = LeaveBalance::companyDefaults((int) $employee['company_id']);
+                    $empHasOverride = !empty($employee['working_days']) || $employee['hours_per_day'] !== null;
+                    $effDays = !empty($employee['working_days'])
+                        ? array_filter(array_map('trim', explode(',', $employee['working_days'])))
+                        : $compDefaults['days'];
+                    $effHours = $employee['hours_per_day'] !== null ? (float) $employee['hours_per_day'] : $compDefaults['hours'];
+                    $currentYear = (int) date('Y');
+                    $balances = LeaveBalance::getForEmployee((int) $employee['id'], $currentYear);
+                ?>
+
+                <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Orario lavorativo</h3>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="working_days_override" value="1" id="wd_override" <?= $empHasOverride ? 'checked' : '' ?>>
+                        Personalizza orario per questo dipendente
+                    </label>
+                    <small style="color:#94a3b8;">Default azienda: <?= htmlspecialchars(implode(', ', array_map(['LeaveBalance','dayLabel'], $compDefaults['days']))) ?> · <?= rtrim(rtrim(number_format($compDefaults['hours'], 2, ',', '.'), '0'), ',') ?>h/giorno</small>
+                </div>
+                <div class="form-group" id="wd_panel" style="grid-column: 1 / -1; <?= $empHasOverride ? '' : 'display:none;' ?>">
+                    <label>Giorni lavorativi</label>
+                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+                        <?php foreach (LeaveBalance::allDayKeys() as $dk): ?>
+                            <label class="checkbox-label" style="font-weight:500;">
+                                <input type="checkbox" name="working_days[]" value="<?= $dk ?>" <?= in_array($dk, $effDays, true) ? 'checked' : '' ?>>
+                                <?= htmlspecialchars(LeaveBalance::dayLabel($dk)) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <label for="hours_per_day">Ore/giorno</label>
+                    <input type="number" step="0.25" min="0" max="24" id="hours_per_day" name="hours_per_day"
+                           value="<?= htmlspecialchars($employee['hours_per_day'] !== null ? (string) $employee['hours_per_day'] : '') ?>"
+                           placeholder="<?= rtrim(rtrim(number_format($compDefaults['hours'], 2, '.', ''), '0'), '.') ?>" style="max-width:160px;">
+                </div>
+
+                <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Saldo ferie e permessi (<?= $currentYear ?>)</h3>
+                <input type="hidden" name="_balance_company_id" value="<?= (int) $employee['company_id'] ?>">
+                <?php foreach (LeaveBalance::TYPES as $bt):
+                    $b = $balances[$bt];
+                    $isF = $bt === 'ferie';
+                    $unit = $isF ? 'giorni' : 'ore';
+                    $label = $isF ? 'Ferie' : 'Permessi';
+                ?>
+                <div class="form-group" style="grid-column: 1 / -1; background:#f8fafc; padding:1rem; border-radius:8px; margin-bottom:0.5rem;">
+                    <strong style="display:block; margin-bottom:0.5rem;"><?= $label ?> (<?= $unit ?>)</strong>
+                    <input type="hidden" name="balance[<?= $bt ?>][year]" value="<?= $currentYear ?>">
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.75rem;">
+                        <div>
+                            <label style="font-size:0.8rem; color:#64748b;">Spettanti totali</label>
+                            <input type="number" step="0.5" min="0" name="balance[<?= $bt ?>][entitled]"
+                                   value="<?= htmlspecialchars((string) $b['entitled']) ?>">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:#64748b;">Residuo riportato</label>
+                            <input type="number" step="0.5" name="balance[<?= $bt ?>][carried]"
+                                   value="<?= htmlspecialchars((string) $b['carried']) ?>">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:#64748b;">Già consumato (manuale)</label>
+                            <input type="number" step="0.5" min="0" name="balance[<?= $bt ?>][manual_used]"
+                                   value="<?= htmlspecialchars((string) $b['manual_used']) ?>">
+                        </div>
+                    </div>
+                    <small style="display:block; margin-top:0.5rem; color:#64748b;">
+                        Auto-dedotti da richieste approvate: <strong><?= rtrim(rtrim(number_format($b['auto_used'], 2, ',', '.'), '0'), ',') ?> <?= $unit ?></strong>
+                        · Residuo attuale: <strong><?= rtrim(rtrim(number_format($b['residual'], 2, ',', '.'), '0'), ',') ?> <?= $unit ?></strong>
+                    </small>
+                </div>
+                <?php endforeach; ?>
+
                 <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" <?php echo $employee['is_active'] ? 'checked' : ''; ?>>
                         Dipendente attivo
                     </label>
                 </div>
+                <script>
+                (function() {
+                    var cb = document.getElementById('wd_override');
+                    var panel = document.getElementById('wd_panel');
+                    if (cb && panel) {
+                        cb.addEventListener('change', function() {
+                            panel.style.display = cb.checked ? '' : 'none';
+                        });
+                    }
+                })();
+                </script>
                 <?php endif; ?>
             </div>
 
@@ -665,6 +776,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <div class="info-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg><span class="label">Assunz.</span><span class="value"><?php echo $employee['hire_date'] ? formatDate($employee['hire_date']) : '-'; ?></span></div>
                 <div class="info-cell"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg><span class="label">Accesso</span><span class="value <?php echo $employee['last_login'] ? '' : 'text-muted'; ?>"><?php echo $employee['last_login'] ? formatDateTime($employee['last_login']) : 'Mai'; ?></span></div>
             </div>
+
+            <!-- Saldo ferie e permessi -->
+            <?php
+            $widgetEmployeeId = (int) $employee['id'];
+            $widgetYear = (int) date('Y');
+            include dirname(__DIR__) . '/includes/widget-leave-balance.php';
+            ?>
 
             <!-- Documents -->
             <div class="docs-section">

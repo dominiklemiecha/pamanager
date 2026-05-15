@@ -6,9 +6,12 @@
 .env
 .env.local
 .env.*.local
+.env-production
+.env-prod
 config/database.local.php
 config/*.local.php
 /config/certs/
+.claude/settings.local.json
 
 # Dipendenze (composer install gira nel Docker build)
 /vendor/
