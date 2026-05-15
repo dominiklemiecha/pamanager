@@ -938,10 +938,10 @@ input.uppercase { text-transform: uppercase; }
 }
 
 /* ================================
-   Admin Sidebar Layout
+   Admin Sidebar Layout (LEGACY - non applicato al nuovo grid .app)
    ================================ */
 .admin-body {
-    display: flex;
+    /* display: flex; rimosso: rompe il grid .app del nuovo layout Factorial-blue */
     min-height: 100vh;
     background: var(--gray-100);
 }

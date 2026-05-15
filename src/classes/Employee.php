@@ -326,6 +326,14 @@ class Employee
         }
         if (array_key_exists('iban', $data))           $updateData['iban']           = $data['iban'] ? strtoupper(preg_replace('/\s+/', '', $data['iban'])) : null;
 
+        // Orario di lavoro (migration 025): null = usa default azienda, '' = nessun giorno
+        if (array_key_exists('working_days', $data)) {
+            $updateData['working_days'] = $data['working_days'];
+        }
+        if (array_key_exists('hours_per_day', $data)) {
+            $updateData['hours_per_day'] = $data['hours_per_day'];
+        }
+
         if (isset($data['is_active'])) {
             $updateData['is_active'] = (bool) $data['is_active'];
         }
