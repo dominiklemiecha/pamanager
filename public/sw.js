@@ -3,7 +3,7 @@
  * Gestisce caching offline e push notifications
  */
 
-const CACHE_NAME = 'pamanager-v11';
+const CACHE_NAME = 'pamanager-v12';
 
 // Base path dello scope del Service Worker (es. "/pamanager/public/" o "/")
 // Calcolato dalla directory del file sw.js — robusto anche se self.registration non è ancora pronto.
