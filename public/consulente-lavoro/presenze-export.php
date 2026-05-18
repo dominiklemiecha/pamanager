@@ -78,7 +78,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </form>
 
         <?php if ($pendingCount > 0): ?>
-            <div style="margin-top: 1.25rem; padding: 0.7rem 0.9rem; background:#fef3c7; border-radius:8px; font-size: 0.84rem; color:#854d0e;">
+            <div style="margin-top: 1.25rem; padding: 0.7rem 0.9rem; background:#fff3df; border-radius:8px; font-size: 0.84rem; color:#854d0e;">
                 <strong><?= $pendingCount ?></strong> richieste in attesa per <?= $months[$selMonth] ?>: non saranno incluse.
                 <a href="leave-requests.php?status=pending" style="color:#854d0e; text-decoration: underline;">Approva ora &rarr;</a>
             </div>

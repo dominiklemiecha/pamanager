@@ -96,6 +96,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// ---- Avvia conversazione con admin via querystring (?with_admin=1) ----
+if (!empty($_GET['with_admin']) && in_array($userType, ['employee','admin_reparto'], true)) {
+    try {
+        $__cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $__admin = Database::fetchOne(
+            "SELECT u.id FROM users u
+             LEFT JOIN user_companies uc ON uc.user_id = u.id AND uc.company_id = ?
+             WHERE u.role = 'admin' AND u.is_active = 1
+             ORDER BY (uc.user_id IS NOT NULL) DESC, u.id ASC
+             LIMIT 1",
+            [$__cid]
+        );
+        if ($__admin && Chat::canContact($userType, $userId, $departmentId, 'admin', (int)$__admin['id'])) {
+            $__r = Chat::getOrCreateConversation($userType, $userId, 'admin', (int)$__admin['id']);
+            if (!empty($__r['success']) && !empty($__r['conversation']['id'])) {
+                header('Location: ?conv=' . (int)$__r['conversation']['id']);
+                exit;
+            }
+        }
+    } catch (Throwable $__e) {}
+}
+
 // ---- Render ----
 $conversations    = Chat::getConversations($userType, $userId);
 $contacts         = Chat::getAvailableContacts($userType, $userId, $departmentId);
@@ -110,13 +132,21 @@ if ($selectedConvId) {
     }
 }
 
-// Helper per label gruppo
+// Helper per label gruppo (plurali per le sezioni della sidebar)
 $groupLabels = [
     'admin'             => 'Amministratori',
     'admin_reparto'     => 'Admin reparto',
     'accountant'        => 'Commercialisti',
     'consulente_lavoro' => 'Consulenti del lavoro',
     'employee'          => 'Dipendenti',
+];
+// Label singolari (header conversazione, info panel)
+$singularLabels = [
+    'admin'             => 'Amministratore',
+    'admin_reparto'     => 'Admin reparto',
+    'accountant'        => 'Commercialista',
+    'consulente_lavoro' => 'Consulente del lavoro',
+    'employee'          => 'Dipendente',
 ];
 
 // Set ID dei partecipanti gia' in conversazione (per evidenziare nella lista contatti)
@@ -130,269 +160,665 @@ $__chatLayout = $userType === 'employee' ? 'employee' : 'admin';
 if ($__chatLayout === 'admin' && $userType === 'admin_reparto') {
     $__chatLayout = 'admin-reparto';
 }
+
+// File condivisi nella conversazione selezionata (per il pannello info)
+$sharedFiles = [];
+if ($selectedConvId) {
+    try {
+        $sharedFiles = Database::fetchAll(
+            "SELECT id, attachment_name, attachment_size, attachment_mime, created_at
+             FROM chat_messages
+             WHERE conversation_id = ? AND attachment_path IS NOT NULL AND attachment_path <> ''
+             ORDER BY created_at DESC LIMIT 20",
+            [$selectedConvId]
+        );
+    } catch (Exception $e) { $sharedFiles = []; }
+}
+
 include __DIR__ . '/header-' . $__chatLayout . '.php';
 ?>
 
 <style>
-.chat-container {
+/* ============ CHAT SHELL (mockup design) ============ */
+:root {
+    --chat-primary: #0b3aa4;
+    --chat-primary-dark: #0b3aa4;
+    --chat-primary-50: rgba(11,58,164,0.06);
+    --chat-primary-100: rgba(11,58,164,0.10);
+    --chat-ink: #0f172a;
+    --chat-ink-2: #475569;
+    --chat-muted: #94a3b8;
+    --chat-border: #e2e8f0;
+    --chat-bg: #f8fafc;
+    --chat-success: #16a34a;
+}
+
+.chat-shell {
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 1rem;
+    grid-template-columns: 320px 1fr 280px;
+    gap: 16px;
     height: calc(100vh - 180px);
     min-height: 500px;
 }
-.chat-sidebar {
+@media (max-width: 1180px) {
+    .chat-shell { grid-template-columns: 300px 1fr; }
+    .chat-info-panel { display: none; }
+}
+@media (max-width: 820px) {
+    .chat-shell { grid-template-columns: 1fr; gap: 0; height: calc(100vh - 140px); }
+    .chat-shell:not(.has-active) .chat-thread { display: none; }
+    .chat-shell.has-active .chat-sidebar-panel { display: none; }
+}
+
+.chat-panel {
     background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    border: 1px solid var(--chat-border);
+    border-radius: 14px;
     display: flex; flex-direction: column;
     overflow: hidden;
 }
-.chat-sidebar-section { border-bottom: 1px solid #edf2f7; }
-.chat-sidebar-section:last-child { border-bottom: none; }
-.chat-sidebar-title {
-    padding: .75rem 1rem .5rem;
-    font-size: .7rem;
+
+/* ============ SIDEBAR ============ */
+.chat-sidebar-panel .chat-search {
+    padding: 12px;
+    border-bottom: 1px solid var(--chat-border);
+    position: relative;
+    flex-shrink: 0;
+}
+.chat-search svg {
+    position: absolute; left: 22px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: var(--chat-muted);
+    pointer-events: none;
+}
+.chat-search input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    background: var(--chat-bg);
+    border: 1px solid var(--chat-border);
+    border-radius: 8px;
+    font-family: inherit; font-size: 13px;
+    color: var(--chat-ink);
+    transition: all .12s ease;
+}
+.chat-search input:focus {
+    outline: none; background: white;
+    border-color: var(--chat-primary);
+    box-shadow: 0 0 0 3px var(--chat-primary-100);
+}
+.chat-list { flex: 1; overflow-y: auto; }
+.chat-group-title {
+    font-size: 10px; color: var(--chat-muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 14px 16px 6px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: #718096;
-    background: #f7fafc;
+    background: white;
+    position: sticky; top: 0; z-index: 1;
     display: flex; justify-content: space-between; align-items: center;
 }
-.chat-sidebar-title .count { font-weight: 600; color: #a0aec0; font-size: .7rem; }
-.chat-sidebar-search {
-    padding: .5rem 1rem;
-    border-bottom: 1px solid #edf2f7;
-}
-.chat-sidebar-search input {
-    width: 100%;
-    padding: .45rem .65rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: .82rem;
-}
-.chat-sidebar-search input:focus { outline: none; border-color: #3182ce; }
-
-.chat-sidebar-list { flex: 1; overflow-y: auto; }
-.chat-item {
-    display: flex; align-items: center;
-    gap: .65rem;
-    padding: .6rem 1rem;
+.chat-group-title .count { color: var(--chat-muted); font-weight: 600; }
+.contact-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
     cursor: pointer;
-    border-bottom: 1px solid #f7fafc;
-    text-decoration: none;
-    color: inherit;
-    transition: background .15s;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .12s ease;
+    text-decoration: none; color: inherit;
 }
-.chat-item:hover { background: #f7fafc; }
-.chat-item.active { background: #ebf8ff; border-left: 3px solid #3182ce; }
-.chat-avatar {
-    width: 36px; height: 36px;
+.contact-item:hover { background: var(--chat-bg); }
+.contact-item.active {
+    background: var(--chat-primary-50);
+    border-left: 3px solid var(--chat-primary);
+    padding-left: 13px;
+}
+.contact-item .av {
+    position: relative;
+    width: 38px; height: 38px;
     border-radius: 50%;
-    background: #3182ce;
+    background: linear-gradient(135deg, var(--chat-primary), var(--chat-primary-dark));
     color: white;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 600; font-size: .82rem;
+    font-weight: 600; font-size: 13px;
     flex-shrink: 0;
     text-transform: uppercase;
     overflow: hidden;
 }
-.chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.chat-info { flex: 1; min-width: 0; }
-.chat-info .chat-name {
-    font-weight: 500; font-size: .85rem; color: #2d3748;
+.contact-item .av img { width: 100%; height: 100%; object-fit: cover; }
+.contact-item .av .online-dot {
+    width: 10px; height: 10px;
+    background: var(--chat-success);
+    border: 2px solid white;
+    border-radius: 50%;
+    position: absolute; right: -2px; bottom: -2px;
+}
+.contact-info { flex: 1; min-width: 0; }
+.contact-info .n {
+    font-size: 13px; font-weight: 600; color: var(--chat-ink);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.chat-info .chat-preview,
-.chat-info .chat-sub {
-    font-size: .7rem; color: #a0aec0;
+.contact-info .p {
+    font-size: 12px; color: var(--chat-muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 2px;
 }
-.chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
-.chat-time { font-size: .6rem; color: #a0aec0; }
-.chat-unread {
-    background: #3182ce; color: white;
-    font-size: .6rem; padding: .1rem .45rem;
-    border-radius: 10px; font-weight: 700;
-}
-.chat-contact-role {
-    font-size: .58rem; letter-spacing: .5px; text-transform: uppercase;
-    padding: 1px 6px; border-radius: 4px;
-    background: #edf2f7; color: #4a5568;
+.contact-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.contact-meta .t { font-size: 10px; color: var(--chat-muted); }
+.contact-meta .u {
+    background: var(--chat-primary); color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    min-width: 18px; text-align: center;
 }
 
-/* Main */
-.chat-main {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06);
-    display: flex; flex-direction: column;
+/* ============ THREAD ============ */
+.chat-thread { display: flex; flex-direction: column; }
+.thread-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--chat-border);
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+}
+.thread-header .back-btn {
+    display: none;
+    width: 32px; height: 32px;
+    border: none; background: transparent;
+    color: var(--chat-ink-2); border-radius: 8px;
+    cursor: pointer;
+    align-items: center; justify-content: center;
+    text-decoration: none;
+}
+.thread-header .back-btn:hover { background: var(--chat-bg); }
+.thread-header .av {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--chat-primary), var(--chat-primary-dark));
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 14px;
+    flex-shrink: 0; text-transform: uppercase;
     overflow: hidden;
 }
-.chat-header {
-    padding: 1rem;
-    border-bottom: 1px solid #edf2f7;
-    display: flex; align-items: center; gap: .75rem;
+.thread-header .av img { width: 100%; height: 100%; object-fit: cover; }
+.thread-header .info { flex: 1; min-width: 0; }
+.thread-header .info .n {
+    font-family: 'Host Grotesk','Inter',sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: var(--chat-ink); letter-spacing: -0.01em;
 }
-.chat-header-name { font-weight: 600; font-size: 1rem; color: #2d3748; }
-.chat-header-status { font-size: .72rem; color: #a0aec0; }
+.thread-header .info .s {
+    font-size: 11px; color: var(--chat-success);
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 2px;
+}
+.thread-header .info .s::before {
+    content: ""; width: 7px; height: 7px;
+    background: var(--chat-success); border-radius: 50%;
+}
+.thread-header .info .s.offline { color: var(--chat-muted); }
+.thread-header .info .s.offline::before { background: var(--chat-muted); }
+.thread-header .acts { display: flex; gap: 4px; }
+.thread-header .acts button {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--chat-ink-2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .12s ease;
+}
+.thread-header .acts button:hover {
+    background: var(--chat-primary-50);
+    color: var(--chat-primary);
+}
+.thread-header .acts button svg { width: 16px; height: 16px; }
 
-.chat-messages {
-    flex: 1; padding: 1rem;
-    overflow-y: auto;
-    display: flex; flex-direction: column;
-    gap: .65rem;
-    background: #f7fafc;
+/* Messages */
+.thread-messages {
+    flex: 1; overflow-y: auto;
+    padding: 18px;
+    background: var(--chat-bg);
+    display: flex; flex-direction: column; gap: 10px;
 }
-.message {
+.day-divider {
+    text-align: center; font-size: 11px;
+    color: var(--chat-muted); padding: 8px 0;
+    position: relative; margin: 4px 0;
+}
+.day-divider::before, .day-divider::after {
+    content: ""; position: absolute; top: 50%;
+    width: 30%; height: 1px; background: var(--chat-border);
+}
+.day-divider::before { left: 5%; }
+.day-divider::after { right: 5%; }
+.day-divider span {
+    background: var(--chat-bg); padding: 0 12px;
+    position: relative; z-index: 1;
+    font-weight: 600;
+}
+
+.msg-group {
+    display: flex; flex-direction: column; gap: 4px;
     max-width: 70%;
-    padding: .6rem .85rem;
-    border-radius: 12px;
-    font-size: .88rem;
-    line-height: 1.4;
+}
+.msg-group.sent { align-self: flex-end; align-items: flex-end; }
+.msg-group.received { align-self: flex-start; align-items: flex-start; }
+.msg {
+    padding: 9px 14px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
     word-wrap: break-word;
 }
-.message.sent {
-    align-self: flex-end;
-    background: #3182ce;
-    color: white;
+.msg-group.sent .msg {
+    background: var(--chat-primary); color: white;
     border-bottom-right-radius: 4px;
 }
-.message.received {
-    align-self: flex-start;
-    background: white;
-    color: #2d3748;
+.msg-group.received .msg {
+    background: white; color: var(--chat-ink);
+    border: 1px solid var(--chat-border);
     border-bottom-left-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
-.message-time { font-size: .62rem; margin-top: .25rem; opacity: .7; }
-.message-attach {
-    margin-top: .35rem;
-    display: inline-flex; align-items: center; gap: .35rem;
-    padding: .35rem .6rem;
-    background: rgba(255,255,255,0.2);
-    border-radius: 6px;
-    color: inherit; text-decoration: none;
-    font-size: .78rem;
+.msg-time {
+    font-size: 10px; color: var(--chat-muted);
+    padding: 0 8px;
 }
-.message.received .message-attach {
-    background: #edf2f7; color: #3182ce;
-}
-.message-attach:hover { filter: brightness(0.95); text-decoration: underline; }
-.message-attach svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-.chat-input-area {
-    padding: .75rem 1rem;
-    border-top: 1px solid #edf2f7;
-    display: flex; gap: .5rem; align-items: flex-end;
+/* Attachments inline in messages */
+.msg-attach {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; margin-top: 4px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    color: inherit; text-decoration: none;
+    font-size: 13px;
+    transition: filter .12s ease;
+    max-width: 320px;
 }
-.chat-input {
-    flex: 1; padding: .55rem .85rem;
-    border: 1px solid #e2e8f0; border-radius: 20px;
-    font-size: .9rem; resize: none; min-height: 38px; max-height: 120px;
-    font-family: inherit;
+.msg-group.received .msg-attach {
+    background: var(--chat-primary-50);
+    color: var(--chat-primary-dark);
 }
-.chat-input:focus { outline: none; border-color: #3182ce; }
-.chat-attach-btn, .chat-send-btn {
-    width: 38px; height: 38px;
-    border-radius: 50%;
-    border: none; cursor: pointer;
+.msg-attach:hover { filter: brightness(1.08); text-decoration: none; }
+.msg-attach .file-ic {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
-.chat-attach-btn {
-    background: #edf2f7; color: #4a5568;
+.msg-group.received .msg-attach .file-ic {
+    background: white; color: var(--chat-primary);
 }
-.chat-attach-btn:hover { background: #e2e8f0; color: #3182ce; }
-.chat-send-btn { background: #3182ce; color: white; }
-.chat-send-btn:hover { background: #2c5282; }
-.chat-send-btn:disabled { background: #a0aec0; cursor: not-allowed; }
+.msg-attach .file-ic svg { width: 18px; height: 18px; }
+.msg-attach .file-meta { min-width: 0; flex: 1; }
+.msg-attach .file-meta .name {
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: block;
+}
+.msg-attach .file-meta .size {
+    font-size: 11px; opacity: 0.8; margin-top: 2px;
+    display: block;
+}
+
+/* Composer */
+.composer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--chat-border);
+    display: flex; align-items: flex-end; gap: 8px;
+    flex-shrink: 0;
+    background: white;
+}
+.composer .input-wrap {
+    flex: 1;
+    background: var(--chat-bg);
+    border: 1px solid var(--chat-border);
+    border-radius: 14px;
+    padding: 8px 12px;
+    transition: all .12s ease;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.composer .input-wrap:focus-within {
+    background: white;
+    border-color: var(--chat-primary);
+    box-shadow: 0 0 0 3px var(--chat-primary-100);
+}
+.composer textarea {
+    width: 100%;
+    border: none; background: transparent;
+    resize: none;
+    font-family: inherit; font-size: 13.5px;
+    color: var(--chat-ink); line-height: 1.5;
+    min-height: 22px; max-height: 140px;
+    outline: none;
+}
+.composer .tools {
+    display: flex; gap: 2px;
+}
+.tool-btn {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    background: transparent; border: none;
+    color: var(--chat-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .12s ease;
+}
+.tool-btn:hover {
+    background: var(--chat-primary-100);
+    color: var(--chat-primary);
+}
+.tool-btn svg { width: 16px; height: 16px; }
+.send-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: var(--chat-primary); color: white;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(11,58,164,0.30);
+    transition: all .12s ease;
+    flex-shrink: 0;
+}
+.send-btn:hover {
+    background: var(--chat-primary-dark);
+    transform: scale(1.05);
+}
+.send-btn:disabled {
+    background: var(--chat-muted); box-shadow: none;
+    transform: none; cursor: not-allowed;
+}
+.send-btn svg { width: 18px; height: 18px; }
+
 .attach-preview {
     display: none;
-    margin: 0 1rem .5rem;
-    padding: .45rem .7rem;
-    background: #ebf8ff;
-    border: 1px solid #bee3f8;
-    border-radius: 6px;
-    font-size: .78rem;
-    align-items: center; gap: .5rem;
-    color: #2c5282;
+    margin: 0 16px 8px;
+    padding: 8px 12px;
+    background: var(--chat-primary-50);
+    border: 1px solid var(--chat-primary-100);
+    border-radius: 8px;
+    font-size: 12px;
+    align-items: center; gap: 8px;
+    color: var(--chat-primary-dark);
 }
 .attach-preview.show { display: flex; }
 .attach-preview button {
-    margin-left: auto; background: none; border: none; cursor: pointer;
-    color: #c53030; font-size: 1rem;
+    margin-left: auto; background: none; border: none;
+    cursor: pointer; color: #f75c6c;
+    font-size: 18px; line-height: 1;
 }
 
+/* Empty state */
 .chat-empty {
     flex: 1; display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    color: #a0aec0; text-align: center; padding: 2rem;
+    color: var(--chat-muted); text-align: center; padding: 32px;
 }
-.chat-empty svg { width: 56px; height: 56px; margin-bottom: 1rem; opacity: .4; }
+.chat-empty svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.4; }
+.chat-empty p { margin: 0; font-size: 13px; max-width: 320px; }
 
-.chat-back-mobile {
-    display: none;
-    width: 36px; height: 36px;
-    border: none; background: transparent; color: #2d3748;
-    border-radius: 8px; cursor: pointer;
-    align-items: center; justify-content: center;
+/* ============ INFO PANEL ============ */
+.chat-info-panel .info-block {
+    padding: 18px;
+    border-bottom: 1px solid var(--chat-border);
+}
+.chat-info-panel .info-block:last-child { border-bottom: none; }
+.info-profile { text-align: center; }
+.info-profile .av-xl {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--chat-primary), var(--chat-primary-dark));
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 26px;
+    margin: 0 auto 12px;
+    text-transform: uppercase;
+    overflow: hidden;
+}
+.info-profile .av-xl img { width: 100%; height: 100%; object-fit: cover; }
+.info-profile h3 {
+    margin: 0 0 4px;
+    font-family: 'Host Grotesk','Inter',sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: var(--chat-ink); letter-spacing: -0.01em;
+}
+.info-profile .role { color: var(--chat-muted); font-size: 12px; }
+.info-block h4 {
+    margin: 0 0 10px;
+    font-size: 10px;
+    color: var(--chat-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
+.info-row {
+    display: flex; gap: 10px; align-items: center;
+    padding: 6px 0; font-size: 12.5px;
+    color: var(--chat-ink-2);
+}
+.info-row svg {
+    width: 15px; height: 15px;
+    color: var(--chat-muted); flex-shrink: 0;
+}
+.info-row span, .info-row a {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--chat-ink-2); text-decoration: none;
+}
+.info-row a:hover { color: var(--chat-primary); }
+
+.shared-list { display: flex; flex-direction: column; gap: 4px; }
+.shared-list .file-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px;
+    border-radius: 8px;
     text-decoration: none;
+    transition: background .12s ease;
 }
-.chat-back-mobile:hover { background: #f7fafc; }
+.shared-list .file-item:hover { background: var(--chat-bg); }
+.shared-list .file-item .ic {
+    width: 32px; height: 32px; border-radius: 7px;
+    background: var(--chat-primary-100);
+    color: var(--chat-primary);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.shared-list .file-item .ic svg { width: 16px; height: 16px; }
+.shared-list .file-item .meta { flex: 1; min-width: 0; }
+.shared-list .file-item .meta .n {
+    font-size: 11.5px;
+    color: var(--chat-ink);
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shared-list .file-item .meta .s {
+    font-size: 10px; color: var(--chat-muted);
+}
+.shared-empty { font-size: 12px; color: var(--chat-muted); text-align: center; padding: 12px 0; }
 
-@media (max-width: 768px) {
-    .chat-container {
-        grid-template-columns: 1fr;
-        height: calc(100vh - 140px);
-        gap: 0;
+@media (max-width: 820px) {
+    .thread-header {
+        padding: 10px 12px;
+        gap: 8px;
     }
-    .chat-container:not(.has-active) .chat-main { display: none; }
-    .chat-container.has-active .chat-sidebar { display: none; }
-    .chat-back-mobile { display: inline-flex; }
-    .message { max-width: 88%; }
+    .thread-header .back-btn { display: inline-flex; flex-shrink: 0; }
+    .thread-header .av { width: 36px; height: 36px; }
+    .thread-header .info { flex: 1; min-width: 0; overflow: hidden; }
+    .thread-header .info .n {
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-transform: capitalize;
+    }
+    .thread-header .info .s {
+        font-size: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .thread-header .acts { gap: 2px; flex-shrink: 0; }
+    .thread-header .acts button { width: 32px; height: 32px; }
+    .msg-group { max-width: 86%; }
+}
+
+/* hidden attribute must beat display:flex */
+.thread-search[hidden], .emoji-picker[hidden] { display: none !important; }
+
+/* Thread search bar */
+.thread-search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--chat-border);
+    background: var(--chat-bg);
+    flex-shrink: 0;
+}
+.thread-search svg { width: 15px; height: 15px; color: var(--chat-muted); flex-shrink: 0; }
+.thread-search input {
+    flex: 1; min-width: 0;
+    border: none; background: transparent;
+    font-family: inherit; font-size: 13px;
+    color: var(--chat-ink); outline: none;
+}
+.thread-search .ts-count {
+    font-size: 11px; color: var(--chat-muted);
+    font-variant-numeric: tabular-nums;
+}
+.thread-search button {
+    width: 24px; height: 24px;
+    border: none; background: transparent;
+    color: var(--chat-muted); cursor: pointer;
+    font-size: 18px; line-height: 1;
+    border-radius: 6px;
+}
+.thread-search button:hover { background: white; color: var(--chat-ink); }
+.thread-header .acts button.active {
+    background: var(--chat-primary-100);
+    color: var(--chat-primary);
+}
+.msg-group.search-hide { display: none; }
+.msg mark {
+    background: rgba(250,204,21,0.45);
+    color: inherit; padding: 0 2px; border-radius: 3px;
+}
+
+/* Emoji picker */
+.emoji-wrap { position: relative; display: inline-flex; }
+.emoji-picker {
+    position: fixed;
+    width: 280px;
+    background: white;
+    border: 1px solid var(--chat-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.18);
+    padding: 8px;
+    z-index: 1000;
+}
+.emoji-picker[hidden] { display: none; }
+.emoji-cat-tabs {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--chat-border);
+    padding-bottom: 6px; margin-bottom: 6px;
+}
+.emoji-cat-tabs button {
+    flex: 1;
+    border: none; background: transparent;
+    padding: 5px 0; font-size: 16px;
+    border-radius: 6px; cursor: pointer;
+    color: var(--chat-muted);
+    transition: all .1s ease;
+}
+.emoji-cat-tabs button.active { background: var(--chat-primary-50); }
+.emoji-cat-tabs button:hover { background: var(--chat-bg); }
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.emoji-grid button {
+    width: 32px; height: 32px;
+    border: none; background: transparent;
+    font-size: 18px; cursor: pointer;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .1s ease;
+}
+.emoji-grid button:hover { background: var(--chat-primary-50); transform: scale(1.15); }
+
+/* Info panel visible toggle on tablet */
+.chat-shell.info-open .chat-info-panel { display: flex; }
+@media (max-width: 1180px) {
+    .chat-shell.info-open {
+        grid-template-columns: 1fr 280px;
+    }
+    .chat-shell.info-open .chat-sidebar-panel { display: none; }
+}
+
+/* Back-button per info panel (visibile solo mobile) */
+.info-back-btn {
+    display: none;
+    align-items: center; gap: 8px;
+    padding: 12px 14px;
+    border: none; background: transparent;
+    color: var(--chat-primary);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; text-align: left;
+    border-bottom: 1px solid var(--chat-border);
+    width: 100%;
+    flex-shrink: 0;
+}
+.info-back-btn:hover { background: var(--chat-bg); }
+.info-back-btn svg { width: 16px; height: 16px; }
+
+/* Mobile: info panel diventa una "pagina" che sostituisce il thread */
+@media (max-width: 820px) {
+    .chat-info-panel { display: none !important; }
+    .chat-shell.info-open .chat-info-panel { display: flex !important; }
+    .chat-shell.info-open .chat-thread { display: none; }
+    .chat-shell.info-open .chat-sidebar-panel { display: none; }
+    .chat-shell.info-open { grid-template-columns: 1fr; }
+    .info-back-btn { display: inline-flex; }
 }
 </style>
 
-<div class="chat-container <?= $selectedConvId ? 'has-active' : '' ?>">
-    <!-- Sidebar: Conversazioni + Tutti i contatti -->
-    <div class="chat-sidebar">
-        <div class="chat-sidebar-search">
-            <input type="search" id="chatSearch" placeholder="Cerca conversazioni o contatti...">
+<div class="chat-shell <?= $selectedConvId ? 'has-active' : '' ?>">
+    <!-- Sidebar: Conversazioni + Contatti -->
+    <div class="chat-panel chat-sidebar-panel">
+        <div class="chat-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="chatSearch" placeholder="Cerca persone o messaggi…">
         </div>
 
-        <div class="chat-sidebar-list" id="chatSidebarList">
+        <div class="chat-list" id="chatSidebarList">
             <?php if (!empty($conversations)): ?>
                 <div class="chat-sidebar-section" data-section="conv">
-                    <div class="chat-sidebar-title">
-                        Conversazioni
+                    <div class="chat-group-title">
+                        <span>Recenti</span>
                         <span class="count"><?= count($conversations) ?></span>
                     </div>
                     <?php foreach ($conversations as $conv):
                         $name = $conv['other_name'] ?? '';
                         $initials = strtoupper(mb_substr($name, 0, 2));
+                        $preview = mb_substr($conv['last_message'] ?? '', 0, 40);
                     ?>
                         <a href="?conv=<?= (int)$conv['id'] ?>"
-                           class="chat-item <?= $selectedConvId == $conv['id'] ? 'active' : '' ?>"
+                           class="contact-item <?= $selectedConvId == $conv['id'] ? 'active' : '' ?>"
                            data-search="<?= e(strtolower($name . ' ' . ($conv['last_message'] ?? ''))) ?>">
-                            <div class="chat-avatar">
+                            <div class="av">
                                 <?php if (!empty($conv['other_photo'])): ?>
                                     <img src="<?= e(PUBLIC_URL . '/' . ltrim($conv['other_photo'], '/')) ?>" alt="" loading="lazy" decoding="async">
                                 <?php else: ?>
                                     <?= e($initials) ?>
                                 <?php endif; ?>
                             </div>
-                            <div class="chat-info">
-                                <div class="chat-name"><?= e($name) ?></div>
-                                <div class="chat-preview"><?= e(mb_substr($conv['last_message'] ?? '', 0, 40)) ?></div>
+                            <div class="contact-info">
+                                <div class="n"><?= e($name) ?></div>
+                                <div class="p"><?= e($preview) ?></div>
                             </div>
-                            <div class="chat-meta">
+                            <div class="contact-meta">
                                 <?php if (!empty($conv['last_message_time'])): ?>
-                                    <span class="chat-time"><?= formatDateTime($conv['last_message_time'], 'd/m H:i') ?></span>
+                                    <span class="t"><?= formatDateTime($conv['last_message_time'], 'H:i') ?></span>
                                 <?php endif; ?>
                                 <?php if (!empty($conv['unread_count']) && $conv['unread_count'] > 0): ?>
-                                    <span class="chat-unread"><?= (int)$conv['unread_count'] ?></span>
+                                    <span class="u"><?= (int)$conv['unread_count'] ?></span>
                                 <?php endif; ?>
                             </div>
                         </a>
@@ -401,25 +827,20 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
             <?php endif; ?>
 
             <?php
-            // Contatti raggruppati, escludendo quelli gia' nelle conversazioni
             foreach ($contacts as $groupKey => $list) {
                 if (empty($list)) continue;
-
                 $filtered = array_values(array_filter($list, function($c) use ($groupKey, $activeContactIds, $userType, $userId) {
                     $cid = (int)($c['id'] ?? 0);
                     if (!$cid) return false;
-                    // Escludi se stesso
                     if ($groupKey === $userType && $cid === $userId) return false;
-                    // Escludi se ha gia' una conversazione
                     return empty($activeContactIds[$groupKey . ':' . $cid]);
                 }));
-
                 if (empty($filtered)) continue;
                 $label = $groupLabels[$groupKey] ?? $groupKey;
             ?>
                 <div class="chat-sidebar-section" data-section="<?= e($groupKey) ?>">
-                    <div class="chat-sidebar-title">
-                        <?= e($label) ?>
+                    <div class="chat-group-title">
+                        <span><?= e($label) ?></span>
                         <span class="count"><?= count($filtered) ?></span>
                     </div>
                     <?php foreach ($filtered as $c):
@@ -429,28 +850,28 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                             : ($c['name'] ?? 'Utente #' . $cId);
                         $initials = strtoupper(mb_substr($cName, 0, 2));
                         $photo = $c['photo_path'] ?? null;
+                        $sub = '';
+                        if ($groupKey === 'employee' && !empty($c['department_name'])) {
+                            $sub = $c['department_name'];
+                        } elseif (!empty($c['email'])) {
+                            $sub = $c['email'];
+                        }
                     ?>
-                        <div class="chat-item"
+                        <div class="contact-item"
                              role="button" tabindex="0"
                              data-other-type="<?= e($groupKey) ?>" data-other-id="<?= $cId ?>"
                              data-search="<?= e(strtolower($cName)) ?>"
                              onclick="startConversation('<?= e($groupKey) ?>', <?= $cId ?>)">
-                            <div class="chat-avatar">
+                            <div class="av">
                                 <?php if ($photo): ?>
                                     <img src="<?= e(PUBLIC_URL . '/' . ltrim($photo, '/')) ?>" alt="" loading="lazy" decoding="async">
                                 <?php else: ?>
                                     <?= e($initials) ?>
                                 <?php endif; ?>
                             </div>
-                            <div class="chat-info">
-                                <div class="chat-name"><?= e($cName) ?></div>
-                                <div class="chat-sub">
-                                    <?php if ($groupKey === 'employee' && !empty($c['department_name'])): ?>
-                                        <?= e($c['department_name']) ?>
-                                    <?php elseif (!empty($c['email'])): ?>
-                                        <?= e($c['email']) ?>
-                                    <?php endif; ?>
-                                </div>
+                            <div class="contact-info">
+                                <div class="n"><?= e($cName) ?></div>
+                                <?php if ($sub): ?><div class="p"><?= e($sub) ?></div><?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -459,77 +880,172 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
         </div>
     </div>
 
-    <!-- Main chat area -->
-    <div class="chat-main">
-        <?php if ($selectedConvId && $selectedConv): ?>
-            <div class="chat-header">
-                <a href="?" class="chat-back-mobile" aria-label="Indietro">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    <!-- Thread -->
+    <div class="chat-panel chat-thread">
+        <?php if ($selectedConvId && $selectedConv):
+            $hName  = $selectedConv['other_name'] ?? '';
+            $hPhoto = $selectedConv['other_photo'] ?? null;
+            $hType  = $selectedConv['other_type'] ?? '';
+            $hInit  = strtoupper(mb_substr($hName, 0, 2));
+        ?>
+            <div class="thread-header">
+                <a href="?" class="back-btn" aria-label="Indietro">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                 </a>
-                <div class="chat-avatar">
-                    <?php
-                        $name = $selectedConv['other_name'] ?? '';
-                        $photo = $selectedConv['other_photo'] ?? null;
-                        if (!empty($photo)) {
-                            echo '<img src="' . e(PUBLIC_URL . '/' . ltrim($photo, '/')) . '" alt="' . e($name) . '" loading="lazy" decoding="async">';
-                        } else {
-                            echo e(strtoupper(mb_substr($name, 0, 2)));
-                        }
-                    ?>
+                <div class="av">
+                    <?php if ($hPhoto): ?>
+                        <img src="<?= e(PUBLIC_URL . '/' . ltrim($hPhoto, '/')) ?>" alt="" loading="lazy" decoding="async">
+                    <?php else: ?>
+                        <?= e($hInit) ?>
+                    <?php endif; ?>
                 </div>
-                <div style="flex:1;">
-                    <div class="chat-header-name"><?= e($selectedConv['other_name'] ?? '') ?></div>
-                    <div class="chat-header-status"><?= e($groupLabels[$selectedConv['other_type']] ?? '') ?></div>
+                <div class="info">
+                    <div class="n"><?= e($hName) ?></div>
+                    <div class="s"><?= e($singularLabels[$hType] ?? '') ?></div>
+                </div>
+                <div class="acts">
+                    <button type="button" id="btnThreadSearch" title="Cerca nella conversazione">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+                    <button type="button" id="btnThreadInfo" title="Info conversazione">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    </button>
                 </div>
             </div>
 
-            <div class="chat-messages" id="chatMessages">
-                <?php foreach ($selectedMessages as $msg):
+            <div class="thread-search" id="threadSearchBar" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search" id="threadSearchInput" placeholder="Cerca nei messaggi…" autocomplete="off">
+                <span class="ts-count" id="threadSearchCount"></span>
+            </div>
+
+            <div class="thread-messages" id="chatMessages">
+                <?php
+                $lastDay = null;
+                foreach ($selectedMessages as $msg):
                     $isSent = ($msg['sender_type'] === $userType && (int)$msg['sender_id'] === $userId);
+                    $msgDay = date('Y-m-d', strtotime($msg['created_at']));
+                    if ($msgDay !== $lastDay) {
+                        $lastDay = $msgDay;
+                        $today   = date('Y-m-d');
+                        $yest    = date('Y-m-d', strtotime('-1 day'));
+                        if ($msgDay === $today)      $lbl = 'Oggi';
+                        elseif ($msgDay === $yest)   $lbl = 'Ieri';
+                        else                          $lbl = date('d M Y', strtotime($msg['created_at']));
+                        echo '<div class="day-divider"><span>' . e($lbl) . '</span></div>';
+                    }
                 ?>
-                    <div class="message <?= $isSent ? 'sent' : 'received' ?>">
+                    <div class="msg-group <?= $isSent ? 'sent' : 'received' ?>">
                         <?php if (!empty(trim($msg['message']))): ?>
-                            <?= nl2br(e($msg['message'])) ?>
+                            <div class="msg"><?= nl2br(e($msg['message'])) ?></div>
                         <?php endif; ?>
-                        <?php if (!empty($msg['attachment_path'])): ?>
-                            <a class="message-attach" href="?download_attachment=<?= (int)$msg['id'] ?>" target="_blank">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 015 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 005 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
-                                <?= e($msg['attachment_name'] ?? 'Allegato') ?>
+                        <?php if (!empty($msg['attachment_path'])):
+                            $sz = !empty($msg['attachment_size']) ? round($msg['attachment_size']/1024) . ' KB' : '';
+                            $ext = strtoupper(pathinfo($msg['attachment_name'] ?? '', PATHINFO_EXTENSION));
+                        ?>
+                            <a class="msg-attach" href="?download_attachment=<?= (int)$msg['id'] ?>" target="_blank">
+                                <div class="file-ic">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                </div>
+                                <div class="file-meta">
+                                    <span class="name"><?= e($msg['attachment_name'] ?? 'Allegato') ?></span>
+                                    <span class="size"><?= $sz ?><?= $sz && $ext ? ' · ' : '' ?><?= e($ext) ?></span>
+                                </div>
                             </a>
                         <?php endif; ?>
-                        <div class="message-time"><?= date('d/m H:i', strtotime($msg['created_at'])) ?></div>
+                        <span class="msg-time"><?= date('H:i', strtotime($msg['created_at'])) ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
 
             <div class="attach-preview" id="attachPreview">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <span id="attachPreviewName"></span>
                 <button type="button" onclick="clearAttachment()" title="Rimuovi">&times;</button>
             </div>
 
-            <form class="chat-input-area" id="chatForm" enctype="multipart/form-data" onsubmit="sendMessage(event)">
+            <form class="composer" id="chatForm" enctype="multipart/form-data" onsubmit="sendMessage(event)">
                 <?= CSRF::field() ?>
                 <input type="hidden" name="action" value="send">
                 <input type="hidden" name="conversation_id" value="<?= $selectedConvId ?>">
                 <input type="file" id="attachInput" name="attachment" style="display:none;" onchange="onAttachChange()">
-                <button type="button" class="chat-attach-btn" onclick="document.getElementById('attachInput').click()" title="Allega file">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 015 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 005 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
-                </button>
-                <textarea class="chat-input" name="message" id="messageInput"
-                          placeholder="Scrivi un messaggio..." rows="1"
-                          onkeydown="handleKeyDown(event)"></textarea>
-                <button type="submit" class="chat-send-btn" title="Invia">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                <div class="input-wrap">
+                    <textarea name="message" id="messageInput"
+                              placeholder="Scrivi un messaggio…" rows="1"
+                              onkeydown="handleKeyDown(event)"></textarea>
+                    <div class="tools">
+                        <button type="button" class="tool-btn" title="Allega file" onclick="document.getElementById('attachInput').click()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                        </button>
+                        <div class="emoji-wrap">
+                            <button type="button" class="tool-btn" id="btnEmoji" title="Emoji">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                            </button>
+                            <div class="emoji-picker" id="emojiPicker" hidden></div>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="send-btn" title="Invia">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
             </form>
         <?php else: ?>
             <div class="chat-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-                <p>Seleziona una conversazione o clicca su un contatto a sinistra per iniziare a chattare.</p>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <p>Seleziona una conversazione o un contatto a sinistra per iniziare a chattare.</p>
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- Info Panel (only when active conversation) -->
+    <?php if ($selectedConvId && $selectedConv):
+        $iName  = $selectedConv['other_name'] ?? '';
+        $iPhoto = $selectedConv['other_photo'] ?? null;
+        $iType  = $selectedConv['other_type'] ?? '';
+        $iInit  = strtoupper(mb_substr($iName, 0, 2));
+        $iSub   = $singularLabels[$iType] ?? '';
+    ?>
+        <aside class="chat-panel chat-info-panel">
+            <button type="button" class="info-back-btn" id="infoBackBtn" aria-label="Torna alla chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Torna alla chat
+            </button>
+            <div class="info-block info-profile">
+                <div class="av-xl">
+                    <?php if ($iPhoto): ?>
+                        <img src="<?= e(PUBLIC_URL . '/' . ltrim($iPhoto, '/')) ?>" alt="" loading="lazy" decoding="async">
+                    <?php else: ?>
+                        <?= e($iInit) ?>
+                    <?php endif; ?>
+                </div>
+                <h3><?= e($iName) ?></h3>
+                <div class="role"><?= e($iSub) ?></div>
+            </div>
+
+            <div class="info-block">
+                <h4>File condivisi (<?= count($sharedFiles) ?>)</h4>
+                <?php if (empty($sharedFiles)): ?>
+                    <div class="shared-empty">Nessun file condiviso</div>
+                <?php else: ?>
+                    <div class="shared-list">
+                        <?php foreach ($sharedFiles as $f): ?>
+                            <a class="file-item" href="?download_attachment=<?= (int)$f['id'] ?>" target="_blank">
+                                <div class="ic">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                </div>
+                                <div class="meta">
+                                    <div class="n"><?= e($f['attachment_name'] ?? 'Allegato') ?></div>
+                                    <div class="s">
+                                        <?= !empty($f['attachment_size']) ? round($f['attachment_size']/1024) . ' KB · ' : '' ?><?= date('d/m/y', strtotime($f['created_at'])) ?>
+                                    </div>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </aside>
+    <?php endif; ?>
 </div>
 
 <script>
@@ -610,33 +1126,201 @@ function loadMessages() {
     fd.append('conversation_id', convId);
     fd.append('csrf_token', csrfToken);
 
+    // Pausa il refresh mentre l'utente sta cercando
+    const searchBar = document.getElementById('threadSearchBar');
+    if (searchBar && !searchBar.hidden) return;
+
     fetch('', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if (!data.success) return;
             const container = document.getElementById('chatMessages');
-            container.innerHTML = data.messages.map(msg => {
+            const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const fmtDay = ymd => {
+                const today = new Date(); const t = today.toISOString().slice(0,10);
+                const y = new Date(today.getTime()-86400000).toISOString().slice(0,10);
+                if (ymd === t) return 'Oggi';
+                if (ymd === y) return 'Ieri';
+                const d = new Date(ymd);
+                return d.toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric' });
+            };
+            let html = '';
+            let lastDay = null;
+            for (const msg of data.messages) {
                 const isSent = msg.sender_type === _userType && parseInt(msg.sender_id) === _userId;
-                let html = `<div class="message ${isSent ? 'sent' : 'received'}">`;
+                const d = new Date(msg.created_at);
+                const ymd = d.toISOString().slice(0,10);
+                if (ymd !== lastDay) {
+                    lastDay = ymd;
+                    html += `<div class="day-divider"><span>${esc(fmtDay(ymd))}</span></div>`;
+                }
+                html += `<div class="msg-group ${isSent ? 'sent' : 'received'}">`;
                 if (msg.message && msg.message.trim()) {
-                    html += msg.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+                    html += `<div class="msg">${esc(msg.message).replace(/\n/g,'<br>')}</div>`;
                 }
                 if (msg.attachment_path) {
-                    const safeName = (msg.attachment_name || 'Allegato').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-                    html += `<a class="message-attach" href="?download_attachment=${msg.id}" target="_blank">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 015 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 005 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
-                        ${safeName}
+                    const name = msg.attachment_name || 'Allegato';
+                    const sz = msg.attachment_size ? Math.round(msg.attachment_size/1024) + ' KB' : '';
+                    const ext = (name.split('.').pop() || '').toUpperCase();
+                    html += `<a class="msg-attach" href="?download_attachment=${msg.id}" target="_blank">
+                        <div class="file-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                        <div class="file-meta"><span class="name">${esc(name)}</span><span class="size">${esc(sz)}${sz && ext ? ' · ' : ''}${esc(ext)}</span></div>
                     </a>`;
                 }
-                const d = new Date(msg.created_at);
-                const time = d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-                html += `<div class="message-time">${time}</div></div>`;
-                return html;
-            }).join('');
+                const t = d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+                html += `<span class="msg-time">${t}</span></div>`;
+            }
+            container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
         })
         .catch(err => console.error(err));
 }
+
+/* ====== Emoji picker ====== */
+const EMOJI_CATS = {
+    '😀': ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','😴','😷','🤒','🤕','🤧','🥵','🥶','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬'],
+    '👍': ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','💪','🦾','👏','🙌','👐','🤲','🤛','🤜','✊','👊','🫶','💅','✍️','🤳','💋','👀','👁️','👅','👂','👃','🧠','🫀','🫁','🦷','🦴'],
+    '❤️': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','💌','💯','💢','💥','💫','💦','💨','🕳️','💣','💬','👁️‍🗨️','🗨️','🗯️','💭','💤'],
+    '🎉': ['🎉','🎊','🎁','🎈','🎂','🎀','🪄','🎃','🎄','🎆','🎇','🧨','✨','🎋','🎍','🎎','🎏','🎐','🎑','🧧','🪔','🎟️','🎫','🏆','🏅','🥇','🥈','🥉','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','⛷️','🏂','🪂'],
+    '✅': ['✅','❌','⭕','🚫','⛔','📛','💢','♨️','🆗','🆙','🆒','🆕','🆓','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','#️⃣','*️⃣','▶️','⏸️','⏯️','⏹️','⏺️','⏭️','⏮️','⏩','⏪','🔼','🔽','⬆️','⬇️','⬅️','➡️','↗️','↘️','↙️','↖️','↕️','↔️','↪️','↩️','⤴️','⤵️','🔀','🔁','🔂','🔄','🔃','🎵','🎶','➕','➖','➗','✖️','♾️','💲','💱'],
+    '📅': ['📅','📆','🗓️','📇','📈','📉','📊','📋','📌','📍','📎','🖇️','📏','📐','✂️','🗃️','🗄️','🗑️','🔒','🔓','🔏','🔐','🔑','🗝️','🔨','🪓','⛏️','⚒️','🛠️','🗡️','⚔️','🔫','🪃','🏹','🛡️','🪚','🔧','🪛','🔩','⚙️','🗜️','⚖️','🦯','🔗','⛓️','🧰','🧲','🪜','📞','📱','💻','⌨️','🖥️','🖨️','🖱️','🖲️','💾','💿','📀','📼','📷','📸','📹','🎥','🎞️','📽️','📡','💡','🔦','🕯️','🪔','📔','📕','📗','📘','📙','📚','📓','📒','📃','📜','📄','📰','🗞️','📑','🔖','🏷️','💰','🪙','💴','💵','💶','💷','💸','💳','🧾','✉️','📧','📨','📩','📤','📥','📦','📫','📪','📬','📭','📮','🗳️','✏️','✒️','🖋️','🖊️','🖌️','🖍️','📝']
+};
+const EMOJI_DEFAULT_CAT = '😀';
+
+function buildEmojiPicker() {
+    const picker = document.getElementById('emojiPicker');
+    if (!picker || picker.dataset.built) return;
+    picker.dataset.built = '1';
+
+    const tabs = document.createElement('div');
+    tabs.className = 'emoji-cat-tabs';
+    const grid = document.createElement('div');
+    grid.className = 'emoji-grid';
+
+    const renderCat = (key) => {
+        grid.innerHTML = '';
+        (EMOJI_CATS[key] || []).forEach(e => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = e;
+            b.addEventListener('click', () => insertEmojiChar(e));
+            grid.appendChild(b);
+        });
+        tabs.querySelectorAll('button').forEach(t => t.classList.toggle('active', t.dataset.cat === key));
+    };
+
+    Object.keys(EMOJI_CATS).forEach(cat => {
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.dataset.cat = cat;
+        tab.textContent = cat;
+        tab.addEventListener('click', () => renderCat(cat));
+        tabs.appendChild(tab);
+    });
+
+    picker.appendChild(tabs);
+    picker.appendChild(grid);
+    renderCat(EMOJI_DEFAULT_CAT);
+}
+
+function insertEmojiChar(em) {
+    const input = document.getElementById('messageInput');
+    if (!input) return;
+    const start = input.selectionStart ?? input.value.length;
+    const end   = input.selectionEnd ?? input.value.length;
+    input.value = input.value.slice(0, start) + em + input.value.slice(end);
+    input.focus();
+    input.selectionStart = input.selectionEnd = start + em.length;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    /* Emoji */
+    const btnEmoji = document.getElementById('btnEmoji');
+    const picker = document.getElementById('emojiPicker');
+    if (btnEmoji && picker) {
+        // Move to body so it isn't clipped by overflow:hidden parents
+        if (picker.parentElement !== document.body) document.body.appendChild(picker);
+        const positionPicker = () => {
+            const r = btnEmoji.getBoundingClientRect();
+            const pw = 280, ph = 250;
+            // anchor LEFT edge of picker to LEFT edge of button so it opens toward the chat area
+            let left = r.left;
+            if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+            if (left < 8) left = 8;
+            let top = r.top - ph - 8;
+            if (top < 8) top = r.bottom + 8;
+            picker.style.left = left + 'px';
+            picker.style.top  = top  + 'px';
+        };
+        btnEmoji.addEventListener('click', (e) => {
+            e.stopPropagation();
+            buildEmojiPicker();
+            if (picker.hidden) { picker.hidden = false; positionPicker(); }
+            else picker.hidden = true;
+        });
+        document.addEventListener('click', (e) => {
+            if (picker.hidden) return;
+            if (!picker.contains(e.target) && e.target !== btnEmoji && !btnEmoji.contains(e.target)) picker.hidden = true;
+        });
+        window.addEventListener('resize', () => { if (!picker.hidden) positionPicker(); });
+        window.addEventListener('scroll', () => { if (!picker.hidden) positionPicker(); }, true);
+    }
+
+    /* Thread search */
+    const sBtn = document.getElementById('btnThreadSearch');
+    const sBar = document.getElementById('threadSearchBar');
+    const sInp = document.getElementById('threadSearchInput');
+    const sCnt = document.getElementById('threadSearchCount');
+    const applySearch = () => {
+        const q = (sInp.value || '').trim().toLowerCase();
+        const groups = document.querySelectorAll('#chatMessages .msg-group');
+        let matches = 0;
+        groups.forEach(g => {
+            const msgEl = g.querySelector('.msg');
+            const text = (msgEl ? msgEl.textContent : '') + ' ' + (g.querySelector('.file-meta .name')?.textContent || '');
+            const tLow = text.toLowerCase();
+            const hit = !q || tLow.includes(q);
+            g.classList.toggle('search-hide', !hit);
+            if (msgEl) {
+                msgEl.innerHTML = msgEl.dataset.orig || msgEl.innerHTML;
+                if (!msgEl.dataset.orig) msgEl.dataset.orig = msgEl.innerHTML;
+                if (q && hit) {
+                    const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi');
+                    msgEl.innerHTML = msgEl.dataset.orig.replace(re, '<mark>$1</mark>');
+                }
+            }
+            if (hit && q) matches++;
+        });
+        sCnt.textContent = q ? (matches + ' risultat' + (matches === 1 ? 'o' : 'i')) : '';
+    };
+    if (sBtn && sBar) {
+        sBtn.addEventListener('click', () => {
+            const open = !sBar.hidden;
+            sBar.hidden = open;
+            sBtn.classList.toggle('active', !open);
+            if (!open) { sInp.focus(); } else { sInp.value = ''; applySearch(); }
+        });
+        sInp.addEventListener('input', applySearch);
+    }
+
+    /* Info panel toggle */
+    const iBtn = document.getElementById('btnThreadInfo');
+    const shell = document.querySelector('.chat-shell');
+    if (iBtn && shell) {
+        iBtn.addEventListener('click', () => {
+            shell.classList.toggle('info-open');
+            iBtn.classList.toggle('active', shell.classList.contains('info-open'));
+        });
+    }
+    /* Info panel back button (mobile) */
+    const iBack = document.getElementById('infoBackBtn');
+    if (iBack && shell) {
+        iBack.addEventListener('click', () => {
+            shell.classList.remove('info-open');
+            iBtn?.classList.remove('active');
+        });
+    }
+});
 
 function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -651,13 +1335,12 @@ const searchInput = document.getElementById('chatSearch');
 if (searchInput) {
     searchInput.addEventListener('input', () => {
         const q = searchInput.value.trim().toLowerCase();
-        document.querySelectorAll('#chatSidebarList .chat-item').forEach(item => {
+        document.querySelectorAll('#chatSidebarList .contact-item').forEach(item => {
             const hay = item.getAttribute('data-search') || '';
             item.style.display = (!q || hay.includes(q)) ? '' : 'none';
         });
-        // Nascondi sezioni vuote
         document.querySelectorAll('#chatSidebarList .chat-sidebar-section').forEach(sec => {
-            const visible = Array.from(sec.querySelectorAll('.chat-item')).some(i => i.style.display !== 'none');
+            const visible = Array.from(sec.querySelectorAll('.contact-item')).some(i => i.style.display !== 'none');
             sec.style.display = visible ? '' : 'none';
         });
     });
@@ -666,6 +1349,13 @@ if (searchInput) {
 document.addEventListener('DOMContentLoaded', () => {
     const cm = document.getElementById('chatMessages');
     if (cm) cm.scrollTop = cm.scrollHeight;
+    const ti = document.getElementById('messageInput');
+    if (ti) {
+        ti.addEventListener('input', () => {
+            ti.style.height = 'auto';
+            ti.style.height = Math.min(ti.scrollHeight, 140) + 'px';
+        });
+    }
 });
 
 <?php if ($selectedConvId): ?>

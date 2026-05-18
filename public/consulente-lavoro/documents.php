@@ -116,26 +116,23 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 
 .upload-header {
-    background: #f7fafc;
-    padding: 1rem 1.25rem;
-    color: #2d3748;
+    background: linear-gradient(180deg, #fafbff, white);
+    padding: 16px 20px;
+    color: #1e1e2f;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    border-bottom: 1px solid #edf2f7;
+    gap: 10px;
+    border-bottom: 1px solid #e6e8f0;
 }
 
 .upload-header h2 {
     margin: 0;
-    font-size: 1rem;
-    color: #2d3748;
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.01em;
 }
 
-.upload-header svg {
-    width: 20px;
-    height: 20px;
-    color: #3182ce;
-}
+.upload-header svg { color: #0b3aa4; }
 
 .upload-form {
     padding: 1.25rem;
@@ -179,7 +176,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .upload-grid select:focus,
 .upload-grid textarea:focus {
     outline: none;
-    border-color: #3182ce;
+    border-color: #0b3aa4;
     box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 
@@ -220,12 +217,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .autocomplete-input:focus {
     outline: none;
-    border-color: #3182ce;
+    border-color: #0b3aa4;
     box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 .autocomplete-input.has-value {
-    background: #ebf8ff;
-    border-color: #3182ce;
+    background: #eef3fb;
+    border-color: #0b3aa4;
 }
 .autocomplete-dropdown {
     position: absolute;
@@ -256,7 +253,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .autocomplete-item:hover,
 .autocomplete-item.active {
-    background: #ebf8ff;
+    background: #eef3fb;
 }
 .autocomplete-item .name {
     font-weight: 600;
@@ -406,7 +403,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     height: 20px;
 }
 
-.doc-icon.payslip { background: #c6f6d5; color: #276749; }
+.doc-icon.payslip { background: #eef3fb; color: #082b7b; }
 .doc-icon.cud { background: #fefcbf; color: #975a16; }
 .doc-icon.other { background: #e2e8f0; color: #4a5568; }
 
@@ -545,6 +542,31 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 </style>
 
+<div class="cl-banner">
+    <div>
+        <h2>Buste paga e CU</h2>
+        <p>Carica i documenti per i dipendenti. <strong><?= count($documents) ?></strong> caricat<?= count($documents) === 1 ? 'o' : 'i' ?> nel filtro corrente.</p>
+    </div>
+</div>
+<style>
+.cl-banner {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+}
+.cl-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    margin: 0 0 4px;
+    font-size: 19px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.02em;
+}
+.cl-banner p { margin: 0; font-size: 13px; color: #6e7191; }
+</style>
+
 <div class="docs-page">
     <?php if ($message): ?>
         <div class="alert alert-success"><?= e($message) ?></div>
@@ -557,10 +579,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     <!-- Upload Section -->
     <div class="upload-section">
         <div class="upload-header">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            <h2>Carica Nuovo Documento</h2>
+            <h2>Carica nuovo documento</h2>
         </div>
         <form method="POST" enctype="multipart/form-data" class="upload-form">
             <?= CSRF::field() ?>
@@ -635,111 +657,218 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </form>
     </div>
 
-    <!-- Filters -->
-    <div class="filters-section">
-        <form method="GET" class="filters-row">
-            <div class="filter-item">
-                <label>Dipendente</label>
-                <select name="employee_id">
-                    <option value="">Tutti</option>
-                    <?php foreach ($employees as $emp): ?>
-                        <option value="<?= $emp['id'] ?>" <?= $filterEmployee == $emp['id'] ? 'selected' : '' ?>>
-                            <?= e($emp['last_name'] . ' ' . $emp['first_name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="filter-item">
-                <label>Tipo Documento</label>
-                <select name="type">
-                    <option value="">Tutti</option>
-                    <?php foreach (Document::TYPES as $key => $label): ?>
-                        <option value="<?= $key ?>" <?= $filterType === $key ? 'selected' : '' ?>>
-                            <?= e($label) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="filter-item">
-                <label>Periodo</label>
-                <input type="month" name="filter_period"
-                       value="<?= $filterPeriod ? e($filterPeriod) : '' ?>"
-                       min="<?= date('Y') - 5 ?>-01"
-                       max="<?= date('Y') ?>-12"
-                       placeholder="Seleziona periodo">
-            </div>
-
-            <div class="filter-buttons">
-                <button type="submit" class="btn btn-primary">Filtra</button>
-                <?php if ($filterEmployee || $filterPeriod || $filterType): ?>
-                    <a href="documents.php" class="btn btn-secondary">Reset</a>
-                <?php endif; ?>
-            </div>
+    <!-- Filtri tab type + dipendente/periodo -->
+    <div class="cd-filters">
+        <div class="cd-tabs">
+            <?php
+            $__qsBase = function ($override) use ($filterEmployee, $filterPeriod, $filterType) {
+                $params = array_filter([
+                    'employee_id' => $filterEmployee,
+                    'filter_period' => $filterPeriod,
+                    'type' => $filterType,
+                ]);
+                $params = array_merge($params, $override);
+                $params = array_filter($params, fn($v) => $v !== null && $v !== '');
+                return $params ? '?' . http_build_query($params) : 'documents.php';
+            };
+            ?>
+            <a href="<?= e($__qsBase(['type' => null])) ?>" class="cd-tab <?= !$filterType ? 'active' : '' ?>">Tutti</a>
+            <?php foreach (Document::TYPES as $key => $label): ?>
+                <a href="<?= e($__qsBase(['type' => $key])) ?>" class="cd-tab <?= $filterType === $key ? 'active' : '' ?>"><?= e($label) ?></a>
+            <?php endforeach; ?>
+        </div>
+        <form method="GET" class="cd-filter-row">
+            <?php if ($filterType): ?><input type="hidden" name="type" value="<?= e($filterType) ?>"><?php endif; ?>
+            <select name="employee_id" onchange="this.form.submit()">
+                <option value="">Tutti i dipendenti</option>
+                <?php foreach ($employees as $emp): ?>
+                    <option value="<?= $emp['id'] ?>" <?= $filterEmployee == $emp['id'] ? 'selected' : '' ?>>
+                        <?= e($emp['last_name'] . ' ' . $emp['first_name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <input type="month" name="filter_period" value="<?= $filterPeriod ? e($filterPeriod) : '' ?>"
+                   min="<?= date('Y') - 5 ?>-01" max="<?= date('Y') ?>-12" onchange="this.form.submit()">
+            <?php if ($filterEmployee || $filterPeriod || $filterType): ?>
+                <a href="documents.php" class="cd-reset">Reset</a>
+            <?php endif; ?>
         </form>
     </div>
 
-    <!-- Documents List -->
-    <div class="docs-list-section">
-        <div class="docs-list-header">
-            <h2>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                </svg>
-                Documenti Caricati
-            </h2>
-            <span class="docs-count"><?= count($documents) ?> documenti</span>
+    <!-- Lista documenti -->
+    <?php if (empty($documents)): ?>
+        <div class="cd-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="42" height="42"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>Nessun documento trovato.</p>
         </div>
-
-        <?php if (empty($documents)): ?>
-            <div class="docs-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                </svg>
-                <p>Nessun documento trovato</p>
-            </div>
-        <?php else: ?>
-            <div class="docs-grid">
-                <?php foreach ($documents as $doc): ?>
-                    <div class="doc-card">
-                        <div class="doc-icon <?= e($doc['type']) ?>">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                            </svg>
+    <?php else: ?>
+        <div class="cd-list">
+            <?php foreach ($documents as $doc):
+                $tLbl = Document::TYPES[$doc['type']] ?? $doc['type'];
+                $initials = strtoupper(substr($doc['first_name'], 0, 1) . substr($doc['last_name'], 0, 1));
+            ?>
+                <div class="cd-row">
+                    <div class="cd-row-ic <?= e($doc['type']) ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div class="cd-row-main">
+                        <div class="cd-row-title">
+                            <span class="cd-row-tlb"><?= e($doc['title']) ?></span>
+                            <span class="cd-type-pill cd-type-<?= e($doc['type']) ?>"><?= e($tLbl) ?></span>
                         </div>
-                        <div class="doc-main">
-                            <div class="doc-title"><?= e($doc['title']) ?></div>
-                            <div class="doc-meta">
-                                <span><?= getMonthName($doc['month']) ?> <?= $doc['year'] ?></span>
-                                <span><?= e(Document::TYPES[$doc['type']] ?? $doc['type']) ?></span>
-                            </div>
-                        </div>
-                        <div class="doc-employee">
-                            <?= e($doc['last_name'] . ' ' . $doc['first_name']) ?>
-                            <small><?= e($doc['fiscal_code']) ?></small>
-                        </div>
-                        <div class="doc-size"><?= formatFileSize($doc['file_size']) ?></div>
-                        <div class="doc-date"><?= formatDate($doc['created_at']) ?></div>
-                        <div class="doc-actions">
-                            <a href="<?= PUBLIC_URL ?>/api/download.php?id=<?= $doc['id'] ?>" class="btn btn-sm btn-info" title="Scarica">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                                </svg>
-                            </a>
-                            <form method="POST" class="inline-form" onsubmit="return confirm('Eliminare?')">
-                                <?= CSRF::field() ?>
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="document_id" value="<?= $doc['id'] ?>">
-                                <button type="submit" class="btn btn-sm btn-danger">Elimina</button>
-                            </form>
+                        <div class="cd-row-meta">
+                            <span class="cd-emp">
+                                <span class="cd-emp-av"><?= e($initials) ?></span>
+                                <?= e($doc['last_name'] . ' ' . $doc['first_name']) ?>
+                            </span>
+                            <span class="sep">·</span>
+                            <span><?= getMonthName($doc['month']) ?> <?= (int)$doc['year'] ?></span>
+                            <span class="sep">·</span>
+                            <span><?= formatFileSize($doc['file_size']) ?></span>
+                            <span class="sep">·</span>
+                            <span>Caricato <?= formatDate($doc['created_at']) ?></span>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
+                    <div class="cd-row-actions">
+                        <a href="<?= PUBLIC_URL ?>/api/download.php?id=<?= $doc['id'] ?>" class="cd-ibtn primary" title="Scarica">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </a>
+                        <form method="POST" class="inline-form" onsubmit="return confirm('Eliminare definitivamente questo documento?')">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="document_id" value="<?= $doc['id'] ?>">
+                            <button type="submit" class="cd-ibtn danger" title="Elimina">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 </div>
+
+<style>
+.cd-filters {
+    background: white; border: 1px solid #e6e8f0; border-radius: 12px;
+    padding: 10px; margin-bottom: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.cd-tabs {
+    display: flex; gap: 2px; background: #f1f5f9; border-radius: 10px;
+    padding: 4px; flex-wrap: wrap;
+}
+.cd-tab {
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    color: #6e7191; text-decoration: none;
+    white-space: nowrap; transition: all .12s ease;
+}
+.cd-tab:hover { color: #0b3aa4; }
+.cd-tab.active { background: white; color: #0b3aa4; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+.cd-filter-row {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.cd-filter-row select, .cd-filter-row input[type=month] {
+    padding: 8px 12px; border: 1px solid #e6e8f0; border-radius: 8px;
+    font-family: inherit; font-size: 13px; background: white; min-width: 180px;
+    color: #1e1e2f;
+}
+.cd-filter-row select:focus, .cd-filter-row input:focus {
+    outline: none; border-color: #0b3aa4; box-shadow: 0 0 0 3px rgba(11,58,164,0.10);
+}
+.cd-reset {
+    padding: 8px 14px; color: #f75c6c;
+    font-size: 12px; font-weight: 600; text-decoration: none;
+    border-radius: 8px;
+}
+.cd-reset:hover { background: rgba(247,92,108,0.08); }
+
+.cd-empty {
+    background: white; border: 1px solid #e6e8f0; border-radius: 14px;
+    padding: 48px 18px; text-align: center; color: #94a3b8;
+}
+.cd-empty svg { color: #cbd5e0; margin-bottom: 10px; }
+.cd-empty p { margin: 0; font-size: 13px; }
+
+.cd-list { display: flex; flex-direction: column; gap: 8px; }
+.cd-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 12px;
+    transition: all .12s ease;
+}
+.cd-row:hover { border-color: #0b3aa4; box-shadow: 0 4px 12px rgba(11,58,164,0.06); }
+.cd-row-ic {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.cd-row-ic.payslip  { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.cd-row-ic.cud      { background: rgba(255,187,85,0.16); color: #b07023; }
+.cd-row-ic.other    { background: rgba(100,116,139,0.10); color: #475569; }
+.cd-row-ic svg { width: 18px; height: 18px; }
+.cd-row-main { flex: 1; min-width: 0; }
+.cd-row-title {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.cd-row-tlb {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700; color: #1e1e2f;
+    letter-spacing: -0.01em;
+    overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
+}
+.cd-type-pill {
+    padding: 2px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cd-type-payslip { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.cd-type-cud     { background: rgba(255,187,85,0.14); color: #b07023; }
+.cd-type-other   { background: #f1f5f9; color: #475569; }
+.cd-row-meta {
+    font-size: 12px; color: #6e7191;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.cd-row-meta .sep { color: #cbd5e0; }
+.cd-emp {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600; color: #1e1e2f;
+}
+.cd-emp-av {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #0b3aa4, #082b7b);
+    color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700;
+}
+.cd-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.cd-row-actions form { margin: 0; }
+.cd-ibtn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid #e6e8f0; background: white;
+    color: #475569; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .12s ease; text-decoration: none;
+}
+.cd-ibtn:hover { border-color: #0b3aa4; color: #0b3aa4; }
+.cd-ibtn svg { width: 14px; height: 14px; }
+.cd-ibtn.primary { background: rgba(11,58,164,0.08); color: #0b3aa4; border-color: rgba(11,58,164,0.20); }
+.cd-ibtn.primary:hover { background: #0b3aa4; color: white; }
+.cd-ibtn.danger { background: rgba(247,92,108,0.08); color: #cc2d39; border-color: rgba(247,92,108,0.20); }
+.cd-ibtn.danger:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
+
+@media (max-width: 700px) {
+    .cd-filter-row select, .cd-filter-row input[type=month] { width: 100%; min-width: 0; }
+    .cd-row { flex-wrap: wrap; }
+    .cd-row-main { flex-basis: 100%; }
+    .cd-row-actions { width: 100%; justify-content: flex-end; }
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -866,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!hidden.value) {
                 e.preventDefault();
                 input.focus();
-                input.style.borderColor = '#e53e3e';
+                input.style.borderColor = '#f75c6c';
                 setTimeout(() => input.style.borderColor = '', 2000);
             }
         });

@@ -40,59 +40,158 @@ $pageTitle = 'Dashboard';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
 
+<?php
+$__hour = (int) date('H');
+$__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 'Buonasera');
+?>
+<div class="cl-banner">
+    <div>
+        <h2><?= htmlspecialchars($__greeting) ?>, <?= e($user['name']) ?> 👋</h2>
+        <p><?= htmlspecialchars(ucfirst(getItalianDate())) ?> · Area Consulente del Lavoro</p>
+    </div>
+    <div class="cl-banner-actions">
+        <a href="employees.php" class="cl-banner-btn cl-banner-btn-ghost">Anagrafica</a>
+        <a href="documents.php" class="cl-banner-btn cl-banner-btn-primary">Carica documenti</a>
+    </div>
+</div>
+<style>
+.cl-banner {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+}
+.cl-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    margin: 0 0 4px;
+    font-size: 20px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.02em;
+}
+.cl-banner p { margin: 0; font-size: 13px; color: #6e7191; }
+.cl-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cl-banner-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    transition: all .12s ease;
+    border: 1px solid transparent;
+}
+.cl-banner-btn-primary { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+.cl-banner-btn-primary:hover { background: #082b7b; color: white; text-decoration: none; }
+.cl-banner-btn-ghost { background: white; color: #475569; border-color: #e6e8f0; }
+.cl-banner-btn-ghost:hover { border-color: #0b3aa4; color: #0b3aa4; text-decoration: none; }
+@media (max-width: 600px) {
+    .cl-banner { flex-direction: column; align-items: stretch; }
+    .cl-banner-btn { flex: 1; justify-content: center; }
+}
+</style>
+
 <div class="dashboard">
-    <div class="page-header">
-        <div>
-            <h1>Benvenuto, <?= e($user['name']) ?></h1>
-            <p class="page-subtitle"><?= getItalianDate() ?></p>
+
+    <div class="cl-kpis">
+        <a href="employees.php" class="cl-kpi">
+            <div class="cl-kpi-ic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Dipendenti</div>
+                <div class="cl-kpi-v"><?= (int)$employeeCount ?></div>
+                <div class="cl-kpi-s">attivi in anagrafica</div>
+            </div>
+        </a>
+
+        <a href="documents.php" class="cl-kpi">
+            <div class="cl-kpi-ic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Documenti caricati</div>
+                <div class="cl-kpi-v"><?= (int)$documentCount ?></div>
+                <div class="cl-kpi-s">totale storico</div>
+            </div>
+        </a>
+
+        <div class="cl-kpi">
+            <div class="cl-kpi-ic" style="background: rgba(17,186,186,0.10); color: #0c8a8a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h2M14 14h2M8 18h2"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Questo mese</div>
+                <div class="cl-kpi-v"><?= (int)$thisMonthDocs ?></div>
+                <div class="cl-kpi-s">documenti caricati a <?= mb_strtolower(getMonthName((int)date('n'))) ?></div>
+            </div>
         </div>
-        <div style="display:flex;gap:.5rem;">
-            <a href="employees.php" class="btn btn-secondary btn-sm">Anagrafica</a>
-            <a href="documents.php" class="btn btn-primary btn-sm">Carica documenti</a>
-        </div>
+
+        <a href="leave-requests.php?status=pending" class="cl-kpi <?= (int)$pendingLeave > 0 ? 'is-warn' : '' ?>">
+            <div class="cl-kpi-ic" style="background: rgba(255,187,85,0.15); color: #b07023;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Ferie/permessi</div>
+                <div class="cl-kpi-v"><?= (int)$pendingLeave ?></div>
+                <div class="cl-kpi-s">richieste pendenti</div>
+            </div>
+        </a>
     </div>
-
-    <div class="stats-grid">
-        <div class="stat-card stat-primary">
-            <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-value"><?= $employeeCount ?></span>
-                <span class="stat-label">Dipendenti attivi</span>
-            </div>
-        </div>
-
-        <div class="stat-card stat-info">
-            <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-value"><?= $documentCount ?></span>
-                <span class="stat-label">Documenti caricati</span>
-            </div>
-        </div>
-
-        <div class="stat-card stat-success">
-            <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-value"><?= $thisMonthDocs ?></span>
-                <span class="stat-label">Caricati questo mese</span>
-            </div>
-        </div>
-
-        <div class="stat-card stat-warning">
-            <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-6h2v6zm0-8h-2V7h2v4z"/></svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-value"><?= (int)$pendingLeave ?></span>
-                <span class="stat-label">Ferie/permessi pendenti</span>
-            </div>
-        </div>
-    </div>
+    <style>
+    .cl-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+    .cl-kpi {
+        background: white;
+        border: 1px solid #e6e8f0;
+        border-radius: 14px;
+        padding: 18px;
+        display: flex; align-items: center; gap: 14px;
+        text-decoration: none;
+        transition: all .12s ease;
+        cursor: default;
+    }
+    a.cl-kpi { cursor: pointer; }
+    a.cl-kpi:hover {
+        border-color: #0b3aa4;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(11,58,164,0.08);
+        text-decoration: none;
+    }
+    .cl-kpi.is-warn { border-color: rgba(255,187,85,0.45); background: linear-gradient(180deg, #fffbf3, white); }
+    .cl-kpi-ic {
+        width: 44px; height: 44px;
+        border-radius: 11px;
+        background: rgba(11,58,164,0.10); color: #0b3aa4;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .cl-kpi-ic svg { width: 22px; height: 22px; }
+    .cl-kpi-info { flex: 1; min-width: 0; }
+    .cl-kpi-l {
+        font-size: 10px; font-weight: 700; color: #6e7191;
+        text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .cl-kpi-v {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 28px; font-weight: 700;
+        color: #1e1e2f; line-height: 1.05;
+        letter-spacing: -0.02em;
+        margin: 2px 0;
+    }
+    .cl-kpi-s {
+        font-size: 11px; color: #94a3b8;
+        line-height: 1.4;
+    }
+    @media (max-width: 1000px) { .cl-kpis { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .cl-kpis { grid-template-columns: 1fr; } }
+    </style>
 
     <section class="dashboard-card dashboard-card-full" style="margin-top:1rem;">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">

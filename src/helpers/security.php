@@ -104,13 +104,14 @@ function buildContentSecurityPolicy(string $nonce): string
         "script-src 'self' 'unsafe-inline'",
 
         // Stili: stesso dominio + unsafe-inline per stili inline esistenti
-        "style-src 'self' 'unsafe-inline'",
+        // + Google Fonts + rsms.me (Inter)
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://rsms.me",
 
-        // Immagini: stesso dominio + data URI per icone SVG/base64
-        "img-src 'self' data: https://chart.googleapis.com",
+        // Immagini: stesso dominio + data URI per icone SVG/base64 + connecteed.com (logo footer)
+        "img-src 'self' data: https://chart.googleapis.com https://www.connecteed.com",
 
-        // Font: stesso dominio + Google Fonts se necessario
-        "font-src 'self'",
+        // Font: stesso dominio + Google Fonts (Space Grotesk) + rsms.me (Inter)
+        "font-src 'self' https://fonts.gstatic.com https://rsms.me",
 
         // Connessioni (fetch, XHR): solo stesso dominio
         "connect-src 'self'",

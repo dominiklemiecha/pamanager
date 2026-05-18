@@ -73,15 +73,9 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
 <script>
 // Sidebar collapse (desktop) + open su mobile
 (function(){
-    const html = document.documentElement;
-    const collapseBtn = document.getElementById('sidebar-collapse');
-    if (collapseBtn) {
-        if (localStorage.getItem('pam.sidebarMini') === '1') html.classList.add('sidebar-mini');
-        collapseBtn.addEventListener('click', () => {
-            html.classList.toggle('sidebar-mini');
-            localStorage.setItem('pam.sidebarMini', html.classList.contains('sidebar-mini') ? '1' : '0');
-        });
-    }
+    // Sidebar collapse rimosso: la sidebar è sempre estesa
+    document.documentElement.classList.remove('sidebar-mini');
+    try { localStorage.removeItem('pam.sidebarMini'); } catch (e) {}
     const sidebar = document.getElementById('appSidebar');
     const overlay = document.getElementById('appOverlay');
     const mobileBtn = document.getElementById('mobileMenuBtn');
@@ -95,6 +89,28 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
     if (tenant && tenantRow) {
         tenantRow.addEventListener('click', (e) => { e.stopPropagation(); tenant.classList.toggle('open'); });
         document.addEventListener('click', (e) => { if (!tenant.contains(e.target)) tenant.classList.remove('open'); });
+    }
+    // User menu dropdown
+    const userMenu = document.getElementById('userMenu');
+    const userToggle = document.getElementById('userMenuToggle');
+    if (userMenu && userToggle) {
+        userToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = userMenu.classList.toggle('open');
+            userToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('click', (e) => {
+            if (!userMenu.contains(e.target)) {
+                userMenu.classList.remove('open');
+                userToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                userMenu.classList.remove('open');
+                userToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
     }
     // Bottom sheet
     const moreBtn = document.getElementById('bn-more');

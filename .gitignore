@@ -91,3 +91,15 @@ DEPLOY.md
 
 # Override docker-compose (solo per dev locale)
 docker-compose.override.yml
+
+# Mockup / showcase HTML (solo locali, non in produzione)
+/public/mockups/
+/mockups/card-bg-showcase.html
+/mockups/employee-profile-showcase.html
+/mockups/employee-profile-v2.html
+/mockups/employee-profile-v3.html
+/mockups/leave-widget-showcase.html
+/mockups/palette-showcase.html
+/mockups/sidebar-showcase.html
+/mockups/stat-cards-showcase.html
+/mockups/stat-cards-v3.html

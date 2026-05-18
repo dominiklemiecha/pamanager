@@ -92,8 +92,9 @@ $employees = Database::fetchAll(
     [$__prCid]
 );
 
-$pageTitle = 'Gestione Reset Password';
+$pageTitle = 'Configurazione · Reset Password';
 include dirname(__DIR__) . '/includes/header-admin.php';
+include dirname(__DIR__) . '/includes/_config-tabs.php';
 ?>
 
 <style>
@@ -503,21 +504,6 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <!-- Stats -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-icon pending">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                </svg>
-            </div>
-            <div class="stat-info">
-                <h3><?= $pendingCount ?></h3>
-                <p>In Attesa</p>
-            </div>
-        </div>
-    </div>
-
     <!-- Manual Reset -->
     <div class="manual-reset-section">
         <h2>
@@ -556,106 +542,6 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </form>
     </div>
 
-    <!-- Requests List -->
-    <div class="requests-section">
-        <div class="requests-header">
-            <h2>Richieste Reset Password</h2>
-            <div class="filter-tabs">
-                <a href="password-resets.php" class="filter-tab <?= !$filterStatus ? 'active' : '' ?>">Tutte</a>
-                <a href="password-resets.php?status=pending" class="filter-tab <?= $filterStatus === 'pending' ? 'active' : '' ?>">
-                    In Attesa
-                    <?php if ($pendingCount > 0): ?>
-                        <span class="count"><?= $pendingCount ?></span>
-                    <?php endif; ?>
-                </a>
-                <a href="password-resets.php?status=completed" class="filter-tab <?= $filterStatus === 'completed' ? 'active' : '' ?>">Completate</a>
-                <a href="password-resets.php?status=rejected" class="filter-tab <?= $filterStatus === 'rejected' ? 'active' : '' ?>">Rifiutate</a>
-            </div>
-        </div>
-
-        <?php if (empty($requests)): ?>
-            <div class="empty-state">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                <p>Nessuna richiesta trovata</p>
-            </div>
-        <?php else: ?>
-            <table class="requests-table">
-                <thead>
-                    <tr>
-                        <th>Utente</th>
-                        <th>Tipo</th>
-                        <th>Data Richiesta</th>
-                        <th>IP</th>
-                        <th>Stato</th>
-                        <th>Gestito da</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($requests as $req): ?>
-                        <tr>
-                            <td>
-                                <strong><?= htmlspecialchars($req['user_name'] ?? 'N/D') ?></strong><br>
-                                <small style="color: #718096;"><?= htmlspecialchars($req['user_identifier'] ?? '') ?></small>
-                            </td>
-                            <td>
-                                <span class="user-type-badge <?= $req['user_type'] ?>">
-                                    <?= $req['user_type'] ?>
-                                </span>
-                            </td>
-                            <td><?= formatDateTime($req['created_at']) ?></td>
-                            <td><code style="font-size: 0.75rem;"><?= htmlspecialchars($req['requested_ip']) ?></code></td>
-                            <td>
-                                <span class="status-badge <?= $req['status'] ?>">
-                                    <?php
-                                    $statusLabels = [
-                                        'pending' => 'In Attesa',
-                                        'sent' => 'Inviato',
-                                        'completed' => 'Completato',
-                                        'rejected' => 'Rifiutato',
-                                        'expired' => 'Scaduto'
-                                    ];
-                                    echo $statusLabels[$req['status']] ?? $req['status'];
-                                    ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if ($req['resolved_by_name']): ?>
-                                    <?= htmlspecialchars($req['resolved_by_name']) ?><br>
-                                    <small style="color: #718096;"><?= formatDateTime($req['resolved_at']) ?></small>
-                                <?php else: ?>
-                                    <span style="color: #a0aec0;">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if ($req['status'] === 'pending'): ?>
-                                    <div class="action-btns">
-                                        <form method="POST" style="display: inline;">
-                                            <?= CSRF::field() ?>
-                                            <input type="hidden" name="action" value="approve">
-                                            <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                            <button type="submit" class="btn-sm btn-approve" onclick="return confirm('Approva questa richiesta?')">
-                                                Approva
-                                            </button>
-                                        </form>
-                                        <button type="button" class="btn-sm btn-reject" onclick="openRejectModal(<?= $req['id'] ?>)">
-                                            Rifiuta
-                                        </button>
-                                    </div>
-                                <?php elseif ($req['status'] === 'sent' && $req['token_id']): ?>
-                                    <small style="color: #718096;">Token inviato</small>
-                                <?php else: ?>
-                                    <span style="color: #a0aec0;">-</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </div>
 </div>
 
 <!-- Reject Modal -->

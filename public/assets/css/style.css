@@ -7,14 +7,14 @@
    CSS Variables
    ================================ */
 :root {
-    --primary-color: #1a365d;
-    --primary-dark: #0f2744;
-    --primary-light: #2c5282;
+    --primary-color: #0b3aa4;
+    --primary-dark: #082b7b;
+    --primary-light: #1e4cb0;
     --secondary-color: #4a5568;
-    --success-color: #38a169;
-    --warning-color: #d69e2e;
-    --danger-color: #e53e3e;
-    --info-color: #3182ce;
+    --success-color: #0b3aa4;
+    --warning-color: #ffbb55;
+    --danger-color: #f75c6c;
+    --info-color: #0b3aa4;
     --white: #ffffff;
     --gray-50: #f7fafc;
     --gray-100: #edf2f7;
@@ -272,30 +272,13 @@ code { font-family: Consolas, monospace; background: var(--gray-100); padding: 2
     gap: 1rem;
 }
 
-.stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon svg { width: 28px; height: 28px; }
-
+/* Stat legacy rules rimossi: gestito da components.css con design Bold Dark */
 .stat-icon.blue { background: #dbeafe; color: #2563eb; }
 .stat-icon.green { background: #dcfce7; color: #16a34a; }
 .stat-icon.yellow { background: #fef3c7; color: #d97706; }
 .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
 .stat-icon.red { background: #fee2e2; color: #dc2626; }
-
 .stat-info { flex: 1; }
-.stat-value { font-size: 2rem; font-weight: 700; color: var(--gray-800); line-height: 1; }
-.stat-label { color: var(--gray-500); font-size: 0.875rem; margin-top: 0.25rem; }
-.stat-trend { font-size: 0.75rem; margin-top: 0.5rem; }
-.stat-trend.up { color: var(--success-color); }
-.stat-trend.down { color: var(--danger-color); }
 
 /* ================================
    Cards & Panels
@@ -507,9 +490,7 @@ input.uppercase { text-transform: uppercase; }
     border-radius: 9999px;
 }
 
-.badge-success { background: #c6f6d5; color: #22543d; }
-.badge-warning { background: #fefcbf; color: #744210; }
-.badge-danger { background: #fed7d7; color: #742a2a; }
+/* badge-success/warning/danger/info/gray: ora gestiti da components.css (palette mockup) */
 .badge-info { background: #bee3f8; color: #2a4365; }
 .badge-gray { background: var(--gray-200); color: var(--gray-700); }
 
