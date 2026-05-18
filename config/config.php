@@ -154,6 +154,7 @@ spl_autoload_register(function ($class) {
 require_once SRC_PATH . '/helpers/security.php';
 require_once SRC_PATH . '/helpers/validation.php';
 require_once SRC_PATH . '/helpers/avatar.php';
+require_once SRC_PATH . '/helpers/html_sanitize.php';
 
 // Carica autoloader Composer/Vendor se esiste
 $vendorAutoload = VENDOR_PATH . '/autoload.php';

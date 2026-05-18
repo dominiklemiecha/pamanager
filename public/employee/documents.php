@@ -97,7 +97,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 <style>
 /* Notification Banner */
 .notification-banner {
-    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    background: linear-gradient(135deg, #4299e1 0%, #0b3aa4 100%);
     color: white;
     padding: 1rem 1.25rem;
     border-radius: 10px;
@@ -147,7 +147,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 
 .notification-banner .notif-badge {
     background: #fff;
-    color: #3182ce;
+    color: #0b3aa4;
     font-size: 1.25rem;
     font-weight: 700;
     width: 42px;
@@ -191,12 +191,12 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 }
 
 .doc-card .download-status.new {
-    color: #3182ce;
+    color: #0b3aa4;
     font-weight: 600;
 }
 
 .doc-card .download-status.downloaded {
-    color: #38a169;
+    color: #0b3aa4;
 }
 
 .doc-card .download-status svg {
@@ -247,8 +247,8 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    background: #ebf8ff;
-    color: #2b6cb0;
+    background: #eef3fb;
+    color: #082b7b;
     padding: 0.25rem 0.6rem;
     border-radius: 15px;
     font-size: 0.7rem;
@@ -378,10 +378,10 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     height: 20px;
 }
 
-.doc-card-icon.payslip { background: #c6f6d5; color: #276749; }
+.doc-card-icon.payslip { background: #eef3fb; color: #082b7b; }
 .doc-card-icon.cud { background: #fefcbf; color: #975a16; }
 .doc-card-icon.other { background: #e2e8f0; color: #4a5568; }
-.doc-card-icon.personal { background: #bee3f8; color: #2c5282; }
+.doc-card-icon.personal { background: #d6e2f4; color: #082b7b; }
 
 .doc-card-info {
     flex: 1;
@@ -398,10 +398,10 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     margin-bottom: 0.25rem;
 }
 
-.type-badge.payslip { background: #c6f6d5; color: #276749; }
+.type-badge.payslip { background: #eef3fb; color: #082b7b; }
 .type-badge.cud { background: #fefcbf; color: #975a16; }
 .type-badge.other { background: #e2e8f0; color: #4a5568; }
-.type-badge.personal { background: #bee3f8; color: #2c5282; }
+.type-badge.personal { background: #d6e2f4; color: #082b7b; }
 
 .doc-card-info h3 {
     font-size: 0.85rem;
@@ -435,7 +435,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    background: #3182ce;
+    background: #0b3aa4;
     color: white;
     padding: 0.4rem 0.75rem;
     border-radius: 6px;
@@ -446,7 +446,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 }
 
 .doc-card-bottom .dl-btn:hover {
-    background: #2c5282;
+    background: #082b7b;
 }
 
 .doc-card-bottom .dl-btn svg {
@@ -528,8 +528,8 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     margin-bottom: 0;
 }
 
-.info-item.payslip { border-color: #38a169; }
-.info-item.cud { border-color: #d69e2e; }
+.info-item.payslip { border-color: #0b3aa4; }
+.info-item.cud { border-color: #d97706; }
 .info-item.other { border-color: #718096; }
 
 /* Responsive */
@@ -605,46 +605,221 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     </div>
 <?php endif; ?>
 
-<!-- Filtri -->
-<form method="GET" class="filters-card">
-    <label>Filtra per:</label>
-    <select name="year">
-        <option value="">Tutti gli anni</option>
-        <?php foreach ($availableYears as $y): ?>
-            <option value="<?php echo $y['year']; ?>" <?php echo $filterYear == $y['year'] ? 'selected' : ''; ?>>
-                <?php echo $y['year']; ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-    <select name="type">
-        <option value="">Tutti i tipi</option>
-        <?php foreach (Document::TYPES as $key => $label): ?>
-            <option value="<?php echo $key; ?>" <?php echo $filterType === $key ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($label); ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-    <button type="submit" class="btn btn-primary">Filtra</button>
-
-    <?php if ($filterYear || $filterType): ?>
-        <div class="filter-tags">
-            <?php if ($filterYear): ?>
-                <span class="filter-tag">Anno: <?php echo $filterYear; ?></span>
+<!-- Banner -->
+<?php
+$__docTotal = is_array($documents) ? count($documents) : 0;
+$__unreadDocs = 0;
+foreach ($documents as $__d) { if (empty($__d['is_downloaded'])) $__unreadDocs++; }
+?>
+<div class="emp-banner">
+    <div>
+        <h2>I tuoi documenti</h2>
+        <p>
+            <?php if ($__docTotal === 0): ?>
+                Nessun documento disponibile.
+            <?php else: ?>
+                <strong><?= $__docTotal ?></strong> document<?= $__docTotal === 1 ? 'o' : 'i' ?> disponibili<?php if ($__unreadDocs > 0): ?> · <strong style="color:#d97706;"><?= $__unreadDocs ?> da scaricare</strong><?php endif; ?>.
             <?php endif; ?>
-            <?php if ($filterType): ?>
-                <span class="filter-tag">Tipo: <?php echo Document::TYPES[$filterType] ?? $filterType; ?></span>
-            <?php endif; ?>
-            <a href="documents.php" class="btn btn-link" style="padding:0;">Reset</a>
-        </div>
-    <?php endif; ?>
+        </p>
+    </div>
+</div>
 
-    <button type="button" class="info-btn" onclick="openInfoModal()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-        </svg>
-        Info documenti
-    </button>
-</form>
+<style>
+.emp-banner {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+}
+.emp-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    margin: 0 0 4px;
+    font-size: 19px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.02em;
+}
+.emp-banner p { margin: 0; font-size: 13px; color: #6e7191; }
+</style>
+
+<!-- Filtri minimal -->
+<div class="docs-filters">
+    <div class="docs-tabs">
+        <?php
+        $__tabs = [['','Tutti']];
+        foreach (Document::TYPES as $k => $l) $__tabs[] = [$k, $l];
+        foreach ($__tabs as [$key, $lbl]):
+            $url = 'documents.php' . ($key !== '' ? '?type=' . urlencode($key) : '') . ($filterYear ? ($key !== '' ? '&' : '?') . 'year=' . (int)$filterYear : '');
+        ?>
+            <a href="<?= e($url) ?>" class="docs-tab <?= ($filterType ?? '') === $key ? 'active' : '' ?>"><?= e($lbl) ?></a>
+        <?php endforeach; ?>
+    </div>
+    <div class="docs-filters-right">
+        <form method="GET" class="docs-year-form">
+            <?php if (!empty($filterType)): ?>
+                <input type="hidden" name="type" value="<?= e($filterType) ?>">
+            <?php endif; ?>
+            <select name="year" onchange="this.form.submit()">
+                <option value="">Tutti gli anni</option>
+                <?php foreach ($availableYears as $y): ?>
+                    <option value="<?= $y['year'] ?>" <?= $filterYear == $y['year'] ? 'selected' : '' ?>><?= $y['year'] ?></option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+        <button type="button" class="docs-info-btn" onclick="openInfoModal()" title="Info documenti">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </button>
+    </div>
+</div>
+
+<style>
+.docs-filters {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; flex-wrap: wrap;
+}
+.docs-tabs {
+    display: inline-flex; gap: 2px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 4px;
+    flex-wrap: wrap;
+}
+.docs-tab {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    color: #6e7191; text-decoration: none;
+    transition: all .12s ease;
+    white-space: nowrap;
+}
+.docs-tab:hover { color: #0b3aa4; }
+.docs-tab.active {
+    background: white;
+    color: #0b3aa4;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+}
+.docs-filters-right { display: inline-flex; align-items: center; gap: 8px; }
+.docs-year-form select {
+    padding: 7px 12px;
+    border: 1px solid #e6e8f0; border-radius: 8px;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    color: #475569; background: white; cursor: pointer;
+}
+.docs-info-btn {
+    width: 32px; height: 32px;
+    border: 1px solid #e6e8f0; background: white;
+    border-radius: 8px; cursor: pointer;
+    color: #6e7191;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.docs-info-btn:hover { border-color: #0b3aa4; color: #0b3aa4; }
+
+/* ===== Nuovo grid documenti ===== */
+.docs-month-h {
+    display: flex; align-items: baseline; gap: 10px;
+    margin: 20px 0 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e6e8f0;
+}
+.docs-month-h h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: #475569; margin: 0;
+}
+.docs-month-h .count {
+    font-size: 11px; font-weight: 700;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 2px 9px; border-radius: 999px;
+}
+.docs-grid-new {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+.docs-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 12px;
+    transition: all .12s ease;
+    text-decoration: none;
+    position: relative;
+}
+.docs-row:hover {
+    border-color: #0b3aa4;
+    box-shadow: 0 6px 18px rgba(11,58,164,0.08);
+    transform: translateY(-1px);
+}
+.docs-row.is-new { border-left: 3px solid #0b3aa4; padding-left: 11px; }
+.docs-row-ic {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.docs-row-ic.payslip  { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.docs-row-ic.cud      { background: rgba(255,187,85,0.16); color: #b07023; }
+.docs-row-ic.personal { background: rgba(17,186,186,0.12); color: #0c8a8a; }
+.docs-row-ic.other    { background: rgba(100,116,139,0.10); color: #475569; }
+.docs-row-ic svg { width: 18px; height: 18px; }
+.docs-row-info { flex: 1; min-width: 0; }
+.docs-row-info .t {
+    font-size: 13px; font-weight: 600; color: #1e1e2f;
+    margin: 0 0 3px;
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+}
+.docs-row-info .s {
+    font-size: 11px; color: #94a3b8;
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+}
+.docs-row-info .s .new-pill {
+    background: rgba(11,58,164,0.10);
+    color: #0b3aa4;
+    padding: 1px 7px; border-radius: 999px;
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.docs-row-dl {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    background: rgba(11,58,164,0.08);
+    color: #0b3aa4;
+    border: 1px solid rgba(11,58,164,0.16);
+    display: inline-flex; align-items: center; justify-content: center;
+    text-decoration: none; transition: all .12s ease;
+    flex-shrink: 0;
+}
+.docs-row-dl:hover { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+.docs-row-dl svg { width: 16px; height: 16px; }
+
+@media (max-width: 640px) {
+    .docs-filters { padding: 8px; flex-direction: column; align-items: stretch; }
+    .docs-tabs {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+        width: 100%;
+        padding: 4px;
+        border-radius: 10px;
+    }
+    .docs-tab { text-align: center; padding: 9px 8px; border-radius: 8px; }
+    .docs-filters-right { width: 100%; }
+    .docs-year-form { flex: 1; }
+    .docs-year-form select { width: 100%; }
+    .docs-grid-new { grid-template-columns: 1fr; }
+}
+</style>
 
 <?php if (empty($documents)): ?>
     <div class="empty-box">
@@ -660,96 +835,60 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     </div>
 <?php else: ?>
     <?php foreach ($groupedDocs as $group): ?>
-        <div class="year-section">
-            <div class="year-header">
-                <h2><?php echo getMonthName($group['month']); ?> <?php echo $group['year']; ?></h2>
-                <span class="count"><?php echo count($group['documents']); ?> doc</span>
-            </div>
-            <div class="docs-grid">
-                <?php foreach ($group['documents'] as $doc):
-                        $isDownloaded = !empty($doc['is_downloaded']);
-                    ?>
-                    <div class="doc-card <?php echo $isDownloaded ? 'downloaded' : 'unread'; ?>">
-                        <div class="doc-card-top">
-                            <div class="doc-card-icon <?php echo $doc['type']; ?>">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                                </svg>
-                            </div>
-                            <div class="doc-card-info">
-                                <span class="type-badge <?php echo $doc['type']; ?>">
-                                    <?php echo Document::TYPES[$doc['type']] ?? $doc['type']; ?>
-                                </span>
-                                <h3><?php echo htmlspecialchars($doc['title']); ?></h3>
-                                <span class="period"><?php echo getMonthName($doc['month']); ?> <?php echo $doc['year']; ?></span>
-                                <?php if ($isDownloaded): ?>
-                                    <div class="download-status downloaded">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                                        </svg>
-                                        Scaricato <?php echo !empty($doc['last_download_at']) ? formatDate($doc['last_download_at']) : ''; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="download-status new">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                        </svg>
-                                        Da scaricare
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <div class="doc-card-bottom">
-                            <span class="meta"><?php echo formatFileSize($doc['file_size']); ?> - <?php echo formatDate($doc['created_at']); ?></span>
-                            <a href="<?= PUBLIC_URL ?>/api/download.php?id=<?php echo $doc['id']; ?>" class="dl-btn">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                                </svg>
-                                Scarica
-                            </a>
+        <div class="docs-month-h">
+            <h2><?= htmlspecialchars(getMonthName($group['month'])) ?> <?= (int)$group['year'] ?></h2>
+            <span class="count"><?= count($group['documents']) ?></span>
+        </div>
+        <div class="docs-grid-new">
+            <?php foreach ($group['documents'] as $doc):
+                $isDownloaded = !empty($doc['is_downloaded']);
+                $tLbl = Document::TYPES[$doc['type']] ?? $doc['type'];
+            ?>
+                <a href="<?= PUBLIC_URL ?>/api/download.php?id=<?= (int)$doc['id'] ?>" class="docs-row <?= !$isDownloaded ? 'is-new' : '' ?>">
+                    <div class="docs-row-ic <?= e($doc['type']) ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div class="docs-row-info">
+                        <div class="t"><?= htmlspecialchars($doc['title']) ?></div>
+                        <div class="s">
+                            <?= htmlspecialchars($tLbl) ?> · <?= formatFileSize($doc['file_size']) ?> · <?= formatDate($doc['created_at']) ?>
+                            <?php if (!$isDownloaded): ?><span class="new-pill">Nuovo</span><?php endif; ?>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
+                    <span class="docs-row-dl" title="Scarica">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </span>
+                </a>
+            <?php endforeach; ?>
         </div>
     <?php endforeach; ?>
 <?php endif; ?>
 
 <?php if (!empty($personalDocs)): ?>
-    <div class="year-section">
-        <div class="year-header">
-            <h2>Documenti personali</h2>
-            <span class="count"><?php echo count($personalDocs); ?> doc</span>
-        </div>
-        <div class="docs-grid">
-            <?php foreach ($personalDocs as $doc): ?>
-                <div class="doc-card">
-                    <div class="doc-card-top">
-                        <div class="doc-card-icon personal">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                            </svg>
-                        </div>
-                        <div class="doc-card-info">
-                            <span class="type-badge personal">Personale</span>
-                            <h3><?php echo htmlspecialchars($doc['name']); ?></h3>
-                            <?php if (!empty($doc['expires_on'])): ?>
-                                <span class="period">Scade il <?php echo htmlspecialchars(date('d/m/Y', strtotime($doc['expires_on']))); ?></span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <div class="doc-card-bottom">
-                        <span class="meta"><?php echo formatFileSize($doc['file_size']); ?> · <?php echo formatDate($doc['created_at']); ?></span>
-                        <a href="?download_personal=<?php echo (int) $doc['id']; ?>" class="dl-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                            </svg>
-                            Scarica
-                        </a>
+    <div class="docs-month-h">
+        <h2>Documenti personali</h2>
+        <span class="count"><?= count($personalDocs) ?></span>
+    </div>
+    <div class="docs-grid-new">
+        <?php foreach ($personalDocs as $doc): ?>
+            <a href="?download_personal=<?= (int)$doc['id'] ?>" class="docs-row">
+                <div class="docs-row-ic personal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div class="docs-row-info">
+                    <div class="t"><?= htmlspecialchars($doc['name']) ?></div>
+                    <div class="s">
+                        Personale · <?= formatFileSize($doc['file_size']) ?>
+                        <?php if (!empty($doc['expires_on'])): ?>
+                            · Scade <?= htmlspecialchars(date('d/m/Y', strtotime($doc['expires_on']))) ?>
+                        <?php endif; ?>
                     </div>
                 </div>
-            <?php endforeach; ?>
-        </div>
+                <span class="docs-row-dl" title="Scarica">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </span>
+            </a>
+        <?php endforeach; ?>
     </div>
 <?php endif; ?>
 

@@ -147,91 +147,295 @@ $filterDept = !empty($_GET['department']) ? (int) $_GET['department'] : null;
 $requests = LeaveRequest::getAll($filterStatus !== 'all' ? $filterStatus : null, $filterDept);
 $departments = Department::getAll();
 
+// Stats per banner
+$__lrPending = 0; $__lrApproved = 0; $__lrTotal = 0;
+try {
+    $__lrPending  = (int) Database::fetchColumn("SELECT COUNT(*) FROM leave_requests WHERE company_id = ? AND status = 'pending'", [$__leaveCid]);
+    $__lrApproved = (int) Database::fetchColumn("SELECT COUNT(*) FROM leave_requests WHERE company_id = ? AND status = 'approved' AND end_date >= CURDATE()", [$__leaveCid]);
+    $__lrTotal    = (int) Database::fetchColumn("SELECT COUNT(*) FROM leave_requests WHERE company_id = ? AND YEAR(created_at) = YEAR(CURDATE())", [$__leaveCid]);
+} catch (Throwable $e) {}
+
 $pageTitle = 'Ferie e Permessi';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
 
 <style>
+/* === Hero banner === */
+.lp-hero {
+    margin-bottom: 1.25rem;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 24px; flex-wrap: wrap;
+}
+.lp-hero h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2rem; font-weight: 700;
+    letter-spacing: -0.025em;
+    margin: 0 0 4px;
+    line-height: 1.1;
+}
+.lp-hero p { margin: 0; opacity: 0.85; max-width: 560px; }
+.lp-hero-stats { display: flex; gap: 18px; flex-shrink: 0; }
+.lp-hero-stat {
+    text-align: right;
+    padding: 10px 16px;
+    background: rgba(11,58,164,0.06);
+    border: 1px solid rgba(11,58,164,0.14);
+    border-radius: 10px;
+    min-width: 100px;
+}
+.lp-hero-stat .v {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 26px; font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: #0b3aa4;
+}
+.lp-hero-stat .l {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6e7191;
+    margin-top: 4px;
+    font-weight: 600;
+}
+@media (max-width: 700px) {
+    .lp-hero { padding: 22px 24px !important; }
+    .lp-hero h2 { font-size: 1.5rem; }
+    .lp-hero-stats { width: 100%; }
+    .lp-hero-stat { flex: 1; text-align: center; min-width: 0; padding: 10px 8px; }
+    .lp-hero-stat .v { font-size: 20px; }
+}
+
 .lp { display: flex; flex-direction: column; gap: 1rem; }
 
 .lp-filters {
-    background: white; border-radius: 10px; padding: 0.75rem 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
 }
-.lp-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.lp-tabs {
+    display: inline-flex;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 2px;
+    flex-wrap: wrap;
+    max-width: 100%;
+}
 .lp-tab {
-    padding: 0.4rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 6px;
-    background: white; color: #4a5568; font-size: 0.8rem; cursor: pointer;
-    text-decoration: none; transition: all 0.15s;
+    padding: 7px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .15s ease;
+    white-space: nowrap;
 }
-.lp-tab:hover { background: #f7fafc; }
-.lp-tab.active { background: #3182ce; color: white; border-color: #3182ce; }
-.lp-tab .badge { background: rgba(255,255,255,0.3); padding: 0.05rem 0.35rem; border-radius: 8px; font-size: 0.65rem; margin-left: 0.3rem; }
+@media (max-width: 700px) {
+    .lp-filters { padding: 0.5rem !important; flex-direction: column; align-items: stretch !important; gap: 8px; }
+    .lp-tabs { display: grid !important; grid-template-columns: repeat(2, 1fr); width: 100%; gap: 4px; padding: 4px; border-radius: 12px; }
+    .lp-tab {
+        text-align: center; justify-content: center;
+        padding: 9px 8px; font-size: 12px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 8px;
+    }
+    .lp-tab .badge { font-size: 9px; padding: 1px 5px; }
+    .lp-dept { margin-left: 0 !important; width: 100%; }
+    .lp-dept select { width: 100%; }
+}
+.lp-tab:hover { color: var(--ink); background: rgba(255,255,255,0.6); }
+.lp-tab.active {
+    background: white;
+    color: #0b3aa4;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+}
+.lp-tab .badge {
+    background: rgba(11,58,164,0.10);
+    color: #0b3aa4;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+}
+.lp-tab.active .badge { background: rgba(11,58,164,0.12); }
 .lp-dept { margin-left: auto; }
-.lp-dept select { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.8rem; }
+.lp-dept select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+}
+.lp-dept select:focus { outline: none; border-color: #0b3aa4; box-shadow: 0 0 0 3px rgba(11,58,164,0.12); }
 
 .lp-table-wrap {
-    background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    overflow: auto;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
 }
-.lp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.lp-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 12.5px;
+    table-layout: auto;
+}
+.lp-table th, .lp-table td { white-space: nowrap; }
+.lp-table td[data-label="Azioni"] { padding-left: 8px; padding-right: 12px; }
 .lp-table thead th {
-    background: #f7fafc; padding: 0.6rem 0.75rem; text-align: left;
-    font-size: 0.7rem; text-transform: uppercase; color: #718096; font-weight: 600;
-    border-bottom: 1px solid #edf2f7; white-space: nowrap;
+    background: #fafbfc; padding: 11px 10px; text-align: left;
+    font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.06em;
 }
 .lp-table tbody td {
-    padding: 0.6rem 0.75rem; border-bottom: 1px solid #f7fafc; vertical-align: middle;
+    padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle;
+    overflow: hidden;
 }
-.lp-table tbody tr:hover { background: #fbfcfd; }
+.lp-emp {
+    min-width: 0;
+    max-width: 240px;
+    overflow: hidden;
+}
+.lp-emp > div { min-width: 0; overflow: hidden; }
+.lp-emp-name, .lp-emp-dept { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Nasconde colonne meno critiche progressivamente */
+@media (max-width: 1280px) {
+    .lp-table th:nth-child(6),
+    .lp-table td[data-label="Inviata"] { display: none; }
+}
+@media (max-width: 1100px) {
+    .lp-table th:nth-child(4),
+    .lp-table td[data-label="Giorni"] { display: none; }
+}
+@media (max-width: 950px) {
+    .lp-emp { max-width: 180px; }
+    .lp-emp-dept { display: none; }
+}
+.lp-table tbody tr:hover { background: #fafbfc; }
 .lp-table tbody tr:last-child td { border-bottom: none; }
 
-.lp-emp { display: flex; align-items: center; gap: 0.5rem; }
+.lp-emp { display: flex; align-items: center; gap: 0.6rem; }
 .lp-avatar {
-    width: 30px; height: 30px; border-radius: 50%; background: #3182ce;
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-weight: 600; font-size: 0.7rem; flex-shrink: 0;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #4fa1ff, #0b3aa4);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 11px;
+    flex-shrink: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.02em;
 }
-.lp-emp-name { font-weight: 500; color: #2d3748; }
-.lp-emp-dept { font-size: 0.7rem; color: #a0aec0; }
+.lp-emp-name { font-weight: 600; color: var(--ink); font-size: 13px; }
+.lp-emp-dept { font-size: 11px; color: var(--muted); }
 
 .lp-type {
-    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
-    font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+    background: rgba(11,58,164,0.08); color: #0b3aa4;
 }
-.lp-type.ferie { background: #d4edda; color: #155724; }
-.lp-type.permesso { background: #cce5ff; color: #004085; }
-.lp-type.malattia { background: #f8d7da; color: #721c24; }
-.lp-type.permesso_104 { background: #e2d5f1; color: #563d7c; }
-.lp-type.congedo_parentale { background: #fce4ec; color: #880e4f; }
-.lp-type.congedo_separazione { background: #edf2f7; color: #2d3748; }
-.lp-type.congedo_mestruale { background: #ffe0e6; color: #b83a4b; }
-.lp-type.altro { background: #e2e8f0; color: #4a5568; }
+.lp-type::before {
+    content: ""; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+}
+.lp-type.ferie { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.lp-type.permesso { background: rgba(40,119,255,0.10); color: #2877ff; }
+.lp-type.malattia { background: rgba(247,92,108,0.10); color: #f75c6c; }
+.lp-type.permesso_104 { background: rgba(124,58,237,0.10); color: #7c3aed; }
+.lp-type.congedo_parentale { background: rgba(236,72,153,0.10); color: #db2777; }
+.lp-type.congedo_separazione { background: rgba(100,116,139,0.10); color: #475569; }
+.lp-type.congedo_mestruale { background: rgba(225,29,72,0.10); color: #e11d48; }
+.lp-type.altro { background: rgba(100,116,139,0.10); color: #475569; }
+.lp-type.chiusura { background: rgba(255,187,85,0.10); color: #e09938; }
 
 .lp-status {
-    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
-    font-size: 0.7rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
 }
-.lp-status.pending { background: #fef3cd; color: #856404; }
-.lp-status.approved { background: #d4edda; color: #155724; }
-.lp-status.rejected { background: #f8d7da; color: #721c24; }
-.lp-status.cancelled { background: #e2e8f0; color: #4a5568; }
+.lp-status::before {
+    content: ""; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+}
+.lp-status.pending { background: rgba(255,187,85,0.10); color: #e09938; }
+.lp-status.approved { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.lp-status.rejected { background: rgba(247,92,108,0.10); color: #f75c6c; }
+.lp-status.cancelled { background: rgba(100,116,139,0.10); color: #475569; }
 
-.lp-dates { white-space: nowrap; color: #2d3748; }
-.lp-dates small { color: #a0aec0; display: block; font-size: 0.7rem; }
+.lp-dates { white-space: nowrap; color: var(--ink); font-size: 13px; }
+.lp-dates small { color: var(--muted); display: block; font-size: 11px; margin-top: 2px; }
 
-.lp-actions { display: flex; gap: 0.35rem; justify-content: flex-end; }
+.lp-actions {
+    display: flex; gap: 3px; justify-content: flex-end;
+    flex-wrap: nowrap;
+}
 .lp-btn {
-    padding: 0.3rem 0.6rem; font-size: 0.72rem; border-radius: 5px;
-    border: 1px solid transparent; cursor: pointer; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 5px 10px;
+    font-size: 11px; font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-family: inherit;
+    background: white;
+    color: var(--ink-2);
+    transition: all .12s ease;
+    white-space: nowrap;
+    line-height: 1.3;
 }
-.lp-btn-view { background: #edf2f7; color: #2d3748; }
-.lp-btn-view:hover { background: #e2e8f0; }
-.lp-btn-approve { background: #48bb78; color: white; }
-.lp-btn-approve:hover { background: #38a169; }
-.lp-btn-reject { background: #f56565; color: white; }
-.lp-btn-reject:hover { background: #e53e3e; }
+.lp-btn:hover { border-color: #0b3aa4; color: #0b3aa4; background: rgba(11,58,164,0.04); }
+.lp-btn-view {}
+.lp-btn-approve { background: rgba(11,58,164,0.10); color: #0b3aa4; border-color: rgba(11,58,164,0.25); }
+.lp-btn-approve:hover { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+.lp-btn-reject { background: rgba(247,92,108,0.10); color: #f75c6c; border-color: rgba(247,92,108,0.25); }
+.lp-btn-reject:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
+.lp-btn-edit { background: rgba(11,58,164,0.08); color: #0b3aa4; border-color: rgba(11,58,164,0.20); }
+.lp-btn-edit:hover { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+
+/* Icon-only buttons (compact, sempre visibili) */
+.lp-ibtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink-2);
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+    transition: all .12s ease;
+    flex-shrink: 0;
+    text-decoration: none;
+}
+.lp-ibtn:hover { border-color: #0b3aa4; color: #0b3aa4; background: rgba(11,58,164,0.04); text-decoration: none; }
+.lp-ibtn.lp-btn-approve { background: rgba(11,58,164,0.10); color: #0b3aa4; border-color: rgba(11,58,164,0.25); }
+.lp-ibtn.lp-btn-approve:hover { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+.lp-ibtn.lp-btn-reject { background: rgba(247,92,108,0.10); color: #f75c6c; border-color: rgba(247,92,108,0.25); }
+.lp-ibtn.lp-btn-reject:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
+.lp-ibtn.lp-btn-edit { background: rgba(11,58,164,0.08); color: #0b3aa4; border-color: rgba(11,58,164,0.20); }
+.lp-ibtn.lp-btn-edit:hover { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+
+/* Inline form senza margin per non rompere flex */
+.lp-actions form { margin: 0; padding: 0; display: inline-flex; }
+
+/* Su tablet stretto, hide secondary actions per evitare scroll */
+@media (max-width: 1200px) {
+    .lp-actions .lp-btn-view[href*="download"] { display: none; }
+}
 
 .lp-empty { text-align: center; padding: 3rem; color: #a0aec0; }
 
@@ -266,16 +470,83 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     .lp-dept { width: 100%; margin-left: 0; }
 }
 
-/* Form admin-create inserimento manuale */
+/* Hero button */
+.lp-hero-btn {
+    background: #0b3aa4 !important;
+    border: 1px solid #0b3aa4 !important;
+    color: white !important;
+    backdrop-filter: blur(10px);
+    padding: 12px 20px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: inherit;
+}
+.lp-hero-btn:hover { background: #082b7b !important; color: white !important; }
+
+/* Modale admin-create */
+.acl-modal {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.55);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+}
+.acl-modal.open { display: flex; }
+.acl-modal-box {
+    background: white;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 64px -16px rgba(15,23,42,0.4);
+    animation: aclSlide .2s ease-out;
+}
+@keyframes aclSlide {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.acl-modal-h {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+}
+.acl-modal-h h3 {
+    margin: 0;
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 17px; font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+}
+.acl-modal-close {
+    background: transparent; border: 0;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.acl-modal-close:hover { background: var(--slate-100, #f1f5f9); color: var(--ink); }
+.acl-modal-sub {
+    padding: 12px 22px 0;
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* Form admin-create inserimento manuale (ora dentro modale) */
 .admin-create-leave {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    background: linear-gradient(135deg, rgba(11,58,164,0.04) 0%, rgba(79,161,255,0.06) 100%);
     border-radius: 12px; padding: 0;
-    box-shadow: 0 4px 12px rgba(49,130,206,0.10);
-    border: 1px solid #93c5fd;
+    border: 1px dashed #93c5fd;
 }
 .admin-create-leave > summary {
     display: flex; align-items: center; gap: 0.85rem;
-    padding: 1rem 1.2rem; font-weight: 600; color: #0f172a;
+    padding: 1rem 1.2rem; font-weight: 600; color: var(--ink);
     cursor: pointer; list-style: none; border-radius: 12px;
     transition: background .15s, transform .1s;
 }
@@ -291,8 +562,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .admin-create-leave .acl-toggle-icon {
     display: inline-flex; align-items: center; justify-content: center;
     width: 38px; height: 38px; flex-shrink: 0;
-    background: #3182ce; color: #fff; border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(49,130,206,0.35);
+    background: #0b3aa4; color: #fff; border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(11,58,164,0.35);
 }
 .admin-create-leave .acl-toggle-text {
     flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0;
@@ -305,11 +576,11 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     font-style: normal; font-size: 0.78rem; color: #475569; font-weight: 500;
 }
 .admin-create-leave .acl-toggle-chevron {
-    color: #3182ce; transition: transform .2s ease;
+    color: #0b3aa4; transition: transform .2s ease;
 }
 .admin-create-leave[open] .acl-toggle-chevron { transform: rotate(180deg); }
 .admin-create-leave[open] { background: #ffffff; }
-.admin-create-leave[open] .acl-toggle-icon { background: #15803d; box-shadow: 0 2px 6px rgba(21,128,61,0.35); }
+.admin-create-leave[open] .acl-toggle-icon { background: #0b3aa4; box-shadow: 0 2px 6px rgba(21,128,61,0.35); }
 .acl-form { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.9rem; }
 .acl-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; align-items: end; }
 .acl-row label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.82rem; color: #475569; font-weight: 500; }
@@ -331,23 +602,35 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 </style>
 
+<div class="welcome-card lp-hero">
+    <div>
+        <h2>Ferie e permessi</h2>
+        <p>Approva, rifiuta o crea manualmente richieste di ferie, permessi e malattia.</p>
+        <?php if ($__lrPending > 0): ?>
+            <p style="margin-top: 6px;"><strong style="color:#d97706;">Hai <?= $__lrPending ?> richiest<?= $__lrPending === 1 ? 'a' : 'e' ?> in attesa di approvazione.</strong></p>
+        <?php else: ?>
+            <p style="margin-top: 6px;"><strong style="color:#0c8a8a;">Tutto in ordine, nessuna richiesta pending.</strong></p>
+        <?php endif; ?>
+    </div>
+    <button type="button" class="btn btn-lg lp-hero-btn" onclick="document.getElementById('aclModal').classList.add('open')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Inserisci richiesta manuale
+    </button>
+</div>
+
 <div class="lp">
     <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
-    <details class="admin-create-leave">
-        <summary>
-            <span class="acl-toggle-icon">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            </span>
-            <span class="acl-toggle-text">
-                <strong>Inserisci richiesta manualmente</strong>
-                <em>Ferie, permessi, malattia o chiusura aziendale — viene gia approvata</em>
-            </span>
-            <span class="acl-toggle-chevron">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
-            </span>
-        </summary>
+    <div class="acl-modal" id="aclModal" onclick="if(event.target===this)this.classList.remove('open')">
+      <div class="acl-modal-box">
+        <div class="acl-modal-h">
+            <h3>Inserisci richiesta manuale</h3>
+            <button type="button" class="acl-modal-close" onclick="document.getElementById('aclModal').classList.remove('open')" aria-label="Chiudi">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="acl-modal-sub">Ferie, permessi, malattia o chiusura aziendale — viene già approvata.</p>
         <form method="POST" class="acl-form">
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="admin_create">
@@ -430,7 +713,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <p class="acl-hint">La richiesta verra creata gia approvata, senza passare per il workflow di approvazione.</p>
             </div>
         </form>
-    </details>
+      </div>
+    </div>
 
     <form method="GET" class="lp-filters">
         <div class="lp-tabs">
@@ -549,23 +833,33 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                     'status' => $req['status'],
                                 ];
                                 ?>
-                                <button type="button" class="lp-btn lp-btn-view js-detail" data-detail="<?= htmlspecialchars(json_encode($detailPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">Dettagli</button>
+                                <button type="button" class="lp-ibtn lp-btn-view js-detail" title="Dettagli" data-detail="<?= htmlspecialchars(json_encode($detailPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
                                 <?php if (!empty($req['attachment_path'])): ?>
-                                    <a class="lp-btn lp-btn-view" href="?download_attachment=<?= (int) $req['id'] ?>" title="Scarica allegato">Allegato</a>
+                                    <a class="lp-ibtn lp-btn-view" href="?download_attachment=<?= (int) $req['id'] ?>" title="Scarica allegato">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                    </a>
                                 <?php endif; ?>
-                                <button type="button" class="lp-btn lp-btn-view js-edit" data-edit="<?= htmlspecialchars(json_encode($editPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>" style="background:#ed8936;color:white;">Modifica</button>
-                                <form method="POST" style="display:inline;margin:0;" onsubmit="return confirm('Eliminare definitivamente questa richiesta? L\'operazione non e\' reversibile.');">
+                                <button type="button" class="lp-ibtn lp-btn-edit js-edit" title="Modifica" data-edit="<?= htmlspecialchars(json_encode($editPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <form method="POST" onsubmit="return confirm('Eliminare definitivamente questa richiesta? L\'operazione non e\' reversibile.');">
                                     <?= CSRF::field() ?>
                                     <input type="hidden" name="action" value="admin_delete">
                                     <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
-                                    <button type="submit" class="lp-btn lp-btn-reject" title="Elimina richiesta">Elimina</button>
+                                    <button type="submit" class="lp-ibtn lp-btn-reject" title="Elimina richiesta">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                    </button>
                                 </form>
                                 <?php if ($req['status'] === 'pending'): ?>
-                                    <form method="POST" style="display:inline; margin:0;">
+                                    <form method="POST">
                                         <?= CSRF::field() ?>
                                         <input type="hidden" name="action" value="approve">
                                         <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                        <button type="submit" class="lp-btn lp-btn-approve" onclick="return confirm('Approvare?')">Approva</button>
+                                        <button type="submit" class="lp-ibtn lp-btn-approve" title="Approva" onclick="return confirm('Approvare?')">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        </button>
                                     </form>
                                 <?php endif; ?>
                             </div>
@@ -704,6 +998,14 @@ document.querySelectorAll('.js-edit').forEach(function(btn) {
 });
 function hideEdit() { document.getElementById('editModal').classList.remove('show'); }
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) hideEdit(); });
+
+// ESC chiude tutti i modali
+document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+        document.getElementById('aclModal')?.classList.remove('open');
+        hideEdit();
+    }
+});
 </script>
 
 <!-- Modal Modifica Admin -->

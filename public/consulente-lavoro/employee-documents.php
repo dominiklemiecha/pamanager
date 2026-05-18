@@ -85,18 +85,18 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .cl-select { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; }
 .cl-doc-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.5rem; border-bottom: 1px solid #f7fafc; }
 .cl-doc-row:last-child { border-bottom: none; }
-.cl-doc-row .icon { width: 32px; height: 32px; background: #bee3f8; color: #2c5282; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cl-doc-row .icon { width: 32px; height: 32px; background: #d6e2f4; color: #082b7b; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cl-doc-row .icon svg { width: 16px; height: 16px; }
 .cl-doc-row .info { flex: 1; min-width: 0; }
 .cl-doc-row .info .name { font-size: 0.85rem; color: #2d3748; font-weight: 500; }
 .cl-doc-row .info .meta { font-size: 0.7rem; color: #a0aec0; }
 .cl-doc-row .actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
-.cl-doc-row .actions button, .cl-doc-row .actions a { background: #edf2f7; border: none; padding: 0; width: 28px; height: 28px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: #3182ce; cursor: pointer; text-decoration: none; }
-.cl-doc-row .actions button:hover, .cl-doc-row .actions a:hover { background: #3182ce; color: white; }
-.cl-doc-row .actions .danger:hover { background: #e53e3e; }
+.cl-doc-row .actions button, .cl-doc-row .actions a { background: #edf2f7; border: none; padding: 0; width: 28px; height: 28px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: #0b3aa4; cursor: pointer; text-decoration: none; }
+.cl-doc-row .actions button:hover, .cl-doc-row .actions a:hover { background: #0b3aa4; color: white; }
+.cl-doc-row .actions .danger:hover { background: #f75c6c; }
 .cl-doc-row .actions svg { width: 14px; height: 14px; }
 .cl-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; flex-shrink: 0; }
-.cl-badge.visible { background: #c6f6d5; color: #276749; }
+.cl-badge.visible { background: #eef3fb; color: #082b7b; }
 .cl-badge.hidden { background: #e2e8f0; color: #718096; }
 </style>
 

@@ -440,6 +440,19 @@ class Auth
     }
 
     /**
+     * Ricarica i dati dell'utente staff dal DB nella sessione (dopo update profilo).
+     */
+    public static function refreshUser(): void
+    {
+        $current = self::getUser();
+        if (!$current || empty($current['id'])) return;
+        $fresh = Database::fetchOne("SELECT * FROM users WHERE id = ?", [(int) $current['id']]);
+        if ($fresh) {
+            $_SESSION[self::SESSION_USER_KEY] = array_merge($current, $fresh);
+        }
+    }
+
+    /**
      * Ricarica i dati del dipendente dal DB nella sessione (dopo update profilo).
      */
     public static function refreshEmployee(): void

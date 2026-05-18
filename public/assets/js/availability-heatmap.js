@@ -8,7 +8,61 @@
     const MIN_VISIBLE = 6;     // px minimi visibili tra un avatar e il successivo
     const MAX_VISIBLE = 28;    // px massimi (default spacing quando ci sta)
 
-    document.querySelectorAll('.heatmap-card').forEach(initHeatmap);
+    function initAll() {
+        document.querySelectorAll('.heatmap-card').forEach(initHeatmap);
+        initAjaxNav();
+    }
+
+    // Esposta per re-init dopo sostituzione DOM via AJAX
+    window.PAMHeatmapInit = initAll;
+
+    function initAjaxNav() {
+        document.querySelectorAll('.heatmap-card').forEach((card) => {
+            if (card.dataset.ajaxBound === '1') return;
+            card.dataset.ajaxBound = '1';
+            card.addEventListener('click', async (e) => {
+                const a = e.target.closest('.heatmap-nav-btn');
+                if (!a) return;
+                const url = a.getAttribute('href');
+                if (!url || url === '#') return;
+                e.preventDefault();
+                card.classList.add('is-loading');
+                try {
+                    const r = await fetch(url, { credentials: 'same-origin' });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const html = await r.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const fresh = doc.querySelector('.heatmap-card');
+                    if (!fresh) throw new Error('no heatmap-card in response');
+                    card.replaceWith(fresh);
+                    history.pushState({ heatmap: true }, '', url);
+                    initAll();
+                } catch (err) {
+                    console.warn('Heatmap AJAX nav failed, fallback to full reload', err);
+                    window.location.href = url;
+                }
+            });
+        });
+    }
+
+    // Gestione tasto avanti/indietro browser
+    window.addEventListener('popstate', () => {
+        const card = document.querySelector('.heatmap-card');
+        if (!card) return;
+        fetch(window.location.href, { credentials: 'same-origin' })
+            .then(r => r.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const fresh = doc.querySelector('.heatmap-card');
+                if (fresh) {
+                    card.replaceWith(fresh);
+                    initAll();
+                }
+            })
+            .catch(() => {});
+    });
+
+    initAll();
 
     function initHeatmap(card) {
         const searchInput = card.querySelector('.heatmap-search-input');

@@ -216,213 +216,259 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
 
 <style>
-.urm-wrap { max-width: 1100px; margin: 0 auto; }
-.urm-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
-}
-.urm-header-left { display: flex; align-items: center; gap: 0.75rem; }
-.urm-header-icon {
-    width: 42px; height: 42px;
-    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+/* ===== User Role Manager — design system ConnecteedHR ===== */
+.urm-hero { margin-bottom: 18px; }
+.urm-hero-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    background: #0b3aa4;
+    border: 1px solid #0b3aa4;
     border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    color: white;
-    flex-shrink: 0;
+    color: white; font-weight: 600; font-size: 13px;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: all .12s ease;
 }
-.urm-header-icon svg { width: 22px; height: 22px; }
-.urm-header h1 { margin: 0; font-size: 1.15rem; color: #2d3748; }
-.urm-header .sub { font-size: 0.8rem; color: #a0aec0; }
+.urm-hero-btn:hover { background: #082b7b; border-color: #082b7b; color: white; text-decoration: none; }
 
 .urm-pw-banner {
-    background: #fffbeb;
-    border: 1px solid #fbd38d;
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, rgba(255,187,85,0.10), rgba(255,187,85,0.04));
+    border: 1px solid rgba(255,187,85,0.30);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 12px;
 }
-.urm-pw-banner svg { width: 22px; height: 22px; color: #d69e2e; flex-shrink: 0; }
-.urm-pw-banner .body { flex: 1; font-size: 0.85rem; color: #744210; line-height: 1.5; }
-.urm-pw-banner code { background: white; padding: 3px 8px; border-radius: 5px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.85rem; color: #2d3748; border: 1px solid #fbd38d; }
+.urm-pw-banner svg { width: 22px; height: 22px; color: #e09938; flex-shrink: 0; }
+.urm-pw-banner .body { flex: 1; font-size: 13px; color: #92400e; line-height: 1.5; }
+.urm-pw-banner code { background: white; padding: 3px 8px; border-radius: 6px; font-family: 'Space Grotesk',monospace; font-size: 13px; color: #0f172a; border: 1px solid rgba(255,187,85,0.30); }
 .urm-pw-banner button.copy {
-    background: #d69e2e; color: white; border: none; padding: 6px 12px;
-    border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; flex-shrink: 0;
+    background: #e09938; color: white; border: none; padding: 7px 14px;
+    border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+    transition: all .12s ease;
 }
-.urm-pw-banner button.copy:hover { background: #b7791f; }
+.urm-pw-banner button.copy:hover { background: #b45309; }
 
 .urm-empty {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    padding: 3rem 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 48px 24px;
     text-align: center;
 }
-.urm-empty svg { width: 56px; height: 56px; color: #cbd5e0; margin-bottom: 0.75rem; }
-.urm-empty h3 { color: #4a5568; margin: 0 0 0.4rem; font-size: 1rem; }
-.urm-empty p { color: #a0aec0; margin: 0 0 1rem; font-size: 0.85rem; }
+.urm-empty svg { width: 48px; height: 48px; color: #cbd5e0; margin-bottom: 12px; }
+.urm-empty h3 { color: #475569; margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+.urm-empty p { color: #94a3b8; margin: 0 0 16px; font-size: 13px; }
 
 .urm-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
+    gap: 16px;
 }
 .urm-card {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    overflow: hidden;
-    transition: transform .15s, box-shadow .15s;
-    display: flex;
-    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+    transition: all .12s ease;
 }
-.urm-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
-.urm-card.inactive { opacity: 0.7; }
+.urm-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(11,58,164,0.30);
+    box-shadow: 0 8px 24px rgba(11,58,164,0.08);
+}
+.urm-card.inactive { opacity: 0.65; }
+
 .urm-card-top {
-    padding: 1rem 1.1rem;
-    display: flex; gap: 0.75rem;
-    border-bottom: 1px solid #edf2f7;
+    display: flex; align-items: flex-start; gap: 12px;
 }
 .urm-avatar {
-    width: 42px; height: 42px;
+    width: 46px; height: 46px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    background: linear-gradient(135deg, #0b3aa4 0%, #0b3aa4 100%);
     color: white;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 1rem;
+    font-weight: 700; font-size: 15px;
     flex-shrink: 0;
     text-transform: uppercase;
+    box-shadow: 0 4px 12px rgba(11,58,164,0.25);
 }
-.urm-card.inactive .urm-avatar { background: linear-gradient(135deg, #a0aec0 0%, #718096 100%); }
-.urm-card-info { flex: 1; min-width: 0; }
+.urm-card.inactive .urm-avatar { background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%); box-shadow: none; }
+.urm-card-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .urm-card-info .name {
-    font-size: 0.95rem; font-weight: 600; color: #2d3748;
-    margin: 0; line-height: 1.3;
+    font-family: 'Host Grotesk','Inter',sans-serif;
+    font-size: 15px; font-weight: 700; color: #0f172a;
+    margin: 0; line-height: 1.25; letter-spacing: -0.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.urm-card-info .username { font-size: 0.72rem; color: #a0aec0; font-family: 'SF Mono', Monaco, monospace; margin-top: 2px; }
-.urm-card-status { font-size: 0.62rem; padding: 3px 9px; border-radius: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; height: fit-content; }
-.urm-card-status.on  { background: #c6f6d5; color: #22543d; }
-.urm-card-status.off { background: #fed7d7; color: #742a2a; }
-
-.urm-card-body { padding: 0.75rem 1.1rem; flex: 1; }
-.urm-card-row { display: flex; gap: 0.5rem; font-size: 0.78rem; margin-bottom: 0.35rem; }
-.urm-card-row:last-child { margin-bottom: 0; }
-.urm-card-row .lbl { color: #a0aec0; min-width: 80px; flex-shrink: 0; }
-.urm-card-row .val { color: #4a5568; word-break: break-word; }
-.urm-card-row a { color: #3182ce; text-decoration: none; }
-
-.urm-card-actions {
-    display: flex;
-    gap: 0.4rem;
-    padding: 0.75rem 1.1rem;
-    background: #f7fafc;
-    border-top: 1px solid #edf2f7;
-    flex-wrap: wrap;
+.urm-card-info .username { font-size: 12px; color: #94a3b8; font-family: 'Space Grotesk', monospace; }
+.urm-card-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    width: fit-content;
+    padding: 2px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
 }
-.urm-card-actions form { margin: 0; }
-.urm-btn {
-    padding: 6px 11px;
+.urm-card-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.urm-card-status.on  { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.urm-card-status.off { background: rgba(100,116,139,0.10); color: #475569; }
+
+.urm-quick { display: flex; gap: 4px; flex-shrink: 0; }
+.urm-quick form { margin: 0; display: inline-flex; }
+.urm-ibtn {
+    width: 28px; height: 28px;
     border-radius: 6px;
-    border: none;
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex; align-items: center; gap: 4px;
-    color: white;
-    transition: filter .15s;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #475569; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .12s ease;
+    text-decoration: none; padding: 0;
 }
-.urm-btn:hover { filter: brightness(0.93); }
-.urm-btn.primary { background: #3182ce; }
-.urm-btn.warn    { background: #d69e2e; }
-.urm-btn.toggle  { background: #718096; }
-.urm-btn.toggle.on { background: #48bb78; }
-.urm-btn.danger  { background: #e53e3e; }
+.urm-ibtn:hover { border-color: #0b3aa4; color: #0b3aa4; background: rgba(11,58,164,0.04); }
+.urm-ibtn.primary { background: rgba(11,58,164,0.08); color: #0b3aa4; border-color: rgba(11,58,164,0.20); }
+.urm-ibtn.primary:hover { background: #0b3aa4; color: white; }
+.urm-ibtn.warn { background: rgba(255,187,85,0.08); color: #e09938; border-color: rgba(255,187,85,0.20); }
+.urm-ibtn.warn:hover { background: #e09938; color: white; border-color: #e09938; }
+.urm-ibtn.danger { background: rgba(247,92,108,0.08); color: #f75c6c; border-color: rgba(247,92,108,0.20); }
+.urm-ibtn.danger:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
+.urm-ibtn svg { width: 14px; height: 14px; }
+
+.urm-card-body {
+    padding: 12px;
+    background: linear-gradient(180deg, #f8fafe 0%, #f1f5fd 100%);
+    border: 1px solid rgba(11,58,164,0.10);
+    border-radius: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.urm-card-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.urm-card-row .ic {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: rgba(11,58,164,0.10); color: #0b3aa4;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.urm-card-row .ic svg { width: 14px; height: 14px; }
+.urm-card-row .data { flex: 1; min-width: 0; line-height: 1.2; }
+.urm-card-row .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.urm-card-row .val { font-size: 13px; color: #0f172a; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urm-card-row .val a { color: #0b3aa4; text-decoration: none; }
+.urm-card-row .val a:hover { text-decoration: underline; }
+.urm-card-row .val.muted { color: #94a3b8; font-style: italic; }
 
 /* Form */
-.urm-form-card {
-    background: white; border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06);
-    padding: 1.5rem;
-    max-width: 720px;
+.urm-form {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 760px;
 }
 .urm-form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem 1.25rem;
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
 }
 .urm-form-grid .full { grid-column: 1 / -1; }
-.urm-field label { display: block; font-size: 0.72rem; color: #4a5568; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; }
+.urm-field { display: flex; flex-direction: column; gap: 6px; }
+.urm-field label {
+    font-size: 11px; font-weight: 600; color: #475569;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.urm-field label .req { color: #f75c6c; }
 .urm-field input[type=text],
 .urm-field input[type=email],
 .urm-field input[type=password] {
-    width: 100%; padding: 0.55rem 0.75rem;
-    border: 1px solid #e2e8f0; border-radius: 7px;
-    font-size: 0.9rem;
-    transition: border-color .15s, box-shadow .15s;
+    width: 100%; padding: 10px 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    font-family: inherit; font-size: 14px;
+    background: white;
+    transition: all .12s ease;
 }
-.urm-field input:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49,130,206,0.12); }
-.urm-field small { color: #a0aec0; font-size: 0.7rem; display: block; margin-top: 0.3rem; }
-.urm-toggle { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; }
-.urm-toggle input { width: 18px; height: 18px; }
-.urm-toggle label { margin: 0 !important; font-size: 0.85rem !important; text-transform: none !important; color: #2d3748 !important; font-weight: 500 !important; letter-spacing: 0 !important; }
+.urm-field input:focus { outline: none; border-color: #0b3aa4; box-shadow: 0 0 0 3px rgba(11,58,164,0.10); }
+.urm-field small { color: #94a3b8; font-size: 11px; }
+
+.urm-toggle {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    background: #fafbfc;
+    cursor: pointer; font-size: 13px; color: #0f172a;
+    transition: all .12s ease;
+    width: fit-content;
+}
+.urm-toggle:hover { border-color: rgba(11,58,164,0.30); }
+.urm-toggle input { accent-color: #0b3aa4; width: 16px; height: 16px; }
+
+.urm-companies {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+    gap: 8px; margin-top: 8px;
+}
+.urm-company-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    background: white; cursor: pointer;
+    font-size: 13px; color: #475569;
+    transition: all .12s ease;
+}
+.urm-company-chip:hover { border-color: rgba(11,58,164,0.30); }
+.urm-company-chip input { accent-color: #0b3aa4; }
+.urm-company-chip:has(input:checked) { background: rgba(11,58,164,0.06); border-color: #0b3aa4; color: #0b3aa4; font-weight: 600; }
 
 .urm-form-actions {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid #edf2f7;
-    display: flex; gap: 0.5rem; justify-content: flex-end;
+    display: flex; gap: 10px; justify-content: flex-end;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 18px;
 }
-.urm-form-actions .btn { padding: 0.55rem 1.2rem; border-radius: 7px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-.urm-form-actions .btn-primary   { background: #3182ce; color: white; }
-.urm-form-actions .btn-primary:hover { background: #2c5282; }
-.urm-form-actions .btn-secondary { background: #edf2f7; color: #2d3748; }
-.urm-form-actions .btn-secondary:hover { background: #e2e8f0; }
+.urm-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 8px;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; cursor: pointer;
+    text-decoration: none; transition: all .12s ease;
+}
+.urm-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.urm-btn-primary { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+.urm-btn-primary:hover { background: #0b3aa4; border-color: #0b3aa4; color: white; text-decoration: none; }
+.urm-btn-ghost { background: white; color: #475569; border-color: #e2e8f0; }
+.urm-btn-ghost:hover { border-color: #475569; color: #0f172a; text-decoration: none; }
 
 @media (max-width: 640px) {
     .urm-form-grid { grid-template-columns: 1fr; }
 }
 </style>
 
-<div class="urm-wrap">
-    <div class="urm-header">
-        <div class="urm-header-left">
-            <div class="urm-header-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="<?= $ICON_PATH ?>"/></svg>
-            </div>
-            <div>
-                <h1>
-                    <?php if ($action === 'list'): ?>
-                        <?= e($LABEL_PLURAL) ?>
-                    <?php elseif ($action === 'new'): ?>
-                        Nuovo <?= e($LABEL) ?>
-                    <?php else: ?>
-                        Modifica <?= e($LABEL) ?>
-                    <?php endif; ?>
-                </h1>
-                <div class="sub">
-                    <?php if ($action === 'list'): ?>
-                        <?= count($users) ?> utent<?= count($users) === 1 ? 'e' : 'i' ?> registrat<?= count($users) === 1 ? 'o' : 'i' ?>
-                    <?php else: ?>
-                        <a href="<?= e($SELF) ?>" style="color:#3182ce;text-decoration:none;">← Torna alla lista</a>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <?php if ($action === 'list'): ?>
-            <a href="?action=new" class="urm-btn primary" style="padding:9px 16px;font-size:.85rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
-                Nuovo <?= e($LABEL) ?>
-            </a>
+<?php if ($action === 'list'): ?>
+<div class="welcome-card urm-hero">
+    <div>
+        <h2><?= e($LABEL_PLURAL) ?></h2>
+        <p>Gestisci gli accessi al portale per i <?= e(strtolower($LABEL_PLURAL)) ?>.
+        <?php if (count($users) > 0): ?>
+            <strong><?= count($users) ?> utent<?= count($users) === 1 ? 'e' : 'i' ?> registrat<?= count($users) === 1 ? 'o' : 'i' ?>.</strong>
+        <?php else: ?>
+            <strong>Nessun utente registrato.</strong>
         <?php endif; ?>
+        </p>
     </div>
+    <a href="?action=new" class="urm-hero-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Nuovo <?= e($LABEL) ?>
+    </a>
+</div>
+<?php endif; ?>
+
+<div class="admin-page">
+    <?php if ($action !== 'list'): ?>
+        <div class="page-header" style="margin-bottom: 1.25rem;">
+            <a href="<?= e($SELF) ?>" class="btn btn-secondary">← Torna alla lista</a>
+        </div>
+    <?php endif; ?>
 
     <?php if ($message): ?>
         <?php if ($generatedPassword): ?>
@@ -461,10 +507,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     <?php if ($action === 'list'): ?>
         <?php if (empty($users)): ?>
             <div class="urm-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <h3>Nessun <?= e(strtolower($LABEL)) ?> registrato</h3>
                 <p>Crea il primo per dare accesso al portale.</p>
-                <a href="?action=new" class="urm-btn primary" style="padding:9px 16px;font-size:.85rem;">+ Nuovo <?= e($LABEL) ?></a>
+                <a href="?action=new" class="urm-btn urm-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Nuovo <?= e($LABEL) ?>
+                </a>
             </div>
         <?php else: ?>
             <div class="urm-grid">
@@ -477,53 +526,58 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <div class="urm-card-info">
                                 <p class="name"><?= e($u['name']) ?></p>
                                 <div class="username">@<?= e($u['username']) ?></div>
+                                <span class="urm-card-status <?= $u['is_active'] ? 'on' : 'off' ?>">
+                                    <?= $u['is_active'] ? 'Attivo' : 'Disattivato' ?>
+                                </span>
                             </div>
-                            <span class="urm-card-status <?= $u['is_active'] ? 'on' : 'off' ?>">
-                                <?= $u['is_active'] ? 'Attivo' : 'Disattivato' ?>
-                            </span>
+                            <div class="urm-quick">
+                                <a href="?action=edit&id=<?= $u['id'] ?>" class="urm-ibtn primary" title="Modifica">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </a>
+                                <form method="POST" onsubmit="return confirm('Resettare la password? Verrà generata una nuova password sicura.')">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="reset_password">
+                                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                    <button type="submit" class="urm-ibtn warn" title="Reset password">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                                    </button>
+                                </form>
+                                <form method="POST" onsubmit="return confirm('Eliminare definitivamente <?= e($u['username']) ?>? Operazione irreversibile.')">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                    <button type="submit" class="urm-ibtn danger" title="Elimina">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
+
                         <div class="urm-card-body">
                             <?php if (!empty($u['email'])): ?>
                                 <div class="urm-card-row">
-                                    <span class="lbl">Email</span>
-                                    <span class="val"><a href="mailto:<?= e($u['email']) ?>"><?= e($u['email']) ?></a></span>
+                                    <div class="ic">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                    </div>
+                                    <div class="data">
+                                        <div class="lbl">Email</div>
+                                        <div class="val"><a href="mailto:<?= e($u['email']) ?>"><?= e($u['email']) ?></a></div>
+                                    </div>
                                 </div>
                             <?php endif; ?>
                             <div class="urm-card-row">
-                                <span class="lbl">Ultimo accesso</span>
-                                <span class="val">
-                                    <?= !empty($u['last_login']) ? formatDateTime($u['last_login']) : '<span style="color:#cbd5e0;">Mai</span>' ?>
-                                </span>
-                            </div>
-                            <?php if (!empty($u['created_at'])): ?>
-                                <div class="urm-card-row">
-                                    <span class="lbl">Creato il</span>
-                                    <span class="val"><?= formatDate($u['created_at']) ?></span>
+                                <div class="ic">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                 </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="urm-card-actions">
-                            <a href="?action=edit&id=<?= $u['id'] ?>" class="urm-btn primary">Modifica</a>
-                            <form method="POST" onsubmit="return confirm('Resettare la password? Verra' generata una nuova password sicura.')">
-                                <?= CSRF::field() ?>
-                                <input type="hidden" name="action" value="reset_password">
-                                <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                                <button type="submit" class="urm-btn warn">Reset password</button>
-                            </form>
-                            <form method="POST">
-                                <?= CSRF::field() ?>
-                                <input type="hidden" name="action" value="toggle_active">
-                                <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                                <button type="submit" class="urm-btn toggle <?= $u['is_active'] ? 'on' : '' ?>">
-                                    <?= $u['is_active'] ? 'Disattiva' : 'Attiva' ?>
-                                </button>
-                            </form>
-                            <form method="POST" onsubmit="return confirm('Eliminare definitivamente <?= e($u['username']) ?>? Operazione irreversibile.')">
-                                <?= CSRF::field() ?>
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                                <button type="submit" class="urm-btn danger">Elimina</button>
-                            </form>
+                                <div class="data">
+                                    <div class="lbl">Ultimo accesso</div>
+                                    <?php if (!empty($u['last_login'])): ?>
+                                        <div class="val"><?= formatDateTime($u['last_login']) ?></div>
+                                    <?php else: ?>
+                                        <div class="val muted">Mai</div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -531,13 +585,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         <?php endif; ?>
 
     <?php elseif ($action === 'new' || $action === 'edit'): ?>
-        <form method="POST" class="urm-form-card" autocomplete="off">
+        <form method="POST" class="urm-form" autocomplete="off">
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="<?= $action === 'new' ? 'create' : 'update' ?>">
 
             <div class="urm-form-grid">
                 <div class="urm-field">
-                    <label for="username">Username *</label>
+                    <label for="username">Username <span class="req">*</span></label>
                     <input type="text" id="username" name="username" required
                            minlength="3" maxlength="50" pattern="[a-zA-Z0-9_\.]+"
                            value="<?= e($current['username'] ?? $_POST['username'] ?? '') ?>">
@@ -545,7 +599,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 </div>
 
                 <div class="urm-field">
-                    <label for="name">Nome completo *</label>
+                    <label for="name">Nome completo <span class="req">*</span></label>
                     <input type="text" id="name" name="name" required maxlength="100"
                            value="<?= e($current['name'] ?? $_POST['name'] ?? '') ?>">
                 </div>
@@ -560,8 +614,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <?php if ($action === 'new'): ?>
                     <div class="urm-field full">
                         <label class="urm-toggle">
-                            <input type="checkbox" name="autogen_password" value="1" checked id="autogenChk" onchange="document.getElementById('pwBlock').style.display=this.checked?'none':'block'">
-                            <span>Genera automaticamente una password sicura (consigliato)</span>
+                            <input type="checkbox" name="autogen_password" value="1" checked id="autogenChk" onchange="document.getElementById('pwBlock').style.display=this.checked?'none':'flex'">
+                            <span>Genera password sicura automaticamente (consigliato)</span>
                         </label>
                     </div>
 
@@ -576,7 +630,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     <div class="urm-field full">
                         <label class="urm-toggle">
                             <input type="checkbox" name="is_active" <?= $current['is_active'] ? 'checked' : '' ?>>
-                            <span>Account attivo (l'utente puo' accedere al portale)</span>
+                            <span>Account attivo (l'utente può accedere al portale)</span>
                         </label>
                     </div>
                 <?php endif; ?>
@@ -588,13 +642,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <?php if (!empty($allCompanies)): ?>
                     <div class="urm-field full">
                         <label>Aziende assegnate</label>
-                        <small style="margin-bottom:.5rem;">L'utente potra' vedere e gestire i dipendenti SOLO delle aziende selezionate. Se non selezioni nulla, vedra' tutte le aziende (caso single-tenant).</small>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:.5rem;margin-top:.5rem;">
+                        <small>L'utente potrà vedere i dipendenti SOLO delle aziende selezionate. Se non selezioni nulla vedrà tutte le aziende.</small>
+                        <div class="urm-companies">
                             <?php foreach ($allCompanies as $co): ?>
-                                <label class="urm-toggle" style="background:#f7fafc;padding:.55rem .7rem;border-radius:7px;border:1px solid #e2e8f0;cursor:pointer;">
+                                <label class="urm-company-chip">
                                     <input type="checkbox" name="company_ids[]" value="<?= (int)$co['id'] ?>"
                                         <?= in_array((int)$co['id'], $assignedCompanyIds, true) ? 'checked' : '' ?>>
-                                    <span style="font-size:.85rem !important;"><?= e($co['name']) ?></span>
+                                    <span><?= e($co['name']) ?></span>
                                 </label>
                             <?php endforeach; ?>
                         </div>
@@ -603,8 +657,9 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             </div>
 
             <div class="urm-form-actions">
-                <a href="<?= e($SELF) ?>" class="btn btn-secondary">Annulla</a>
-                <button type="submit" class="btn btn-primary">
+                <a href="<?= e($SELF) ?>" class="urm-btn urm-btn-ghost">Annulla</a>
+                <button type="submit" class="urm-btn urm-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     <?= $action === 'new' ? "Crea {$LABEL}" : 'Salva modifiche' ?>
                 </button>
             </div>

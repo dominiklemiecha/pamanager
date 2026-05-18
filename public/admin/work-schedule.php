@@ -37,26 +37,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $defaults = LeaveBalance::companyDefaults($companyId);
-$pageTitle = 'Orario lavorativo';
+$pageTitle = 'Configurazione · Orario lavorativo';
 include dirname(__DIR__) . '/includes/header-admin.php';
+include dirname(__DIR__) . '/includes/_config-tabs.php';
 ?>
 
-<div class="container">
-    <div class="page-header">
-        <h1>Orario lavorativo</h1>
-        <p style="color:#64748b; margin:0;">Default aziendale usato per calcolare il consumo di ferie e permessi. Ogni dipendente può avere un override.</p>
-    </div>
-
+<div class="admin-page">
     <?php if ($message): ?><div class="alert alert-success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
-    <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-    <form method="POST" class="form-card" style="max-width:640px;">
+    <form method="POST" class="cfg-card" style="max-width:720px;">
         <?= CSRF::field() ?>
-
         <h3>Giorni lavorativi</h3>
-        <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+        <p class="desc">Default aziendale usato per calcolare il consumo di ferie e permessi. Ogni dipendente può avere un override.</p>
+
+        <div class="cfg-day-chips" style="margin-bottom: 24px;">
             <?php foreach (LeaveBalance::allDayKeys() as $dk): ?>
-                <label class="checkbox-label" style="font-weight:500;">
+                <label class="cfg-day-chip">
                     <input type="checkbox" name="working_days[]" value="<?= $dk ?>"
                            <?= in_array($dk, $defaults['days'], true) ? 'checked' : '' ?>>
                     <?= htmlspecialchars(LeaveBalance::dayLabel($dk)) ?>
@@ -65,14 +62,17 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </div>
 
         <h3>Ore lavorate al giorno</h3>
-        <div class="form-group" style="max-width:200px;">
+        <p class="desc">Usato per convertire permessi a giornata intera in ore.</p>
+        <div class="cfg-fg" style="max-width:220px;">
             <input type="number" step="0.25" min="0" max="24" name="hours_per_day"
                    value="<?= htmlspecialchars((string) $defaults['hours']) ?>" required>
-            <small>Usato per convertire permessi a giornata intera in ore.</small>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Salva</button>
+        <div class="cfg-actions">
+            <button type="submit" class="cfg-btn cfg-btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Salva impostazioni
+            </button>
         </div>
     </form>
 </div>

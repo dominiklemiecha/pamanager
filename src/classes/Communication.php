@@ -388,6 +388,92 @@ class Communication
     }
 
     /**
+     * Lista allegati (escluse immagini inline)
+     */
+    public static function getAttachments(int $communicationId, bool $includeInline = false): array
+    {
+        $sql = "SELECT id, original_name, stored_name, mime_type, size_bytes, is_inline_image, created_at
+                FROM communication_attachments WHERE communication_id = ?";
+        if (!$includeInline) $sql .= " AND is_inline_image = 0";
+        $sql .= " ORDER BY id ASC";
+        return Database::fetchAll($sql, [$communicationId]);
+    }
+
+    /**
+     * Aggiunge un allegato (file caricato).
+     * @return array{success:bool, id?:int, url?:string, error?:string}
+     */
+    public static function addUploadedFile(array $file, int $communicationId, bool $isInlineImage = false): array
+    {
+        if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'error' => 'Errore upload'];
+        }
+        if ($file['size'] > MAX_FILE_SIZE) {
+            return ['success' => false, 'error' => 'File troppo grande'];
+        }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = $isInlineImage ? ['jpg','jpeg','png','gif','webp'] : ALLOWED_EXTENSIONS;
+        if (!in_array($ext, $allowed, true)) {
+            return ['success' => false, 'error' => 'Tipo file non consentito'];
+        }
+
+        $dir = STORAGE_PATH . '/communications/' . $communicationId;
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+
+        $stored = bin2hex(random_bytes(12)) . '.' . $ext;
+        $dest = $dir . '/' . $stored;
+
+        if (!@move_uploaded_file($file['tmp_name'], $dest)) {
+            return ['success' => false, 'error' => 'Salvataggio fallito'];
+        }
+
+        $mime = function_exists('mime_content_type') ? (mime_content_type($dest) ?: 'application/octet-stream') : 'application/octet-stream';
+
+        try {
+            $id = Database::insert('communication_attachments', [
+                'communication_id' => $communicationId,
+                'original_name' => $file['name'],
+                'stored_name' => $stored,
+                'mime_type' => $mime,
+                'size_bytes' => (int)$file['size'],
+                'is_inline_image' => $isInlineImage ? 1 : 0,
+            ]);
+            return [
+                'success' => true,
+                'id' => $id,
+                'url' => self::attachmentUrl($id),
+            ];
+        } catch (Exception $e) {
+            if (file_exists($dest)) @unlink($dest);
+            return ['success' => false, 'error' => 'Errore DB'];
+        }
+    }
+
+    public static function getAttachment(int $id): ?array
+    {
+        return Database::fetchOne(
+            "SELECT * FROM communication_attachments WHERE id = ?",
+            [$id]
+        );
+    }
+
+    public static function deleteAttachment(int $id): bool
+    {
+        $a = self::getAttachment($id);
+        if (!$a) return false;
+        $path = STORAGE_PATH . '/communications/' . $a['communication_id'] . '/' . $a['stored_name'];
+        if (file_exists($path)) @unlink($path);
+        Database::delete('communication_attachments', 'id = ?', [$id]);
+        return true;
+    }
+
+    public static function attachmentUrl(int $id): string
+    {
+        $base = defined('PUBLIC_URL') ? PUBLIC_URL : '';
+        return $base . '/communication_file.php?id=' . $id;
+    }
+
+    /**
      * Invia push notifications per nuova comunicazione
      */
     private static function sendPushNotifications(int $commId, string $title, bool $isGlobal, ?int $departmentId): void

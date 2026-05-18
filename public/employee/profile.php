@@ -156,7 +156,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 .photo-section { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
 .photo-preview {
     width: 96px; height: 96px; border-radius: 50%;
-    background: #3182ce; color: white;
+    background: #0b3aa4; color: white;
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 2rem; flex-shrink: 0;
     overflow: hidden; border: 2px solid #e2e8f0;
@@ -175,18 +175,43 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 
 .profile-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
 .btn-inline { padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-weight: 600; }
-.btn-primary { background: #3182ce; color: white; }
-.btn-primary:hover { background: #2c5282; }
+.btn-primary { background: #0b3aa4; color: white; }
+.btn-primary:hover { background: #082b7b; }
 .btn-secondary { background: #edf2f7; color: #2d3748; }
 .btn-secondary:hover { background: #e2e8f0; }
-.btn-danger-soft { background: #fff5f5; color: #c53030; border-color: #fed7d7; }
-.btn-danger-soft:hover { background: #fed7d7; }
+.btn-danger-soft { background: #fff5f5; color: #cc2d39; border-color: #fde2e5; }
+.btn-danger-soft:hover { background: #fde2e5; }
 
 .profile-meta { font-size: 0.8rem; color: #4a5568; }
 .profile-meta strong { color: #2d3748; }
 
 input[type=file] { font-size: 0.85rem; }
+
+.emp-banner {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    max-width: 640px;
+}
+.emp-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    margin: 0 0 4px;
+    font-size: 19px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.02em;
+}
+.emp-banner p { margin: 0; font-size: 13px; color: #6e7191; }
 </style>
+
+<div class="emp-banner">
+    <div>
+        <h2>Il mio profilo</h2>
+        <p>Modifica i tuoi dati personali, la foto e le impostazioni di notifica.</p>
+    </div>
+</div>
 
 <div class="profile-page">
     <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
@@ -321,6 +346,19 @@ input[type=file] { font-size: 0.85rem; }
         <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">Per modificare questi dati contatta l'amministratore.</p>
     </div>
     <?php endif; ?>
+
+    <!-- Sessione: logout -->
+    <div class="profile-card" style="border-color: rgba(247,92,108,0.25); max-width: 640px;">
+        <h2 style="color:#cc2d39; margin: 0 0 6px;">Sessione</h2>
+        <p style="font-size: 13px; color: #6e7191; margin: 0 0 14px;">
+            Esci da questa sessione. Dovrai inserire di nuovo le credenziali al prossimo accesso.
+        </p>
+        <a href="<?= PUBLIC_URL ?>/auth/logout.php" class="btn"
+           style="display:inline-flex; align-items:center; gap:8px; background:#f75c6c; color:white; padding:10px 18px; border-radius:9px; text-decoration:none; font-weight:600; font-size:13px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Esci dall'account
+        </a>
+    </div>
 </div>
 
 <?php include dirname(__DIR__) . '/includes/footer-employee.php'; ?>

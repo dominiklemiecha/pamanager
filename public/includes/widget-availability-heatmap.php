@@ -33,14 +33,32 @@ $prevWeek = (clone $weekStart)->modify('-7 days')->format('Y-m-d');
 $nextWeek = (clone $weekStart)->modify('+7 days')->format('Y-m-d');
 $today    = (new DateTime('today'))->format('Y-m-d');
 
-// Range giorni
+// Giorni lavorativi aziendali (config admin)
+$__hmCid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+$__hmWorkingDays = ['mon','tue','wed','thu','fri']; // fallback
+if (class_exists('LeaveBalance')) {
+    try {
+        $__hmDefaults = LeaveBalance::companyDefaults($__hmCid);
+        if (!empty($__hmDefaults['days']) && is_array($__hmDefaults['days'])) {
+            $__hmWorkingDays = $__hmDefaults['days'];
+        }
+    } catch (Throwable $e) {}
+}
+$__hmKeyMap = [1=>'mon',2=>'tue',3=>'wed',4=>'thu',5=>'fri',6=>'sat',7=>'sun'];
+
+// Range giorni (tutti i 7 giorni; quelli non lavorativi marcati visivamente)
 $days = [];
+$dayLabelsMap = [1=>'Lun',2=>'Mar',3=>'Mer',4=>'Gio',5=>'Ven',6=>'Sab',7=>'Dom'];
+$dayLabels = [];
+$dayIsWorking = [];
 for ($i = 0; $i < 7; $i++) {
     $d = (clone $weekStart)->modify('+' . $i . ' days');
+    $dowNum = (int) $d->format('N');
+    $key = $__hmKeyMap[$dowNum] ?? null;
     $days[] = $d->format('Y-m-d');
+    $dayLabels[] = $dayLabelsMap[$dowNum];
+    $dayIsWorking[] = ($key !== null && in_array($key, $__hmWorkingDays, true));
 }
-
-$dayLabels = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
 
 // Range etichetta header
 $labelMonthStart = ['','gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'][(int)$weekStart->format('n')];
@@ -250,39 +268,50 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 else $countAbsent++;
             }
         ?>
-            <div class="heatmap-day-row <?= $isToday ? 'is-today' : '' ?>">
+            <?php $__isWk = $dayIsWorking[$i] ?? true; ?>
+            <div class="heatmap-day-row <?= $isToday ? 'is-today' : '' ?> <?= !$__isWk ? 'is-nonworking' : '' ?>">
                 <div class="heatmap-day-label">
                     <span class="heatmap-day-name"><?= $dayLabels[$i] ?></span>
                     <span class="heatmap-day-num"><?= $dObj->format('j') ?></span>
-                    <?php if ($isToday): ?><span class="heatmap-day-badge">Oggi</span><?php endif; ?>
+                    <?php if ($isToday && $__isWk): ?><span class="heatmap-day-badge">Oggi</span><?php endif; ?>
                 </div>
-                <div class="heatmap-stack" tabindex="0">
-                    <?php foreach ($rowAvatars as $idx => $av): ?>
-                        <div class="heatmap-stack-avatar is-<?= $av['state'] ?>" tabindex="0"
-                             data-state="<?= $av['state'] ?>"
-                             data-name="<?= htmlspecialchars(mb_strtolower($av['name'])) ?>"
-                             style="--avatar-i: <?= $idx ?>">
-                            <div class="heatmap-stack-photo">
-                                <?php if ($av['photo']): ?>
-                                    <img src="<?= htmlspecialchars($av['photo']) ?>" alt="<?= htmlspecialchars($av['name']) ?>">
-                                <?php else: ?>
-                                    <span class="heatmap-stack-initials" style="background: <?= $av['color'] ?>"><?= htmlspecialchars($av['initials']) ?></span>
-                                <?php endif; ?>
-                                <span class="heatmap-stack-overlay"></span>
+                <?php if ($__isWk): ?>
+                    <div class="heatmap-stack" tabindex="0">
+                        <?php foreach ($rowAvatars as $idx => $av): ?>
+                            <div class="heatmap-stack-avatar is-<?= $av['state'] ?>" tabindex="0"
+                                 data-state="<?= $av['state'] ?>"
+                                 data-name="<?= htmlspecialchars(mb_strtolower($av['name'])) ?>"
+                                 style="--avatar-i: <?= $idx ?>">
+                                <div class="heatmap-stack-photo">
+                                    <?php if ($av['photo']): ?>
+                                        <img src="<?= htmlspecialchars($av['photo']) ?>" alt="<?= htmlspecialchars($av['name']) ?>">
+                                    <?php else: ?>
+                                        <span class="heatmap-stack-initials" style="background: <?= $av['color'] ?>"><?= htmlspecialchars($av['initials']) ?></span>
+                                    <?php endif; ?>
+                                    <span class="heatmap-stack-overlay"></span>
+                                </div>
+                                <div class="heatmap-stack-tooltip" role="tooltip">
+                                    <span class="hst-name"><?= htmlspecialchars($av['name']) ?></span>
+                                    <span class="hst-status hst-<?= $av['state'] ?>"><?= htmlspecialchars($av['tooltip']) ?></span>
+                                </div>
                             </div>
-                            <div class="heatmap-stack-tooltip" role="tooltip">
-                                <span class="hst-name"><?= htmlspecialchars($av['name']) ?></span>
-                                <span class="hst-status hst-<?= $av['state'] ?>"><?= htmlspecialchars($av['tooltip']) ?></span>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-                <div class="heatmap-day-count">
-                    <span class="hm-count hm-count-present" title="Disponibili"><?= $countPresent ?></span>
-                    <?php if ($countBusy > 0): ?><span class="hm-count hm-count-busy" title="Occupati"><?= $countBusy ?></span><?php endif; ?>
-                    <?php if ($countPending > 0): ?><span class="hm-count hm-count-pending" title="In approvazione"><?= $countPending ?></span><?php endif; ?>
-                    <?php if ($countAbsent > 0): ?><span class="hm-count hm-count-absent" title="Assenti"><?= $countAbsent ?></span><?php endif; ?>
-                </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="heatmap-day-count">
+                        <span class="hm-count hm-count-present" title="Disponibili"><?= $countPresent ?></span>
+                        <?php if ($countBusy > 0): ?><span class="hm-count hm-count-busy" title="Occupati"><?= $countBusy ?></span><?php endif; ?>
+                        <?php if ($countPending > 0): ?><span class="hm-count hm-count-pending" title="In approvazione"><?= $countPending ?></span><?php endif; ?>
+                        <?php if ($countAbsent > 0): ?><span class="hm-count hm-count-absent" title="Assenti"><?= $countAbsent ?></span><?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="heatmap-stack heatmap-stack-off">
+                        <span class="heatmap-off-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                            Giorno non lavorativo
+                        </span>
+                    </div>
+                    <div class="heatmap-day-count"></div>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>

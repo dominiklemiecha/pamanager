@@ -19,10 +19,10 @@ foreach ($allDocs as $d) {
     if (isset($docStats[$d['type']])) $docStats[$d['type']]++;
 }
 
-$unreadCount = Communication::countUnread($employee['id'], $employeeDeptId);
-$recentDocuments = array_slice($allDocs, 0, 4);
-$communications  = Communication::getActive($employee['id']);
-$recentComms     = array_slice($communications, 0, 4);
+$unreadCount   = Communication::countUnread($employee['id'], $employeeDeptId);
+$recentDocs    = array_slice($allDocs, 0, 4);
+$communications= Communication::getActive($employee['id']);
+$recentComms   = array_slice($communications, 0, 3);
 
 // Ultima busta paga
 $latestPayslip = null;
@@ -33,7 +33,7 @@ foreach ($allDocs as $d) {
 $monthNames = [1=>'Gennaio',2=>'Febbraio',3=>'Marzo',4=>'Aprile',5=>'Maggio',6=>'Giugno',
                7=>'Luglio',8=>'Agosto',9=>'Settembre',10=>'Ottobre',11=>'Novembre',12=>'Dicembre'];
 
-function timeAgoEmp(string $datetime): string {
+function emp_time_ago(string $datetime): string {
     $diff = time() - strtotime($datetime);
     if ($diff < 60) return 'pochi secondi fa';
     if ($diff < 3600) return floor($diff / 60) . ' min fa';
@@ -42,195 +42,551 @@ function timeAgoEmp(string $datetime): string {
     return date('d M Y', strtotime($datetime));
 }
 
-$pageTitle = 'Dashboard';
+// Saldi ferie/permessi
+$__year = (int) date('Y');
+$__balances = class_exists('LeaveBalance') ? LeaveBalance::getForEmployee((int) $employee['id'], $__year) : null;
+
+// Richieste recenti
+$__recentLeaves = [];
+try {
+    $__recentLeaves = Database::fetchAll(
+        "SELECT id, leave_type, start_date, end_date, is_full_day, status, created_at
+         FROM leave_requests
+         WHERE employee_id = ?
+         ORDER BY created_at DESC LIMIT 4",
+        [(int) $employee['id']]
+    );
+} catch (Throwable $__e) {}
+
+$__statusCfg = [
+    'approved' => ['#11baba', '#bff3ee', 'Approvata'],
+    'pending'  => ['#d97706', '#fff3df', 'In attesa'],
+    'rejected' => ['#dc2626', '#fde2e5', 'Rifiutata'],
+    'cancelled'=> ['#64748b', '#e2e8f0', 'Annullata'],
+];
+$__typeLabel = [
+    'ferie' => 'Ferie', 'permesso' => 'Permesso', 'malattia' => 'Malattia',
+    'permesso_104' => 'L.104', 'congedo_parentale' => 'Cong. parentale',
+    'congedo_separazione' => 'Cong. separazione', 'congedo_mestruale' => 'Cong. mestruale',
+    'altro' => 'Altro', 'chiusura' => 'Chiusura',
+];
+
+$__leaveCfg = [
+    'ferie'    => ['label' => 'Ferie ' . $__year, 'color' => '#0b3aa4', 'icon' => 'beach'],
+    'permesso' => ['label' => 'Permessi ' . $__year, 'color' => '#1e4cb0', 'icon' => 'clock'],
+];
+$__gaugeArc = pi() * 85;
+
+// Pending leave count
+$__pendingLeaveCount = 0;
+try {
+    $__pendingLeaveCount = (int) Database::fetchColumn(
+        "SELECT COUNT(*) FROM leave_requests WHERE employee_id = ? AND status = 'pending'",
+        [(int)$employee['id']]
+    );
+} catch (Throwable $__e) {}
+
+$__newDocs = Document::getUnreadCountForEmployee($employee['id'])
+    + (class_exists('EmployeeDocument') ? EmployeeDocument::getUnreadCountForEmployee($employee['id']) : 0);
+$__buste = 0;
+foreach ($allDocs as $d) {
+    if ($d['type'] === 'payslip' && (int)($d['year'] ?? 0) === $__year) $__buste++;
+}
+
+// Greeting time-based
+$__hour = (int) date('H');
+$__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 'Buonasera');
+
+$pageTitle = 'Home';
 include dirname(__DIR__) . '/includes/header-employee.php';
 ?>
 
 <?php include dirname(__DIR__) . '/includes/widget-birthday-banner.php'; ?>
 
-<?php
-$__empInitials = strtoupper(substr($employee['first_name'], 0, 1) . substr($employee['last_name'], 0, 1));
-$__heroPhoto = '';
-try {
-    $__pr = Database::fetchOne("SELECT photo_path FROM employees WHERE id = ?", [(int)$employee['id']]);
-    if (!empty($__pr['photo_path'])) {
-        $__heroPhoto = PUBLIC_URL . '/' . ltrim($__pr['photo_path'], '/');
-    }
-} catch (Throwable $__e) {}
-$__balances = class_exists('LeaveBalance') ? LeaveBalance::getForEmployee((int) $employee['id'], (int) date('Y')) : null;
-$__ferieResidue = $__balances ? (int) round($__balances['ferie']['residual']) : 0;
-$__year = (int) date('Y');
-$__buste = 0;
-foreach ($allDocs as $d) {
-    if ($d['type'] === 'payslip' && (int)($d['year'] ?? 0) === $__year) $__buste++;
+<style>
+/* ===== Employee Home — design system ConnecteedHR ===== */
+.eh-banner {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 16px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 18px; flex-wrap: wrap;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
 }
-$__newDocs = Document::getUnreadCountForEmployee($employee['id'])
-    + (class_exists('EmployeeDocument') ? EmployeeDocument::getUnreadCountForEmployee($employee['id']) : 0);
-// Richieste ferie recenti
-$__recentLeaves = [];
-try {
-    $__recentLeaves = Database::fetchAll(
-        "SELECT id, leave_type, start_date, end_date, is_full_day, status
-         FROM leave_requests
-         WHERE employee_id = ?
-         ORDER BY created_at DESC LIMIT 5",
-        [(int) $employee['id']]
-    );
-} catch (Throwable $__e) {}
-$__statusBadge = [
-    'approved' => ['badge-success', 'Approvata'],
-    'pending'  => ['badge-warning', 'In attesa'],
-    'rejected' => ['badge-danger', 'Rifiutata'],
-    'cancelled'=> ['badge-secondary', 'Annullata'],
-];
-$__typeLabel = [
-    'ferie' => 'Ferie', 'permesso' => 'Permesso', 'malattia' => 'Malattia',
-    'permesso_104' => 'L.104', 'congedo_parentale' => 'Cong. parentale',
-    'congedo_separazione' => 'Cong. separaz.', 'congedo_mestruale' => 'Cong. mestruale',
-    'altro' => 'Altro', 'chiusura' => 'Chiusura',
-];
-?>
+.eh-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700;
+    color: #0b3aa4; margin: 0 0 4px;
+    letter-spacing: -0.02em;
+}
+.eh-banner p { margin: 0; color: #6e7191; font-size: 13px; }
+.eh-banner-meta {
+    display: flex; gap: 10px; align-items: center;
+    flex-wrap: wrap;
+}
+.eh-banner-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: rgba(11,58,164,0.06);
+    border: 1px solid rgba(11,58,164,0.16);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    color: #0b3aa4;
+}
+.eh-banner-chip.warn { background: rgba(255,187,85,0.10); border-color: rgba(255,187,85,0.30); color: #b07023; }
 
-<!-- Hero employee -->
-<div class="hero-emp">
-    <div class="hero-grid">
-        <div>
-            <p class="greeting"><?= htmlspecialchars(getItalianDate()) ?></p>
-            <h1>Ciao <?= htmlspecialchars($employee['first_name']) ?> 👋</h1>
-            <div class="quick-stats">
-                <div class="quick-stat">
-                    <div class="num"><?= $__ferieResidue ?></div>
-                    <span class="lbl">Giorni ferie residui</span>
-                </div>
-                <div class="quick-stat">
-                    <div class="num"><?= $__buste ?></div>
-                    <span class="lbl">Buste paga <?= $__year ?></span>
-                </div>
-                <div class="quick-stat">
-                    <div class="num"><?= $__newDocs ?></div>
-                    <span class="lbl">Documenti nuovi</span>
-                </div>
-            </div>
-        </div>
-        <div class="hero-avatar<?= $__heroPhoto ? ' has-photo' : '' ?>">
-            <?php if ($__heroPhoto): ?>
-                <img src="<?= htmlspecialchars($__heroPhoto) ?>" alt="<?= htmlspecialchars($employee['first_name']) ?>" loading="lazy">
-            <?php else: ?>
-                <?= htmlspecialchars($__empInitials) ?>
-            <?php endif; ?>
-        </div>
+/* ===== Quick actions ===== */
+.eh-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.eh-action {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 14px;
+    padding: 16px;
+    text-decoration: none;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: all .15s ease;
+    position: relative;
+    cursor: pointer;
+}
+.eh-action:hover {
+    border-color: #0b3aa4;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(11,58,164,0.10);
+    text-decoration: none;
+}
+.eh-action-ic {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(11,58,164,0.10);
+    color: #0b3aa4;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.eh-action-ic.is-green { background: rgba(17,186,186,0.10); color: #0c8a8a; }
+.eh-action-ic.is-gold  { background: rgba(255,187,85,0.14); color: #b07023; }
+.eh-action-ic.is-coral { background: rgba(247,92,108,0.10); color: #cc2d39; }
+.eh-action-ic svg { width: 18px; height: 18px; }
+.eh-action-title {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700; color: #1e1e2f;
+    letter-spacing: -0.01em;
+}
+.eh-action-sub { font-size: 12px; color: #6e7191; line-height: 1.4; }
+.eh-action-badge {
+    position: absolute; top: 12px; right: 12px;
+    background: #f75c6c; color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+}
+
+/* ===== Gauges saldo ferie/permessi ===== */
+.eh-balance-card {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+}
+.eh-balance-h {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 18px;
+}
+.eh-balance-h h3 {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 16px; font-weight: 700;
+    margin: 0; color: #0b3aa4;
+    letter-spacing: -0.01em;
+}
+.eh-balance-h a {
+    font-size: 13px; color: #0b3aa4;
+    text-decoration: none; font-weight: 600;
+}
+.eh-balance-h a:hover { text-decoration: underline; }
+
+.eh-gauges {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.eh-gauge-cell {
+    border: 1px solid #e6e8f0;
+    border-radius: 14px;
+    padding: 16px 18px 14px;
+    text-align: center;
+    background: linear-gradient(180deg, #fafbff, white);
+}
+.eh-gauge-cell h4 {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 13px; font-weight: 600;
+    margin: 0 0 10px;
+    color: #1e1e2f;
+}
+.eh-gauge {
+    position: relative;
+    width: 100%; max-width: 220px;
+    margin: 0 auto;
+    aspect-ratio: 200 / 110;
+}
+.eh-gauge svg { width: 100%; height: 100%; display: block; }
+.eh-gauge .g-track { fill: none; stroke: #e0e7ff; stroke-width: 18; stroke-linecap: round; }
+.eh-gauge .g-arc { fill: none; stroke-width: 18; stroke-linecap: round; transition: stroke-dasharray .6s ease; }
+.eh-gauge .g-center {
+    position: absolute; left: 0; right: 0; bottom: 4px;
+    text-align: center;
+}
+.eh-gauge .g-big {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 36px; font-weight: 700;
+    letter-spacing: -0.04em;
+    color: #1e1e2f;
+    line-height: 1;
+}
+.eh-gauge .g-lbl {
+    font-size: 10px; color: #6e7191;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-top: 4px; font-weight: 600;
+}
+.eh-gauge-ends {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: #94a3b8;
+    margin: -6px 18px 0;
+    font-weight: 500;
+}
+.eh-gauge-stats {
+    display: flex; justify-content: space-around;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e6e8f0;
+}
+.eh-gauge-stats .ss { text-align: center; }
+.eh-gauge-stats .l {
+    font-size: 9px; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+}
+.eh-gauge-stats .v {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 700;
+    margin-top: 3px;
+    letter-spacing: -0.02em;
+    color: #1e1e2f;
+}
+.eh-gauge-empty {
+    padding: 30px 12px; color: #94a3b8; font-size: 13px;
+}
+
+/* ===== Split layout ===== */
+.eh-split {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 16px;
+}
+
+/* Card generica */
+.eh-card {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 14px;
+    padding: 20px 22px;
+}
+.eh-card-h {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+}
+.eh-card-h h3 {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 15px; font-weight: 700;
+    margin: 0; color: #1e1e2f;
+}
+.eh-card-h a {
+    font-size: 12px; color: #0b3aa4;
+    text-decoration: none; font-weight: 600;
+}
+.eh-card-h a:hover { text-decoration: underline; }
+
+/* Documents list */
+.eh-doc {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.eh-doc:last-child { border-bottom: none; }
+.eh-doc-ic {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: rgba(11,58,164,0.10); color: #0b3aa4;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.eh-doc-ic.cud { background: rgba(255,187,85,0.14); color: #b07023; }
+.eh-doc-ic.other { background: rgba(17,186,186,0.10); color: #0c8a8a; }
+.eh-doc-info { flex: 1; min-width: 0; }
+.eh-doc-info .t {
+    font-size: 13px; font-weight: 600; color: #1e1e2f; margin: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.eh-doc-info .s { font-size: 11px; color: #94a3b8; margin: 2px 0 0; }
+.eh-doc-new-dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: #f75c6c; border-radius: 50%; margin-left: 6px;
+    vertical-align: middle;
+}
+.eh-doc-dl {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: white; border: 1px solid #e6e8f0;
+    color: #475569;
+    display: inline-flex; align-items: center; justify-content: center;
+    text-decoration: none; transition: all .12s ease;
+}
+.eh-doc-dl:hover { border-color: #0b3aa4; color: #0b3aa4; background: rgba(11,58,164,0.04); }
+.eh-doc-dl svg { width: 14px; height: 14px; }
+
+/* Recent requests */
+.eh-req {
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex; align-items: center; gap: 12px;
+}
+.eh-req:last-child { border-bottom: none; }
+.eh-req-info { flex: 1; min-width: 0; }
+.eh-req-info .t { font-size: 13px; font-weight: 600; color: #1e1e2f; }
+.eh-req-info .s { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.eh-req-pill {
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* Communications */
+.eh-comm {
+    display: block;
+    padding: 12px;
+    border: 1px solid #e6e8f0;
+    border-radius: 10px;
+    text-decoration: none;
+    margin-bottom: 8px;
+    transition: all .12s ease;
+}
+.eh-comm:last-child { margin-bottom: 0; }
+.eh-comm:hover { border-color: #0b3aa4; background: rgba(11,58,164,0.02); text-decoration: none; }
+.eh-comm h4 {
+    margin: 0 0 4px;
+    font-size: 13px; font-weight: 700; color: #1e1e2f;
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.eh-comm .meta { font-size: 11px; color: #94a3b8; }
+.eh-comm.urgent { border-left: 3px solid #f75c6c; }
+
+.eh-empty {
+    text-align: center; padding: 24px 12px;
+    color: #94a3b8; font-size: 13px;
+}
+
+@media (max-width: 1000px) {
+    .eh-actions { grid-template-columns: 1fr 1fr; }
+    .eh-split { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+    .eh-banner { padding: 18px 20px; }
+    .eh-banner h2 { font-size: 19px; }
+    .eh-actions { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .eh-action { padding: 14px; }
+    .eh-action-ic { width: 36px; height: 36px; }
+    .eh-gauges { grid-template-columns: 1fr; }
+    .eh-card { padding: 16px; }
+}
+</style>
+
+<!-- ======== Welcome banner ======== -->
+<div class="eh-banner">
+    <div>
+        <h2><?= htmlspecialchars($__greeting) ?>, <?= htmlspecialchars($employee['first_name']) ?> 👋</h2>
+        <p><?= htmlspecialchars(ucfirst(getItalianDate())) ?></p>
+    </div>
+    <div class="eh-banner-meta">
+        <?php if ($__pendingLeaveCount > 0): ?>
+            <span class="eh-banner-chip warn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <?= $__pendingLeaveCount ?> richiest<?= $__pendingLeaveCount === 1 ? 'a' : 'e' ?> in attesa
+            </span>
+        <?php endif; ?>
+        <?php if ($unreadCount > 0): ?>
+            <span class="eh-banner-chip">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <?= $unreadCount ?> da leggere
+            </span>
+        <?php endif; ?>
     </div>
 </div>
 
-<!-- Quick actions tile grid -->
-<div class="actions-row">
-    <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new" class="action-tile">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>
-        <h4>Richiedi ferie</h4>
-        <p>Crea una nuova richiesta</p>
+<!-- ======== Quick actions ======== -->
+<div class="eh-actions">
+    <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new&type=ferie" class="eh-action">
+        <div class="eh-action-ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v4M10 16h4"/></svg>
+        </div>
+        <div class="eh-action-title">Richiedi ferie</div>
+        <div class="eh-action-sub">Crea una nuova richiesta</div>
     </a>
-    <a href="<?= PUBLIC_URL ?>/employee/documents.php" class="action-tile">
-        <div class="ic" style="background:var(--success-50, #ecfdf5); color:var(--success-600, #059669)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></div>
-        <h4>Ultima busta paga</h4>
-        <p><?php if ($latestPayslip): echo htmlspecialchars($monthNames[(int)$latestPayslip['month']] . ' ' . $latestPayslip['year']); else: echo 'Nessuna disponibile'; endif; ?></p>
+    <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new&type=permesso" class="eh-action">
+        <div class="eh-action-ic is-gold">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="eh-action-title">Richiedi permesso</div>
+        <div class="eh-action-sub">Ore o intera giornata</div>
     </a>
-    <a href="<?= PUBLIC_URL ?>/employee/chat.php" class="action-tile">
-        <div class="ic" style="background:var(--info-50, #eff6ff); color:var(--info-600, #2563eb)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
-        <h4>Chat HR</h4>
-        <p>Parla con amministrazione</p>
-    </a>
-    <a href="<?= PUBLIC_URL ?>/employee/profile.php" class="action-tile">
-        <div class="ic" style="background:var(--warning-50, #fef3c7); color:var(--warning-600, #d97706)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
-        <h4>Il mio profilo</h4>
-        <p>Dati e impostazioni</p>
+    <?php if ($latestPayslip): ?>
+        <a href="<?= PUBLIC_URL ?>/employee/documents.php?download=<?= (int)$latestPayslip['id'] ?>" class="eh-action">
+            <div class="eh-action-ic is-green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="eh-action-title">Ultima busta paga</div>
+            <div class="eh-action-sub"><?= htmlspecialchars($monthNames[(int)$latestPayslip['month']] . ' ' . $latestPayslip['year']) ?></div>
+        </a>
+    <?php else: ?>
+        <a href="<?= PUBLIC_URL ?>/employee/documents.php" class="eh-action">
+            <div class="eh-action-ic is-green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="eh-action-title">Documenti</div>
+            <div class="eh-action-sub">Buste paga e CU</div>
+        </a>
+    <?php endif; ?>
+    <a href="<?= PUBLIC_URL ?>/employee/chat.php?with_admin=1" class="eh-action">
+        <div class="eh-action-ic is-coral">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="eh-action-title">Chat HR</div>
+        <div class="eh-action-sub">Parla con amministrazione</div>
     </a>
 </div>
 
-<!-- Split: docs + requests | balance + comms -->
-<div class="split">
-    <div>
-        <div class="card" style="margin-bottom: var(--sp-4)">
-            <div class="card-h">
-                <h3>I tuoi documenti</h3>
-                <a href="<?= PUBLIC_URL ?>/employee/documents.php" style="font-size:var(--text-sm); color:var(--primary-600)">Vedi tutto →</a>
+<!-- ======== Saldo ferie/permessi (gauge) ======== -->
+<div class="eh-balance-card">
+    <div class="eh-balance-h">
+        <h3>Il tuo saldo <?= $__year ?></h3>
+        <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php">Vedi richieste →</a>
+    </div>
+    <div class="eh-gauges">
+        <?php foreach (['ferie','permesso'] as $type):
+            $b   = $__balances[$type] ?? null;
+            $cfg = $__leaveCfg[$type];
+            $total = $b ? (float)$b['total'] : 0;
+            $used  = $b ? (float)$b['used'] : 0;
+            $resid = $b ? (float)$b['residual'] : 0;
+            $pctUsed = $total > 0 ? min(100, ($used / $total) * 100) : 0;
+            $dashUsed = ($pctUsed / 100) * $__gaugeArc;
+            $unit = $b ? ($b['unit'] ?? 'gg') : 'gg';
+        ?>
+            <div class="eh-gauge-cell">
+                <h4><?= htmlspecialchars($cfg['label']) ?></h4>
+                <?php if ($total > 0): ?>
+                    <div class="eh-gauge">
+                        <svg viewBox="0 0 200 110" preserveAspectRatio="xMidYMax meet">
+                            <path class="g-track" d="M 15 100 A 85 85 0 0 1 185 100"/>
+                            <path class="g-arc" d="M 15 100 A 85 85 0 0 1 185 100"
+                                  stroke-dasharray="<?= number_format($dashUsed, 2, '.', '') ?> <?= number_format($__gaugeArc, 2, '.', '') ?>"
+                                  style="stroke: <?= $cfg['color'] ?>;"/>
+                        </svg>
+                        <div class="g-center">
+                            <div class="g-big"><?= rtrim(rtrim(number_format($resid, 1, ',', '.'), '0'), ',') ?></div>
+                            <div class="g-lbl"><?= htmlspecialchars($unit) ?> residui</div>
+                        </div>
+                    </div>
+                    <div class="eh-gauge-ends">
+                        <span>0</span>
+                        <span><?= rtrim(rtrim(number_format($total, 1, ',', '.'), '0'), ',') ?> <?= $unit ?></span>
+                    </div>
+                    <div class="eh-gauge-stats">
+                        <div class="ss"><div class="l">Utilizzati</div><div class="v"><?= rtrim(rtrim(number_format($used, 1, ',', '.'), '0'), ',') ?></div></div>
+                        <div class="ss"><div class="l">Residui</div><div class="v" style="color:<?= $cfg['color'] ?>"><?= rtrim(rtrim(number_format($resid, 1, ',', '.'), '0'), ',') ?></div></div>
+                        <div class="ss"><div class="l">Totale</div><div class="v"><?= rtrim(rtrim(number_format($total, 1, ',', '.'), '0'), ',') ?></div></div>
+                    </div>
+                <?php else: ?>
+                    <div class="eh-gauge-empty">Saldo non configurato</div>
+                <?php endif; ?>
             </div>
-            <?php if (empty($recentDocuments)): ?>
-                <div class="card-b"><div class="empty"><p>Nessun documento disponibile.</p></div></div>
-            <?php else: foreach ($recentDocuments as $d):
-                $typeClass = $d['type'] === 'cud' ? 'cud' : ($d['type'] === 'other' ? 'other' : '');
-                $typeLabel = ['payslip' => 'Busta paga', 'cud' => 'CU', 'other' => 'Documento'][$d['type']] ?? 'Documento';
+        <?php endforeach; ?>
+    </div>
+</div>
+
+<!-- ======== Split: documenti + richieste | comunicazioni ======== -->
+<div class="eh-split">
+    <div style="display: grid; gap: 16px;">
+        <div class="eh-card">
+            <div class="eh-card-h">
+                <h3>Documenti recenti</h3>
+                <a href="<?= PUBLIC_URL ?>/employee/documents.php">Vedi tutti →</a>
+            </div>
+            <?php if (empty($recentDocs)): ?>
+                <div class="eh-empty">Nessun documento disponibile.</div>
+            <?php else: foreach ($recentDocs as $d):
+                $tCls = $d['type'] === 'cud' ? 'cud' : ($d['type'] === 'other' ? 'other' : '');
+                $tLbl = ['payslip' => 'Busta paga', 'cud' => 'CU', 'other' => 'Documento'][$d['type']] ?? 'Documento';
                 $period = isset($monthNames[(int)$d['month']]) ? $monthNames[(int)$d['month']] . ' ' . $d['year'] : '';
                 $isNew = !empty($d['is_unread_for_employee']) || (!empty($d['created_at']) && (time() - strtotime($d['created_at'])) < 86400 * 3);
             ?>
-                <div class="doc-row">
-                    <div class="ic <?= $typeClass ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg></div>
-                    <div class="info">
-                        <p class="t"><?= htmlspecialchars($typeLabel) ?><?php if ($period): ?> · <?= htmlspecialchars($period) ?><?php endif; ?> <?php if ($isNew): ?><span class="new-dot"></span><?php endif; ?></p>
-                        <p class="s">Caricato <?= timeAgoEmp($d['created_at']) ?></p>
+                <div class="eh-doc">
+                    <div class="eh-doc-ic <?= $tCls ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     </div>
-                    <a class="dl" href="<?= PUBLIC_URL ?>/employee/documents.php?download=<?= (int) $d['id'] ?>" title="Scarica">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    <div class="eh-doc-info">
+                        <p class="t"><?= htmlspecialchars($tLbl) ?><?php if ($period): ?> · <?= htmlspecialchars($period) ?><?php endif; ?><?php if ($isNew): ?> <span class="eh-doc-new-dot" title="Nuovo"></span><?php endif; ?></p>
+                        <p class="s">Caricato <?= emp_time_ago($d['created_at']) ?></p>
+                    </div>
+                    <a class="eh-doc-dl" href="<?= PUBLIC_URL ?>/employee/documents.php?download=<?= (int)$d['id'] ?>" title="Scarica">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     </a>
                 </div>
             <?php endforeach; endif; ?>
         </div>
 
-        <div class="card">
-            <div class="card-h">
-                <h3>Le tue richieste recenti</h3>
-                <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new" style="font-size:var(--text-sm); color:var(--primary-600)">Nuova →</a>
+        <div class="eh-card">
+            <div class="eh-card-h">
+                <h3>Le tue richieste</h3>
+                <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new">+ Nuova</a>
             </div>
             <?php if (empty($__recentLeaves)): ?>
-                <div class="card-b"><div class="empty"><p>Nessuna richiesta inviata.</p></div></div>
-            <?php else: ?>
-                <div style="overflow-x:auto;">
-                    <table class="tbl" style="border-radius:0">
-                        <thead><tr><th>Tipo</th><th>Periodo</th><th>Stato</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($__recentLeaves as $lr):
-                                $bs = $__statusBadge[$lr['status']] ?? ['badge-secondary', $lr['status']];
-                                $rs = date('d M', strtotime($lr['start_date']));
-                                $re = date('d M', strtotime($lr['end_date']));
-                                $period = $rs === $re ? $rs : "$rs - $re";
-                            ?>
-                                <tr>
-                                    <td style="font-weight:600;"><?= htmlspecialchars($__typeLabel[$lr['leave_type']] ?? $lr['leave_type']) ?></td>
-                                    <td><?= htmlspecialchars($period) ?></td>
-                                    <td><span class="badge <?= $bs[0] ?>"><?= $bs[1] ?></span></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                <div class="eh-empty">Nessuna richiesta inviata.</div>
+            <?php else: foreach ($__recentLeaves as $lr):
+                $sc = $__statusCfg[$lr['status']] ?? ['#64748b','#e2e8f0',$lr['status']];
+                $rs = date('d M', strtotime($lr['start_date']));
+                $re = date('d M', strtotime($lr['end_date']));
+                $period = $rs === $re ? $rs : "$rs – $re";
+            ?>
+                <div class="eh-req">
+                    <div class="eh-req-info">
+                        <div class="t"><?= htmlspecialchars($__typeLabel[$lr['leave_type']] ?? $lr['leave_type']) ?></div>
+                        <div class="s"><?= htmlspecialchars($period) ?> · creata <?= emp_time_ago($lr['created_at']) ?></div>
+                    </div>
+                    <span class="eh-req-pill" style="background: <?= $sc[1] ?>; color: <?= $sc[0] ?>;"><?= $sc[2] ?></span>
                 </div>
-            <?php endif; ?>
+            <?php endforeach; endif; ?>
         </div>
     </div>
 
-    <div>
-        <?php
-        $widgetEmployeeId = (int) $employee['id'];
-        $widgetYear = $__year;
-        include dirname(__DIR__) . '/includes/widget-leave-balance.php';
-        ?>
-
-        <div class="card">
-            <div class="card-h">
-                <h3>Comunicazioni</h3>
-                <?php if ($unreadCount > 0): ?><span class="badge badge-primary"><?= $unreadCount ?></span><?php endif; ?>
-            </div>
-            <div class="card-b">
-                <?php if (empty($recentComms)): ?>
-                    <div class="empty"><p>Nessuna comunicazione.</p></div>
-                <?php else: foreach ($recentComms as $c):
-                    $urgent = !empty($c['priority']) && $c['priority'] === 'urgent';
-                ?>
-                    <a href="<?= PUBLIC_URL ?>/employee/communications.php" class="comm-card <?= $urgent ? 'urgent' : '' ?>" style="display:block; text-decoration:none;">
-                        <h4><?php if ($urgent): ?>⚠️ <?php endif; ?><?= htmlspecialchars($c['title']) ?></h4>
-                        <p><?= timeAgoEmp($c['created_at'] ?? $c['publish_date']) ?></p>
-                    </a>
-                <?php endforeach; endif; ?>
-            </div>
+    <div class="eh-card">
+        <div class="eh-card-h">
+            <h3>Comunicazioni</h3>
+            <?php if ($unreadCount > 0): ?>
+                <span class="eh-req-pill" style="background:#fde2e5;color:#cc2d39;">+<?= $unreadCount ?></span>
+            <?php endif; ?>
         </div>
+        <?php if (empty($recentComms)): ?>
+            <div class="eh-empty">Nessuna comunicazione attiva.</div>
+        <?php else: foreach ($recentComms as $c):
+            $urgent = !empty($c['priority']) && ($c['priority'] === 'urgent' || $c['priority'] === 'high');
+        ?>
+            <a href="<?= PUBLIC_URL ?>/employee/communications.php?id=<?= (int)$c['id'] ?>" class="eh-comm <?= $urgent ? 'urgent' : '' ?>">
+                <h4><?php if ($urgent): ?>⚠️ <?php endif; ?><?= htmlspecialchars($c['title']) ?></h4>
+                <span class="meta"><?= emp_time_ago($c['created_at'] ?? $c['publish_date']) ?></span>
+            </a>
+        <?php endforeach; endif; ?>
     </div>
 </div>
 
