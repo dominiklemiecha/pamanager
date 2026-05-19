@@ -145,6 +145,13 @@ if (!empty($__currentTenant['name'])) {
                     </span>
                     <?php if ($unreadChats > 0): ?><span class="nav-pulse"></span><?php endif; ?>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/admin/calendar.php" class="nav-item <?php echo $currentPage === 'calendar' ? 'active' : ''; ?>" data-tooltip="Calendario">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Calendario</span>
+                        <span class="nav-sub">Eventi e riunioni</span>
+                    </span>
+                </a>
                 <a href="#" class="nav-item" data-tooltip="Presenze" id="navPresenzeBtn" onclick="event.preventDefault(); openPresenzeModal();">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16V8m5 8V4m5 12v-6"/></svg>
                     <span class="nav-content">
@@ -233,6 +240,13 @@ if (!empty($__currentTenant['name'])) {
                     </span>
                     <?php if ($unreadChats > 0): ?><span class="nav-pulse"></span><?php endif; ?>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/calendar.php" class="nav-item <?php echo $currentPage === 'calendar' ? 'active' : ''; ?>" data-tooltip="Calendario">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Calendario</span>
+                        <span class="nav-sub">Eventi e riunioni</span>
+                    </span>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/consulente-lavoro/profile.php" class="nav-item <?php echo $currentPage === 'profile' ? 'active' : ''; ?>" data-tooltip="Profilo">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     <span class="nav-content">
@@ -258,6 +272,10 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                     <span class="nav-label">Chat</span>
                     <?php if ($unreadChats > 0): ?><span class="nav-badge"><?php echo $unreadChats; ?></span><?php endif; ?>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/accountant/calendar.php" class="nav-item <?php echo $currentPage === 'calendar' ? 'active' : ''; ?>" data-tooltip="Calendario">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span class="nav-label">Calendario</span>
                 </a>
             <?php endif; ?>
         </nav>

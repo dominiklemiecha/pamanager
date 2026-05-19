@@ -25,10 +25,9 @@
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
             <span class="bn-label">Ferie</span>
         </a>
-        <a class="bn-item <?php echo $__cp === 'communications' ? 'active' : ''; ?>" href="<?php echo $__baseUrl; ?>/employee/communications.php">
-            <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>
-            <span class="bn-label">Notizie</span>
-            <?php if (!empty($unreadCommCount) && $unreadCommCount > 0): ?><span class="bn-badge"><?php echo (int)$unreadCommCount; ?></span><?php endif; ?>
+        <a class="bn-item <?php echo $__cp === 'calendar' ? 'active' : ''; ?>" href="<?php echo $__baseUrl; ?>/employee/calendar.php">
+            <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <span class="bn-label">Calendario</span>
         </a>
         <a class="bn-item <?php echo $__cp === 'chat' ? 'active' : ''; ?>" href="<?php echo $__baseUrl; ?>/employee/chat.php">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
