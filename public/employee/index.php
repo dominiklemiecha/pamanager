@@ -402,6 +402,45 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 }
 </style>
 
+<?php
+try {
+    $__sickLate = LeaveRequest::sickPendingDocs(24, (int) $employee['id']);
+} catch (Throwable $e) { $__sickLate = []; }
+?>
+<?php if (!empty($__sickLate)): ?>
+<a href="<?= PUBLIC_URL ?>/employee/leave-requests.php" class="eh-sick-alert">
+    <div class="eh-sick-alert-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <div class="eh-sick-alert-body">
+        <strong>Hai <?= count($__sickLate) ?> richiest<?= count($__sickLate) === 1 ? 'a' : 'e' ?> di malattia senza documenti</strong>
+        <div>Carica numero protocollo INPS e certificato medico — vai a "Ferie e permessi".</div>
+    </div>
+</a>
+<style>
+.eh-sick-alert {
+    display: flex; align-items: center; gap: 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    text-decoration: none;
+    transition: filter .12s ease;
+}
+.eh-sick-alert:hover { filter: brightness(0.98); text-decoration: none; }
+.eh-sick-alert-ic {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: rgba(220,38,38,0.10); color: #b91c1c;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.eh-sick-alert-body strong { color: #991b1b; font-size: 13.5px; display: block; }
+.eh-sick-alert-body div { color: #7f1d1d; font-size: 12px; margin-top: 2px; line-height: 1.4; }
+</style>
+<?php endif; ?>
+
 <!-- ======== Welcome banner ======== -->
 <div class="eh-banner">
     <div>

@@ -78,9 +78,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </form>
 
         <?php if ($pendingCount > 0): ?>
-            <div style="margin-top: 1.25rem; padding: 0.7rem 0.9rem; background:#fff3df; border-radius:8px; font-size: 0.84rem; color:#854d0e;">
-                <strong><?= $pendingCount ?></strong> richieste in attesa per <?= $months[$selMonth] ?>: non saranno incluse.
-                <a href="leave-requests.php?status=pending" style="color:#854d0e; text-decoration: underline;">Approva ora &rarr;</a>
+            <div style="margin-top: 1.25rem; padding: 0.7rem 0.9rem; background:#fff3df; border-radius:8px; font-size: 0.84rem; color:#854d0e; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:200px;">
+                    <strong><?= $pendingCount ?></strong> richiest<?= $pendingCount === 1 ? 'a' : 'e' ?> in attesa per <?= $months[$selMonth] ?>: non saranno incluse nell'export.
+                    Contatta l'amministratore per farle approvare o rifiutare.
+                </div>
+                <a href="chat.php" style="background:#b45309; color:white; padding:6px 12px; border-radius:6px; font-weight:600; text-decoration:none; font-size:0.82rem;">Contatta admin &rarr;</a>
             </div>
         <?php endif; ?>
     </div>

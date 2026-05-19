@@ -75,9 +75,9 @@
 
     // ---- Companies for tenant picker ----
     const COMPANIES = [
-        { id: 1, code: 'CO', name: 'Connecteed Srl',  count: 48, current: true },
-        { id: 2, code: 'EP', name: 'ePrice Italia',   count: 12, current: false },
-        { id: 3, code: 'SM', name: 'Studio Marini',   count: 5,  current: false },
+        { id: 1, code: 'CO', name: 'Connecteed Srl',  count: 48, current: true,  active: true  },
+        { id: 2, code: 'EP', name: 'ePrice Italia',   count: 12, current: false, active: true  },
+        { id: 3, code: 'SM', name: 'Studio Marini',   count: 5,  current: false, active: false },
     ];
 
     // ---- Full menu (per role) shown in bottom sheet ----
@@ -409,7 +409,7 @@
         wrap.className = 'tenant-switcher';
         wrap.id = 'sidebar-tenant';
         let html = `<div class="tenant-switcher-row">
-            <div class="tenant-mark">${current.code}</div>
+            <span class="tenant-status-dot ${current.active ? 'is-active' : 'is-inactive'}" title="${current.active ? 'Attiva' : 'Non attiva'}"></span>
             <div class="tenant-info">
                 <div class="tenant-label">Azienda</div>
                 <div class="tenant-name">${current.name}</div>
@@ -419,10 +419,10 @@
         <div class="tenant-menu">`;
         COMPANIES.forEach(c => {
             html += `<a class="tenant-menu-item${c.current ? ' active' : ''}">
-                <div class="tenant-mark">${c.code}</div>
+                <span class="tenant-status-dot ${c.active ? 'is-active' : 'is-inactive'}" title="${c.active ? 'Attiva' : 'Non attiva'}"></span>
                 <div class="info">
                     <div class="n">${c.name}</div>
-                    <div class="s">${c.count} dipendenti</div>
+                    <div class="s">${c.count} dipendenti${c.active ? '' : ' · sospesa'}</div>
                 </div>
                 ${c.current ? '<svg class="check" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
             </a>`;

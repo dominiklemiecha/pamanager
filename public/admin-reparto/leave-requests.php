@@ -44,6 +44,26 @@ if (isset($_GET['download_attachment'])) {
     exit;
 }
 
+// Download certificato malattia
+if (isset($_GET['download_cert'])) {
+    $result = LeaveRequest::downloadCertificate((int) $_GET['download_cert']);
+    if (!$result['success']) {
+        http_response_code(403);
+        exit(htmlspecialchars($result['error']));
+    }
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (function_exists('setDownloadHeaders')) {
+        setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
+    } else {
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: attachment; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+    }
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($result['file_path']);
+    exit;
+}
+
 // Gestione azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
@@ -99,6 +119,15 @@ $requests = LeaveRequest::getByDepartment($departmentId, $filterStatus !== 'all'
 $department = Department::getById($departmentId);
 $pageTitle = 'Ferie e Permessi - ' . htmlspecialchars($department['name']);
 include dirname(__DIR__) . '/includes/header-admin-reparto.php';
+include dirname(__DIR__) . '/includes/_cd-tabs.inc.php';
+
+// Sollecito documenti malattia del proprio reparto (>24h)
+try {
+    $__sickLate = array_values(array_filter(
+        LeaveRequest::sickPendingDocs(24),
+        fn($r) => (int)($r['department_id'] ?? 0) === (int)$departmentId
+    ));
+} catch (Throwable $e) { $__sickLate = []; }
 ?>
 
 <style>
@@ -408,10 +437,45 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
         <div class="alert alert-error"><?= e($error) ?></div>
     <?php endif; ?>
 
+    <?php if (!empty($__sickLate)): ?>
+    <div class="lr-admin-sick-alert">
+        <div class="lr-admin-sick-alert-ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="lr-admin-sick-alert-body">
+            <strong><?= count($__sickLate) ?> malatti<?= count($__sickLate) === 1 ? 'a' : 'e' ?> del reparto senza protocollo o certificato da oltre 24 ore</strong>
+            <div>
+                <?php
+                $__names = array_slice(array_map(fn($r) => trim($r['last_name'] . ' ' . $r['first_name']), $__sickLate), 0, 4);
+                echo e(implode(', ', $__names));
+                if (count($__sickLate) > 4) echo ' + ' . (count($__sickLate) - 4) . ' altr' . (count($__sickLate) - 4 === 1 ? 'o' : 'i');
+                ?>
+            </div>
+        </div>
+    </div>
+    <style>
+    .lr-admin-sick-alert {
+        display: flex; align-items: flex-start; gap: 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca; border-left: 4px solid #dc2626;
+        border-radius: 12px;
+        padding: 12px 16px;
+    }
+    .lr-admin-sick-alert-ic {
+        width: 36px; height: 36px; border-radius: 9px;
+        background: rgba(220,38,38,0.10); color: #b91c1c;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .lr-admin-sick-alert-body strong { color: #991b1b; font-size: 13.5px; }
+    .lr-admin-sick-alert-body div { color: #7f1d1d; font-size: 12px; margin-top: 2px; line-height: 1.4; }
+    </style>
+    <?php endif; ?>
+
     <!-- Filtri -->
     <div class="filters-section">
         <div class="filters-row">
-            <div class="filter-tabs">
+            <div class="cd-tabs">
                 <?php
                 $pendingCount = LeaveRequest::countPendingByDepartment($departmentId);
                 $tabs = [
@@ -423,10 +487,10 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                 foreach ($tabs as $key => $tab):
                 ?>
                     <a href="?status=<?= $key ?>"
-                       class="filter-tab <?= $filterStatus === $key ? 'active' : '' ?>">
+                       class="cd-tab <?= $filterStatus === $key ? 'active' : '' ?>">
                         <?= $tab['label'] ?>
                         <?php if ($tab['count']): ?>
-                            <span class="badge"><?= $tab['count'] ?></span>
+                            <span class="cd-tab-badge"><?= $tab['count'] ?></span>
                         <?php endif; ?>
                     </a>
                 <?php endforeach; ?>
@@ -522,6 +586,24 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
                                 <a href="?download_attachment=<?= (int) $req['id'] ?>" class="btn btn-sm btn-info">
                                     Scarica allegato<?php if (!empty($req['attachment_name'])): ?>: <?= e($req['attachment_name']) ?><?php endif; ?>
                                 </a>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($req['leave_type'] === 'malattia'):
+                            $__missingDocs = empty($req['protocol_number']) || empty($req['certificate_path']);
+                            $__ageH = !empty($req['created_at']) ? (int) ((time() - strtotime($req['created_at'])) / 3600) : 0;
+                        ?>
+                            <div style="margin-top:.75rem; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                <?php if (!empty($req['protocol_number'])): ?>
+                                    <span style="font-size:11px; font-weight:600; color:#475569; background:#f1f5f9; padding:3px 10px; border-radius:999px;">Prot. <?= e($req['protocol_number']) ?></span>
+                                <?php endif; ?>
+                                <?php if (!empty($req['certificate_path'])): ?>
+                                    <a href="?download_cert=<?= (int) $req['id'] ?>" class="btn btn-sm btn-info">Scarica certificato</a>
+                                <?php endif; ?>
+                                <?php if ($__missingDocs): ?>
+                                    <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; <?= $__ageH >= 24 ? 'color:#991b1b; background:#fee2e2; border:1px solid #fecaca;' : 'color:#92400e; background:#fef3c7; border:1px solid #fde68a;' ?>">
+                                        <?= $__ageH >= 24 ? '⚠ doc. mancanti da ' . max(1,(int)floor($__ageH/24)) . 'g' : 'doc. in attesa' ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
                         <?php endif; ?>
                     </div>

@@ -205,7 +205,7 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     .chat-info-panel { display: none; }
 }
 @media (max-width: 820px) {
-    .chat-shell { grid-template-columns: 1fr; gap: 0; height: calc(100vh - 140px); }
+    .chat-shell { grid-template-columns: minmax(0, 1fr); gap: 0; height: calc(100vh - 140px); }
     .chat-shell:not(.has-active) .chat-thread { display: none; }
     .chat-shell.has-active .chat-sidebar-panel { display: none; }
 }
@@ -372,10 +372,15 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
 
 /* Messages */
 .thread-messages {
-    flex: 1; overflow-y: auto;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-y;
     padding: 18px;
     background: var(--chat-bg);
     display: flex; flex-direction: column; gap: 10px;
+    min-width: 0;
 }
 .day-divider {
     text-align: center; font-size: 11px;
@@ -421,16 +426,24 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     padding: 0 8px;
 }
 
-/* Attachments inline in messages */
+/* Attachments inline in messages
+   max-width cappato al minore tra 320px e (viewport - 100px) per evitare
+   che il filename in nowrap spinga il parent oltre il viewport mobile */
 .msg-attach {
-    display: flex; align-items: center; gap: 10px;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
     padding: 10px 12px; margin-top: 4px;
     background: rgba(255,255,255,0.18);
     border-radius: 10px;
     color: inherit; text-decoration: none;
     font-size: 13px;
     transition: filter .12s ease;
-    max-width: 320px;
+    max-width: min(320px, calc(100vw - 100px));
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .msg-group.received .msg-attach {
     background: var(--chat-primary-50);
@@ -656,6 +669,62 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     .thread-header .acts { gap: 2px; flex-shrink: 0; }
     .thread-header .acts button { width: 32px; height: 32px; }
     .msg-group { max-width: 86%; }
+
+    /* ---- No-zoom su focus (iOS richiede font-size >= 16px) ---- */
+    .chat-search input,
+    .thread-search input,
+    .composer textarea {
+        font-size: 16px;
+    }
+
+    /* ---- Stop horizontal scroll ---- */
+    .app-main,
+    .app-content,
+    .chat-shell,
+    .chat-panel,
+    .chat-thread,
+    .thread-messages,
+    .chat-sidebar-panel,
+    .chat-info-panel,
+    .thread-header,
+    .composer {
+        max-width: 100%;
+        overflow-x: hidden;
+        min-width: 0;
+    }
+    .thread-messages { overflow-x: hidden; }
+    .msg {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .msg-attach { max-width: 100%; min-width: 0; }
+    .msg-attach .file-meta { min-width: 0; }
+    .msg-attach .file-meta .name { min-width: 0; }
+    .composer .input-wrap { min-width: 0; max-width: 100%; }
+    .composer textarea { max-width: 100%; box-sizing: border-box; }
+    .thread-search input { min-width: 0; max-width: 100%; }
+}
+@media (max-width: 820px) {
+    /* Page-level: nessuno scroll orizzontale quando si è nella chat */
+    body:has(.chat-shell), html:has(.chat-shell) { overflow-x: hidden; }
+
+    /* Lock totale dentro la thread su mobile */
+    .thread-messages {
+        overflow-x: hidden !important;
+        padding: 14px 10px !important;
+    }
+    .thread-messages > * { max-width: 100%; }
+    .msg-attach { max-width: 100% !important; }
+    .msg-attach .file-meta { min-width: 0; overflow: hidden; }
+    .msg-attach .file-meta .name {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .day-divider { width: 100%; }
 }
 
 /* hidden attribute must beat display:flex */
