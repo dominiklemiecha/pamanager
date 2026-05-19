@@ -543,7 +543,6 @@ try {
                     </div>
                     <div class="eh-gauge-stats">
                         <div class="ss"><div class="l">Utilizzati</div><div class="v"><?= rtrim(rtrim(number_format($used, 1, ',', '.'), '0'), ',') ?></div></div>
-                        <div class="ss"><div class="l">Residui</div><div class="v" style="color:<?= $cfg['color'] ?>"><?= rtrim(rtrim(number_format($resid, 1, ',', '.'), '0'), ',') ?></div></div>
                         <div class="ss"><div class="l">Totale</div><div class="v"><?= rtrim(rtrim(number_format($total, 1, ',', '.'), '0'), ',') ?></div></div>
                     </div>
                 <?php else: ?>
@@ -553,6 +552,14 @@ try {
         <?php endforeach; ?>
     </div>
 </div>
+
+<!-- ======== Heatmap presenze settimanale ======== -->
+<?php
+$heatmapDepartmentId = !empty($employee['department_id']) ? (int) $employee['department_id'] : null;
+$heatmapBaseUrl = PUBLIC_URL . '/employee/';
+$heatmapShowScopeToggle = false;
+include dirname(__DIR__) . '/includes/widget-availability-heatmap.php';
+?>
 
 <!-- ======== Split: documenti + richieste | comunicazioni ======== -->
 <div class="eh-split">
