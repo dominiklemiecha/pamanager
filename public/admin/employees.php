@@ -893,41 +893,55 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <div class="form-group" style="grid-column: 1 / -1; display:grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div>
                         <label for="ferie_year_override">Override ferie/anno (giorni)</label>
-                        <input type="number" id="ferie_year_override" name="ferie_year_override" step="0.5" min="0"
-                               value="<?= $__feOv !== null ? htmlspecialchars(rtrim(rtrim(number_format((float)$__feOv, 2, '.', ''), '0'), '.')) : '' ?>"
+                        <input type="text" inputmode="decimal" id="ferie_year_override" name="ferie_year_override"
+                               pattern="[0-9]+([.,][0-9]+)?"
+                               value="<?= $__feOv !== null ? htmlspecialchars(rtrim(rtrim(number_format((float)$__feOv, 2, ',', ''), '0'), ',')) : '' ?>"
                                placeholder="lascia vuoto: usa CCNL">
                     </div>
                     <div>
                         <label for="permessi_year_override">Override permessi/anno (ore)</label>
-                        <input type="number" id="permessi_year_override" name="permessi_year_override" step="0.5" min="0"
-                               value="<?= $__peOv !== null ? htmlspecialchars(rtrim(rtrim(number_format((float)$__peOv, 2, '.', ''), '0'), '.')) : '' ?>"
+                        <input type="text" inputmode="decimal" id="permessi_year_override" name="permessi_year_override"
+                               pattern="[0-9]+([.,][0-9]+)?"
+                               value="<?= $__peOv !== null ? htmlspecialchars(rtrim(rtrim(number_format((float)$__peOv, 2, ',', ''), '0'), ',')) : '' ?>"
                                placeholder="lascia vuoto: usa CCNL">
                     </div>
                 </div>
+                <p style="grid-column: 1 / -1; font-size: 0.85rem; color: #475569; background: #eff6ff; border-left: 3px solid #0b3aa4; padding: 10px 14px; border-radius: 6px; margin: 0;">
+                    💡 <strong>Prima volta?</strong> Inserisci solo il <strong>"Residuo riportato"</strong> con il valore attuale che il dipendente ha ad oggi (anche con virgola, es. <code>38,45</code>). La maturazione mensile e l'utilizzo dalle richieste approvate si aggiungono in automatico.
+                </p>
                 <?php foreach (LeaveBalance::TYPES as $bt):
                     $b = $balances[$bt];
                     $isF = $bt === 'ferie';
                     $unit = $isF ? 'giorni' : 'ore';
                     $label = $isF ? 'Ferie' : 'Permessi';
+                    $entStr = rtrim(rtrim(number_format((float)$b['entitled'], 2, ',', ''), '0'), ',');
+                    $carStr = rtrim(rtrim(number_format((float)$b['carried'],  2, ',', ''), '0'), ',');
+                    $manStr = rtrim(rtrim(number_format((float)$b['manual_used'], 2, ',', ''), '0'), ',');
                 ?>
                 <div class="form-group" style="grid-column: 1 / -1; background:#f8fafc; padding:1rem; border-radius:8px; margin-bottom:0.5rem;">
                     <strong style="display:block; margin-bottom:0.5rem;"><?= $label ?> (<?= $unit ?>)</strong>
                     <input type="hidden" name="balance[<?= $bt ?>][year]" value="<?= $currentYear ?>">
                     <div style="display:flex; flex-direction:column; gap:0.6rem;">
                         <div>
-                            <label style="font-size:0.8rem; color:#64748b;">Spettanti totali</label>
-                            <input type="number" step="0.5" min="0" name="balance[<?= $bt ?>][entitled]"
-                                   value="<?= htmlspecialchars((string) $b['entitled']) ?>">
+                            <label style="font-size:0.8rem; color:#64748b;">Residuo riportato <small style="color:#94a3b8;">(da inserire al primo setup)</small></label>
+                            <input type="text" inputmode="decimal" pattern="-?[0-9]+([.,][0-9]+)?"
+                                   name="balance[<?= $bt ?>][carried]"
+                                   value="<?= htmlspecialchars($carStr === '' ? '0' : $carStr) ?>"
+                                   placeholder="es. 38,45">
                         </div>
                         <div>
-                            <label style="font-size:0.8rem; color:#64748b;">Residuo riportato</label>
-                            <input type="number" step="0.5" name="balance[<?= $bt ?>][carried]"
-                                   value="<?= htmlspecialchars((string) $b['carried']) ?>">
+                            <label style="font-size:0.8rem; color:#64748b;">Maturato anno corrente <small style="color:#94a3b8;">(auto)</small></label>
+                            <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                   name="balance[<?= $bt ?>][entitled]"
+                                   value="<?= htmlspecialchars($entStr === '' ? '0' : $entStr) ?>"
+                                   placeholder="0,00">
                         </div>
                         <div>
-                            <label style="font-size:0.8rem; color:#64748b;">Già consumato (manuale)</label>
-                            <input type="number" step="0.5" min="0" name="balance[<?= $bt ?>][manual_used]"
-                                   value="<?= htmlspecialchars((string) $b['manual_used']) ?>">
+                            <label style="font-size:0.8rem; color:#64748b;">Correttivo manuale usati</label>
+                            <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                   name="balance[<?= $bt ?>][manual_used]"
+                                   value="<?= htmlspecialchars($manStr === '' ? '0' : $manStr) ?>"
+                                   placeholder="0,00">
                         </div>
                     </div>
                     <small style="display:block; margin-top:0.5rem; color:#64748b;">
