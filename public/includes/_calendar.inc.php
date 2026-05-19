@@ -1315,7 +1315,14 @@ foreach ($__events as $ev) {
         }
 
         fetch('', { method: 'POST', body: fd })
-            .then(r => r.json())
+            .then(async r => {
+                const txt = await r.text();
+                try { return JSON.parse(txt); }
+                catch (e) {
+                    console.error('Non-JSON response:', txt);
+                    throw new Error('Risposta server non valida: ' + txt.slice(0, 200));
+                }
+            })
             .then(data => {
                 if (data.success) {
                     if (data.conflicts && data.conflicts.length > 0) {
@@ -1327,7 +1334,7 @@ foreach ($__events as $ev) {
                     alert(data.error || 'Errore');
                 }
             })
-            .catch(err => { console.error(err); alert('Errore di connessione'); });
+            .catch(err => { console.error(err); alert(err.message || 'Errore di connessione'); });
         return false;
     };
 
