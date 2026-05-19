@@ -300,6 +300,23 @@ class LeaveRequest
             return ['success' => false, 'error' => 'Solo le richieste in attesa possono essere approvate'];
         }
 
+        // Malattia: blocca approvazione se mancano protocollo o certificato
+        // (a meno che il certificato sia stato esplicitamente waived dall'admin)
+        if ($request['leave_type'] === 'malattia') {
+            $missingProto = empty($request['protocol_number']);
+            $missingCert  = empty($request['certificate_path']) && empty($request['certificate_waived']);
+            if ($missingProto || $missingCert) {
+                $missing = [];
+                if ($missingProto) $missing[] = 'numero protocollo';
+                if ($missingCert)  $missing[] = 'certificato medico';
+                return [
+                    'success' => false,
+                    'error'   => 'Impossibile approvare: manca ' . implode(' e ', $missing) .
+                                 '. La richiesta resta in attesa finché i documenti non vengono caricati o il certificato segnato come non richiesto.'
+                ];
+            }
+        }
+
         try {
             Database::update('leave_requests', [
                 'status' => 'approved',

@@ -997,15 +997,29 @@ try {
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                                     </button>
                                 </form>
-                                <?php if ($req['status'] === 'pending'): ?>
-                                    <form method="POST">
-                                        <?= CSRF::field() ?>
-                                        <input type="hidden" name="action" value="approve">
-                                        <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                        <button type="submit" class="lp-ibtn lp-btn-approve" title="Approva" onclick="return confirm('Approvare?')">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                <?php if ($req['status'] === 'pending'):
+                                    // Blocca approve se malattia con docs mancanti (server-side ridondante ma UX chiaro)
+                                    $__blockApprove = false;
+                                    if ($req['leave_type'] === 'malattia') {
+                                        $__noProto = empty($req['protocol_number']);
+                                        $__noCert  = empty($req['certificate_path']) && empty($req['certificate_waived']);
+                                        $__blockApprove = $__noProto || $__noCert;
+                                    }
+                                ?>
+                                    <?php if ($__blockApprove): ?>
+                                        <button type="button" class="lp-ibtn" title="Non puoi approvare: documenti malattia mancanti" disabled style="opacity:0.45; cursor:not-allowed;">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                                         </button>
-                                    </form>
+                                    <?php else: ?>
+                                        <form method="POST">
+                                            <?= CSRF::field() ?>
+                                            <input type="hidden" name="action" value="approve">
+                                            <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                            <button type="submit" class="lp-ibtn lp-btn-approve" title="Approva" onclick="return confirm('Approvare?')">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>
