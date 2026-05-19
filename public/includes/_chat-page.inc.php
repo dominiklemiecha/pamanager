@@ -218,28 +218,31 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     body:has(.chat-shell.has-active) .powered { display: none !important; }
 
     /* Lock totale dello scroll body/html sotto la chat attiva: la pagina non scrolla,
-       solo .thread-messages scorre verticalmente */
+       solo .thread-messages scorre verticalmente.
+       Uso 100svh (small viewport height) invece di 100dvh: svh non cambia quando si apre/chiude
+       la tastiera, quindi la pagina NON si ridimensiona. iOS gestisce il keyboard via visual
+       viewport (i fixed restano relativi al layout viewport, niente shift della pagina). */
     html:has(.chat-shell.has-active),
     body:has(.chat-shell.has-active) {
-        height: 100dvh;
-        max-height: 100dvh;
+        height: 100svh;
+        max-height: 100svh;
         overflow: hidden !important;
         overscroll-behavior: contain;
         position: relative;
     }
     body:has(.chat-shell.has-active) .app,
     body:has(.chat-shell.has-active) .app-main {
-        height: 100dvh;
-        max-height: 100dvh;
+        height: 100svh;
+        max-height: 100svh;
         overflow: hidden;
-        padding-bottom: 0 !important;  /* annulla 80px riservati per bottom-nav (employee) */
+        padding-bottom: 0 !important;
     }
     body.employee-body:has(.chat-shell.has-active) .app-main {
         padding-bottom: 0 !important;
     }
 
-    /* app-header forzato fixed: sticky non funziona dentro un parent overflow:hidden
-       e su iOS la barra spariva dopo send/focus del textarea */
+    /* App-header e thread fissati al layout viewport: NON si muovono quando la tastiera
+       apre/chiude (a differenza dei layout flow-based che fluttuano con dvh) */
     body:has(.chat-shell.has-active) .app-header {
         position: fixed !important;
         top: 0; left: 0; right: 0;
@@ -247,11 +250,16 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     }
 
     .chat-shell.has-active {
-        height: calc(100dvh - var(--header-h, 60px));
-        min-height: 0;
-        margin-top: var(--header-h, 60px); /* compensa l'header fixed che e' uscito dal flusso */
+        position: fixed;
+        top: var(--header-h, 60px);
+        left: 0; right: 0; bottom: 0;
+        height: auto;
+        margin: 0;
         border-radius: 0;
         overflow: hidden;
+    }
+    .chat-shell.has-active .chat-thread {
+        height: 100%;
     }
     .chat-shell.has-active .chat-panel {
         border-radius: 0;
