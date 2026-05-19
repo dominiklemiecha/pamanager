@@ -665,17 +665,30 @@ try {
                         <?php endif; ?>
                     </div>
 
-                    <?php if ($req['status'] === 'pending'): ?>
+                    <?php if ($req['status'] === 'pending'):
+                        $__blockApprove = false;
+                        if ($req['leave_type'] === 'malattia') {
+                            $__blockApprove = empty($req['protocol_number'])
+                                || (empty($req['certificate_path']) && empty($req['certificate_waived']));
+                        }
+                    ?>
                         <div class="request-actions">
-                            <form method="POST" style="flex:1; margin:0;">
-                                <?= CSRF::field() ?>
-                                <input type="hidden" name="action" value="approve">
-                                <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                <button type="submit" class="btn btn-success" style="width:100%;"
-                                        onclick="return confirm('Approvare questa richiesta?')">
-                                    Approva
+                            <?php if ($__blockApprove): ?>
+                                <button type="button" class="btn btn-success" style="flex:1; opacity:0.5; cursor:not-allowed;" disabled
+                                        title="Documenti malattia mancanti — la richiesta resta in attesa">
+                                    🔒 Approva
                                 </button>
-                            </form>
+                            <?php else: ?>
+                                <form method="POST" style="flex:1; margin:0;">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                    <button type="submit" class="btn btn-success" style="width:100%;"
+                                            onclick="return confirm('Approvare questa richiesta?')">
+                                        Approva
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                             <button type="button" class="btn btn-danger" style="flex:1;"
                                     onclick="showRejectModal(<?= $req['id'] ?>)">
                                 Rifiuta
