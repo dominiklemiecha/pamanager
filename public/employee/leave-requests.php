@@ -999,7 +999,8 @@ foreach ($requests as $__r) {
                     $__isSick = $req['leave_type'] === 'malattia';
                     $__hasProto = !empty($req['protocol_number']);
                     $__hasCert  = !empty($req['certificate_path']);
-                    $__needsDocs = $__isSick && (!$__hasProto || !$__hasCert) && in_array($req['status'], ['pending','approved'], true);
+                    $__waived   = !empty($req['certificate_waived']);
+                    $__needsDocs = $__isSick && (!$__hasProto || (!$__hasCert && !$__waived)) && in_array($req['status'], ['pending','approved'], true);
                     $__hoursOld = !empty($req['created_at']) ? (int) ((time() - strtotime($req['created_at'])) / 3600) : 0;
                     ?>
                     <div class="lr-row">
@@ -1015,6 +1016,9 @@ foreach ($requests as $__r) {
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                         Certificato
                                     </a>
+                                <?php endif; ?>
+                                <?php if ($__isSick && $__waived): ?>
+                                    <span class="lr-row-meta" style="background:#e0e7ff; color:#1e3a8a;" title="Admin ha segnato il certificato come non richiesto">Cert. non richiesto</span>
                                 <?php endif; ?>
                             </div>
                             <div class="lr-row-dates"><?= e($datesStr) ?></div>
