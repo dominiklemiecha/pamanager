@@ -33,7 +33,7 @@ class CalendarEvent
         $companyId = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
 
         try {
-            $id = Database::insert('events', [
+            $id = Database::insert('calendar_events', [
                 'company_id'  => (int) $companyId,
                 'owner_type'  => $data['owner_type'],
                 'owner_id'    => (int) $data['owner_id'],
@@ -54,7 +54,7 @@ class CalendarEvent
                     if (!$ut || !$ui || !in_array($ut, self::VALID_TYPES, true)) continue;
                     if ($ut === $data['owner_type'] && $ui === (int) $data['owner_id']) continue;
                     try {
-                        Database::insert('event_participants', [
+                        Database::insert('calendar_event_participants', [
                             'event_id'  => $id,
                             'user_type' => $ut,
                             'user_id'   => $ui,
@@ -89,7 +89,7 @@ class CalendarEvent
             return ['success' => false, 'error' => 'Fine deve essere successiva all\'inizio'];
         }
         if (empty($update)) return ['success' => true];
-        Database::update('events', $update, 'id = ?', [$id]);
+        Database::update('calendar_events', $update, 'id = ?', [$id]);
         return ['success' => true];
     }
 
@@ -103,13 +103,13 @@ class CalendarEvent
         if ($ev['owner_type'] !== $callerType || (int) $ev['owner_id'] !== $callerId) {
             return ['success' => false, 'error' => 'Solo il creatore puo eliminare l\'evento'];
         }
-        Database::delete('events', 'id = ?', [$id]);
+        Database::delete('calendar_events', 'id = ?', [$id]);
         return ['success' => true];
     }
 
     public static function getById(int $id): ?array
     {
-        return Database::fetchOne("SELECT * FROM events WHERE id = ?", [$id]) ?: null;
+        return Database::fetchOne("SELECT * FROM calendar_events WHERE id = ?", [$id]) ?: null;
     }
 
     /**
@@ -120,13 +120,13 @@ class CalendarEvent
     {
         $companyId = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
         $sql = "SELECT e.*, 'owner' AS role_in_event, NULL AS my_status
-                FROM events e
+                FROM calendar_events e
                 WHERE e.company_id = ? AND e.owner_type = ? AND e.owner_id = ?
                   AND e.start_at < ? AND e.end_at > ?
                 UNION
                 SELECT e.*, 'participant' AS role_in_event, ep.status AS my_status
-                FROM events e
-                JOIN event_participants ep ON ep.event_id = e.id
+                FROM calendar_events e
+                JOIN calendar_event_participants ep ON ep.event_id = e.id
                 WHERE e.company_id = ?
                   AND ep.user_type = ? AND ep.user_id = ?
                   AND e.start_at < ? AND e.end_at > ?
@@ -143,7 +143,7 @@ class CalendarEvent
     public static function getParticipants(int $eventId): array
     {
         $rows = Database::fetchAll(
-            "SELECT * FROM event_participants WHERE event_id = ?",
+            "SELECT * FROM calendar_event_participants WHERE event_id = ?",
             [$eventId]
         );
         foreach ($rows as &$r) {
@@ -162,11 +162,11 @@ class CalendarEvent
             return ['success' => false, 'error' => 'Stato non valido'];
         }
         $r = Database::fetchOne(
-            "SELECT * FROM event_participants WHERE event_id = ? AND user_type = ? AND user_id = ?",
+            "SELECT * FROM calendar_event_participants WHERE event_id = ? AND user_type = ? AND user_id = ?",
             [$eventId, $userType, $userId]
         );
         if (!$r) return ['success' => false, 'error' => 'Non sei invitato a questo evento'];
-        Database::update('event_participants',
+        Database::update('calendar_event_participants',
             ['status' => $status, 'responded_at' => date('Y-m-d H:i:s')],
             'id = ?', [(int) $r['id']]
         );
@@ -187,8 +187,8 @@ class CalendarEvent
 
             // Eventi sovrapposti
             $sqlEv = "SELECT e.id, e.title, e.start_at, e.end_at
-                      FROM events e
-                      LEFT JOIN event_participants ep ON ep.event_id = e.id AND ep.user_type = ? AND ep.user_id = ?
+                      FROM calendar_events e
+                      LEFT JOIN calendar_event_participants ep ON ep.event_id = e.id AND ep.user_type = ? AND ep.user_id = ?
                       WHERE (e.start_at < ? AND e.end_at > ?)
                         AND ((e.owner_type = ? AND e.owner_id = ?) OR ep.id IS NOT NULL)";
             $paramsEv = [$ut, $ui, $end, $start, $ut, $ui];
@@ -214,7 +214,7 @@ class CalendarEvent
                 $conflicts[] = [
                     'user_type' => $ut, 'user_id' => $ui,
                     'name' => self::resolveName($ut, $ui),
-                    'events' => $overlap,
+                    'calendar_events' => $overlap,
                     'leaves' => $leaves,
                 ];
             }
