@@ -130,6 +130,13 @@ if (!empty($__currentTenant['name'])) {
                     </span>
                     <?php if ($pendingLeaveAdmin > 0): ?><span class="nav-pulse" title="<?php echo $pendingLeaveAdmin; ?>"></span><?php endif; ?>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/admin/leave-balances.php" class="nav-item <?php echo $currentPage === 'leave-balances' ? 'active' : ''; ?>" data-tooltip="Saldi Ferie">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Saldi ferie</span>
+                        <span class="nav-sub">CCNL e residui</span>
+                    </span>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/admin/communications.php" class="nav-item <?php echo $currentPage === 'communications' ? 'active' : ''; ?>" data-tooltip="Comunicazioni">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
                     <span class="nav-content">

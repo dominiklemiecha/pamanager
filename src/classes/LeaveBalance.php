@@ -208,4 +208,121 @@ class LeaveBalance
     {
         return self::DAY_KEYS;
     }
+
+    // ==========================================================
+    // ACCRUAL: maturazione mensile basata su CCNL del dipendente.
+    // ==========================================================
+
+    /**
+     * Restituisce il totale annuo (giorni o ore) maturabili dal dipendente per il tipo.
+     * Logica: override su employees se presente, altrimenti CCNL, altrimenti 0.
+     */
+    public static function getAnnualForEmployee(int $employeeId, string $type): float
+    {
+        $row = Database::fetchOne(
+            "SELECT e.ferie_year_override, e.permessi_year_override, e.ccnl_id,
+                    c.ferie_days_year, c.permessi_hours_year
+             FROM employees e
+             LEFT JOIN ccnl_templates c ON c.id = e.ccnl_id
+             WHERE e.id = ?",
+            [$employeeId]
+        );
+        if (!$row) return 0.0;
+        if ($type === 'ferie') {
+            if ($row['ferie_year_override'] !== null) return (float) $row['ferie_year_override'];
+            return (float) ($row['ferie_days_year'] ?? 0);
+        }
+        if ($type === 'permesso') {
+            if ($row['permessi_year_override'] !== null) return (float) $row['permessi_year_override'];
+            return (float) ($row['permessi_hours_year'] ?? 0);
+        }
+        return 0.0;
+    }
+
+    /**
+     * Applica/garantisce l'accrual fino al mese corrente per un dipendente.
+     * Idempotente: usa accrual_last_month (YYYY-MM) come marker.
+     * - Al cambio anno, carry-over automatico dall'anno precedente.
+     */
+    public static function ensureCurrentYearAccrual(int $employeeId, int $companyId): void
+    {
+        $now = new DateTime('today');
+        $year = (int) $now->format('Y');
+        $month = (int) $now->format('n');
+        $monthKey = sprintf('%04d-%02d', $year, $month);
+
+        foreach (self::TYPES as $type) {
+            $annual = self::getAnnualForEmployee($employeeId, $type);
+            if ($annual <= 0) continue;
+
+            $row = Database::fetchOne(
+                "SELECT id, entitled, carried_over, accrual_last_month
+                 FROM employee_leave_balances
+                 WHERE employee_id = ? AND year = ? AND leave_type = ?",
+                [$employeeId, $year, $type]
+            );
+
+            // Calcolo entitled target = (annual/12) * mesi trascorsi (gen..mese_corrente inclusi)
+            $targetEntitled = round(($annual / 12.0) * $month, 2);
+
+            // Se non c'è ancora la riga dell'anno: crea + applica carry-over dall'anno precedente
+            if (!$row) {
+                $prev = self::getOne($employeeId, $year - 1, $type);
+                $prevResidual = max(0, $prev['residual']);
+                Database::insert('employee_leave_balances', [
+                    'employee_id'        => $employeeId,
+                    'company_id'         => $companyId,
+                    'year'               => $year,
+                    'leave_type'         => $type,
+                    'entitled'           => $targetEntitled,
+                    'carried_over'       => $prevResidual,
+                    'manual_used'        => 0,
+                    'accrual_last_month' => $monthKey,
+                ]);
+                continue;
+            }
+
+            // Riga esiste: aggiorna entitled e marker se siamo in un mese successivo
+            if ($row['accrual_last_month'] !== $monthKey) {
+                Database::update('employee_leave_balances', [
+                    'entitled'           => $targetEntitled,
+                    'accrual_last_month' => $monthKey,
+                ], 'id = ?', [(int) $row['id']]);
+            }
+        }
+    }
+
+    /**
+     * Esegue ensureCurrentYearAccrual per tutti i dipendenti attivi della tenant.
+     * Idempotente.
+     */
+    public static function ensureCurrentYearAccrualForCompany(int $companyId): int
+    {
+        $emps = Database::fetchAll(
+            "SELECT id FROM employees WHERE company_id = ? AND is_active = TRUE",
+            [$companyId]
+        );
+        foreach ($emps as $e) {
+            try {
+                self::ensureCurrentYearAccrual((int) $e['id'], $companyId);
+            } catch (Throwable $err) {
+                error_log('Accrual employee ' . $e['id'] . ' failed: ' . $err->getMessage());
+            }
+        }
+        return count($emps);
+    }
+
+    /**
+     * Lista CCNL disponibili per la tenant (di sistema + custom della company).
+     */
+    public static function availableCcnls(int $companyId): array
+    {
+        return Database::fetchAll(
+            "SELECT id, code, name, ferie_days_year, permessi_hours_year
+             FROM ccnl_templates
+             WHERE company_id IS NULL OR company_id = ?
+             ORDER BY is_system DESC, name ASC",
+            [$companyId]
+        );
+    }
 }
