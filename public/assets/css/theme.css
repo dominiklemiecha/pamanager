@@ -1591,7 +1591,10 @@ body.login-page {
     padding: 6px 0; margin: -6px 0;
     outline: none;
     position: relative;
+    justify-content: space-between;
+    gap: 4px;
 }
+.heatmap-stack > .heatmap-stack-avatar { margin-left: 0 !important; }
 .heatmap-stack-avatar.is-hidden { display: none !important; }
 
 /* Giorno non lavorativo (es. sab/dom se config Mon-Fri) */
@@ -1722,10 +1725,10 @@ html, body { max-width: 100%; }
 }
 .heatmap-stack-avatar:first-child { margin-left: 0; }
 
-/* Fan-out su hover dello stack: translateX dinamico (calcolato da JS in base allo spazio) */
+/* Avatars distribuiti via justify-content:space-between, no fan-out su hover (gia' visibili). */
 .heatmap-stack:hover .heatmap-stack-avatar,
 .heatmap-stack:focus-within .heatmap-stack-avatar {
-    transform: translateX(calc(var(--avatar-i, 0) * var(--avatar-shift, 0px)));
+    transform: none;
 }
 
 .heatmap-stack-photo {
