@@ -221,17 +221,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
                 Employee::update($id, $payload);
 
-                // Salva saldi per ferie/permesso
+                // Salva saldi: il modal invia "residual" (residuo ad oggi).
+                // Lo memorizziamo come snapshot: balance_set_at=oggi, carried=residual, entitled=0, manual=0.
                 $companyId = (int) $emp['company_id'];
                 $userId    = (int) (Auth::getUser()['id'] ?? 0);
                 $year      = (int) ($_POST['year'] ?? date('Y'));
+                $today     = date('Y-m-d');
                 foreach (LeaveBalance::TYPES as $bt) {
                     $b = $_POST['balance'][$bt] ?? null;
-                    if (!$b) continue;
-                    $entitled = (float) str_replace(',', '.', (string) ($b['entitled'] ?? '0'));
-                    $carried  = (float) str_replace(',', '.', (string) ($b['carried']  ?? '0'));
-                    $manual   = (float) str_replace(',', '.', (string) ($b['manual_used'] ?? '0'));
-                    LeaveBalance::save($id, $companyId, $year, $bt, $entitled, $carried, $manual, null, $userId);
+                    if (!$b || !isset($b['residual'])) continue;
+                    $residual = (float) str_replace(',', '.', (string) $b['residual']);
+                    LeaveBalance::setSnapshotResidual($id, $companyId, $year, $bt, $residual, $today, $userId);
                 }
                 header('Location: employees.php?action=view&id=' . $id . '&message=balance_updated');
                 exit;
@@ -1248,66 +1248,56 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 
                             <div class="emp-balance-modal-b">
                                 <div class="emp-balance-info">
-                                    💡 <strong>Prima volta?</strong> Inserisci solo il <strong>"Residuo riportato"</strong> con il valore attuale del dipendente (es. <code>38,45</code>). Maturazione mensile e utilizzo dalle richieste si aggiungono automaticamente.
-                                </div>
-
-                                <div class="emp-balance-fg">
-                                    <label for="bm_ccnl">CCNL applicato</label>
-                                    <select id="bm_ccnl" name="ccnl_id">
-                                        <option value="">— eredita default azienda <?= $__compDefName ? '('. htmlspecialchars($__compDefName) .')' : '(non impostato)' ?> —</option>
-                                        <?php foreach ($__ccnlList as $cc): ?>
-                                            <option value="<?= (int)$cc['id'] ?>" <?= (int)($employee['ccnl_id'] ?? 0) === (int)$cc['id'] ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($cc['name']) ?> · <?= rtrim(rtrim(number_format($cc['ferie_days_year'], 1, ',', '.'), '0'), ',') ?>gg / <?= rtrim(rtrim(number_format($cc['permessi_hours_year'], 1, ',', '.'), '0'), ',') ?>h
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    💡 Inserisci il <strong>residuo attuale</strong> di ferie e permessi (es. <code>38,45</code> dal file paghe). Il sistema da oggi in poi farà <strong>maturare</strong> il dovuto mensilmente e <strong>sottrarrà</strong> le richieste approvate. Non serve toccare altro.
                                 </div>
 
                                 <div class="emp-balance-grid">
-                                    <div class="emp-balance-fg">
-                                        <label>Override ferie/anno (giorni)</label>
-                                        <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
-                                               name="ferie_year_override"
-                                               value="<?= $employee['ferie_year_override'] !== null ? htmlspecialchars($fmtNum($employee['ferie_year_override'])) : '' ?>"
-                                               placeholder="lascia vuoto: usa CCNL">
+                                    <div class="emp-balance-fg" style="grid-column: 1 / -1;">
+                                        <label>Residuo ferie ad oggi (giorni)</label>
+                                        <input type="text" inputmode="decimal" pattern="-?[0-9]+([.,][0-9]+)?"
+                                               name="balance[ferie][residual]"
+                                               value="<?= htmlspecialchars($fmtNum($bF['residual'] ?? 0)) ?>"
+                                               placeholder="es. 20" required>
                                     </div>
-                                    <div class="emp-balance-fg">
-                                        <label>Override permessi/anno (ore)</label>
-                                        <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
-                                               name="permessi_year_override"
-                                               value="<?= $employee['permessi_year_override'] !== null ? htmlspecialchars($fmtNum($employee['permessi_year_override'])) : '' ?>"
-                                               placeholder="lascia vuoto: usa CCNL">
+                                    <div class="emp-balance-fg" style="grid-column: 1 / -1;">
+                                        <label>Residuo permessi ad oggi (ore)</label>
+                                        <input type="text" inputmode="decimal" pattern="-?[0-9]+([.,][0-9]+)?"
+                                               name="balance[permesso][residual]"
+                                               value="<?= htmlspecialchars($fmtNum($bP['residual'] ?? 0)) ?>"
+                                               placeholder="es. 38,45" required>
                                     </div>
                                 </div>
 
-                                <?php foreach ([['ferie','Ferie','giorni',$bF],['permesso','Permessi','ore',$bP]] as $row):
-                                    [$bt, $lbl, $unit, $b] = $row;
-                                ?>
-                                <div class="emp-balance-section">
-                                    <strong><?= $lbl ?> (<?= $unit ?>)</strong>
-                                    <div class="emp-balance-fields">
+                                <details class="emp-balance-advanced">
+                                    <summary>Avanzate: contratto e override</summary>
+                                    <div class="emp-balance-fg" style="margin-top: 12px;">
+                                        <label for="bm_ccnl">CCNL applicato</label>
+                                        <select id="bm_ccnl" name="ccnl_id">
+                                            <option value="">— eredita default azienda <?= $__compDefName ? '('. htmlspecialchars($__compDefName) .')' : '(non impostato)' ?> —</option>
+                                            <?php foreach ($__ccnlList as $cc): ?>
+                                                <option value="<?= (int)$cc['id'] ?>" <?= (int)($employee['ccnl_id'] ?? 0) === (int)$cc['id'] ? 'selected' : '' ?>>
+                                                    <?= htmlspecialchars($cc['name']) ?> · <?= rtrim(rtrim(number_format($cc['ferie_days_year'], 1, ',', '.'), '0'), ',') ?>gg / <?= rtrim(rtrim(number_format($cc['permessi_hours_year'], 1, ',', '.'), '0'), ',') ?>h
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="emp-balance-grid" style="margin-top: 10px;">
                                         <div class="emp-balance-fg">
-                                            <label>Residuo riportato</label>
-                                            <input type="text" inputmode="decimal" pattern="-?[0-9]+([.,][0-9]+)?"
-                                                   name="balance[<?= $bt ?>][carried]"
-                                                   value="<?= htmlspecialchars($fmtNum($b['carried'] ?? 0)) ?>"
-                                                   placeholder="es. 38,45">
+                                            <label>Override ferie/anno (giorni)</label>
+                                            <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                                   name="ferie_year_override"
+                                                   value="<?= $employee['ferie_year_override'] !== null ? htmlspecialchars($fmtNum($employee['ferie_year_override'])) : '' ?>"
+                                                   placeholder="usa CCNL">
                                         </div>
                                         <div class="emp-balance-fg">
-                                            <label>Maturato <small>(auto)</small></label>
+                                            <label>Override permessi/anno (ore)</label>
                                             <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
-                                                   name="balance[<?= $bt ?>][entitled]"
-                                                   value="<?= htmlspecialchars($fmtNum($b['entitled'] ?? 0)) ?>">
-                                        </div>
-                                        <div class="emp-balance-fg">
-                                            <label>Correttivo manuale usati</label>
-                                            <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
-                                                   name="balance[<?= $bt ?>][manual_used]"
-                                                   value="<?= htmlspecialchars($fmtNum($b['manual_used'] ?? 0)) ?>">
+                                                   name="permessi_year_override"
+                                                   value="<?= $employee['permessi_year_override'] !== null ? htmlspecialchars($fmtNum($employee['permessi_year_override'])) : '' ?>"
+                                                   placeholder="usa CCNL">
                                         </div>
                                     </div>
-                                </div>
-                                <?php endforeach; ?>
+                                </details>
                             </div>
                             <div class="emp-balance-modal-f">
                                 <button type="button" class="emp-balance-btn emp-balance-btn-ghost" onclick="empCloseBalanceModal()">Annulla</button>
@@ -1375,15 +1365,24 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 .emp-balance-grid {
                     display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
                 }
-                .emp-balance-section {
-                    background: #f8fafc; padding: 14px;
-                    border: 1px solid #e6e8f0; border-radius: 10px;
+                .emp-balance-advanced {
+                    margin-top: 4px;
+                    border-top: 1px solid #e6e8f0;
+                    padding-top: 12px;
                 }
-                .emp-balance-section strong {
-                    display: block; margin-bottom: 10px;
-                    font-size: 13px; color: #1e1e2f;
+                .emp-balance-advanced summary {
+                    cursor: pointer;
+                    font-size: 12.5px; font-weight: 600;
+                    color: #0b3aa4;
+                    padding: 4px 0;
+                    list-style: none;
                 }
-                .emp-balance-fields { display: flex; flex-direction: column; gap: 10px; }
+                .emp-balance-advanced summary::-webkit-details-marker { display: none; }
+                .emp-balance-advanced summary::before {
+                    content: '▶'; display: inline-block; font-size: 10px;
+                    margin-right: 6px; transition: transform .15s ease;
+                }
+                .emp-balance-advanced[open] summary::before { transform: rotate(90deg); }
                 .emp-balance-modal-f {
                     padding: 14px 22px; border-top: 1px solid #e6e8f0;
                     display: flex; justify-content: flex-end; gap: 8px;
