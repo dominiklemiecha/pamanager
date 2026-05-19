@@ -242,6 +242,11 @@ try {
     border-bottom: 1px solid #f7fafc;
 }
 
+.request-card.is-missing-docs {
+    background: #fef2f2;
+    border-left: 4px solid #dc2626;
+}
+
 .request-card:last-child {
     border-bottom: none;
 }
@@ -536,8 +541,11 @@ try {
         <?php else: ?>
             <?php foreach ($requests as $req):
                 $workingDays = LeaveRequest::calculateWorkingDays($req['start_date'], $req['end_date']);
+                $__cardMissing = $req['status'] === 'pending' && $req['leave_type'] === 'malattia' && (
+                    empty($req['protocol_number']) || (empty($req['certificate_path']) && empty($req['certificate_waived']))
+                );
             ?>
-                <div class="request-card">
+                <div class="request-card <?= $__cardMissing ? 'is-missing-docs' : '' ?>">
                     <div class="request-card-header">
                         <?= employeeAvatarHtml($req, 'request-avatar') ?>
                         <div class="request-employee">

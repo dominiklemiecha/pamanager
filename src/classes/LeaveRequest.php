@@ -97,7 +97,15 @@ class LeaveRequest
             $params[] = $status;
         }
 
-        $sql .= " ORDER BY lr.created_at DESC";
+        // Malattia pending senza docs in cima
+        $sql .= " ORDER BY
+                  CASE WHEN lr.status = 'pending' AND lr.leave_type = 'malattia'
+                            AND (
+                              lr.protocol_number IS NULL OR lr.protocol_number = ''
+                              OR ((lr.certificate_path IS NULL OR lr.certificate_path = '') AND COALESCE(lr.certificate_waived,0) = 0)
+                            )
+                       THEN 0 ELSE 1 END,
+                  lr.created_at DESC";
 
         if ($limit !== null) {
             $sql .= " LIMIT ?";
@@ -164,7 +172,15 @@ class LeaveRequest
             $params[] = $departmentId;
         }
 
-        $sql .= " ORDER BY lr.created_at DESC";
+        // Pending malattia con documenti mancanti finiscono in cima
+        $sql .= " ORDER BY
+                  CASE WHEN lr.status = 'pending' AND lr.leave_type = 'malattia'
+                            AND (
+                              lr.protocol_number IS NULL OR lr.protocol_number = ''
+                              OR ((lr.certificate_path IS NULL OR lr.certificate_path = '') AND COALESCE(lr.certificate_waived,0) = 0)
+                            )
+                       THEN 0 ELSE 1 END,
+                  lr.created_at DESC";
 
         return Database::fetchAll($sql, $params);
     }
