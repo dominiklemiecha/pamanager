@@ -59,6 +59,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode($result);
                 exit;
             }
+            case 'update_event': {
+                $id = (int) ($_POST['event_id'] ?? 0);
+                $update = [
+                    'title'       => $_POST['title'] ?? '',
+                    'description' => $_POST['description'] ?? null,
+                    'location'    => $_POST['location'] ?? null,
+                    'start_at'    => $_POST['start_at'] ?? '',
+                    'end_at'      => $_POST['end_at']   ?? '',
+                ];
+                echo json_encode(CalendarEvent::update($id, $callerType, $callerId, $update));
+                exit;
+            }
+            case 'get_event': {
+                $id = (int) ($_POST['event_id'] ?? 0);
+                $ev = CalendarEvent::getById($id);
+                if (!$ev) { echo json_encode(['success' => false, 'error' => 'Evento non trovato']); exit; }
+                $parts = CalendarEvent::getParticipants($id);
+                echo json_encode([
+                    'success' => true,
+                    'event'   => $ev,
+                    'participants' => $parts,
+                    'can_edit' => ($ev['owner_type'] === $callerType && (int)$ev['owner_id'] === $callerId),
+                ]);
+                exit;
+            }
             case 'delete_event': {
                 $id = (int) ($_POST['event_id'] ?? 0);
                 echo json_encode(CalendarEvent::delete($id, $callerType, $callerId));
@@ -147,10 +172,16 @@ $__palette = [
     ['bg' => '#ffedd5', 'border' => '#f97316', 'text' => '#9a3412'], // orange
 ];
 
-// Pre-calcola partecipanti per evento (per evitare query nel loop)
+// Pre-calcola partecipanti + owner info per evento
 $__participantsByEv = [];
+$__ownerByEv = [];
 foreach ($__events as $ev) {
-    $__participantsByEv[(int)$ev['id']] = CalendarEvent::getParticipants((int)$ev['id']);
+    $eid = (int)$ev['id'];
+    $__participantsByEv[$eid] = CalendarEvent::getParticipants($eid);
+    $__ownerByEv[$eid] = [
+        'name'  => CalendarEvent::resolveName($ev['owner_type'], (int)$ev['owner_id']),
+        'photo' => CalendarEvent::resolvePhoto($ev['owner_type'], (int)$ev['owner_id']),
+    ];
 }
 ?>
 
@@ -304,8 +335,8 @@ foreach ($__events as $ev) {
     position: absolute;
     left: 4px; right: 4px;
     padding: 8px 10px;
-    border-radius: 10px;
-    border-left: 3px solid currentColor;
+    border-radius: 12px;
+    border-left: 4px solid currentColor;
     cursor: pointer;
     overflow: hidden;
     font-size: 12px;
@@ -313,33 +344,43 @@ foreach ($__events as $ev) {
     z-index: 2;
     transition: filter .12s ease, transform .12s ease;
     text-decoration: none;
+    display: flex; align-items: flex-start; gap: 8px;
 }
 .cal-evt:hover { filter: brightness(0.96); text-decoration: none; transform: translateY(-1px); }
+.cal-evt .evt-owner-av {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+    color: white; font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0; overflow: hidden;
+    text-transform: uppercase;
+    border: 2px solid rgba(255,255,255,0.85);
+    box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+}
+.cal-evt .evt-owner-av img { width: 100%; height: 100%; object-fit: cover; }
+.cal-evt .evt-body { min-width: 0; flex: 1; }
 .cal-evt .evt-title {
     font-weight: 700;
     color: currentColor;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 12.5px;
 }
-.cal-evt .evt-time { font-size: 10.5px; opacity: 0.85; margin-top: 2px; }
-.cal-evt .evt-attendees { display: flex; margin-top: 4px; }
-.cal-evt .evt-attendees .av {
-    width: 18px; height: 18px; border-radius: 50%;
-    border: 2px solid white;
-    margin-left: -6px;
-    background: #cbd5e0; color: white;
-    font-size: 9px; font-weight: 700;
-    display: inline-flex; align-items: center; justify-content: center;
-    text-transform: uppercase;
-    overflow: hidden;
+.cal-evt .evt-meta {
+    font-size: 10.5px; opacity: 0.85; margin-top: 2px;
+    display: flex; gap: 4px; align-items: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.cal-evt .evt-attendees .av:first-child { margin-left: 0; }
-.cal-evt .evt-attendees .av img { width: 100%; height: 100%; object-fit: cover; }
+.cal-evt .evt-dot { opacity: 0.5; }
+.cal-evt .evt-owner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-evt.is-declined { opacity: 0.45; text-decoration: line-through; }
 .cal-evt.is-pending::after {
     content: '⌛';
     position: absolute; top: 4px; right: 6px;
     font-size: 10px;
 }
+/* Eventi corti: nascondi la riga meta se troppo piccoli */
+.cal-evt[style*="height: 30px"] .evt-meta,
+.cal-evt[style*="height: 20px"] .evt-meta { display: none; }
 
 /* ============ MODAL ============ */
 .cal-modal-overlay {
@@ -755,6 +796,10 @@ foreach ($__events as $ev) {
                         if ($myStatus === 'declined') $extraClass = 'is-declined';
                         elseif ($myStatus === 'pending') $extraClass = 'is-pending';
                     ?>
+                        <?php
+                        $owner = $__ownerByEv[(int)$ev['id']] ?? ['name' => '', 'photo' => null];
+                        $ownerInitials = mb_strtoupper(mb_substr($owner['name'] ?? '?', 0, 1));
+                        ?>
                         <a class="cal-evt <?= $extraClass ?>"
                            style="top: <?= $top ?>px; height: <?= $height ?>px;
                                   background: <?= $col['bg'] ?>;
@@ -763,26 +808,21 @@ foreach ($__events as $ev) {
                            href="#"
                            onclick="calOpenDetail(<?= (int)$ev['id'] ?>); return false;"
                            data-event-id="<?= (int)$ev['id'] ?>">
-                            <div class="evt-title"><?= e($ev['title']) ?></div>
-                            <div class="evt-time"><?= $evStart->format('H:i') ?>–<?= $evEnd->format('H:i') ?></div>
-                            <?php
-                            $parts = $__participantsByEv[(int)$ev['id']] ?? [];
-                            if (!empty($parts)):
-                            ?>
-                            <div class="evt-attendees">
-                                <?php foreach (array_slice($parts, 0, 4) as $p):
-                                    $initials = mb_strtoupper(mb_substr($p['name'], 0, 1));
-                                ?>
-                                    <span class="av" style="background: <?= $__palette[(int)$p['user_id'] % count($__palette)]['border'] ?>;">
-                                        <?php if (!empty($p['photo_path'])): ?>
-                                            <img src="<?= e(PUBLIC_URL . '/' . ltrim($p['photo_path'], '/')) ?>" alt="">
-                                        <?php else: ?>
-                                            <?= e($initials) ?>
-                                        <?php endif; ?>
-                                    </span>
-                                <?php endforeach; ?>
+                            <span class="evt-owner-av" style="background: <?= $col['border'] ?>;">
+                                <?php if (!empty($owner['photo'])): ?>
+                                    <img src="<?= e(PUBLIC_URL . '/' . ltrim($owner['photo'], '/')) ?>" alt="">
+                                <?php else: ?>
+                                    <?= e($ownerInitials) ?>
+                                <?php endif; ?>
+                            </span>
+                            <div class="evt-body">
+                                <div class="evt-title"><?= e($ev['title']) ?></div>
+                                <div class="evt-meta">
+                                    <span class="evt-time"><?= $evStart->format('H:i') ?>–<?= $evEnd->format('H:i') ?></span>
+                                    <span class="evt-dot">•</span>
+                                    <span class="evt-owner"><?= e($owner['name'] ?? '') ?></span>
+                                </div>
                             </div>
-                            <?php endif; ?>
                         </a>
                     <?php endforeach; ?>
 
@@ -1123,6 +1163,8 @@ foreach ($__events as $ev) {
         titleEl.textContent = 'Nuovo evento';
         submitLabel.textContent = 'Crea evento';
         deleteBtn.style.display = 'none';
+        document.getElementById('calTitle').disabled = false;
+        document.getElementById('calLocation').disabled = false;
 
         // Default: oggi, prossima mezz'ora, durata 1h
         const now = new Date();
@@ -1251,16 +1293,34 @@ foreach ($__events as $ev) {
 
     window.calSubmit = function(e) {
         e.preventDefault();
+        // Se il bottone dice "Chiudi" (dettaglio sola lettura) chiudi senza submit
+        if (submitLabel.textContent === 'Chiudi') {
+            calCloseModal();
+            return false;
+        }
+
+        // Sicurezza: forza sync dei hidden start_at/end_at prima dell'invio
+        syncHidden();
+        if (!startHidden.value || !endHidden.value) {
+            alert('Seleziona data e orari');
+            return false;
+        }
+
         const fd = new FormData(form);
+        if (editingEventId) {
+            fd.set('action', 'update_event');
+            fd.append('event_id', editingEventId);
+        } else {
+            fd.set('action', 'create_event');
+        }
+
         fetch('', { method: 'POST', body: fd })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     if (data.conflicts && data.conflicts.length > 0) {
                         const names = data.conflicts.map(c => c.name).join(', ');
-                        if (!confirm('Attenzione: conflitti rilevati per ' + names + '. Continuare?')) {
-                            // Lascia evento creato; chiudi comunque
-                        }
+                        alert('Attenzione: conflitti rilevati per ' + names + '.');
                     }
                     window.location.reload();
                 } else {
@@ -1272,17 +1332,56 @@ foreach ($__events as $ev) {
     };
 
     window.calOpenDetail = function(eventId) {
-        // Per ora apri modal in modalita' "modifica" minima
         editingEventId = eventId;
-        // Recupera dati: per semplicita' leggiamo dal DOM
-        const card = document.querySelector('[data-event-id="' + eventId + '"]');
-        if (!card) return;
-        const title = card.querySelector('.evt-title')?.textContent || '';
-        titleEl.textContent = 'Dettaglio evento';
-        submitLabel.textContent = 'Chiudi';
-        deleteBtn.style.display = 'inline-flex';
-        document.getElementById('calTitle').value = title;
-        modal.classList.add('show');
+        // Carica dati evento dal server
+        const fd = new FormData();
+        fd.append('action', 'get_event');
+        fd.append('event_id', eventId);
+        fd.append('csrf_token', CSRF_TOKEN);
+        fetch('', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert(data.error || 'Errore'); return; }
+                const ev = data.event;
+                const canEdit = data.can_edit;
+                titleEl.textContent = canEdit ? 'Modifica evento' : 'Dettaglio evento';
+                submitLabel.textContent = canEdit ? 'Salva modifiche' : 'Chiudi';
+                deleteBtn.style.display = canEdit ? 'inline-flex' : 'none';
+
+                document.getElementById('calTitle').value = ev.title || '';
+                document.getElementById('calLocation').value = ev.location || '';
+                document.getElementById('calTitle').disabled = !canEdit;
+                document.getElementById('calLocation').disabled = !canEdit;
+
+                // Popola data/orari nello stato
+                const dt1 = new Date(ev.start_at.replace(' ', 'T'));
+                const dt2 = new Date(ev.end_at.replace(' ', 'T'));
+                state.date = fmtDate(dt1);
+                state.t1 = fmtTime(dt1);
+                state.t2 = fmtTime(dt2);
+                state.miniMonth = new Date(dt1.getFullYear(), dt1.getMonth(), 1);
+                renderDateLabel();
+                renderTimeLabel(1);
+                renderTimeLabel(2);
+                syncHidden();
+
+                // Popola partecipanti
+                selectedParts = (data.participants || []).map(p => ({
+                    user_type: p.user_type, user_id: parseInt(p.user_id, 10),
+                    name: p.name, photo: p.photo_path,
+                }));
+                // Marca i contatti gia' selezionati nel picker
+                document.querySelectorAll('.cal-contact-item').forEach(it => {
+                    const sel = selectedParts.some(sp =>
+                        sp.user_type === it.dataset.type &&
+                        sp.user_id === parseInt(it.dataset.id, 10));
+                    it.classList.toggle('selected', sel);
+                });
+                renderParts();
+
+                modal.classList.add('show');
+            })
+            .catch(err => { console.error(err); alert('Errore di connessione'); });
     };
 
     window.calDeleteEvent = function() {
