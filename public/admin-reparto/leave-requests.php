@@ -94,6 +94,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $error = $result['error'];
                     break;
+
+                case 'admin_sick_docs':
+                    $protocol = $_POST['protocol_number'] ?? null;
+                    $cert = $_FILES['certificate'] ?? null;
+                    $result = LeaveRequest::adminSaveSickDocs($requestId, $protocol, $cert);
+                    if ($result['success']) { header('Location: leave-requests.php?message=sick_docs'); exit; }
+                    $error = $result['error'];
+                    break;
+
+                case 'admin_waive_cert':
+                    $waived = !empty($_POST['waived']);
+                    $result = LeaveRequest::setCertificateWaived($requestId, $waived);
+                    if ($result['success']) {
+                        header('Location: leave-requests.php?message=' . ($waived ? 'cert_waived' : 'cert_required'));
+                        exit;
+                    }
+                    $error = $result['error'];
+                    break;
             }
         } else {
             $error = 'Richiesta non trovata o non appartenente al tuo reparto';
@@ -104,8 +122,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Messaggi
 if (isset($_GET['message'])) {
     $messages = [
-        'approved' => 'Richiesta approvata con successo',
-        'rejected' => 'Richiesta rifiutata'
+        'approved'      => 'Richiesta approvata con successo',
+        'rejected'      => 'Richiesta rifiutata',
+        'sick_docs'     => 'Documenti malattia aggiornati',
+        'cert_waived'   => 'Certificato segnato come non richiesto',
+        'cert_required' => 'Certificato di nuovo obbligatorio',
     ];
     $message = $messages[$_GET['message']] ?? '';
 }
@@ -589,15 +610,21 @@ try {
                             </div>
                         <?php endif; ?>
                         <?php if ($req['leave_type'] === 'malattia'):
-                            $__missingDocs = empty($req['protocol_number']) || empty($req['certificate_path']);
+                            $__hasProto = !empty($req['protocol_number']);
+                            $__hasCert  = !empty($req['certificate_path']);
+                            $__waived   = !empty($req['certificate_waived']);
+                            $__missingDocs = !$__hasProto || (!$__hasCert && !$__waived);
                             $__ageH = !empty($req['created_at']) ? (int) ((time() - strtotime($req['created_at'])) / 3600) : 0;
                         ?>
                             <div style="margin-top:.75rem; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                                <?php if (!empty($req['protocol_number'])): ?>
+                                <?php if ($__hasProto): ?>
                                     <span style="font-size:11px; font-weight:600; color:#475569; background:#f1f5f9; padding:3px 10px; border-radius:999px;">Prot. <?= e($req['protocol_number']) ?></span>
                                 <?php endif; ?>
-                                <?php if (!empty($req['certificate_path'])): ?>
+                                <?php if ($__hasCert): ?>
                                     <a href="?download_cert=<?= (int) $req['id'] ?>" class="btn btn-sm btn-info">Scarica certificato</a>
+                                <?php endif; ?>
+                                <?php if ($__waived): ?>
+                                    <span style="font-size:11px; font-weight:600; color:#1e3a8a; background:#e0e7ff; padding:3px 10px; border-radius:999px;">Certificato non richiesto</span>
                                 <?php endif; ?>
                                 <?php if ($__missingDocs): ?>
                                     <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; <?= $__ageH >= 24 ? 'color:#991b1b; background:#fee2e2; border:1px solid #fecaca;' : 'color:#92400e; background:#fef3c7; border:1px solid #fde68a;' ?>">
@@ -605,6 +632,36 @@ try {
                                     </span>
                                 <?php endif; ?>
                             </div>
+
+                            <details style="margin-top:.75rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding: 10px 12px;">
+                                <summary style="cursor:pointer; font-size:12.5px; font-weight:600; color:#0b3aa4;">Gestisci documenti malattia</summary>
+                                <form method="POST" enctype="multipart/form-data" style="margin-top:10px;">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="admin_sick_docs">
+                                    <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
+                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                        <div>
+                                            <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:4px;">Numero protocollo</label>
+                                            <input type="text" name="protocol_number" maxlength="100" placeholder="<?= $__hasProto ? 'Attuale: ' . e($req['protocol_number']) : 'Es. 1234567890' ?>" style="width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px;">
+                                        </div>
+                                        <div>
+                                            <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:4px;">Certificato medico</label>
+                                            <input type="file" name="certificate" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:12px;">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-primary" style="margin-top:10px;">Salva documenti</button>
+                                </form>
+
+                                <form method="POST" style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                                    <?= CSRF::field() ?>
+                                    <input type="hidden" name="action" value="admin_waive_cert">
+                                    <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
+                                    <input type="hidden" name="waived" value="<?= $__waived ? '0' : '1' ?>">
+                                    <button type="submit" class="btn btn-sm" style="<?= $__waived ? 'background:#e0e7ff; color:#1e3a8a; border:1px solid #c7d2fe;' : 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;' ?>">
+                                        <?= $__waived ? 'Ripristina obbligo certificato' : 'Marca certificato come non richiesto' ?>
+                                    </button>
+                                </form>
+                            </details>
                         <?php endif; ?>
                     </div>
 

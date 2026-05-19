@@ -145,12 +145,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($result['success']) { header('Location: leave-requests.php?message=deleted'); exit; }
                 $error = $result['error'];
                 break;
+            case 'admin_sick_docs':
+                $protocol = $_POST['protocol_number'] ?? null;
+                $cert = $_FILES['certificate'] ?? null;
+                $result = LeaveRequest::adminSaveSickDocs($requestId, $protocol, $cert);
+                if ($result['success']) { header('Location: leave-requests.php?message=sick_docs'); exit; }
+                $error = $result['error'];
+                break;
+            case 'admin_waive_cert':
+                $waived = !empty($_POST['waived']);
+                $result = LeaveRequest::setCertificateWaived($requestId, $waived);
+                if ($result['success']) {
+                    header('Location: leave-requests.php?message=' . ($waived ? 'cert_waived' : 'cert_required'));
+                    exit;
+                }
+                $error = $result['error'];
+                break;
         }
     }
 }
 
 if (isset($_GET['message'])) {
-    $known = ['approved' => 'Richiesta approvata con successo', 'rejected' => 'Richiesta rifiutata', 'updated' => 'Richiesta aggiornata', 'deleted' => 'Richiesta eliminata'];
+    $known = [
+        'approved' => 'Richiesta approvata con successo',
+        'rejected' => 'Richiesta rifiutata',
+        'updated'  => 'Richiesta aggiornata',
+        'deleted'  => 'Richiesta eliminata',
+        'sick_docs' => 'Documenti malattia aggiornati',
+        'cert_waived' => 'Certificato segnato come non richiesto',
+        'cert_required' => 'Certificato di nuovo obbligatorio',
+    ];
     $message = $known[$_GET['message']] ?? $_GET['message'];
 }
 
@@ -867,11 +891,17 @@ try {
                                 <?= e(LeaveRequest::LEAVE_TYPES[$req['leave_type']] ?? $req['leave_type']) ?>
                             </span>
                             <?php if ($req['leave_type'] === 'malattia'):
-                                $__missing = empty($req['protocol_number']) || empty($req['certificate_path']);
+                                $__hasProto = !empty($req['protocol_number']);
+                                $__hasCert  = !empty($req['certificate_path']);
+                                $__waived   = !empty($req['certificate_waived']);
+                                $__missing = !$__hasProto || (!$__hasCert && !$__waived);
                                 $__ageH = !empty($req['created_at']) ? (int) ((time() - strtotime($req['created_at'])) / 3600) : 0;
                             ?>
-                                <?php if (!empty($req['protocol_number'])): ?>
+                                <?php if ($__hasProto): ?>
                                     <span class="lp-sick-meta" title="Numero protocollo">Prot. <?= e($req['protocol_number']) ?></span>
+                                <?php endif; ?>
+                                <?php if ($__waived): ?>
+                                    <span class="lp-sick-meta" style="color:#1e3a8a; background:#e0e7ff;" title="Certificato segnato come non richiesto dall'admin">Cert. non richiesto</span>
                                 <?php endif; ?>
                                 <?php if ($__missing): ?>
                                     <span class="lp-sick-missing <?= $__ageH >= 24 ? 'is-late' : '' ?>" title="<?= $__ageH >= 24 ? 'Mancano documenti da oltre 24h' : 'Documenti malattia non ancora caricati' ?>">
@@ -942,6 +972,20 @@ try {
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
                                     </a>
                                 <?php endif; ?>
+                                <?php if ($req['leave_type'] === 'malattia'):
+                                    $__sickPayload = [
+                                        'id' => (int) $req['id'],
+                                        'name' => $req['last_name'] . ' ' . $req['first_name'],
+                                        'protocol' => $req['protocol_number'] ?? '',
+                                        'has_cert' => !empty($req['certificate_path']),
+                                        'cert_name' => $req['certificate_name'] ?? '',
+                                        'waived' => !empty($req['certificate_waived']),
+                                    ];
+                                ?>
+                                    <button type="button" class="lp-ibtn lp-btn-edit js-sick" title="Documenti malattia" data-sick="<?= htmlspecialchars(json_encode($__sickPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M12 13v4M10 15h4"/></svg>
+                                    </button>
+                                <?php endif; ?>
                                 <button type="button" class="lp-ibtn lp-btn-edit js-edit" title="Modifica" data-edit="<?= htmlspecialchars(json_encode($editPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </button>
@@ -974,6 +1018,52 @@ try {
 </div>
 
 <!-- Modal Dettaglio -->
+<!-- Modal documenti malattia (admin) -->
+<div class="lp-modal-overlay" id="sickModal">
+    <div class="lp-modal">
+        <h3>Documenti malattia — <span id="sickEmpName"></span></h3>
+        <p style="margin: 0 0 16px; color:#6e7191; font-size: 13px;">
+            Inserisci o aggiorna numero protocollo INPS e certificato medico. Oppure marca il certificato come non richiesto.
+        </p>
+
+        <div class="lp-modal-row"><strong>Protocollo attuale</strong><span id="sickCurrentProto">—</span></div>
+        <div class="lp-modal-row"><strong>Certificato attuale</strong><span id="sickCurrentCert">—</span></div>
+        <div class="lp-modal-row"><strong>Stato certificato</strong><span id="sickWaivedState">Obbligatorio</span></div>
+
+        <form method="POST" enctype="multipart/form-data" id="sickForm" style="margin-top: 16px;">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="admin_sick_docs">
+            <input type="hidden" name="request_id" id="sickReqId">
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label">Nuovo numero protocollo</label>
+                <input type="text" name="protocol_number" id="sickProto" class="form-control" maxlength="100" placeholder="Es. 1234567890">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label">Nuovo certificato medico</label>
+                <input type="file" name="certificate" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                <small style="color:#94a3b8;">PDF, JPG, PNG — sovrascrive il file esistente</small>
+            </div>
+
+            <div class="lp-modal-actions">
+                <button type="button" class="lp-btn lp-btn-view" onclick="hideSick()">Chiudi</button>
+                <button type="submit" class="lp-btn lp-btn-approve">Salva documenti</button>
+            </div>
+        </form>
+
+        <form method="POST" id="sickWaiveForm" style="margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="admin_waive_cert">
+            <input type="hidden" name="request_id" id="sickWaiveReqId">
+            <input type="hidden" name="waived" id="sickWaiveValue" value="1">
+            <button type="submit" class="lp-btn" id="sickWaiveBtn" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">
+                Marca certificato come non richiesto
+            </button>
+        </form>
+    </div>
+</div>
+
 <div class="lp-modal-overlay" id="detailModal">
     <div class="lp-modal">
         <h3 id="dmTitle">Dettaglio Richiesta</h3>
@@ -1073,6 +1163,50 @@ document.querySelectorAll('.js-detail').forEach(function(btn) {
         } catch (err) {
             console.error('Errore parsing detail:', err);
         }
+    });
+});
+
+// Bind dei pulsanti "Documenti malattia"
+function showSick(d) {
+    document.getElementById('sickEmpName').textContent = d.name;
+    document.getElementById('sickCurrentProto').textContent = d.protocol || '—';
+    document.getElementById('sickCurrentCert').textContent = d.has_cert ? (d.cert_name || 'Caricato') : '—';
+    document.getElementById('sickWaivedState').textContent = d.waived ? 'Non richiesto (admin)' : 'Obbligatorio';
+    document.getElementById('sickReqId').value = d.id;
+    document.getElementById('sickWaiveReqId').value = d.id;
+    document.getElementById('sickProto').value = '';
+    document.getElementById('sickForm').reset();
+    document.getElementById('sickReqId').value = d.id;
+    document.getElementById('sickProto').placeholder = d.protocol ? ('Lascia vuoto per non modificare (attuale: ' + d.protocol + ')') : 'Es. 1234567890';
+
+    const wBtn = document.getElementById('sickWaiveBtn');
+    const wVal = document.getElementById('sickWaiveValue');
+    if (d.waived) {
+        wBtn.textContent = 'Ripristina obbligo certificato';
+        wBtn.style.background = '#e0e7ff';
+        wBtn.style.color = '#1e3a8a';
+        wBtn.style.border = '1px solid #c7d2fe';
+        wVal.value = '0';
+    } else {
+        wBtn.textContent = 'Marca certificato come non richiesto';
+        wBtn.style.background = '#fef3c7';
+        wBtn.style.color = '#92400e';
+        wBtn.style.border = '1px solid #fde68a';
+        wVal.value = '1';
+    }
+
+    document.getElementById('sickModal').classList.add('show');
+}
+function hideSick() { document.getElementById('sickModal').classList.remove('show'); }
+document.getElementById('sickModal').addEventListener('click', function(e) {
+    if (e.target === this) hideSick();
+});
+document.querySelectorAll('.js-sick').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        try {
+            const d = JSON.parse(btn.getAttribute('data-sick'));
+            showSick(d);
+        } catch (err) { console.error('Errore parsing sick:', err); }
     });
 });
 

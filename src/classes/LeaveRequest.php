@@ -689,7 +689,8 @@ class LeaveRequest
 
     /**
      * Lista richieste di malattia approvate/pending senza protocollo o certificato da piu' di N ore.
-     * Scope tenant.
+     * Scope tenant. Esclude righe con certificate_waived = 1 quando manca solo il certificato:
+     * se manca anche il protocollo, viene comunque inclusa.
      */
     public static function sickPendingDocs(int $hoursOld = 24, ?int $employeeId = null): array
     {
@@ -700,8 +701,13 @@ class LeaveRequest
                 WHERE lr.company_id = ?
                   AND lr.leave_type = 'malattia'
                   AND lr.status IN ('pending','approved')
-                  AND (lr.protocol_number IS NULL OR lr.protocol_number = ''
-                       OR lr.certificate_path IS NULL OR lr.certificate_path = '')
+                  AND (
+                        (lr.protocol_number IS NULL OR lr.protocol_number = '')
+                        OR (
+                            (lr.certificate_path IS NULL OR lr.certificate_path = '')
+                            AND COALESCE(lr.certificate_waived, 0) = 0
+                        )
+                      )
                   AND lr.created_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)";
         $params = [$cid, $hoursOld];
         if ($employeeId !== null) {
@@ -710,6 +716,90 @@ class LeaveRequest
         }
         $sql .= " ORDER BY lr.created_at ASC";
         return Database::fetchAll($sql, $params);
+    }
+
+    /**
+     * Versione admin di saveSickDocs: nessun check di ownership, ma verifica scope tenant
+     * e che il tipo sia malattia. Permette anche di sovrascrivere documenti esistenti.
+     */
+    public static function adminSaveSickDocs(int $requestId, ?string $protocolNumber, ?array $certFile): array
+    {
+        $request = self::getById($requestId);
+        if (!$request) {
+            return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (class_exists('Tenant')) {
+            $cid = Tenant::currentCompanyId();
+            if ((int) $request['company_id'] !== (int) $cid) {
+                return ['success' => false, 'error' => 'Richiesta non appartiene all\'azienda attiva'];
+            }
+        }
+        if ($request['leave_type'] !== 'malattia') {
+            return ['success' => false, 'error' => 'Operazione valida solo per richieste di malattia'];
+        }
+
+        $update = [];
+        $protocolNumber = $protocolNumber !== null ? trim($protocolNumber) : null;
+        if ($protocolNumber !== null && $protocolNumber !== '') {
+            $update['protocol_number'] = $protocolNumber;
+        }
+
+        if (is_array($certFile) && isset($certFile['error']) && $certFile['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($certFile['error'] !== UPLOAD_ERR_OK) {
+                return ['success' => false, 'error' => 'Errore upload certificato'];
+            }
+            if ($certFile['size'] > MAX_FILE_SIZE) {
+                return ['success' => false, 'error' => 'Certificato troppo grande'];
+            }
+            $ext = strtolower(pathinfo($certFile['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, ALLOWED_EXTENSIONS)) {
+                return ['success' => false, 'error' => 'Tipo file non consentito'];
+            }
+            $dir = STORAGE_PATH . '/leave_requests';
+            if (!is_dir($dir)) { mkdir($dir, 0755, true); }
+            $fileName = 'cert_' . bin2hex(random_bytes(12)) . '.' . $ext;
+            $path = $dir . '/' . $fileName;
+            if (!move_uploaded_file($certFile['tmp_name'], $path)) {
+                return ['success' => false, 'error' => 'Errore salvataggio certificato'];
+            }
+            if (!empty($request['certificate_path']) && file_exists($request['certificate_path'])) {
+                @unlink($request['certificate_path']);
+            }
+            $update['certificate_path'] = $path;
+            $update['certificate_name'] = $certFile['name'];
+        }
+
+        if (empty($update)) {
+            return ['success' => false, 'error' => 'Nessun documento fornito'];
+        }
+
+        Database::update('leave_requests', $update, 'id = ?', [$requestId]);
+        self::logAction('leave_sick_docs_admin_updated', $requestId, $request, array_keys($update));
+        return ['success' => true];
+    }
+
+    /**
+     * Marca/toglie il flag "certificato non richiesto" per una richiesta malattia.
+     * Solo admin/admin_reparto. Scope tenant verificato.
+     */
+    public static function setCertificateWaived(int $requestId, bool $waived): array
+    {
+        $request = self::getById($requestId);
+        if (!$request) {
+            return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (class_exists('Tenant')) {
+            $cid = Tenant::currentCompanyId();
+            if ((int) $request['company_id'] !== (int) $cid) {
+                return ['success' => false, 'error' => 'Richiesta non appartiene all\'azienda attiva'];
+            }
+        }
+        if ($request['leave_type'] !== 'malattia') {
+            return ['success' => false, 'error' => 'Operazione valida solo per richieste di malattia'];
+        }
+        Database::update('leave_requests', ['certificate_waived' => $waived ? 1 : 0], 'id = ?', [$requestId]);
+        self::logAction($waived ? 'leave_sick_cert_waived' : 'leave_sick_cert_required', $requestId, $request, []);
+        return ['success' => true];
     }
 
     /**
