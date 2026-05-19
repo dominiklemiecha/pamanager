@@ -397,7 +397,108 @@ foreach ($__events as $ev) {
 }
 .cal-fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-/* Date/time pickers stilizzati */
+/* Date/time pickers custom */
+.cal-pick-wrap { position: relative; }
+.cal-pick-row { display: flex; align-items: center; gap: 8px; }
+.cal-pick-sep { color: #94a3b8; font-weight: 600; padding: 0 2px; }
+.cal-pill {
+    width: 100%;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 11px 14px;
+    border: 1px solid var(--cal-line);
+    border-radius: 12px;
+    background: white;
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    color: #1e1e2f;
+    cursor: pointer; transition: all .12s ease;
+}
+.cal-pill svg:first-child { color: #0b3aa4; flex-shrink: 0; }
+.cal-pill:hover { border-color: #0b3aa4; }
+.cal-pill.is-open { border-color: #0b3aa4; box-shadow: 0 0 0 3px rgba(11,58,164,0.10); }
+
+.cal-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: white;
+    border: 1px solid var(--cal-line);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15,23,42,0.12);
+    padding: 12px;
+    z-index: 1100;
+    max-height: 280px;
+}
+.cal-pop[hidden] { display: none !important; }
+
+/* Mini calendario */
+.cal-pop-date { padding: 14px; min-width: 280px; }
+.cal-mini-h {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+}
+.cal-mini-label {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700;
+    color: #1e1e2f; text-transform: capitalize;
+}
+.cal-mini-nav {
+    width: 28px; height: 28px;
+    border: 1px solid var(--cal-line);
+    border-radius: 50%;
+    background: white; color: #475569;
+    cursor: pointer; font-size: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .12s ease;
+}
+.cal-mini-nav:hover { border-color: #0b3aa4; color: #0b3aa4; }
+.cal-mini-dows {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 2px; margin-bottom: 6px;
+}
+.cal-mini-dows span {
+    text-align: center; font-size: 10px; font-weight: 700;
+    color: #94a3b8; text-transform: uppercase;
+    padding: 4px 0;
+}
+.cal-mini-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+}
+.cal-mini-cell {
+    aspect-ratio: 1;
+    border: none; background: transparent;
+    border-radius: 8px;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    color: #1e1e2f; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .1s ease;
+}
+.cal-mini-cell:hover:not(:disabled):not(.is-empty) { background: rgba(11,58,164,0.08); color: #0b3aa4; }
+.cal-mini-cell.is-empty { color: #cbd5e0; cursor: default; }
+.cal-mini-cell.is-other-month { color: #cbd5e0; }
+.cal-mini-cell.is-today { background: rgba(11,58,164,0.08); color: #0b3aa4; }
+.cal-mini-cell.is-selected {
+    background: #1e1e2f !important; color: white !important;
+}
+
+/* Time list */
+.cal-pop-time { padding: 6px; overflow-y: auto; }
+.cal-time-opt {
+    width: 100%;
+    padding: 8px 14px;
+    border: none; background: transparent;
+    text-align: left;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    color: #475569; cursor: pointer;
+    border-radius: 8px;
+    transition: all .1s ease;
+}
+.cal-time-opt:hover { background: rgba(11,58,164,0.06); color: #0b3aa4; }
+.cal-time-opt.is-selected { background: #1e1e2f; color: white; }
+.cal-time-opt.is-suggested {
+    font-size: 11px; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    pointer-events: none;
+    padding: 8px 14px 4px;
+}
+
 .cal-date-presets {
     display: flex; gap: 6px; flex-wrap: wrap;
     margin-bottom: 10px;
@@ -724,22 +825,48 @@ foreach ($__events as $ev) {
                         <button type="button" class="cal-preset" data-day="1">Domani</button>
                         <button type="button" class="cal-preset" data-day="next-mon">Lun prossimo</button>
                     </div>
-                    <div class="cal-when">
-                        <div class="cal-when-field">
-                            <span class="cal-when-ic">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            </span>
-                            <input type="date" id="calDate" required>
-                        </div>
-                        <div class="cal-when-field">
-                            <span class="cal-when-ic">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            </span>
-                            <input type="time" id="calTimeStart" required step="900">
-                            <span class="cal-when-sep">→</span>
-                            <input type="time" id="calTimeEnd" required step="900">
+
+                    <!-- Date pill -->
+                    <div class="cal-pick-wrap">
+                        <button type="button" class="cal-pill cal-pill-date" id="calDateBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span id="calDateLabel">Seleziona data</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-left:auto;color:#94a3b8;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="cal-pop cal-pop-date" id="calDatePop" hidden>
+                            <div class="cal-mini-h">
+                                <button type="button" class="cal-mini-nav" id="calMiniPrev">‹</button>
+                                <span class="cal-mini-label" id="calMiniLabel"></span>
+                                <button type="button" class="cal-mini-nav" id="calMiniNext">›</button>
+                            </div>
+                            <div class="cal-mini-dows">
+                                <span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span>
+                            </div>
+                            <div class="cal-mini-grid" id="calMiniGrid"></div>
                         </div>
                     </div>
+
+                    <!-- Time pills -->
+                    <div class="cal-pick-row">
+                        <div class="cal-pick-wrap" style="flex:1;">
+                            <button type="button" class="cal-pill" id="calT1Btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                <span id="calT1Label">--:--</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-left:auto;color:#94a3b8;"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="cal-pop cal-pop-time" id="calT1Pop" hidden></div>
+                        </div>
+                        <span class="cal-pick-sep">→</span>
+                        <div class="cal-pick-wrap" style="flex:1;">
+                            <button type="button" class="cal-pill" id="calT2Btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                <span id="calT2Label">--:--</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-left:auto;color:#94a3b8;"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="cal-pop cal-pop-time" id="calT2Pop" hidden></div>
+                        </div>
+                    </div>
+
                     <div class="cal-duration-chips">
                         <button type="button" class="cal-chip" data-mins="30">30 min</button>
                         <button type="button" class="cal-chip" data-mins="60">1 ora</button>
@@ -829,22 +956,162 @@ foreach ($__events as $ev) {
     let selectedParts = []; // {user_type, user_id, name, photo}
     let editingEventId = null;
 
-    const dateEl  = document.getElementById('calDate');
-    const t1El    = document.getElementById('calTimeStart');
-    const t2El    = document.getElementById('calTimeEnd');
     const startHidden = document.getElementById('calStart');
     const endHidden   = document.getElementById('calEnd');
 
     function pad(n) { return String(n).padStart(2, '0'); }
     function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
     function fmtTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
-    function fmtDateTime(d) { return fmtDate(d) + ' ' + fmtTime(d) + ':00'; }
 
-    function syncHidden() {
-        if (!dateEl.value || !t1El.value || !t2El.value) return;
-        startHidden.value = dateEl.value + ' ' + t1El.value + ':00';
-        endHidden.value   = dateEl.value + ' ' + t2El.value + ':00';
+    const MONTH_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    const DOW_IT   = ['dom','lun','mar','mer','gio','ven','sab'];
+
+    // Stato custom picker
+    const state = {
+        date: null,    // 'YYYY-MM-DD'
+        t1:   null,    // 'HH:MM'
+        t2:   null,    // 'HH:MM'
+        miniMonth: null, // Date dell'1 del mese visualizzato nel mini-cal
+    };
+
+    function renderDateLabel() {
+        const lbl = document.getElementById('calDateLabel');
+        if (!state.date) { lbl.textContent = 'Seleziona data'; return; }
+        const d = new Date(state.date + 'T00:00:00');
+        lbl.textContent = DOW_IT[d.getDay()] + ' ' + d.getDate() + ' ' + MONTH_IT[d.getMonth()];
     }
+    function renderTimeLabel(which) {
+        const lbl = document.getElementById(which === 1 ? 'calT1Label' : 'calT2Label');
+        const val = which === 1 ? state.t1 : state.t2;
+        lbl.textContent = val || '--:--';
+    }
+    function syncHidden() {
+        if (!state.date || !state.t1 || !state.t2) return;
+        startHidden.value = state.date + ' ' + state.t1 + ':00';
+        endHidden.value   = state.date + ' ' + state.t2 + ':00';
+    }
+
+    // ===== MINI CALENDARIO =====
+    function renderMini() {
+        const grid = document.getElementById('calMiniGrid');
+        const label = document.getElementById('calMiniLabel');
+        const m = state.miniMonth;
+        label.textContent = MONTH_IT[m.getMonth()] + ' ' + m.getFullYear();
+        grid.innerHTML = '';
+
+        const firstDow = (m.getDay() || 7) - 1; // 0=lun..6=dom
+        const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+        const todayStr = fmtDate(new Date());
+
+        // Empty cells prima del giorno 1
+        for (let i = 0; i < firstDow; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cal-mini-cell is-empty';
+            grid.appendChild(cell);
+        }
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dStr = m.getFullYear() + '-' + pad(m.getMonth()+1) + '-' + pad(day);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cal-mini-cell';
+            if (dStr === todayStr) btn.classList.add('is-today');
+            if (dStr === state.date) btn.classList.add('is-selected');
+            btn.textContent = day;
+            btn.addEventListener('click', () => {
+                state.date = dStr;
+                renderDateLabel();
+                renderMini();
+                syncHidden();
+                closePops();
+            });
+            grid.appendChild(btn);
+        }
+    }
+    document.getElementById('calMiniPrev').addEventListener('click', () => {
+        state.miniMonth = new Date(state.miniMonth.getFullYear(), state.miniMonth.getMonth() - 1, 1);
+        renderMini();
+    });
+    document.getElementById('calMiniNext').addEventListener('click', () => {
+        state.miniMonth = new Date(state.miniMonth.getFullYear(), state.miniMonth.getMonth() + 1, 1);
+        renderMini();
+    });
+
+    // ===== TIME PICKER =====
+    function renderTimeList(which) {
+        const pop = document.getElementById(which === 1 ? 'calT1Pop' : 'calT2Pop');
+        pop.innerHTML = '';
+        const current = which === 1 ? state.t1 : state.t2;
+        for (let h = 7; h < 22; h++) {
+            for (let m = 0; m < 60; m += 15) {
+                const v = pad(h) + ':' + pad(m);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'cal-time-opt';
+                if (v === current) btn.classList.add('is-selected');
+                btn.textContent = v;
+                btn.addEventListener('click', () => {
+                    if (which === 1) {
+                        state.t1 = v;
+                        // Se end < start, aggiorna end di +1h
+                        if (!state.t2 || state.t2 <= state.t1) {
+                            const [hh, mm] = v.split(':').map(Number);
+                            const end = new Date(); end.setHours(hh, mm + 60, 0, 0);
+                            state.t2 = fmtTime(end);
+                            renderTimeLabel(2);
+                            renderTimeList(2);
+                        }
+                        renderTimeLabel(1);
+                    } else {
+                        state.t2 = v;
+                        renderTimeLabel(2);
+                    }
+                    renderTimeList(which);
+                    syncHidden();
+                    closePops();
+                });
+                pop.appendChild(btn);
+            }
+        }
+        // Scroll to selected
+        if (current) {
+            setTimeout(() => {
+                const sel = pop.querySelector('.is-selected');
+                if (sel) sel.scrollIntoView({ block: 'center' });
+            }, 0);
+        }
+    }
+
+    function closePops() {
+        document.querySelectorAll('.cal-pop').forEach(p => p.hidden = true);
+        document.querySelectorAll('.cal-pill').forEach(p => p.classList.remove('is-open'));
+    }
+    function openPop(btnId, popId, before) {
+        const isOpen = !document.getElementById(popId).hidden;
+        closePops();
+        if (isOpen) return;
+        if (before) before();
+        document.getElementById(popId).hidden = false;
+        document.getElementById(btnId).classList.add('is-open');
+    }
+
+    document.getElementById('calDateBtn').addEventListener('click', () => {
+        openPop('calDateBtn', 'calDatePop', () => {
+            if (!state.miniMonth) {
+                const base = state.date ? new Date(state.date + 'T00:00:00') : new Date();
+                state.miniMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+            }
+            renderMini();
+        });
+    });
+    document.getElementById('calT1Btn').addEventListener('click', () => {
+        openPop('calT1Btn', 'calT1Pop', () => renderTimeList(1));
+    });
+    document.getElementById('calT2Btn').addEventListener('click', () => {
+        openPop('calT2Btn', 'calT2Pop', () => renderTimeList(2));
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.cal-pick-wrap')) closePops();
+    });
 
     window.calOpenModal = function(eventId) {
         editingEventId = null;
@@ -859,12 +1126,17 @@ foreach ($__events as $ev) {
 
         // Default: oggi, prossima mezz'ora, durata 1h
         const now = new Date();
-        const round = new Date(Math.ceil(now.getTime() / (30*60*1000)) * (30*60*1000));
+        const round = new Date(Math.ceil(now.getTime() / (15*60*1000)) * (15*60*1000));
         const end = new Date(round.getTime() + 60*60*1000);
-        dateEl.value = fmtDate(round);
-        t1El.value = fmtTime(round);
-        t2El.value = fmtTime(end);
+        state.date = fmtDate(round);
+        state.t1   = fmtTime(round);
+        state.t2   = fmtTime(end);
+        state.miniMonth = new Date(round.getFullYear(), round.getMonth(), 1);
+        renderDateLabel();
+        renderTimeLabel(1);
+        renderTimeLabel(2);
         syncHidden();
+        closePops();
 
         // Pulisci stati chip/preset
         document.querySelectorAll('.cal-preset, .cal-chip').forEach(b => b.classList.remove('active'));
@@ -884,10 +1156,12 @@ foreach ($__events as $ev) {
             } else if (btn.dataset.day === '1') {
                 d.setDate(d.getDate() + 1);
             } else if (btn.dataset.day === 'next-mon') {
-                const dow = d.getDay() || 7; // 1=lun..7=dom
+                const dow = d.getDay() || 7;
                 d.setDate(d.getDate() + (8 - dow));
             }
-            dateEl.value = fmtDate(d);
+            state.date = fmtDate(d);
+            state.miniMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+            renderDateLabel();
             syncHidden();
         });
     });
@@ -898,18 +1172,15 @@ foreach ($__events as $ev) {
             document.querySelectorAll('.cal-chip').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const mins = parseInt(btn.dataset.mins, 10);
-            if (!t1El.value) return;
-            const [hh, mm] = t1El.value.split(':').map(Number);
-            const start = new Date();
-            start.setHours(hh, mm, 0, 0);
+            if (!state.t1) return;
+            const [hh, mm] = state.t1.split(':').map(Number);
+            const start = new Date(); start.setHours(hh, mm, 0, 0);
             const end = new Date(start.getTime() + mins * 60000);
-            t2El.value = fmtTime(end);
+            state.t2 = fmtTime(end);
+            renderTimeLabel(2);
             syncHidden();
         });
     });
-
-    // Sync hidden quando l'utente cambia data/ora manualmente
-    [dateEl, t1El, t2El].forEach(el => el && el.addEventListener('change', syncHidden));
 
     // Search contatti
     const contactSearch = document.getElementById('calContactSearch');
