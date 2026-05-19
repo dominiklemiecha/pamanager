@@ -42,6 +42,7 @@
 <script src="<?php echo $__baseUrl; ?>/assets/js/app.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo $__baseUrl; ?>/assets/js/push.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo $__baseUrl; ?>/assets/js/availability-toggle.js?v=<?php echo time(); ?>"></script>
+<script src="<?php echo $__baseUrl; ?>/assets/js/availability-heatmap.js?v=<?php echo time(); ?>"></script>
 
 <script>
 (function() {
