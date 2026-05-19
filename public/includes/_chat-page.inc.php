@@ -217,10 +217,28 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     body:has(.chat-shell.has-active) .bottom-nav,
     body:has(.chat-shell.has-active) .powered { display: none !important; }
 
+    /* Lock totale dello scroll body/html sotto la chat attiva: la pagina non scrolla,
+       solo .thread-messages scorre verticalmente */
+    html:has(.chat-shell.has-active),
+    body:has(.chat-shell.has-active) {
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden !important;
+        overscroll-behavior: contain;
+        position: relative;
+    }
+    body:has(.chat-shell.has-active) .app,
+    body:has(.chat-shell.has-active) .app-main {
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
+    }
+
     .chat-shell.has-active {
         height: calc(100dvh - var(--header-h, 60px));
         min-height: 0;
         border-radius: 0;
+        overflow: hidden;
     }
     .chat-shell.has-active .chat-panel {
         border-radius: 0;
