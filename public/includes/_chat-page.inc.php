@@ -205,9 +205,30 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     .chat-info-panel { display: none; }
 }
 @media (max-width: 820px) {
-    .chat-shell { grid-template-columns: minmax(0, 1fr); gap: 0; height: calc(100vh - 140px); }
+    .chat-shell { grid-template-columns: minmax(0, 1fr); gap: 0; height: calc(100dvh - 140px); }
     .chat-shell:not(.has-active) .chat-thread { display: none; }
     .chat-shell.has-active .chat-sidebar-panel { display: none; }
+
+    /* ===== Modalita' "WhatsApp-style" per chat con conversazione attiva =====
+       - app-content senza padding/margini
+       - bottom-nav nascosta (la chat occupa fino al fondo)
+       - chat-shell ha altezza 100dvh meno header: dvh si adatta alla tastiera */
+    body:has(.chat-shell.has-active) .app-content { padding: 0 !important; max-width: none !important; }
+    body:has(.chat-shell.has-active) .bottom-nav,
+    body:has(.chat-shell.has-active) .powered { display: none !important; }
+
+    .chat-shell.has-active {
+        height: calc(100dvh - var(--header-h, 60px));
+        min-height: 0;
+        border-radius: 0;
+    }
+    .chat-shell.has-active .chat-panel {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        height: 100%;
+    }
 }
 
 .chat-panel {
