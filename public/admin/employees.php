@@ -204,6 +204,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             break;
 
+        case 'update_balance_inline':
+            if ($id) {
+                $emp = Employee::getById($id);
+                if (!$emp) {
+                    $error = 'Dipendente non trovato';
+                    break;
+                }
+                // Aggiorna CCNL + override sul dipendente
+                $payload = [
+                    'ccnl_id' => !empty($_POST['ccnl_id']) ? (int) $_POST['ccnl_id'] : null,
+                    'ferie_year_override'    => isset($_POST['ferie_year_override']) && $_POST['ferie_year_override'] !== ''
+                        ? (float) str_replace(',', '.', $_POST['ferie_year_override']) : null,
+                    'permessi_year_override' => isset($_POST['permessi_year_override']) && $_POST['permessi_year_override'] !== ''
+                        ? (float) str_replace(',', '.', $_POST['permessi_year_override']) : null,
+                ];
+                Employee::update($id, $payload);
+
+                // Salva saldi per ferie/permesso
+                $companyId = (int) $emp['company_id'];
+                $userId    = (int) (Auth::getUser()['id'] ?? 0);
+                $year      = (int) ($_POST['year'] ?? date('Y'));
+                foreach (LeaveBalance::TYPES as $bt) {
+                    $b = $_POST['balance'][$bt] ?? null;
+                    if (!$b) continue;
+                    $entitled = (float) str_replace(',', '.', (string) ($b['entitled'] ?? '0'));
+                    $carried  = (float) str_replace(',', '.', (string) ($b['carried']  ?? '0'));
+                    $manual   = (float) str_replace(',', '.', (string) ($b['manual_used'] ?? '0'));
+                    LeaveBalance::save($id, $companyId, $year, $bt, $entitled, $carried, $manual, null, $userId);
+                }
+                header('Location: employees.php?action=view&id=' . $id . '&message=balance_updated');
+                exit;
+            }
+            break;
+
         case 'delete':
             if ($id) {
                 $result = Employee::delete($id);
@@ -262,7 +296,8 @@ if (isset($_GET['message'])) {
     } else {
         $messages = [
             'updated' => 'Dipendente aggiornato con successo',
-            'deleted' => 'Dipendente eliminato con successo'
+            'deleted' => 'Dipendente eliminato con successo',
+            'balance_updated' => 'Saldi ferie/permessi aggiornati',
         ];
         $message = $messages[$_GET['message']] ?? '';
     }
@@ -1127,7 +1162,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <div class="emp-c-card">
                     <div class="emp-c-card-h">
                         <h3>Ferie e permessi · <?= date('Y') ?></h3>
-                        <span class="hint">Anno corrente</span>
+                        <button type="button" class="emp-edit-balance-btn" onclick="empOpenBalanceModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Modifica
+                        </button>
                     </div>
                     <div class="emp-c-card-b">
                         <div class="emp-gauges">
@@ -1183,6 +1221,189 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         </div>
                     </div>
                 </div>
+
+                <?php
+                $__ccnlList = LeaveBalance::availableCcnls((int)$employee['company_id']);
+                $__compDef = Database::fetchOne("SELECT default_ccnl_id FROM companies WHERE id = ?", [(int)$employee['company_id']]);
+                $__compDefId = $__compDef['default_ccnl_id'] ?? null;
+                $__compDefName = '';
+                foreach ($__ccnlList as $cc) {
+                    if ((int)$cc['id'] === (int)$__compDefId) { $__compDefName = $cc['name']; break; }
+                }
+                $bF = $__balances['ferie']    ?? ['entitled'=>0,'carried'=>0,'manual_used'=>0];
+                $bP = $__balances['permesso'] ?? ['entitled'=>0,'carried'=>0,'manual_used'=>0];
+                $fmtNum = fn($v) => rtrim(rtrim(number_format((float)$v, 2, ',', ''), '0'), ',');
+                ?>
+                <div class="emp-balance-modal-overlay" id="empBalanceModal" onclick="if(event.target===this) empCloseBalanceModal()">
+                    <div class="emp-balance-modal">
+                        <div class="emp-balance-modal-h">
+                            <h3>Modifica saldi <?= date('Y') ?></h3>
+                            <button type="button" class="emp-balance-modal-close" onclick="empCloseBalanceModal()">&times;</button>
+                        </div>
+                        <form method="POST" action="employees.php">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="update_balance_inline">
+                            <input type="hidden" name="id" value="<?= (int)$employee['id'] ?>">
+                            <input type="hidden" name="year" value="<?= date('Y') ?>">
+
+                            <div class="emp-balance-modal-b">
+                                <div class="emp-balance-info">
+                                    💡 <strong>Prima volta?</strong> Inserisci solo il <strong>"Residuo riportato"</strong> con il valore attuale del dipendente (es. <code>38,45</code>). Maturazione mensile e utilizzo dalle richieste si aggiungono automaticamente.
+                                </div>
+
+                                <div class="emp-balance-fg">
+                                    <label for="bm_ccnl">CCNL applicato</label>
+                                    <select id="bm_ccnl" name="ccnl_id">
+                                        <option value="">— eredita default azienda <?= $__compDefName ? '('. htmlspecialchars($__compDefName) .')' : '(non impostato)' ?> —</option>
+                                        <?php foreach ($__ccnlList as $cc): ?>
+                                            <option value="<?= (int)$cc['id'] ?>" <?= (int)($employee['ccnl_id'] ?? 0) === (int)$cc['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($cc['name']) ?> · <?= rtrim(rtrim(number_format($cc['ferie_days_year'], 1, ',', '.'), '0'), ',') ?>gg / <?= rtrim(rtrim(number_format($cc['permessi_hours_year'], 1, ',', '.'), '0'), ',') ?>h
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="emp-balance-grid">
+                                    <div class="emp-balance-fg">
+                                        <label>Override ferie/anno (giorni)</label>
+                                        <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                               name="ferie_year_override"
+                                               value="<?= $employee['ferie_year_override'] !== null ? htmlspecialchars($fmtNum($employee['ferie_year_override'])) : '' ?>"
+                                               placeholder="lascia vuoto: usa CCNL">
+                                    </div>
+                                    <div class="emp-balance-fg">
+                                        <label>Override permessi/anno (ore)</label>
+                                        <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                               name="permessi_year_override"
+                                               value="<?= $employee['permessi_year_override'] !== null ? htmlspecialchars($fmtNum($employee['permessi_year_override'])) : '' ?>"
+                                               placeholder="lascia vuoto: usa CCNL">
+                                    </div>
+                                </div>
+
+                                <?php foreach ([['ferie','Ferie','giorni',$bF],['permesso','Permessi','ore',$bP]] as $row):
+                                    [$bt, $lbl, $unit, $b] = $row;
+                                ?>
+                                <div class="emp-balance-section">
+                                    <strong><?= $lbl ?> (<?= $unit ?>)</strong>
+                                    <div class="emp-balance-fields">
+                                        <div class="emp-balance-fg">
+                                            <label>Residuo riportato</label>
+                                            <input type="text" inputmode="decimal" pattern="-?[0-9]+([.,][0-9]+)?"
+                                                   name="balance[<?= $bt ?>][carried]"
+                                                   value="<?= htmlspecialchars($fmtNum($b['carried'] ?? 0)) ?>"
+                                                   placeholder="es. 38,45">
+                                        </div>
+                                        <div class="emp-balance-fg">
+                                            <label>Maturato <small>(auto)</small></label>
+                                            <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                                   name="balance[<?= $bt ?>][entitled]"
+                                                   value="<?= htmlspecialchars($fmtNum($b['entitled'] ?? 0)) ?>">
+                                        </div>
+                                        <div class="emp-balance-fg">
+                                            <label>Correttivo manuale usati</label>
+                                            <input type="text" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                                                   name="balance[<?= $bt ?>][manual_used]"
+                                                   value="<?= htmlspecialchars($fmtNum($b['manual_used'] ?? 0)) ?>">
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <div class="emp-balance-modal-f">
+                                <button type="button" class="emp-balance-btn emp-balance-btn-ghost" onclick="empCloseBalanceModal()">Annulla</button>
+                                <button type="submit" class="emp-balance-btn emp-balance-btn-primary">Salva saldi</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <style>
+                .emp-edit-balance-btn {
+                    display: inline-flex; align-items: center; gap: 6px;
+                    background: white; border: 1px solid #e6e8f0; color: #0b3aa4;
+                    padding: 6px 12px; border-radius: 8px;
+                    font-family: inherit; font-size: 12px; font-weight: 600;
+                    cursor: pointer; transition: all .12s ease;
+                }
+                .emp-edit-balance-btn:hover { border-color: #0b3aa4; background: rgba(11,58,164,0.04); }
+
+                .emp-balance-modal-overlay {
+                    position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+                    display: none; align-items: center; justify-content: center; z-index: 1000;
+                    padding: 16px;
+                }
+                .emp-balance-modal-overlay.show { display: flex; }
+                .emp-balance-modal {
+                    background: white; border-radius: 16px; max-width: 560px; width: 100%;
+                    max-height: 92vh; overflow-y: auto;
+                    box-shadow: 0 24px 64px rgba(15,23,42,0.25);
+                }
+                .emp-balance-modal-h {
+                    padding: 18px 22px; border-bottom: 1px solid #e6e8f0;
+                    display: flex; align-items: center; justify-content: space-between;
+                }
+                .emp-balance-modal-h h3 {
+                    margin: 0; font-family: 'Host Grotesk', sans-serif;
+                    font-size: 16px; font-weight: 700; color: #1e1e2f;
+                }
+                .emp-balance-modal-close {
+                    background: transparent; border: none; cursor: pointer;
+                    color: #94a3b8; font-size: 22px; line-height: 1;
+                    width: 28px; height: 28px;
+                }
+                .emp-balance-modal-b { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+                .emp-balance-info {
+                    font-size: 12.5px; color: #475569;
+                    background: #eff6ff; border-left: 3px solid #0b3aa4;
+                    padding: 10px 14px; border-radius: 6px;
+                    line-height: 1.5;
+                }
+                .emp-balance-info code { background: white; padding: 1px 6px; border-radius: 4px; }
+                .emp-balance-fg label {
+                    display: block; font-size: 11px; font-weight: 600; color: #475569;
+                    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+                }
+                .emp-balance-fg input, .emp-balance-fg select {
+                    width: 100%; padding: 10px 12px;
+                    border: 1px solid #e6e8f0; border-radius: 8px;
+                    font-family: inherit; font-size: 14px; background: white;
+                }
+                .emp-balance-fg input:focus, .emp-balance-fg select:focus {
+                    outline: none; border-color: #0b3aa4;
+                    box-shadow: 0 0 0 3px rgba(11,58,164,0.10);
+                }
+                .emp-balance-grid {
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+                }
+                .emp-balance-section {
+                    background: #f8fafc; padding: 14px;
+                    border: 1px solid #e6e8f0; border-radius: 10px;
+                }
+                .emp-balance-section strong {
+                    display: block; margin-bottom: 10px;
+                    font-size: 13px; color: #1e1e2f;
+                }
+                .emp-balance-fields { display: flex; flex-direction: column; gap: 10px; }
+                .emp-balance-modal-f {
+                    padding: 14px 22px; border-top: 1px solid #e6e8f0;
+                    display: flex; justify-content: flex-end; gap: 8px;
+                }
+                .emp-balance-btn {
+                    padding: 9px 18px; border-radius: 8px; border: 1px solid transparent;
+                    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+                }
+                .emp-balance-btn-ghost { background: white; color: #475569; border-color: #e6e8f0; }
+                .emp-balance-btn-ghost:hover { border-color: #0b3aa4; color: #0b3aa4; }
+                .emp-balance-btn-primary { background: #0b3aa4; color: white; }
+                .emp-balance-btn-primary:hover { background: #082b7b; }
+                @media (max-width: 640px) {
+                    .emp-balance-grid { grid-template-columns: 1fr; }
+                }
+                </style>
+                <script>
+                function empOpenBalanceModal() { document.getElementById('empBalanceModal').classList.add('show'); }
+                function empCloseBalanceModal() { document.getElementById('empBalanceModal').classList.remove('show'); }
+                </script>
 
                 <div class="emp-c-card">
                     <div class="emp-c-card-h">
