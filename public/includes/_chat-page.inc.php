@@ -232,6 +232,10 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
         height: 100dvh;
         max-height: 100dvh;
         overflow: hidden;
+        padding-bottom: 0 !important;  /* annulla 80px riservati per bottom-nav (employee) */
+    }
+    body.employee-body:has(.chat-shell.has-active) .app-main {
+        padding-bottom: 0 !important;
     }
 
     .chat-shell.has-active {
