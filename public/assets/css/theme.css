@@ -1595,6 +1595,21 @@ body.login-page {
     gap: 4px;
 }
 .heatmap-stack > .heatmap-stack-avatar { margin-left: 0 !important; }
+
+/* Mobile: avatars collassati/overlap dentro il blocco (no spread) */
+@media (max-width: 820px) {
+    .heatmap-stack {
+        justify-content: flex-start;
+        gap: 0;
+    }
+    .heatmap-stack > .heatmap-stack-avatar { margin-left: -14px !important; }
+    .heatmap-stack > .heatmap-stack-avatar:first-child { margin-left: 0 !important; }
+    /* Fan-out su tap dello stack mobile (riabilita translateX) */
+    .heatmap-stack:hover .heatmap-stack-avatar,
+    .heatmap-stack:focus-within .heatmap-stack-avatar {
+        transform: translateX(calc(var(--avatar-i, 0) * var(--avatar-shift, 0px)));
+    }
+}
 .heatmap-stack-avatar.is-hidden { display: none !important; }
 
 /* Giorno non lavorativo (es. sab/dom se config Mon-Fri) */
