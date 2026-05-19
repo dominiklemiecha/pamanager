@@ -32,54 +32,31 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
     </div>
 </div>
 
-<nav class="cfg-tabs" aria-label="Configurazione">
+<?php include __DIR__ . '/_cd-tabs.inc.php'; ?>
+<nav class="cd-tabs" aria-label="Configurazione" style="margin-bottom: 18px;">
     <a href="<?= $__cfgBaseUrl ?>/profile.php"
-       class="cfg-tab <?= $__cfgPage === 'profile' ? 'active' : '' ?>">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+       class="cd-tab <?= $__cfgPage === 'profile' ? 'active' : '' ?>">
         Profilo
     </a>
     <a href="<?= $__cfgBaseUrl ?>/password-resets.php"
-       class="cfg-tab <?= $__cfgPage === 'password-resets' ? 'active' : '' ?>">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+       class="cd-tab <?= $__cfgPage === 'password-resets' ? 'active' : '' ?>">
         Reset Password
+        <?php if (!empty($pendingResets) && (int)$pendingResets > 0): ?>
+            <span class="cd-tab-badge"><?= (int)$pendingResets ?></span>
+        <?php endif; ?>
     </a>
     <a href="<?= $__cfgBaseUrl ?>/smtp-settings.php"
-       class="cfg-tab <?= $__cfgPage === 'smtp-settings' ? 'active' : '' ?>">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+       class="cd-tab <?= $__cfgPage === 'smtp-settings' ? 'active' : '' ?>">
         Email / SMTP
     </a>
     <a href="<?= $__cfgBaseUrl ?>/work-schedule.php"
-       class="cfg-tab <?= $__cfgPage === 'work-schedule' ? 'active' : '' ?>">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+       class="cd-tab <?= $__cfgPage === 'work-schedule' ? 'active' : '' ?>">
         Orario lavorativo
     </a>
 </nav>
 
 <style>
 .cfg-hero { margin-bottom: 16px; }
-.cfg-tabs {
-    display: flex; gap: 4px;
-    margin-bottom: 22px;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 6px;
-    overflow-x: auto;
-}
-.cfg-tab {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 9px 16px;
-    font-size: 13px; font-weight: 600;
-    color: #64748b;
-    text-decoration: none;
-    border-radius: 8px;
-    transition: all .12s ease;
-    white-space: nowrap;
-}
-.cfg-tab:hover { background: #f1f5f9; color: #0f172a; text-decoration: none; }
-.cfg-tab.active { background: #0b3aa4; color: white; }
-.cfg-tab.active:hover { background: #0b3aa4; color: white; }
-.cfg-tab svg { width: 16px; height: 16px; }
 
 /* Shared form/card patterns for config pages */
 .cfg-card {

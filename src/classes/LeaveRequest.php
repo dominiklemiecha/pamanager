@@ -262,6 +262,9 @@ class LeaveRequest
                 'notes' => trim($data['notes'] ?? '') ?: null,
                 'attachment_path' => $data['attachment_path'] ?? null,
                 'attachment_name' => $data['attachment_name'] ?? null,
+                'protocol_number' => isset($data['protocol_number']) && trim((string)$data['protocol_number']) !== ''
+                    ? trim((string)$data['protocol_number'])
+                    : null,
                 'status' => 'pending'
             ]);
 
@@ -619,6 +622,135 @@ class LeaveRequest
             'request' => $request,
             'file_path' => $request['attachment_path'],
             'filename' => $request['attachment_name'] ?? basename($request['attachment_path']),
+            'mime' => $mime
+        ];
+    }
+
+    /**
+     * Salva i documenti malattia (numero protocollo + file certificato) su una richiesta esistente.
+     * Verifica ownership: il dipendente puo' aggiornare solo le proprie richieste pending.
+     */
+    public static function saveSickDocs(int $requestId, int $employeeId, ?string $protocolNumber, ?array $certFile): array
+    {
+        $request = self::getById($requestId);
+        if (!$request) {
+            return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if ((int) $request['employee_id'] !== $employeeId) {
+            return ['success' => false, 'error' => 'Accesso non autorizzato'];
+        }
+        if ($request['leave_type'] !== 'malattia') {
+            return ['success' => false, 'error' => 'I documenti sono richiesti solo per le malattie'];
+        }
+        if (!in_array($request['status'], ['pending', 'approved'], true)) {
+            return ['success' => false, 'error' => 'Non puoi aggiornare richieste in questo stato'];
+        }
+
+        $update = [];
+
+        $protocolNumber = $protocolNumber !== null ? trim($protocolNumber) : null;
+        if ($protocolNumber !== null && $protocolNumber !== '') {
+            $update['protocol_number'] = $protocolNumber;
+        }
+
+        if (is_array($certFile) && isset($certFile['error']) && $certFile['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($certFile['error'] !== UPLOAD_ERR_OK) {
+                return ['success' => false, 'error' => 'Errore durante l\'upload del certificato'];
+            }
+            if ($certFile['size'] > MAX_FILE_SIZE) {
+                return ['success' => false, 'error' => 'Certificato troppo grande'];
+            }
+            $ext = strtolower(pathinfo($certFile['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, ALLOWED_EXTENSIONS)) {
+                return ['success' => false, 'error' => 'Tipo file certificato non consentito'];
+            }
+            $dir = STORAGE_PATH . '/leave_requests';
+            if (!is_dir($dir)) { mkdir($dir, 0755, true); }
+            $fileName = 'cert_' . bin2hex(random_bytes(12)) . '.' . $ext;
+            $path = $dir . '/' . $fileName;
+            if (!move_uploaded_file($certFile['tmp_name'], $path)) {
+                return ['success' => false, 'error' => 'Errore salvataggio certificato'];
+            }
+            if (!empty($request['certificate_path']) && file_exists($request['certificate_path'])) {
+                @unlink($request['certificate_path']);
+            }
+            $update['certificate_path'] = $path;
+            $update['certificate_name'] = $certFile['name'];
+        }
+
+        if (empty($update)) {
+            return ['success' => false, 'error' => 'Nessun documento fornito'];
+        }
+
+        Database::update('leave_requests', $update, 'id = ?', [$requestId]);
+        self::logAction('leave_sick_docs_updated', $requestId, $request, array_keys($update));
+        return ['success' => true];
+    }
+
+    /**
+     * Lista richieste di malattia approvate/pending senza protocollo o certificato da piu' di N ore.
+     * Scope tenant.
+     */
+    public static function sickPendingDocs(int $hoursOld = 24, ?int $employeeId = null): array
+    {
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $sql = "SELECT lr.*, e.first_name, e.last_name
+                FROM leave_requests lr
+                JOIN employees e ON e.id = lr.employee_id
+                WHERE lr.company_id = ?
+                  AND lr.leave_type = 'malattia'
+                  AND lr.status IN ('pending','approved')
+                  AND (lr.protocol_number IS NULL OR lr.protocol_number = ''
+                       OR lr.certificate_path IS NULL OR lr.certificate_path = '')
+                  AND lr.created_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)";
+        $params = [$cid, $hoursOld];
+        if ($employeeId !== null) {
+            $sql .= " AND lr.employee_id = ?";
+            $params[] = $employeeId;
+        }
+        $sql .= " ORDER BY lr.created_at ASC";
+        return Database::fetchAll($sql, $params);
+    }
+
+    /**
+     * Download del certificato medico. Riusa controlli accesso simili a downloadAttachment.
+     */
+    public static function downloadCertificate(int $id): array
+    {
+        $request = self::getById($id);
+        if (!$request) {
+            return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (empty($request['certificate_path']) || !file_exists($request['certificate_path'])) {
+            return ['success' => false, 'error' => 'Certificato non disponibile'];
+        }
+
+        $user = Auth::getUser();
+        $employee = Auth::getEmployee();
+
+        if ($user) {
+            if ($user['role'] === 'admin_reparto') {
+                $emp = Employee::getById((int) $request['employee_id']);
+                if (!$emp || (int) ($emp['department_id'] ?? 0) !== (int) ($user['department_id'] ?? -1)) {
+                    return ['success' => false, 'error' => 'Accesso non autorizzato'];
+                }
+            }
+        } elseif ($employee) {
+            if ((int) $request['employee_id'] !== (int) $employee['id']) {
+                return ['success' => false, 'error' => 'Accesso non autorizzato'];
+            }
+        } else {
+            return ['success' => false, 'error' => 'Autenticazione richiesta'];
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($request['certificate_path']) ?: 'application/octet-stream';
+
+        return [
+            'success' => true,
+            'request' => $request,
+            'file_path' => $request['certificate_path'],
+            'filename' => $request['certificate_name'] ?? basename($request['certificate_path']),
             'mime' => $mime
         ];
     }

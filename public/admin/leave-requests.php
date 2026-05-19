@@ -34,6 +34,26 @@ if (isset($_GET['download_attachment'])) {
     exit;
 }
 
+// Download certificato malattia
+if (isset($_GET['download_cert'])) {
+    $result = LeaveRequest::downloadCertificate((int) $_GET['download_cert']);
+    if (!$result['success']) {
+        http_response_code(403);
+        exit(htmlspecialchars($result['error']));
+    }
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (function_exists('setDownloadHeaders')) {
+        setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
+    } else {
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: attachment; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+    }
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($result['file_path']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
 
@@ -157,6 +177,12 @@ try {
 
 $pageTitle = 'Ferie e Permessi';
 include dirname(__DIR__) . '/includes/header-admin.php';
+include dirname(__DIR__) . '/includes/_cd-tabs.inc.php';
+
+// Malattie >24h senza protocollo o certificato (banner admin)
+try {
+    $__sickLate = LeaveRequest::sickPendingDocs(24);
+} catch (Throwable $e) { $__sickLate = []; }
 ?>
 
 <style>
@@ -360,6 +386,26 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .lp-type.congedo_mestruale { background: rgba(225,29,72,0.10); color: #e11d48; }
 .lp-type.altro { background: rgba(100,116,139,0.10); color: #475569; }
 .lp-type.chiusura { background: rgba(255,187,85,0.10); color: #e09938; }
+
+.lp-sick-meta {
+    display: inline-block; margin-left: 6px;
+    font-size: 10.5px; font-weight: 600;
+    color: #475569; background: #f1f5f9;
+    padding: 2px 8px; border-radius: 999px;
+    vertical-align: middle;
+}
+.lp-sick-missing {
+    display: inline-block; margin-left: 6px;
+    font-size: 10px; font-weight: 700;
+    color: #92400e; background: #fef3c7;
+    padding: 2px 8px; border-radius: 999px;
+    vertical-align: middle;
+    border: 1px solid #fde68a;
+}
+.lp-sick-missing.is-late {
+    color: #991b1b; background: #fee2e2;
+    border-color: #fecaca;
+}
 
 .lp-status {
     display: inline-flex; align-items: center; gap: 4px;
@@ -716,8 +762,45 @@ include dirname(__DIR__) . '/includes/header-admin.php';
       </div>
     </div>
 
+    <?php if (!empty($__sickLate)): ?>
+    <div class="lr-admin-sick-alert">
+        <div class="lr-admin-sick-alert-ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="lr-admin-sick-alert-body">
+            <strong><?= count($__sickLate) ?> malatti<?= count($__sickLate) === 1 ? 'a' : 'e' ?> senza protocollo o certificato da più di 24 ore</strong>
+            <div>
+                <?php
+                $__names = array_slice(array_map(fn($r) => trim($r['last_name'] . ' ' . $r['first_name']), $__sickLate), 0, 4);
+                echo e(implode(', ', $__names));
+                if (count($__sickLate) > 4) echo ' + ' . (count($__sickLate) - 4) . ' altr' . (count($__sickLate) - 4 === 1 ? 'o' : 'i');
+                ?>
+                · contatta il dipendente per sollecito.
+            </div>
+        </div>
+    </div>
+    <style>
+    .lr-admin-sick-alert {
+        display: flex; align-items: flex-start; gap: 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca; border-left: 4px solid #dc2626;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin: 0 0 14px;
+    }
+    .lr-admin-sick-alert-ic {
+        width: 36px; height: 36px; border-radius: 9px;
+        background: rgba(220,38,38,0.10); color: #b91c1c;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .lr-admin-sick-alert-body strong { color: #991b1b; font-size: 13.5px; }
+    .lr-admin-sick-alert-body div { color: #7f1d1d; font-size: 12px; margin-top: 2px; line-height: 1.4; }
+    </style>
+    <?php endif; ?>
+
     <form method="GET" class="lp-filters">
-        <div class="lp-tabs">
+        <div class="cd-tabs">
             <?php
             $pendingCount = (int) Database::fetchColumn("SELECT COUNT(*) FROM leave_requests WHERE status = 'pending' AND company_id = ?", [$__leaveCid]);
             $tabs = [
@@ -728,8 +811,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             ];
             $deptParam = $filterDept ? '&department=' . $filterDept : '';
             foreach ($tabs as $key => $tab): ?>
-                <a href="?status=<?= $key ?><?= $deptParam ?>" class="lp-tab <?= $filterStatus === $key ? 'active' : '' ?>">
-                    <?= $tab['label'] ?><?php if ($tab['count']): ?><span class="badge"><?= $tab['count'] ?></span><?php endif; ?>
+                <a href="?status=<?= $key ?><?= $deptParam ?>" class="cd-tab <?= $filterStatus === $key ? 'active' : '' ?>">
+                    <?= $tab['label'] ?><?php if ($tab['count']): ?><span class="cd-tab-badge"><?= $tab['count'] ?></span><?php endif; ?>
                 </a>
             <?php endforeach; ?>
         </div>
@@ -783,6 +866,19 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <span class="lp-type <?= $req['leave_type'] ?>">
                                 <?= e(LeaveRequest::LEAVE_TYPES[$req['leave_type']] ?? $req['leave_type']) ?>
                             </span>
+                            <?php if ($req['leave_type'] === 'malattia'):
+                                $__missing = empty($req['protocol_number']) || empty($req['certificate_path']);
+                                $__ageH = !empty($req['created_at']) ? (int) ((time() - strtotime($req['created_at'])) / 3600) : 0;
+                            ?>
+                                <?php if (!empty($req['protocol_number'])): ?>
+                                    <span class="lp-sick-meta" title="Numero protocollo">Prot. <?= e($req['protocol_number']) ?></span>
+                                <?php endif; ?>
+                                <?php if ($__missing): ?>
+                                    <span class="lp-sick-missing <?= $__ageH >= 24 ? 'is-late' : '' ?>" title="<?= $__ageH >= 24 ? 'Mancano documenti da oltre 24h' : 'Documenti malattia non ancora caricati' ?>">
+                                        <?= $__ageH >= 24 ? '⚠ doc. mancanti da ' . max(1,(int)floor($__ageH/24)) . 'g' : 'doc. in attesa' ?>
+                                    </span>
+                                <?php endif; ?>
+                            <?php endif; ?>
                         </td>
                         <td data-label="Periodo" class="lp-dates">
                             <?= formatDate($req['start_date']) ?>
@@ -839,6 +935,11 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                 <?php if (!empty($req['attachment_path'])): ?>
                                     <a class="lp-ibtn lp-btn-view" href="?download_attachment=<?= (int) $req['id'] ?>" title="Scarica allegato">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                    </a>
+                                <?php endif; ?>
+                                <?php if (!empty($req['certificate_path'])): ?>
+                                    <a class="lp-ibtn lp-btn-view" href="?download_cert=<?= (int) $req['id'] ?>" title="Scarica certificato medico">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
                                     </a>
                                 <?php endif; ?>
                                 <button type="button" class="lp-ibtn lp-btn-edit js-edit" title="Modifica" data-edit="<?= htmlspecialchars(json_encode($editPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>">

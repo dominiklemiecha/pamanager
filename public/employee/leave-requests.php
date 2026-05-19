@@ -15,6 +15,26 @@ $employeeId = $employee['id'];
 $message = '';
 $error = '';
 
+// Download certificato malattia (GET, prima di output)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download_cert'])) {
+    $result = LeaveRequest::downloadCertificate((int) $_GET['download_cert']);
+    if (!$result['success']) {
+        http_response_code(403);
+        exit(htmlspecialchars($result['error']));
+    }
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (function_exists('setDownloadHeaders')) {
+        setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
+    } else {
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: attachment; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+    }
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($result['file_path']);
+    exit;
+}
+
 // Gestione azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
@@ -23,29 +43,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     switch ($action) {
         case 'create':
+            $leaveType = $_POST['leave_type'] ?? '';
             $data = [
                 'employee_id' => $employeeId,
-                'leave_type' => $_POST['leave_type'] ?? '',
+                'leave_type' => $leaveType,
                 'start_date' => $_POST['start_date'] ?? '',
                 'end_date' => $_POST['end_date'] ?? '',
                 'is_full_day' => isset($_POST['is_full_day']),
                 'start_time' => $_POST['start_time'] ?? '',
                 'end_time' => $_POST['end_time'] ?? '',
                 'reason' => $_POST['reason'] ?? '',
-                'notes' => $_POST['notes'] ?? ''
+                'notes' => $_POST['notes'] ?? '',
+                'protocol_number' => $leaveType === 'malattia' ? ($_POST['protocol_number'] ?? '') : null,
             ];
 
             $result = LeaveRequest::create($data);
 
             if ($result['success']) {
-                // Upload allegato se presente
-                if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                // Upload allegato generico (non malattia)
+                if ($leaveType !== 'malattia' && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
                     LeaveRequest::uploadAttachment($_FILES['attachment'], $result['id']);
+                }
+                // Upload certificato malattia (opzionale al primo submit)
+                if ($leaveType === 'malattia' && isset($_FILES['certificate']) && $_FILES['certificate']['error'] !== UPLOAD_ERR_NO_FILE) {
+                    LeaveRequest::saveSickDocs($result['id'], $employeeId, null, $_FILES['certificate']);
                 }
                 header('Location: leave-requests.php?message=created');
                 exit;
             }
             $error = $result['error'];
+            break;
+
+        case 'add_sick_docs':
+            $requestId = (int) ($_POST['request_id'] ?? 0);
+            $protocol  = $_POST['protocol_number'] ?? null;
+            $certFile  = $_FILES['certificate'] ?? null;
+            $r = LeaveRequest::saveSickDocs($requestId, $employeeId, $protocol, $certFile);
+            if ($r['success']) {
+                header('Location: leave-requests.php?message=docs_saved');
+                exit;
+            }
+            $error = $r['error'];
             break;
 
         case 'cancel':
@@ -65,8 +103,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Messaggi
 if (isset($_GET['message'])) {
     $messages = [
-        'created' => 'Richiesta inviata con successo',
-        'cancelled' => 'Richiesta annullata'
+        'created'    => 'Richiesta inviata con successo',
+        'cancelled'  => 'Richiesta annullata',
+        'docs_saved' => 'Documenti malattia aggiornati'
     ];
     $message = $messages[$_GET['message']] ?? '';
 }
@@ -449,6 +488,43 @@ foreach ($requests as $__r) {
         <div class="alert alert-error"><?= e($error) ?></div>
     <?php endif; ?>
 
+    <?php
+    // Banner alert: malattie del dipendente >24h senza protocollo o certificato
+    try {
+        $__sickLate = LeaveRequest::sickPendingDocs(24, $employeeId);
+    } catch (Throwable $e) { $__sickLate = []; }
+    if (!empty($__sickLate)):
+    ?>
+    <div class="lr-top-alert">
+        <div class="lr-top-alert-ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="lr-top-alert-body">
+            <strong>Hai <?= count($__sickLate) ?> richiest<?= count($__sickLate) === 1 ? 'a' : 'e' ?> di malattia senza documenti</strong>
+            <div>Carica numero protocollo INPS e certificato medico dalla lista qui sotto.</div>
+        </div>
+    </div>
+    <style>
+    .lr-top-alert {
+        display: flex; align-items: center; gap: 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-left: 4px solid #dc2626;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 14px;
+    }
+    .lr-top-alert-ic {
+        width: 36px; height: 36px; border-radius: 9px;
+        background: rgba(220,38,38,0.10); color: #b91c1c;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .lr-top-alert-body strong { color: #991b1b; font-size: 13.5px; }
+    .lr-top-alert-body div { color: #7f1d1d; font-size: 12px; margin-top: 2px; }
+    </style>
+    <?php endif; ?>
+
     <!-- Form Nuova Richiesta -->
     <?php
     $__presetType = $_GET['type'] ?? '';
@@ -537,6 +613,27 @@ foreach ($requests as $__r) {
                           placeholder="Es: Vacanza con la famiglia, visita medica…"></textarea>
             </div>
 
+            <!-- Sezione documenti malattia (visibile solo se leave_type=malattia) -->
+            <div class="lr-sick-docs" id="lrSickDocs" hidden>
+                <div class="lr-sick-docs-h">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 12h6M12 9v6"/><circle cx="12" cy="12" r="10"/></svg>
+                    <div>
+                        <strong>Documenti malattia</strong>
+                        <div class="lr-sick-docs-sub">Inserisci il numero di protocollo INPS e carica il certificato. Se non li hai ancora, puoi aggiungerli dopo dalla lista delle tue richieste.</div>
+                    </div>
+                </div>
+                <div class="lr-grid-2">
+                    <div>
+                        <label for="protocol_number" class="lr-sub-lbl">Numero di protocollo</label>
+                        <input type="text" id="protocol_number" name="protocol_number" placeholder="Es. 1234567890" maxlength="100">
+                    </div>
+                    <div>
+                        <label for="certificate" class="lr-sub-lbl">Certificato medico</label>
+                        <input type="file" id="certificate" name="certificate" accept=".pdf,.jpg,.jpeg,.png">
+                    </div>
+                </div>
+            </div>
+
             <details class="lr-more">
                 <summary>Aggiungi note o allegato</summary>
                 <div class="lr-more-body">
@@ -544,7 +641,7 @@ foreach ($requests as $__r) {
                         <label for="notes" class="lr-lbl">Note aggiuntive</label>
                         <textarea id="notes" name="notes" rows="2" placeholder="Dettagli per HR..."></textarea>
                     </div>
-                    <div class="lr-fg">
+                    <div class="lr-fg" id="lrAttachWrap">
                         <label for="attachment" class="lr-lbl">Allegato (opzionale)</label>
                         <input type="file" id="attachment" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
                         <small>PDF, JPG, PNG, DOC · max <?= MAX_FILE_SIZE / 1024 / 1024 ?>MB</small>
@@ -688,6 +785,36 @@ foreach ($requests as $__r) {
     .lr-more[open] summary::before { content: "−"; }
     .lr-more-body { padding-top: 12px; }
 
+    /* Sick docs section */
+    .lr-sick-docs {
+        margin-bottom: 18px;
+        padding: 14px 16px;
+        background: linear-gradient(180deg, #fff5f5, #ffffff);
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+    }
+    .lr-sick-docs[hidden] { display: none !important; }
+    .lr-sick-docs-h {
+        display: flex; gap: 10px; align-items: flex-start;
+        margin-bottom: 12px;
+        color: #991b1b;
+    }
+    .lr-sick-docs-h svg { color: #dc2626; margin-top: 2px; flex-shrink: 0; }
+    .lr-sick-docs-h strong { font-size: 13px; }
+    .lr-sick-docs-sub { font-size: 12px; color: #7f1d1d; margin-top: 2px; line-height: 1.4; }
+    .lr-sick-docs input[type=text],
+    .lr-sick-docs input[type=file] {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid #fecaca; border-radius: 8px;
+        font-family: inherit; font-size: 13px;
+        background: white;
+    }
+    .lr-sick-docs input[type=text]:focus {
+        outline: none; border-color: #dc2626;
+        box-shadow: 0 0 0 3px rgba(220,38,38,0.10);
+    }
+
     .lr-form-actions {
         display: flex; justify-content: flex-end;
         border-top: 1px solid #f1f5f9;
@@ -721,11 +848,21 @@ foreach ($requests as $__r) {
         const radios = document.querySelectorAll('input[name="is_full_day"]');
         const tFields = document.getElementById('lrTimeFields');
 
+        const sickBox = document.getElementById('lrSickDocs');
+        const attachWrap = document.getElementById('lrAttachWrap');
+        const toggleSick = (type) => {
+            const isSick = type === 'malattia';
+            if (sickBox) sickBox.hidden = !isSick;
+            // Quando malattia, l'allegato generico viene nascosto (sostituito dal certificato)
+            if (attachWrap) attachWrap.style.display = isSick ? 'none' : '';
+        };
+
         // Chip type select
         chips.forEach(c => c.addEventListener('click', () => {
             chips.forEach(x => x.classList.remove('active'));
             c.classList.add('active');
             hiddenType.value = c.dataset.type;
+            toggleSick(c.dataset.type);
             // Permessi/L.104 default to "alcune ore"
             if (c.dataset.full === '0') {
                 document.querySelector('input[name="is_full_day"][value="0"]').checked = true;
@@ -735,6 +872,8 @@ foreach ($requests as $__r) {
                 tFields.hidden = true;
             }
         }));
+        // Init malattia view se preset
+        toggleSick(hiddenType.value);
 
         // Duration toggle
         radios.forEach(r => r.addEventListener('change', () => {
@@ -786,7 +925,17 @@ foreach ($requests as $__r) {
             document.querySelector('input[name="is_full_day"][value="0"]').checked = true;
             tFields.hidden = false;
         }
+
     })();
+
+    // Toggle form inline upload documenti malattia (delegato a document perche'
+    // le righe vengono renderizzate piu' giu' nel DOM)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.lr-sick-toggle');
+        if (!btn) return;
+        const form = document.getElementById(btn.dataset.target);
+        if (form) form.hidden = !form.hidden;
+    });
     </script>
 
     <!-- Sezione Le mie richieste -->
@@ -846,11 +995,27 @@ foreach ($requests as $__r) {
                         $datesStr .= ' · ' . substr($req['start_time'],0,5) . '–' . substr($req['end_time'],0,5);
                     }
                 ?>
+                    <?php
+                    $__isSick = $req['leave_type'] === 'malattia';
+                    $__hasProto = !empty($req['protocol_number']);
+                    $__hasCert  = !empty($req['certificate_path']);
+                    $__needsDocs = $__isSick && (!$__hasProto || !$__hasCert) && in_array($req['status'], ['pending','approved'], true);
+                    $__hoursOld = !empty($req['created_at']) ? (int) ((time() - strtotime($req['created_at'])) / 3600) : 0;
+                    ?>
                     <div class="lr-row">
                         <div class="lr-row-main">
                             <div class="lr-row-head">
                                 <span class="lr-row-type"><?= e(LeaveRequest::LEAVE_TYPES[$req['leave_type']] ?? $req['leave_type']) ?></span>
                                 <span class="lr-row-status" style="background: <?= $sc[0] ?>; color: <?= $sc[1] ?>;"><?= $sc[2] ?></span>
+                                <?php if ($__isSick && $__hasProto): ?>
+                                    <span class="lr-row-meta">Prot. <?= e($req['protocol_number']) ?></span>
+                                <?php endif; ?>
+                                <?php if ($__isSick && $__hasCert): ?>
+                                    <a class="lr-row-meta lr-row-link" href="?download_cert=<?= (int)$req['id'] ?>">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        Certificato
+                                    </a>
+                                <?php endif; ?>
                             </div>
                             <div class="lr-row-dates"><?= e($datesStr) ?></div>
                             <?php if (!empty($req['reason'])): ?>
@@ -859,6 +1024,43 @@ foreach ($requests as $__r) {
                             <?php if ($req['status'] === 'rejected' && !empty($req['rejection_reason'])): ?>
                                 <div class="lr-row-reject">
                                     <strong>Motivo:</strong> <?= e($req['rejection_reason']) ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($__needsDocs): ?>
+                                <div class="lr-sick-missing <?= $__hoursOld >= 24 ? 'is-late' : '' ?>">
+                                    <div class="lr-sick-missing-head">
+                                        <strong>
+                                            <?php if ($__hoursOld >= 24): ?>
+                                                Documenti malattia mancanti da <?= (int) floor($__hoursOld / 24) ?> giorn<?= floor($__hoursOld / 24) == 1 ? 'o' : 'i' ?>
+                                            <?php else: ?>
+                                                Carica numero protocollo e certificato
+                                            <?php endif; ?>
+                                        </strong>
+                                        <button type="button" class="lr-sick-toggle" data-target="sickForm_<?= (int)$req['id'] ?>">Aggiungi documenti</button>
+                                    </div>
+                                    <form method="POST" enctype="multipart/form-data" class="lr-sick-form" id="sickForm_<?= (int)$req['id'] ?>" hidden>
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="add_sick_docs">
+                                        <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
+                                        <div class="lr-grid-2">
+                                            <?php if (!$__hasProto): ?>
+                                                <div>
+                                                    <label class="lr-sub-lbl">Numero protocollo</label>
+                                                    <input type="text" name="protocol_number" maxlength="100" placeholder="Es. 1234567890">
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!$__hasCert): ?>
+                                                <div>
+                                                    <label class="lr-sub-lbl">Certificato medico</label>
+                                                    <input type="file" name="certificate" accept=".pdf,.jpg,.jpeg,.png">
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="lr-sick-form-actions">
+                                            <button type="submit" class="lr-sick-save-btn">Salva documenti</button>
+                                        </div>
+                                    </form>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -997,6 +1199,62 @@ foreach ($requests as $__r) {
 }
 .lr-cancel-btn:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
 .lr-row-act form { margin: 0; }
+
+.lr-row-meta {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600;
+    color: #475569; background: #f1f5f9;
+    padding: 2px 8px; border-radius: 999px;
+}
+.lr-row-link { text-decoration: none; }
+.lr-row-link:hover { background: #e0e7ff; color: #0b3aa4; text-decoration: none; }
+
+.lr-sick-missing {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+}
+.lr-sick-missing.is-late {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.lr-sick-missing-head {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px; flex-wrap: wrap;
+}
+.lr-sick-missing strong {
+    font-size: 12.5px; color: #92400e;
+}
+.lr-sick-missing.is-late strong { color: #991b1b; }
+.lr-sick-toggle {
+    background: #b45309; color: white;
+    border: none; padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+}
+.lr-sick-missing.is-late .lr-sick-toggle { background: #b91c1c; }
+.lr-sick-toggle:hover { filter: brightness(1.1); }
+.lr-sick-form { margin-top: 10px; }
+.lr-sick-form[hidden] { display: none !important; }
+.lr-sick-form input[type=text],
+.lr-sick-form input[type=file] {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid #e6e8f0; border-radius: 7px;
+    font-family: inherit; font-size: 12.5px;
+    background: white;
+}
+.lr-sick-form-actions { margin-top: 10px; text-align: right; }
+.lr-sick-save-btn {
+    background: #0b3aa4; color: white;
+    border: none; padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+}
+.lr-sick-save-btn:hover { background: #082b7b; }
 
 @media (max-width: 640px) {
     .lr-list-card { padding: 16px; }

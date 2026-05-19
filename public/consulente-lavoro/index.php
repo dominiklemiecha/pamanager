@@ -12,28 +12,36 @@ Auth::requireUser('consulente_lavoro');
 
 $user = Auth::getUser();
 
+$__cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+
 $employeeCount = Employee::count(true);
-$documentCount = Database::count('documents', 'uploaded_by = ?', [$user['id']]);
+$documentCount = Database::count('documents', 'uploaded_by = ? AND company_id = ?', [$user['id'], $__cid]);
 $thisMonthDocs = Database::count(
     'documents',
-    'uploaded_by = ? AND MONTH(created_at) = ? AND YEAR(created_at) = ?',
-    [$user['id'], date('n'), date('Y')]
+    'uploaded_by = ? AND company_id = ? AND MONTH(created_at) = ? AND YEAR(created_at) = ?',
+    [$user['id'], $__cid, date('n'), date('Y')]
 );
-$pendingLeave = Database::fetchColumn(
+$pendingLeave = (int) Database::fetchColumn(
     "SELECT COUNT(*) FROM leave_requests lr
      JOIN employees e ON lr.employee_id = e.id
      WHERE e.company_id = ? AND lr.status = 'pending'",
-    [class_exists('Tenant') ? Tenant::currentCompanyId() : 1]
+    [$__cid]
+);
+$approvedLeaveYear = (int) Database::fetchColumn(
+    "SELECT COUNT(*) FROM leave_requests lr
+     JOIN employees e ON lr.employee_id = e.id
+     WHERE e.company_id = ? AND lr.status = 'approved' AND YEAR(lr.start_date) = ?",
+    [$__cid, (int)date('Y')]
 );
 
 $recentDocuments = Database::fetchAll(
     "SELECT d.*, e.first_name, e.last_name, e.fiscal_code
      FROM documents d
      JOIN employees e ON d.employee_id = e.id
-     WHERE d.uploaded_by = ?
+     WHERE d.uploaded_by = ? AND d.company_id = ?
      ORDER BY d.created_at DESC
      LIMIT 8",
-    [$user['id']]
+    [$user['id'], $__cid]
 );
 
 $pageTitle = 'Dashboard';
@@ -129,17 +137,71 @@ $__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 
             </div>
         </div>
 
-        <a href="leave-requests.php?status=pending" class="cl-kpi <?= (int)$pendingLeave > 0 ? 'is-warn' : '' ?>">
-            <div class="cl-kpi-ic" style="background: rgba(255,187,85,0.15); color: #b07023;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <a href="leave-requests.php" class="cl-kpi">
+            <div class="cl-kpi-ic" style="background: rgba(17,186,186,0.10); color: #0c8a8a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             </div>
             <div class="cl-kpi-info">
                 <div class="cl-kpi-l">Ferie/permessi</div>
-                <div class="cl-kpi-v"><?= (int)$pendingLeave ?></div>
-                <div class="cl-kpi-s">richieste pendenti</div>
+                <div class="cl-kpi-v"><?= $approvedLeaveYear ?></div>
+                <div class="cl-kpi-s">approvate quest'anno</div>
             </div>
         </a>
     </div>
+
+    <?php if ($pendingLeave > 0): ?>
+    <div class="cl-pending-alert">
+        <div class="cl-pending-ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="cl-pending-body">
+            <div class="cl-pending-title">
+                <?= $pendingLeave ?> richiest<?= $pendingLeave === 1 ? 'a' : 'e' ?> di ferie/permessi in attesa di approvazione
+            </div>
+            <div class="cl-pending-sub">
+                Queste richieste non sono incluse negli export. Contatta l'amministratore per farle approvare o rifiutare.
+            </div>
+        </div>
+        <a href="chat.php" class="cl-pending-cta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Contatta admin
+        </a>
+    </div>
+    <style>
+    .cl-pending-alert {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(180deg, #fffbf3, #fff);
+        border: 1px solid #f4d68a;
+        border-left: 4px solid #d97706;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+    }
+    .cl-pending-ic {
+        width: 40px; height: 40px; border-radius: 10px;
+        background: rgba(217,119,6,0.12); color: #b45309;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .cl-pending-ic svg { width: 20px; height: 20px; }
+    .cl-pending-body { flex: 1; min-width: 0; }
+    .cl-pending-title { font-weight: 700; color: #78350f; font-size: 14px; }
+    .cl-pending-sub { font-size: 12.5px; color: #92400e; margin-top: 2px; line-height: 1.4; }
+    .cl-pending-cta {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #b45309; color: white;
+        padding: 8px 14px; border-radius: 8px;
+        font-size: 12.5px; font-weight: 600;
+        text-decoration: none; flex-shrink: 0;
+        transition: background .12s ease;
+    }
+    .cl-pending-cta:hover { background: #92400e; color: white; text-decoration: none; }
+    @media (max-width: 600px) {
+        .cl-pending-alert { flex-direction: column; align-items: stretch; text-align: left; }
+        .cl-pending-cta { justify-content: center; }
+    }
+    </style>
+    <?php endif; ?>
     <style>
     .cl-kpis {
         display: grid;

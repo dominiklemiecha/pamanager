@@ -129,10 +129,12 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
 <style>
 .profile-grid {
     display: grid;
-    grid-template-columns: 280px 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--sp-4);
-    align-items: start;
+    align-items: stretch;
 }
+.profile-grid > .card { height: 100%; display: flex; flex-direction: column; }
+.profile-grid > .card .card-b { flex: 1; }
 .profile-photo-wrap {
     width: 140px; height: 140px;
     border-radius: 50%;
@@ -147,8 +149,8 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
 .profile-photo-initials { color: white; font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; }
 
 @media (max-width: 1100px) {
-    .profile-grid { grid-template-columns: 280px 1fr; }
-    .profile-photo-card { grid-row: span 2; }
+    .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-photo-card { grid-column: 1 / -1; }
 }
 @media (max-width: 720px) {
     .profile-grid { grid-template-columns: 1fr; }

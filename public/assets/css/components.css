@@ -492,21 +492,25 @@ html.sidebar-mini .brand-mark { display: none; }
 .nav-item.active .nav-title { color: white; }
 .nav-item.active .nav-sub   { color: rgba(255,255,255,0.85); }
 
-/* Pulse indicator per voci urgenti */
+/* Pulse indicator per voci urgenti
+   Default: rosso (la voce non e' attiva => richiede attenzione)
+   .nav-item.active .nav-pulse => giallo (voce gia' selezionata) */
 .nav-pulse {
     width: 8px; height: 8px;
-    background: #ffbb55;
+    background: #ef4444;
     border-radius: 50%;
     position: relative;
     flex-shrink: 0;
 }
 .nav-pulse::after {
     content: ""; position: absolute; inset: -3px;
-    border: 2px solid #ffbb55;
+    border: 2px solid #ef4444;
     border-radius: 50%;
     opacity: 0.3;
     animation: navPulse 1.8s ease-in-out infinite;
 }
+.nav-item.active .nav-pulse { background: #ffbb55; }
+.nav-item.active .nav-pulse::after { border-color: #ffbb55; }
 @keyframes navPulse {
     0%, 100% { transform: scale(0.8); opacity: 0; }
     50%      { transform: scale(1.4); opacity: 0.4; }
