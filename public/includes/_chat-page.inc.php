@@ -238,9 +238,18 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
         padding-bottom: 0 !important;
     }
 
+    /* app-header forzato fixed: sticky non funziona dentro un parent overflow:hidden
+       e su iOS la barra spariva dopo send/focus del textarea */
+    body:has(.chat-shell.has-active) .app-header {
+        position: fixed !important;
+        top: 0; left: 0; right: 0;
+        z-index: 100;
+    }
+
     .chat-shell.has-active {
         height: calc(100dvh - var(--header-h, 60px));
         min-height: 0;
+        margin-top: var(--header-h, 60px); /* compensa l'header fixed che e' uscito dal flusso */
         border-radius: 0;
         overflow: hidden;
     }
@@ -364,12 +373,14 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     display: none;
     width: 32px; height: 32px;
     border: none; background: transparent;
-    color: var(--chat-ink-2); border-radius: 8px;
+    color: #475569 !important;
+    border-radius: 8px;
     cursor: pointer;
     align-items: center; justify-content: center;
-    text-decoration: none;
+    text-decoration: none !important;
 }
-.thread-header .back-btn:hover { background: var(--chat-bg); }
+.thread-header .back-btn:hover { background: var(--chat-bg); color: #0b3aa4 !important; }
+.thread-header .back-btn svg { color: inherit; stroke: currentColor; }
 .thread-header .av {
     width: 42px; height: 42px;
     border-radius: 50%;
@@ -1220,6 +1231,7 @@ function sendMessage(e) {
         .then(data => {
             if (data.success) {
                 input.value = '';
+                input.style.height = ''; // reset altezza inline lasciata dall'auto-resize
                 clearAttachment();
                 loadMessages();
             } else {
