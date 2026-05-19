@@ -431,6 +431,18 @@ try {
     border-color: #fecaca;
 }
 
+/* Riga evidenziata in rosso: malattia pending senza docs */
+.lp-table tr.lp-row-missing td {
+    background: #fef2f2 !important;
+    border-left: 3px solid #dc2626;
+}
+.lp-table tr.lp-row-missing td:first-child {
+    border-left: 3px solid #dc2626;
+}
+.lp-table tr.lp-row-missing:hover td {
+    background: #fee2e2 !important;
+}
+
 .lp-status {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 3px 10px; border-radius: 999px;
@@ -873,8 +885,11 @@ try {
                 <?php foreach ($requests as $req):
                     $workingDays = LeaveRequest::calculateWorkingDays($req['start_date'], $req['end_date']);
                     $sameDay = $req['start_date'] === $req['end_date'];
+                    $__rowMissing = $req['status'] === 'pending' && $req['leave_type'] === 'malattia' && (
+                        empty($req['protocol_number']) || (empty($req['certificate_path']) && empty($req['certificate_waived']))
+                    );
                 ?>
-                    <tr>
+                    <tr class="<?= $__rowMissing ? 'lp-row-missing' : '' ?>">
                         <td data-label="Dipendente">
                             <div class="lp-emp">
                                 <?= employeeAvatarHtml($req, 'lp-avatar') ?>
