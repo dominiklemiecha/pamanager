@@ -397,6 +397,78 @@ foreach ($__events as $ev) {
 }
 .cal-fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
+/* Date/time pickers stilizzati */
+.cal-date-presets {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.cal-preset {
+    padding: 6px 12px;
+    border: 1px solid var(--cal-line);
+    border-radius: 8px;
+    background: #fafbfd;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    color: #475569;
+    cursor: pointer; transition: all .12s ease;
+}
+.cal-preset:hover { border-color: #0b3aa4; color: #0b3aa4; background: rgba(11,58,164,0.04); }
+.cal-preset.active { background: rgba(11,58,164,0.10); border-color: #0b3aa4; color: #0b3aa4; }
+
+.cal-when { display: flex; flex-direction: column; gap: 8px; }
+.cal-when-field {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    border: 1px solid var(--cal-line);
+    border-radius: 10px;
+    background: white;
+    transition: all .12s ease;
+}
+.cal-when-field:focus-within {
+    border-color: #0b3aa4;
+    box-shadow: 0 0 0 3px rgba(11,58,164,0.10);
+}
+.cal-when-ic {
+    color: #94a3b8; display: inline-flex; align-items: center; flex-shrink: 0;
+}
+.cal-when-field input {
+    border: none !important; padding: 0 !important; background: transparent !important;
+    font-family: inherit; font-size: 14px; color: #1e1e2f;
+    outline: none; flex: 1; min-width: 0;
+    box-shadow: none !important;
+}
+.cal-when-field input[type=time] { flex: 0 0 auto; max-width: 100px; }
+.cal-when-sep { color: #94a3b8; font-weight: 600; padding: 0 4px; }
+
+.cal-duration-chips {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-top: 8px;
+}
+.cal-chip {
+    padding: 5px 12px;
+    border: 1px solid var(--cal-line);
+    border-radius: 999px;
+    background: white;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    color: #6e7191;
+    cursor: pointer; transition: all .12s ease;
+}
+.cal-chip:hover { border-color: #0b3aa4; color: #0b3aa4; }
+.cal-chip.active { background: #1e1e2f; color: white; border-color: #1e1e2f; }
+
+.cal-contact-search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--cal-line);
+    background: var(--cal-bg);
+}
+.cal-contact-search svg { color: #94a3b8; flex-shrink: 0; }
+.cal-contact-search input {
+    flex: 1; min-width: 0;
+    border: none; background: transparent;
+    font-family: inherit; font-size: 13px;
+    color: #1e1e2f; outline: none;
+}
+
 .cal-participants {
     display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
     padding: 8px;
@@ -511,12 +583,12 @@ foreach ($__events as $ev) {
             <a href="?view=<?= e($__view) ?>&d=<?= $__today ?>" class="cal-nav-btn" aria-label="Oggi" style="width:auto; padding:0 12px; font-size:12px; font-weight:600;">Oggi</a>
         </div>
         <div class="cal-view-toggle">
-            <a href="?view=day&d=<?= $__refDate ?>" class="<?= $__view === 'day' ? 'active' : '' ?>">Day</a>
-            <a href="?view=week&d=<?= $__refDate ?>" class="<?= $__view === 'week' ? 'active' : '' ?>">Week</a>
+            <a href="?view=day&d=<?= $__refDate ?>" class="<?= $__view === 'day' ? 'active' : '' ?>">Giorno</a>
+            <a href="?view=week&d=<?= $__refDate ?>" class="<?= $__view === 'week' ? 'active' : '' ?>">Settimana</a>
         </div>
         <button type="button" class="cal-add-btn" onclick="calOpenModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Event
+            Nuovo evento
         </button>
     </div>
 
@@ -637,31 +709,65 @@ foreach ($__events as $ev) {
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="create_event">
             <input type="hidden" name="participants" id="calPartsJson" value="[]">
+            <input type="hidden" name="start_at" id="calStart">
+            <input type="hidden" name="end_at"   id="calEnd">
             <div class="cal-modal-body">
                 <div class="cal-fg">
-                    <label for="calTitle">Titolo</label>
-                    <input type="text" id="calTitle" name="title" required placeholder="Es. Riunione team">
+                    <label for="calTitle">Titolo evento</label>
+                    <input type="text" id="calTitle" name="title" required placeholder="Es. Riunione team marketing" autocomplete="off">
                 </div>
-                <div class="cal-fg-row">
-                    <div class="cal-fg">
-                        <label for="calStart">Inizio</label>
-                        <input type="datetime-local" id="calStart" name="start_at" required>
+
+                <div class="cal-fg">
+                    <label>Quando</label>
+                    <div class="cal-date-presets" id="calDatePresets">
+                        <button type="button" class="cal-preset" data-day="0">Oggi</button>
+                        <button type="button" class="cal-preset" data-day="1">Domani</button>
+                        <button type="button" class="cal-preset" data-day="next-mon">Lun prossimo</button>
                     </div>
-                    <div class="cal-fg">
-                        <label for="calEnd">Fine</label>
-                        <input type="datetime-local" id="calEnd" name="end_at" required>
+                    <div class="cal-when">
+                        <div class="cal-when-field">
+                            <span class="cal-when-ic">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </span>
+                            <input type="date" id="calDate" required>
+                        </div>
+                        <div class="cal-when-field">
+                            <span class="cal-when-ic">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </span>
+                            <input type="time" id="calTimeStart" required step="900">
+                            <span class="cal-when-sep">→</span>
+                            <input type="time" id="calTimeEnd" required step="900">
+                        </div>
+                    </div>
+                    <div class="cal-duration-chips">
+                        <button type="button" class="cal-chip" data-mins="30">30 min</button>
+                        <button type="button" class="cal-chip" data-mins="60">1 ora</button>
+                        <button type="button" class="cal-chip" data-mins="90">1h 30</button>
+                        <button type="button" class="cal-chip" data-mins="120">2 ore</button>
                     </div>
                 </div>
+
                 <div class="cal-fg">
                     <label for="calLocation">Luogo</label>
-                    <input type="text" id="calLocation" name="location" placeholder="Aula riunioni / Online / ...">
+                    <div class="cal-when-field">
+                        <span class="cal-when-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        </span>
+                        <input type="text" id="calLocation" name="location" placeholder="Aula riunioni · Online · ...">
+                    </div>
                 </div>
+
                 <div class="cal-fg">
                     <label>Partecipanti</label>
                     <div class="cal-participants" id="calPartsList">
                         <button type="button" class="cal-part-add-btn" onclick="calToggleContacts()" aria-label="Aggiungi partecipante">+</button>
                     </div>
                     <div class="cal-contact-picker" id="calContactPicker">
+                        <div class="cal-contact-search">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="search" id="calContactSearch" placeholder="Cerca persone...">
+                        </div>
                         <?php foreach ($__contacts as $groupKey => $list):
                             foreach ($list as $c):
                                 if (empty($c['id'])) continue;
@@ -675,6 +781,7 @@ foreach ($__events as $ev) {
                                  data-type="<?= e($groupKey) ?>"
                                  data-id="<?= (int)$c['id'] ?>"
                                  data-name="<?= e($cName) ?>"
+                                 data-search="<?= e(mb_strtolower($cName)) ?>"
                                  data-photo="<?= e($c['photo_path'] ?? '') ?>"
                                  onclick="calToggleContactPick(this)">
                                 <span class="av" style="background: #0b3aa4;">
@@ -696,7 +803,7 @@ foreach ($__events as $ev) {
                 <button type="button" class="cal-btn cal-btn-ghost" onclick="calCloseModal()">Annulla</button>
                 <button type="submit" class="cal-btn cal-btn-primary" id="calSubmitBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span id="calSubmitLabel">Aggiungi evento</span>
+                    <span id="calSubmitLabel">Crea evento</span>
                 </button>
             </div>
         </form>
@@ -722,6 +829,23 @@ foreach ($__events as $ev) {
     let selectedParts = []; // {user_type, user_id, name, photo}
     let editingEventId = null;
 
+    const dateEl  = document.getElementById('calDate');
+    const t1El    = document.getElementById('calTimeStart');
+    const t2El    = document.getElementById('calTimeEnd');
+    const startHidden = document.getElementById('calStart');
+    const endHidden   = document.getElementById('calEnd');
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+    function fmtTime(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+    function fmtDateTime(d) { return fmtDate(d) + ' ' + fmtTime(d) + ':00'; }
+
+    function syncHidden() {
+        if (!dateEl.value || !t1El.value || !t2El.value) return;
+        startHidden.value = dateEl.value + ' ' + t1El.value + ':00';
+        endHidden.value   = dateEl.value + ' ' + t2El.value + ':00';
+    }
+
     window.calOpenModal = function(eventId) {
         editingEventId = null;
         form.reset();
@@ -730,22 +854,72 @@ foreach ($__events as $ev) {
         picker.classList.remove('show');
         conflictsBox.classList.remove('show');
         titleEl.textContent = 'Nuovo evento';
-        submitLabel.textContent = 'Aggiungi evento';
+        submitLabel.textContent = 'Crea evento';
         deleteBtn.style.display = 'none';
 
-        // Imposta default time slot (ora successiva)
-        const now = new DateTime();
-        const round = new Date(Math.ceil(Date.now() / (30*60*1000)) * (30*60*1000));
-        const fmt = (d) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-        document.getElementById('calStart').value = fmt(round);
-        const end = new Date(round.getTime() + 30*60*1000);
-        document.getElementById('calEnd').value = fmt(end);
+        // Default: oggi, prossima mezz'ora, durata 1h
+        const now = new Date();
+        const round = new Date(Math.ceil(now.getTime() / (30*60*1000)) * (30*60*1000));
+        const end = new Date(round.getTime() + 60*60*1000);
+        dateEl.value = fmtDate(round);
+        t1El.value = fmtTime(round);
+        t2El.value = fmtTime(end);
+        syncHidden();
+
+        // Pulisci stati chip/preset
+        document.querySelectorAll('.cal-preset, .cal-chip').forEach(b => b.classList.remove('active'));
+        document.querySelector('.cal-chip[data-mins="60"]')?.classList.add('active');
 
         modal.classList.add('show');
     };
 
-    // Polyfill banale
-    function DateTime() { return new Date(); }
+    // Preset data (Oggi / Domani / Lun prossimo)
+    document.querySelectorAll('.cal-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.cal-preset').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const d = new Date();
+            if (btn.dataset.day === '0') {
+                // oggi
+            } else if (btn.dataset.day === '1') {
+                d.setDate(d.getDate() + 1);
+            } else if (btn.dataset.day === 'next-mon') {
+                const dow = d.getDay() || 7; // 1=lun..7=dom
+                d.setDate(d.getDate() + (8 - dow));
+            }
+            dateEl.value = fmtDate(d);
+            syncHidden();
+        });
+    });
+
+    // Duration chips
+    document.querySelectorAll('.cal-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.cal-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const mins = parseInt(btn.dataset.mins, 10);
+            if (!t1El.value) return;
+            const [hh, mm] = t1El.value.split(':').map(Number);
+            const start = new Date();
+            start.setHours(hh, mm, 0, 0);
+            const end = new Date(start.getTime() + mins * 60000);
+            t2El.value = fmtTime(end);
+            syncHidden();
+        });
+    });
+
+    // Sync hidden quando l'utente cambia data/ora manualmente
+    [dateEl, t1El, t2El].forEach(el => el && el.addEventListener('change', syncHidden));
+
+    // Search contatti
+    const contactSearch = document.getElementById('calContactSearch');
+    contactSearch?.addEventListener('input', () => {
+        const q = contactSearch.value.trim().toLowerCase();
+        document.querySelectorAll('.cal-contact-item').forEach(item => {
+            const hay = item.getAttribute('data-search') || '';
+            item.style.display = (!q || hay.includes(q)) ? '' : 'none';
+        });
+    });
 
     window.calCloseModal = function() {
         modal.classList.remove('show');
