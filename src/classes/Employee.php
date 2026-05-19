@@ -179,6 +179,9 @@ class Employee
                 'ral_amount'     => $toFloat($data['ral_amount'] ?? null),
                 'monthly_salary' => $toFloat($data['monthly_salary'] ?? null),
                 'iban'           => $nullIfEmpty(isset($data['iban']) && $data['iban'] !== '' ? strtoupper(preg_replace('/\s+/', '', $data['iban'])) : null),
+                'ccnl_id'                => $nullIfEmpty($data['ccnl_id'] ?? null),
+                'ferie_year_override'    => $toFloat($data['ferie_year_override'] ?? null),
+                'permessi_year_override' => $toFloat($data['permessi_year_override'] ?? null),
                 'is_active' => 1,
                 'must_change_password' => 1,
                 'created_by' => $user ? $user['id'] : null
@@ -332,6 +335,17 @@ class Employee
         }
         if (array_key_exists('hours_per_day', $data)) {
             $updateData['hours_per_day'] = $data['hours_per_day'];
+        }
+
+        // CCNL e override saldi (migration 033)
+        if (array_key_exists('ccnl_id', $data)) {
+            $updateData['ccnl_id'] = $data['ccnl_id'] ?: null;
+        }
+        if (array_key_exists('ferie_year_override', $data)) {
+            $updateData['ferie_year_override'] = $data['ferie_year_override'];
+        }
+        if (array_key_exists('permessi_year_override', $data)) {
+            $updateData['permessi_year_override'] = $data['permessi_year_override'];
         }
 
         if (isset($data['is_active'])) {
