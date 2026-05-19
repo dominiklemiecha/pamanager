@@ -17,6 +17,11 @@ $callerId   = (int) $employee['id'];
 $callerName = trim(($employee['first_name'] ?? '') . ' ' . ($employee['last_name'] ?? ''));
 $departmentId = (int) ($employee['department_id'] ?? 0) ?: null;
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require dirname(__DIR__) . '/includes/_calendar.inc.php';
+    exit;
+}
+
 $pageTitle = 'Calendario';
 include dirname(__DIR__) . '/includes/header-employee.php';
 include dirname(__DIR__) . '/includes/_calendar.inc.php';
