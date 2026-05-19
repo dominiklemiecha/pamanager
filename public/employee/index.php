@@ -537,10 +537,6 @@ try {
                             <div class="g-lbl"><?= htmlspecialchars($unit) ?> residui</div>
                         </div>
                     </div>
-                    <div class="eh-gauge-ends">
-                        <span>0</span>
-                        <span><?= rtrim(rtrim(number_format($total, 1, ',', '.'), '0'), ',') ?> <?= $unit ?></span>
-                    </div>
                     <div class="eh-gauge-stats">
                         <div class="ss"><div class="l">Utilizzati</div><div class="v"><?= rtrim(rtrim(number_format($used, 1, ',', '.'), '0'), ',') ?></div></div>
                         <div class="ss"><div class="l">Totale</div><div class="v"><?= rtrim(rtrim(number_format($total, 1, ',', '.'), '0'), ',') ?></div></div>
