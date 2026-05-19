@@ -26,7 +26,7 @@ class LeaveBalance
     public static function getOne(int $employeeId, int $year, string $type): array
     {
         $row = Database::fetchOne(
-            "SELECT entitled, carried_over, manual_used, notes
+            "SELECT entitled, carried_over, balance_set_at, manual_used, notes
              FROM employee_leave_balances
              WHERE employee_id = ? AND year = ? AND leave_type = ?",
             [$employeeId, $year, $type]
@@ -34,7 +34,8 @@ class LeaveBalance
         $entitled    = (float) ($row['entitled']    ?? 0);
         $carried     = (float) ($row['carried_over'] ?? 0);
         $manualUsed  = (float) ($row['manual_used'] ?? 0);
-        $autoUsed    = self::calculateAutoUsed($employeeId, $year, $type);
+        $setAt       = $row['balance_set_at'] ?? null;
+        $autoUsed    = self::calculateAutoUsed($employeeId, $year, $type, $setAt);
         $total       = $entitled + $carried;
         $used        = $manualUsed + $autoUsed;
         $residual    = $total - $used;
@@ -51,6 +52,7 @@ class LeaveBalance
             'residual'    => $residual,
             'percent'     => $percent,
             'notes'       => $row['notes'] ?? null,
+            'balance_set_at' => $setAt,
             'has_row'     => $row !== null && $row !== false,
         ];
     }
@@ -58,10 +60,11 @@ class LeaveBalance
     /**
      * Somma usato derivato da leave_requests approved nell'anno.
      */
-    public static function calculateAutoUsed(int $employeeId, int $year, string $type): float
+    public static function calculateAutoUsed(int $employeeId, int $year, string $type, ?string $snapshotAt = null): float
     {
         if (!in_array($type, self::TYPES, true)) return 0.0;
-        $start = "$year-01-01";
+        // Se c'è uno snapshot, conta solo le richieste con start_date >= snapshot
+        $start = $snapshotAt && $snapshotAt > "$year-01-01" ? $snapshotAt : "$year-01-01";
         $end   = "$year-12-31";
         $rows = Database::fetchAll(
             "SELECT start_date, end_date, is_full_day, start_time, end_time
@@ -266,19 +269,17 @@ class LeaveBalance
             if ($annual <= 0) continue;
 
             $row = Database::fetchOne(
-                "SELECT id, entitled, carried_over, accrual_last_month
+                "SELECT id, entitled, carried_over, balance_set_at, accrual_last_month
                  FROM employee_leave_balances
                  WHERE employee_id = ? AND year = ? AND leave_type = ?",
                 [$employeeId, $year, $type]
             );
 
-            // Calcolo entitled target = (annual/12) * mesi trascorsi (gen..mese_corrente inclusi)
-            $targetEntitled = round(($annual / 12.0) * $month, 2);
-
-            // Se non c'è ancora la riga dell'anno: crea + applica carry-over dall'anno precedente
+            // Se non c'è ancora la riga dell'anno: crea con entitled prorata
             if (!$row) {
                 $prev = self::getOne($employeeId, $year - 1, $type);
                 $prevResidual = max(0, $prev['residual']);
+                $targetEntitled = round(($annual / 12.0) * $month, 2);
                 Database::insert('employee_leave_balances', [
                     'employee_id'        => $employeeId,
                     'company_id'         => $companyId,
@@ -292,13 +293,65 @@ class LeaveBalance
                 continue;
             }
 
-            // Riga esiste: aggiorna entitled e marker se siamo in un mese successivo
-            if ($row['accrual_last_month'] !== $monthKey) {
-                Database::update('employee_leave_balances', [
-                    'entitled'           => $targetEntitled,
-                    'accrual_last_month' => $monthKey,
-                ], 'id = ?', [(int) $row['id']]);
+            if ($row['accrual_last_month'] === $monthKey) continue;
+
+            // Calcolo entitled tenendo conto dello snapshot:
+            // - Con snapshot: matura solo dai mesi successivi alla data snapshot
+            // - Senza snapshot: matura proporzionalmente da gennaio
+            if (!empty($row['balance_set_at'])) {
+                $snap = new DateTime($row['balance_set_at']);
+                // Mesi completi tra snapshot e oggi (inclusivo del mese corrente se siamo già passati)
+                $monthsSince = max(0, (($year - (int) $snap->format('Y')) * 12 + ($month - (int) $snap->format('n'))));
+                $targetEntitled = round(($annual / 12.0) * $monthsSince, 2);
+            } else {
+                $targetEntitled = round(($annual / 12.0) * $month, 2);
             }
+
+            Database::update('employee_leave_balances', [
+                'entitled'           => $targetEntitled,
+                'accrual_last_month' => $monthKey,
+            ], 'id = ?', [(int) $row['id']]);
+        }
+    }
+
+    /**
+     * Imposta il "residuo ad oggi" come snapshot. È il modo semplice per fare il setup iniziale:
+     * - balance_set_at = data corrente (o passata)
+     * - carried_over   = residuo fornito (es. dal file paghe)
+     * - entitled       = 0  (matura solo dai mesi successivi allo snapshot)
+     * - manual_used    = 0
+     */
+    public static function setSnapshotResidual(
+        int $employeeId,
+        int $companyId,
+        int $year,
+        string $type,
+        float $residual,
+        string $setAt,
+        int $updatedBy
+    ): void {
+        if (!in_array($type, self::TYPES, true)) return;
+        $existing = Database::fetchOne(
+            "SELECT id FROM employee_leave_balances WHERE employee_id = ? AND year = ? AND leave_type = ?",
+            [$employeeId, $year, $type]
+        );
+        $monthKey = substr($setAt, 0, 7);
+        $data = [
+            'entitled'           => 0,
+            'carried_over'       => $residual,
+            'balance_set_at'     => $setAt,
+            'manual_used'        => 0,
+            'accrual_last_month' => $monthKey,
+            'updated_by'         => $updatedBy,
+        ];
+        if ($existing) {
+            Database::update('employee_leave_balances', $data, 'id = ?', [(int) $existing['id']]);
+        } else {
+            $data['employee_id'] = $employeeId;
+            $data['company_id']  = $companyId;
+            $data['year']        = $year;
+            $data['leave_type']  = $type;
+            Database::insert('employee_leave_balances', $data);
         }
     }
 
