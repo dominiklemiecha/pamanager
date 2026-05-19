@@ -379,16 +379,28 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
 }
 .thread-header .back-btn {
     display: none;
-    width: 32px; height: 32px;
-    border: none; background: transparent;
-    color: #475569 !important;
-    border-radius: 8px;
-    cursor: pointer;
     align-items: center; justify-content: center;
+    gap: 4px;
+    min-width: 40px; height: 40px;
+    padding: 0 8px;
+    border: none;
+    background: rgba(11,58,164,0.08);
+    color: #0b3aa4 !important;
+    border-radius: 10px;
+    cursor: pointer;
     text-decoration: none !important;
+    font-size: 13px; font-weight: 600;
 }
-.thread-header .back-btn:hover { background: var(--chat-bg); color: #0b3aa4 !important; }
-.thread-header .back-btn svg { color: inherit; stroke: currentColor; }
+.thread-header .back-btn:hover,
+.thread-header .back-btn:active {
+    background: rgba(11,58,164,0.15);
+    color: #0b3aa4 !important;
+}
+.thread-header .back-btn svg {
+    width: 22px; height: 22px;
+    color: inherit; stroke: currentColor;
+    flex-shrink: 0;
+}
 .thread-header .av {
     width: 42px; height: 42px;
     border-radius: 50%;
@@ -712,7 +724,7 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
         padding: 10px 12px;
         gap: 8px;
     }
-    .thread-header .back-btn { display: inline-flex; flex-shrink: 0; }
+    .thread-header .back-btn { display: inline-flex !important; flex-shrink: 0; }
     .thread-header .av { width: 36px; height: 36px; }
     .thread-header .info { flex: 1; min-width: 0; overflow: hidden; }
     .thread-header .info .n {
@@ -1020,8 +1032,8 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
             $hInit  = strtoupper(mb_substr($hName, 0, 2));
         ?>
             <div class="thread-header">
-                <a href="?" class="back-btn" aria-label="Indietro">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                <a href="?" class="back-btn" aria-label="Torna alla lista chat" title="Indietro">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </a>
                 <div class="av">
                     <?php if ($hPhoto): ?>
