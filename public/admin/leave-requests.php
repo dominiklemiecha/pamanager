@@ -188,7 +188,44 @@ $activeEmployees = Database::fetchAll(
 $filterStatus = $_GET['status'] ?? 'pending';
 $filterDept = !empty($_GET['department']) ? (int) $_GET['department'] : null;
 
-$requests = LeaveRequest::getAll($filterStatus !== 'all' ? $filterStatus : null, $filterDept);
+if ($filterStatus === 'pending') {
+    // Tab "In Attesa": include anche malattie approvate ma con docs mancanti da >24h
+    $__pSql = "SELECT lr.*,
+                      e.first_name, e.last_name, e.fiscal_code, e.photo_path,
+                      d.name AS department_name, d.code AS department_code,
+                      u.name AS approved_by_name
+               FROM leave_requests lr
+               JOIN employees e ON lr.employee_id = e.id
+               LEFT JOIN departments d ON e.department_id = d.id
+               LEFT JOIN users u ON lr.approved_by = u.id
+               WHERE e.company_id = ?
+                 AND (
+                      lr.status = 'pending'
+                      OR (
+                          lr.leave_type = 'malattia'
+                          AND lr.status IN ('pending','approved')
+                          AND lr.created_at <= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                          AND (
+                              lr.protocol_number IS NULL OR lr.protocol_number = ''
+                              OR ((lr.certificate_path IS NULL OR lr.certificate_path = '') AND COALESCE(lr.certificate_waived, 0) = 0)
+                          )
+                      )
+                 )";
+    $__pParams = [$__leaveCid];
+    if ($filterDept) {
+        $__pSql .= " AND e.department_id = ?";
+        $__pParams[] = $filterDept;
+    }
+    $__pSql .= " ORDER BY
+                 CASE WHEN lr.leave_type = 'malattia' AND (
+                         lr.protocol_number IS NULL OR lr.protocol_number = ''
+                         OR ((lr.certificate_path IS NULL OR lr.certificate_path = '') AND COALESCE(lr.certificate_waived,0) = 0)
+                      ) THEN 0 ELSE 1 END,
+                 lr.created_at DESC";
+    $requests = Database::fetchAll($__pSql, $__pParams);
+} else {
+    $requests = LeaveRequest::getAll($filterStatus !== 'all' ? $filterStatus : null, $filterDept);
+}
 $departments = Department::getAll();
 
 // Stats per banner
@@ -838,7 +875,24 @@ try {
     <form method="GET" class="lp-filters">
         <div class="cd-tabs">
             <?php
-            $pendingCount = (int) Database::fetchColumn("SELECT COUNT(*) FROM leave_requests WHERE status = 'pending' AND company_id = ?", [$__leaveCid]);
+            // Conta richieste pending + malattie con docs mancanti da >24h (anche se approvate)
+            $pendingCount = (int) Database::fetchColumn(
+                "SELECT COUNT(DISTINCT id) FROM leave_requests
+                 WHERE company_id = ?
+                   AND (
+                        status = 'pending'
+                        OR (
+                            leave_type = 'malattia'
+                            AND status IN ('pending','approved')
+                            AND created_at <= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                            AND (
+                                protocol_number IS NULL OR protocol_number = ''
+                                OR ((certificate_path IS NULL OR certificate_path = '') AND COALESCE(certificate_waived, 0) = 0)
+                            )
+                        )
+                   )",
+                [$__leaveCid]
+            );
             $tabs = [
                 'pending' => ['label' => 'In Attesa', 'count' => $pendingCount],
                 'approved' => ['label' => 'Approvate', 'count' => null],
