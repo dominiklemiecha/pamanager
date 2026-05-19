@@ -1591,7 +1591,6 @@ body.login-page {
     padding: 6px 0; margin: -6px 0;
     outline: none;
     position: relative;
-    overflow: hidden;
 }
 .heatmap-stack-avatar.is-hidden { display: none !important; }
 
