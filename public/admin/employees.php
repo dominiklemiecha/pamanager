@@ -71,6 +71,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'ral_amount'     => $_POST['ral_amount'] ?? null,
                 'monthly_salary' => $_POST['monthly_salary'] ?? null,
                 'iban'           => $_POST['iban'] ?? null,
+                'ccnl_id'        => !empty($_POST['ccnl_id']) ? (int) $_POST['ccnl_id'] : null,
+                'ferie_year_override'    => isset($_POST['ferie_year_override']) && $_POST['ferie_year_override'] !== '' ? (float) str_replace(',', '.', $_POST['ferie_year_override']) : null,
+                'permessi_year_override' => isset($_POST['permessi_year_override']) && $_POST['permessi_year_override'] !== '' ? (float) str_replace(',', '.', $_POST['permessi_year_override']) : null,
             ];
             $__newHasOverride = isset($_POST['working_days_override']) && $_POST['working_days_override'] === '1';
             if ($__newHasOverride) {
@@ -144,6 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'ral_amount'     => $_POST['ral_amount'] ?? null,
                     'monthly_salary' => $_POST['monthly_salary'] ?? null,
                     'iban'           => $_POST['iban'] ?? null,
+                    'ccnl_id'        => !empty($_POST['ccnl_id']) ? (int) $_POST['ccnl_id'] : null,
+                    'ferie_year_override'    => isset($_POST['ferie_year_override']) && $_POST['ferie_year_override'] !== '' ? (float) str_replace(',', '.', $_POST['ferie_year_override']) : null,
+                    'permessi_year_override' => isset($_POST['permessi_year_override']) && $_POST['permessi_year_override'] !== '' ? (float) str_replace(',', '.', $_POST['permessi_year_override']) : null,
                     'is_active' => isset($_POST['is_active'])
                 ];
 
@@ -857,6 +863,47 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 
                 <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Saldo ferie e permessi (<?= $currentYear ?>)</h3>
                 <input type="hidden" name="_balance_company_id" value="<?= $__wdCompId ?>">
+
+                <?php
+                $__ccnls = LeaveBalance::availableCcnls($__wdCompId);
+                $__compRow = Database::fetchOne("SELECT default_ccnl_id FROM companies WHERE id = ?", [$__wdCompId]);
+                $__compDefaultCcnl = $__compRow ? ($__compRow['default_ccnl_id'] ?? null) : null;
+                $__compDefaultName = null;
+                if ($__compDefaultCcnl) {
+                    foreach ($__ccnls as $cc) { if ((int)$cc['id'] === (int)$__compDefaultCcnl) { $__compDefaultName = $cc['name']; break; } }
+                }
+                $__currentCcnl = $action === 'edit' ? ($employee['ccnl_id'] ?? null) : null;
+                $__feOv = $action === 'edit' ? ($employee['ferie_year_override'] ?? null) : null;
+                $__peOv = $action === 'edit' ? ($employee['permessi_year_override'] ?? null) : null;
+                ?>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="ccnl_id">CCNL applicato</label>
+                    <select id="ccnl_id" name="ccnl_id">
+                        <option value="">— eredita default azienda <?= $__compDefaultName ? '(' . htmlspecialchars($__compDefaultName) . ')' : '(non impostato in Configurazione)' ?> —</option>
+                        <?php foreach ($__ccnls as $cc): ?>
+                            <option value="<?= (int)$cc['id'] ?>" <?= (int)$__currentCcnl === (int)$cc['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($cc['name']) ?> · <?= rtrim(rtrim(number_format($cc['ferie_days_year'], 1, ',', '.'), '0'), ',') ?>gg ferie / <?= rtrim(rtrim(number_format($cc['permessi_hours_year'], 1, ',', '.'), '0'), ',') ?>h permessi
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="color:#94a3b8;">Determina la maturazione annua. Lascia vuoto per usare il CCNL aziendale.</small>
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1; display:grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label for="ferie_year_override">Override ferie/anno (giorni)</label>
+                        <input type="number" id="ferie_year_override" name="ferie_year_override" step="0.5" min="0"
+                               value="<?= $__feOv !== null ? htmlspecialchars(rtrim(rtrim(number_format((float)$__feOv, 2, '.', ''), '0'), '.')) : '' ?>"
+                               placeholder="lascia vuoto: usa CCNL">
+                    </div>
+                    <div>
+                        <label for="permessi_year_override">Override permessi/anno (ore)</label>
+                        <input type="number" id="permessi_year_override" name="permessi_year_override" step="0.5" min="0"
+                               value="<?= $__peOv !== null ? htmlspecialchars(rtrim(rtrim(number_format((float)$__peOv, 2, '.', ''), '0'), '.')) : '' ?>"
+                               placeholder="lascia vuoto: usa CCNL">
+                    </div>
+                </div>
                 <?php foreach (LeaveBalance::TYPES as $bt):
                     $b = $balances[$bt];
                     $isF = $bt === 'ferie';

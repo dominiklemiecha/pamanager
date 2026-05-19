@@ -27,9 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($hours <= 0 || $hours > 24) {
             $error = 'Ore/giorno deve essere tra 0 e 24.';
         } else {
+            $defaultCcnl = !empty($_POST['default_ccnl_id']) ? (int) $_POST['default_ccnl_id'] : null;
             Database::update('companies', [
-                'working_days'  => implode(',', $clean),
-                'hours_per_day' => $hours,
+                'working_days'    => implode(',', $clean),
+                'hours_per_day'   => $hours,
+                'default_ccnl_id' => $defaultCcnl,
             ], 'id = ?', [$companyId]);
             $message = 'Impostazioni salvate.';
         }
@@ -37,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $defaults = LeaveBalance::companyDefaults($companyId);
+$ccnls = LeaveBalance::availableCcnls($companyId);
+$compRow = Database::fetchOne("SELECT default_ccnl_id FROM companies WHERE id = ?", [$companyId]);
+$currentDefaultCcnl = $compRow['default_ccnl_id'] ?? null;
 $pageTitle = 'Configurazione · Orario lavorativo';
 include dirname(__DIR__) . '/includes/header-admin.php';
 include dirname(__DIR__) . '/includes/_config-tabs.php';
@@ -66,6 +71,19 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
         <div class="cfg-fg" style="max-width:220px;">
             <input type="number" step="0.25" min="0" max="24" name="hours_per_day"
                    value="<?= htmlspecialchars((string) $defaults['hours']) ?>" required>
+        </div>
+
+        <h3 style="margin-top: 24px;">CCNL applicato di default</h3>
+        <p class="desc">Determina la maturazione annua di ferie e permessi. Si applica a tutti i dipendenti senza CCNL specifico.</p>
+        <div class="cfg-fg" style="max-width: 100%;">
+            <select name="default_ccnl_id">
+                <option value="">— Non impostato (configurare per dipendente) —</option>
+                <?php foreach ($ccnls as $cc): ?>
+                    <option value="<?= (int)$cc['id'] ?>" <?= (int)$currentDefaultCcnl === (int)$cc['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($cc['name']) ?> · <?= rtrim(rtrim(number_format($cc['ferie_days_year'], 1, ',', '.'), '0'), ',') ?>gg ferie / <?= rtrim(rtrim(number_format($cc['permessi_hours_year'], 1, ',', '.'), '0'), ',') ?>h permessi
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <div class="cfg-actions">

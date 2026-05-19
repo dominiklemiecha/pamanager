@@ -221,20 +221,30 @@ class LeaveBalance
     {
         $row = Database::fetchOne(
             "SELECT e.ferie_year_override, e.permessi_year_override, e.ccnl_id,
-                    c.ferie_days_year, c.permessi_hours_year
+                    cmp.default_ccnl_id,
+                    ec.ferie_days_year     AS emp_ferie,
+                    ec.permessi_hours_year AS emp_perm,
+                    cc.ferie_days_year     AS comp_ferie,
+                    cc.permessi_hours_year AS comp_perm
              FROM employees e
-             LEFT JOIN ccnl_templates c ON c.id = e.ccnl_id
+             LEFT JOIN companies cmp ON cmp.id = e.company_id
+             LEFT JOIN ccnl_templates ec ON ec.id = e.ccnl_id
+             LEFT JOIN ccnl_templates cc ON cc.id = cmp.default_ccnl_id
              WHERE e.id = ?",
             [$employeeId]
         );
         if (!$row) return 0.0;
         if ($type === 'ferie') {
             if ($row['ferie_year_override'] !== null) return (float) $row['ferie_year_override'];
-            return (float) ($row['ferie_days_year'] ?? 0);
+            if ($row['emp_ferie']  !== null) return (float) $row['emp_ferie'];
+            if ($row['comp_ferie'] !== null) return (float) $row['comp_ferie'];
+            return 0.0;
         }
         if ($type === 'permesso') {
             if ($row['permessi_year_override'] !== null) return (float) $row['permessi_year_override'];
-            return (float) ($row['permessi_hours_year'] ?? 0);
+            if ($row['emp_perm']  !== null) return (float) $row['emp_perm'];
+            if ($row['comp_perm'] !== null) return (float) $row['comp_perm'];
+            return 0.0;
         }
         return 0.0;
     }
