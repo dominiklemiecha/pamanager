@@ -576,54 +576,85 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 .cal-pop[hidden] { display: none !important; }
 
 /* Mini calendario */
-.cal-pop-date { padding: 14px; min-width: 280px; }
+.cal-pop-date {
+    padding: 16px;
+    min-width: 300px;
+    border-radius: 14px;
+    background: white;
+    box-shadow: 0 12px 36px rgba(15,23,42,0.14);
+}
 .cal-mini-h {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 14px; gap: 8px;
 }
 .cal-mini-label {
     font-family: 'Host Grotesk', sans-serif;
-    font-size: 14px; font-weight: 700;
-    color: #1e1e2f; text-transform: capitalize;
+    font-size: 15px; font-weight: 700;
+    color: #0f172a; text-transform: capitalize;
+    flex: 1; text-align: center;
+    letter-spacing: -0.01em;
 }
 .cal-mini-nav {
-    width: 28px; height: 28px;
-    border: 1px solid var(--cal-line);
-    border-radius: 50%;
-    background: white; color: #475569;
-    cursor: pointer; font-size: 16px; line-height: 1;
+    width: 32px; height: 32px;
+    border: none;
+    border-radius: 10px;
+    background: #f1f5f9; color: #475569;
+    cursor: pointer; font-size: 18px; line-height: 1;
     display: inline-flex; align-items: center; justify-content: center;
     transition: all .12s ease;
+    flex-shrink: 0;
 }
-.cal-mini-nav:hover { border-color: #0b3aa4; color: #0b3aa4; }
+.cal-mini-nav:hover { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.cal-mini-nav:active { transform: scale(0.95); }
 .cal-mini-dows {
     display: grid; grid-template-columns: repeat(7, 1fr);
-    gap: 2px; margin-bottom: 6px;
+    gap: 4px; margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
 }
 .cal-mini-dows span {
-    text-align: center; font-size: 10px; font-weight: 700;
+    text-align: center; font-size: 11px; font-weight: 700;
     color: #94a3b8; text-transform: uppercase;
     padding: 4px 0;
+    letter-spacing: 0.04em;
 }
 .cal-mini-grid {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
 }
 .cal-mini-cell {
     aspect-ratio: 1;
     border: none; background: transparent;
-    border-radius: 8px;
-    font-family: inherit; font-size: 13px; font-weight: 600;
+    border-radius: 10px;
+    font-family: inherit; font-size: 13.5px; font-weight: 600;
     color: #1e1e2f; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
-    transition: all .1s ease;
+    transition: background .12s ease, color .12s ease, transform .08s ease;
+    position: relative;
+    min-height: 36px;
 }
-.cal-mini-cell:hover:not(:disabled):not(.is-empty) { background: rgba(11,58,164,0.08); color: #0b3aa4; }
-.cal-mini-cell.is-empty { color: #cbd5e0; cursor: default; }
-.cal-mini-cell.is-other-month { color: #cbd5e0; }
-.cal-mini-cell.is-today { background: rgba(11,58,164,0.08); color: #0b3aa4; }
+.cal-mini-cell:hover:not(:disabled):not(.is-empty) {
+    background: rgba(11,58,164,0.08);
+    color: #0b3aa4;
+}
+.cal-mini-cell:active:not(.is-empty) { transform: scale(0.92); }
+.cal-mini-cell.is-empty { color: transparent; cursor: default; pointer-events: none; }
+.cal-mini-cell.is-other-month { color: #cbd5e0; font-weight: 500; }
+.cal-mini-cell.is-today {
+    color: #0b3aa4;
+    font-weight: 700;
+}
+.cal-mini-cell.is-today::after {
+    content: ''; position: absolute; bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: #0b3aa4;
+}
 .cal-mini-cell.is-selected {
-    background: #1e1e2f !important; color: white !important;
+    background: #0b3aa4 !important; color: white !important;
+    box-shadow: 0 2px 6px rgba(11,58,164,0.30);
 }
+.cal-mini-cell.is-selected::after { background: white; }
+.cal-mini-cell.is-selected.is-today { color: white !important; }
 
 /* Time list */
 .cal-pop-time { padding: 6px; overflow-y: auto; }
@@ -833,21 +864,32 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     .cal-toolbar {
         padding: 10px 12px;
         gap: 8px;
-        row-gap: 10px;
+        row-gap: 8px;
     }
-    .cal-nav { gap: 4px; flex: 1; min-width: 0; }
-    .cal-nav-btn { width: 30px; height: 30px; }
-    .cal-nav-btn:last-child { padding: 0 8px !important; font-size: 11px !important; }
+    /* Riga 1: nav prev/label/next/oggi a tutta larghezza */
+    .cal-nav { gap: 4px; flex: 1 1 100%; min-width: 0; }
+    .cal-nav-btn { width: 32px; height: 32px; }
+    .cal-nav-btn:last-child { padding: 0 10px !important; font-size: 12px !important; }
     .cal-nav-label {
-        font-size: 13px; padding: 0 4px;
+        font-size: 14px; padding: 0 4px;
         flex: 1; min-width: 0;
         text-align: center;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .cal-view-toggle { margin-left: 0; padding: 3px; }
-    .cal-view-toggle a { padding: 6px 12px; font-size: 11px; }
-    .cal-add-btn { padding: 8px 12px; font-size: 12px; gap: 4px; }
-    .cal-add-btn svg { width: 12px; height: 12px; }
+    /* Riga 2: Day/Week toggle (sinistra) + Nuovo evento (destra) */
+    .cal-view-toggle {
+        margin-left: 0;
+        padding: 3px;
+        flex: 0 1 auto;
+    }
+    .cal-view-toggle a { padding: 6px 14px; font-size: 12px; }
+    .cal-add-btn {
+        padding: 9px 14px;
+        font-size: 12px;
+        gap: 5px;
+        margin-left: auto;
+    }
+    .cal-add-btn svg { width: 13px; height: 13px; }
 
     /* ====== Grid ====== */
     .cal-days.is-week { grid-template-columns: repeat(7, minmax(60px, 1fr)); }
@@ -1121,9 +1163,13 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                         </button>
                         <div class="cal-pop cal-pop-date" id="calDatePop" hidden>
                             <div class="cal-mini-h">
-                                <button type="button" class="cal-mini-nav" id="calMiniPrev">‹</button>
+                                <button type="button" class="cal-mini-nav" id="calMiniPrev" aria-label="Mese precedente">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
                                 <span class="cal-mini-label" id="calMiniLabel"></span>
-                                <button type="button" class="cal-mini-nav" id="calMiniNext">›</button>
+                                <button type="button" class="cal-mini-nav" id="calMiniNext" aria-label="Mese successivo">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
                             </div>
                             <div class="cal-mini-dows">
                                 <span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span>
