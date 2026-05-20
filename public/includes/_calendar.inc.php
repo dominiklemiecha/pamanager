@@ -829,19 +829,89 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 720px) {
-    .cal-toolbar { padding: 10px 12px; }
-    .cal-view-toggle { margin-left: 0; }
-    .cal-add-btn { padding: 8px 12px; font-size: 12px; }
-    .cal-nav-label { font-size: 14px; }
+    /* ====== Toolbar ====== */
+    .cal-toolbar {
+        padding: 10px 12px;
+        gap: 8px;
+        row-gap: 10px;
+    }
+    .cal-nav { gap: 4px; flex: 1; min-width: 0; }
+    .cal-nav-btn { width: 30px; height: 30px; }
+    .cal-nav-btn:last-child { padding: 0 8px !important; font-size: 11px !important; }
+    .cal-nav-label {
+        font-size: 13px; padding: 0 4px;
+        flex: 1; min-width: 0;
+        text-align: center;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cal-view-toggle { margin-left: 0; padding: 3px; }
+    .cal-view-toggle a { padding: 6px 12px; font-size: 11px; }
+    .cal-add-btn { padding: 8px 12px; font-size: 12px; gap: 4px; }
+    .cal-add-btn svg { width: 12px; height: 12px; }
+
+    /* ====== Grid ====== */
     .cal-days.is-week { grid-template-columns: repeat(7, minmax(60px, 1fr)); }
     .cal-grid { overflow-x: auto; }
+    .cal-time-col { --cal-time-w: 44px; }
+    .cal-time-slot { font-size: 9px; padding-right: 6px; }
+    .cal-day-head { padding: 6px 4px; }
     .cal-day-head .dnum { font-size: 14px; }
     .cal-day-head .dow { font-size: 9px; }
-    .cal-evt { font-size: 11px; padding: 6px 8px; }
+    .cal-evt { font-size: 11px; padding: 6px 8px; border-radius: 8px; gap: 6px; }
+    .cal-evt .evt-owner-av { width: 22px; height: 22px; font-size: 9px; border-width: 1.5px; }
+    .cal-evt .evt-title { font-size: 11.5px; }
     .cal-evt .evt-time { font-size: 10px; }
-    .cal-modal { max-width: 100%; max-height: 92vh; overflow-y: auto; }
+    .cal-evt .evt-parts { margin-top: 3px; }
+    .cal-evt .evt-part-av { width: 14px; height: 14px; font-size: 8px; }
 
-    /* Footer modal: pulsanti compatti in colonna su mobile */
+    /* ====== Modal ====== */
+    .cal-modal { max-width: 100%; max-height: 92dvh; overflow-y: auto; border-radius: 14px; }
+    .cal-modal-h { padding: 12px 14px; }
+    .cal-modal-h h3 { font-size: 15px; }
+    .cal-modal-body { padding: 12px 14px; gap: 10px; }
+    .cal-fg label { font-size: 10.5px; }
+    .cal-fg input[type=text],
+    .cal-fg input[type=date],
+    .cal-fg input[type=time],
+    .cal-fg textarea { padding: 9px 10px; font-size: 14px; }
+
+    .cal-pill {
+        padding: 9px 12px; font-size: 13px; gap: 8px;
+    }
+    .cal-pill svg:first-child { width: 14px; height: 14px; }
+
+    .cal-pop-date { min-width: 0; width: 100%; padding: 12px; }
+    .cal-mini-cell { font-size: 12px; }
+    .cal-mini-label { font-size: 13px; }
+    .cal-mini-nav { width: 26px; height: 26px; }
+
+    .cal-pop-time { max-height: 220px; }
+    .cal-time-opt { padding: 8px 12px; font-size: 13px; }
+
+    .cal-date-presets { gap: 4px; margin-bottom: 8px; }
+    .cal-preset { padding: 5px 10px; font-size: 11px; }
+    .cal-duration-chips { gap: 4px; margin-top: 6px; }
+    .cal-chip { padding: 5px 10px; font-size: 11px; }
+    .cal-pick-row { gap: 6px; }
+    .cal-pick-sep { padding: 0 1px; font-size: 12px; }
+
+    .cal-when-field { padding: 8px 10px; }
+    .cal-when-field input { font-size: 14px; }
+
+    .cal-participants { padding: 6px; gap: 5px; min-height: 42px; }
+    .cal-participants .av { font-size: 11.5px; padding: 3px 7px 3px 3px; }
+    .cal-participants .av .av-photo { width: 22px; height: 22px; font-size: 9px; }
+    .cal-participants .av .av-name { max-width: 110px; }
+    .cal-participants .av .x { width: 18px; height: 18px; font-size: 13px; }
+    .cal-part-add-btn { width: 28px; height: 28px; font-size: 16px; }
+
+    .cal-contact-picker { max-height: 180px; margin-top: 6px; }
+    .cal-contact-item { padding: 7px 10px; font-size: 12.5px; }
+    .cal-contact-item .av { width: 24px; height: 24px; }
+    .cal-contact-search { padding: 6px 10px; }
+    .cal-contact-search input { font-size: 14px; }
+
+    /* ====== Footer modal: pulsanti compatti in colonna ====== */
     .cal-modal-footer {
         flex-direction: column;
         gap: 6px;
@@ -856,17 +926,12 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         font-size: 13px;
         padding: 8px 14px;
     }
-    /* Ordine visibile: Salva/Crea o Accetta in alto, poi Rifiuta/Annulla, Elimina in fondo */
     .cal-modal-footer .cal-btn-primary { order: 1; }
     .cal-modal-footer #calAcceptBtn   { order: 1; }
     .cal-modal-footer #calDeclineBtn  { order: 2; }
     .cal-modal-footer .cal-btn-ghost  { order: 3; }
     .cal-modal-footer .cal-btn-danger { order: 4; }
     .cal-modal-footer #calDeleteBtn   { order: 5; }
-
-    /* Modal body: padding meno aggressivo */
-    .cal-modal-h { padding: 14px 16px; }
-    .cal-modal-body { padding: 14px 16px; }
 }
 </style>
 
