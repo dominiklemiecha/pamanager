@@ -152,7 +152,7 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <span class="nav-content">
                         <span class="nav-title">Calendario</span>
-                        <span class="nav-sub"><?php echo $pendingInvites > 0 ? $pendingInvites . ' invito' . ($pendingInvites === 1 ? '' : 'i') . ' da confermare' : 'Eventi e riunioni'; ?></span>
+                        <span class="nav-sub"><?php echo $pendingInvites > 0 ? $pendingInvites . ' ' . ($pendingInvites === 1 ? 'invito' : 'inviti') . ' da confermare' : 'Eventi e riunioni'; ?></span>
                     </span>
                     <?php if ($pendingInvites > 0): ?><span class="nav-pulse" title="<?php echo $pendingInvites; ?>"></span><?php endif; ?>
                 </a>
@@ -248,7 +248,7 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <span class="nav-content">
                         <span class="nav-title">Calendario</span>
-                        <span class="nav-sub"><?php echo $pendingInvites > 0 ? $pendingInvites . ' invito' . ($pendingInvites === 1 ? '' : 'i') . ' da confermare' : 'Eventi e riunioni'; ?></span>
+                        <span class="nav-sub"><?php echo $pendingInvites > 0 ? $pendingInvites . ' ' . ($pendingInvites === 1 ? 'invito' : 'inviti') . ' da confermare' : 'Eventi e riunioni'; ?></span>
                     </span>
                     <?php if ($pendingInvites > 0): ?><span class="nav-pulse" title="<?php echo $pendingInvites; ?>"></span><?php endif; ?>
                 </a>

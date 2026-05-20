@@ -857,12 +857,22 @@ foreach ($requests as $__r) {
             if (attachWrap) attachWrap.style.display = isSick ? 'none' : '';
         };
 
-        // Chip type select (NON forziamo "Solo alcune ore" sui permessi: il dipendente sceglie)
+        // Chip type select: imposta il default sensato (Permesso/L.104 -> "Solo alcune ore",
+        // gli altri -> "Giornata intera"). Il dipendente puo' sempre cambiare manualmente.
         chips.forEach(c => c.addEventListener('click', () => {
             chips.forEach(x => x.classList.remove('active'));
             c.classList.add('active');
             hiddenType.value = c.dataset.type;
             toggleSick(c.dataset.type);
+            if (c.dataset.full === '0') {
+                const r0 = document.querySelector('input[name="is_full_day"][value="0"]');
+                if (r0) r0.checked = true;
+                if (tFields) tFields.hidden = false;
+            } else {
+                const r1 = document.querySelector('input[name="is_full_day"][value="1"]');
+                if (r1) r1.checked = true;
+                if (tFields) tFields.hidden = true;
+            }
         }));
         // Init malattia view se preset
         toggleSick(hiddenType.value);
@@ -911,7 +921,13 @@ foreach ($requests as $__r) {
             if (!endD.value || endD.value < startD.value) endD.value = startD.value;
         });
 
-        // Init: default sempre "Giornata intera" (default checked in markup)
+        // Init: se arrivo con chip attiva, applica il default corretto al radio
+        const __initChip = document.querySelector('.lr-chip.active');
+        if (__initChip && __initChip.dataset.full === '0') {
+            const r0 = document.querySelector('input[name="is_full_day"][value="0"]');
+            if (r0) r0.checked = true;
+            if (tFields) tFields.hidden = false;
+        }
 
     })();
 
