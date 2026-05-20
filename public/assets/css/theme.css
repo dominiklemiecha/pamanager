@@ -114,9 +114,9 @@
     /* Layout */
     --topbar-height: 60px;
     --header-h:      60px;
-    --sidebar-w:     220px;
-    --sidebar-w-mini: 72px;
-    --container-max: 1280px;
+    --sidebar-w:     15.71rem;   /* 220px @14 base, scala su schermi grandi */
+    --sidebar-w-mini: 5.14rem;   /* 72px @14 base */
+    --container-max: 91.42rem;   /* 1280px @14 base, ~1463px @16 base */
 
     /* Spacing (4px scale) */
     --sp-1:  0.25rem;
@@ -184,6 +184,11 @@
    ================================ */
 *, *::before, *::after { box-sizing: border-box; }
 html { font-size: 14px; }
+/* Scale up on large screens: rem-based spacing/sizes seguono la base */
+@media (min-width: 1600px) { html { font-size: 15px; } }
+@media (min-width: 1920px) { html { font-size: 16px; } }
+@media (min-width: 2400px) { html { font-size: 17px; } }
+@media (min-width: 2880px) { html { font-size: 18px; } }
 body {
     font-family: var(--font);
     background: var(--bg);
