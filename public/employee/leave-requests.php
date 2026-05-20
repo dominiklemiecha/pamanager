@@ -857,20 +857,12 @@ foreach ($requests as $__r) {
             if (attachWrap) attachWrap.style.display = isSick ? 'none' : '';
         };
 
-        // Chip type select
+        // Chip type select (NON forziamo "Solo alcune ore" sui permessi: il dipendente sceglie)
         chips.forEach(c => c.addEventListener('click', () => {
             chips.forEach(x => x.classList.remove('active'));
             c.classList.add('active');
             hiddenType.value = c.dataset.type;
             toggleSick(c.dataset.type);
-            // Permessi/L.104 default to "alcune ore"
-            if (c.dataset.full === '0') {
-                document.querySelector('input[name="is_full_day"][value="0"]').checked = true;
-                tFields.hidden = false;
-            } else {
-                document.querySelector('input[name="is_full_day"][value="1"]').checked = true;
-                tFields.hidden = true;
-            }
         }));
         // Init malattia view se preset
         toggleSick(hiddenType.value);
@@ -919,12 +911,7 @@ foreach ($requests as $__r) {
             if (!endD.value || endD.value < startD.value) endD.value = startD.value;
         });
 
-        // Init preset if type already selected
-        const activeChip = document.querySelector('.lr-chip.active');
-        if (activeChip && activeChip.dataset.full === '0') {
-            document.querySelector('input[name="is_full_day"][value="0"]').checked = true;
-            tFields.hidden = false;
-        }
+        // Init: default sempre "Giornata intera" (default checked in markup)
 
     })();
 
