@@ -154,6 +154,63 @@ class CalendarEvent
     }
 
     /**
+     * Sincronizza i partecipanti di un evento con la lista fornita.
+     * - Elimina chi non è più nella lista
+     * - Inserisce chi è nuovo (status pending)
+     * - Non tocca chi è già presente (mantiene il loro status)
+     * Solo owner o admin/admin_reparto della tenant possono farlo.
+     */
+    public static function syncParticipants(int $eventId, array $list, string $callerType, int $callerId): bool
+    {
+        $ev = self::getById($eventId);
+        if (!$ev) return false;
+        if (!self::canManage($ev, $callerType, $callerId)) return false;
+
+        // Normalizza incoming: chiavi "type:id"
+        $newKeys = [];
+        foreach ($list as $p) {
+            $ut = $p['user_type'] ?? null;
+            $ui = (int) ($p['user_id'] ?? 0);
+            if (!$ut || !$ui || !in_array($ut, self::VALID_TYPES, true)) continue;
+            // Esclude l'owner come partecipante (è già "owner")
+            if ($ut === $ev['owner_type'] && $ui === (int) $ev['owner_id']) continue;
+            $newKeys[$ut . ':' . $ui] = ['user_type' => $ut, 'user_id' => $ui];
+        }
+
+        $existing = Database::fetchAll(
+            "SELECT id, user_type, user_id FROM calendar_event_participants WHERE event_id = ?",
+            [$eventId]
+        );
+        $existingKeys = [];
+        foreach ($existing as $row) {
+            $existingKeys[$row['user_type'] . ':' . $row['user_id']] = (int) $row['id'];
+        }
+
+        // Elimina quelli non più presenti
+        foreach ($existingKeys as $key => $id) {
+            if (!isset($newKeys[$key])) {
+                Database::delete('calendar_event_participants', 'id = ?', [$id]);
+            }
+        }
+
+        // Inserisci i nuovi
+        foreach ($newKeys as $key => $p) {
+            if (!isset($existingKeys[$key])) {
+                try {
+                    Database::insert('calendar_event_participants', [
+                        'event_id'  => $eventId,
+                        'user_type' => $p['user_type'],
+                        'user_id'   => $p['user_id'],
+                        'status'    => 'pending',
+                    ]);
+                } catch (Throwable $e) { /* ignora duplicati */ }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Partecipanti di un evento, con nome risolto dalla rispettiva tabella.
      */
     public static function getParticipants(int $eventId): array

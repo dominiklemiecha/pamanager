@@ -68,7 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'start_at'    => $_POST['start_at'] ?? '',
                     'end_at'      => $_POST['end_at']   ?? '',
                 ];
-                echo json_encode(CalendarEvent::update($id, $callerType, $callerId, $update));
+                $r = CalendarEvent::update($id, $callerType, $callerId, $update);
+                // Sync partecipanti (delete missing + insert new)
+                if (!empty($r['success']) && isset($_POST['participants'])) {
+                    $raw = $_POST['participants'];
+                    $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+                    if (is_array($decoded)) {
+                        CalendarEvent::syncParticipants($id, $decoded, $callerType, $callerId);
+                    }
+                }
+                echo json_encode($r);
                 exit;
             }
             case 'move_event': {
@@ -582,11 +591,12 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     background: white;
     border: 1px solid var(--cal-line);
     border-radius: 12px;
-    box-shadow: 0 12px 32px rgba(15,23,42,0.12);
+    box-shadow: 0 12px 32px rgba(15,23,42,0.18);
     padding: 12px;
-    z-index: 1100;
-    max-height: 280px;
+    z-index: 1500;
+    max-height: 320px;
 }
+.cal-pop-date { z-index: 1600; }
 .cal-pop[hidden] { display: none !important; }
 
 /* Mini calendario */
@@ -767,6 +777,8 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     padding: 8px;
     border: 1px solid var(--cal-line); border-radius: 8px;
     min-height: 48px;
+    max-height: 130px;
+    overflow-y: auto;
 }
 .cal-participants .av {
     display: inline-flex !important;
@@ -821,10 +833,11 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 .cal-part-add-btn:hover { border-color: #0b3aa4; color: #0b3aa4; }
 
 .cal-contact-picker {
-    max-height: 200px; overflow-y: auto;
-    border: 1px solid var(--cal-line); border-radius: 8px;
+    max-height: 240px; overflow-y: auto;
+    border: 1px solid var(--cal-line); border-radius: 10px;
     margin-top: 8px;
     display: none;
+    background: white;
 }
 .cal-contact-picker.show { display: block; }
 .cal-contact-item {
@@ -832,11 +845,34 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     padding: 8px 12px; cursor: pointer;
     border-bottom: 1px solid #f1f5f9;
     font-size: 13px;
+    transition: background .1s ease;
+    user-select: none;
 }
 .cal-contact-item:last-child { border-bottom: none; }
 .cal-contact-item:hover { background: var(--cal-bg); }
-.cal-contact-item .av { width: 28px; height: 28px; }
-.cal-contact-item.selected { background: rgba(11,58,164,0.06); }
+.cal-contact-item .av {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: white; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; flex-shrink: 0; overflow: hidden;
+}
+.cal-contact-item .av img { width: 100%; height: 100%; object-fit: cover; }
+.cal-contact-item.selected {
+    background: rgba(11,58,164,0.08);
+    font-weight: 600;
+    color: #0b3aa4;
+    position: relative;
+}
+.cal-contact-item.selected::after {
+    content: ''; position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #0b3aa4;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>');
+    background-size: 10px 10px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
 
 .cal-conflicts {
     background: #fef2f2; border: 1px solid #fecaca;
@@ -854,6 +890,9 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     border-top: 1px solid var(--cal-line);
     display: flex; justify-content: flex-end; gap: 8px;
     flex-wrap: wrap;
+    background: white;
+    position: sticky; bottom: 0;
+    z-index: 5;
 }
 .cal-btn {
     padding: 10px 18px;
