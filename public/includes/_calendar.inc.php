@@ -822,6 +822,8 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 .cal-btn-ghost:hover { border-color: #0b3aa4; color: #0b3aa4; }
 .cal-btn-danger { background: white; color: #b91c1c; border-color: #fecaca; }
 .cal-btn-danger:hover { background: #fef2f2; }
+.cal-btn-accept { background: #16a34a; color: white; }
+.cal-btn-accept:hover { background: #15803d; }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 720px) {
@@ -1116,6 +1118,8 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 <div class="cal-conflicts" id="calConflicts"></div>
             </div>
             <div class="cal-modal-footer">
+                <button type="button" class="cal-btn cal-btn-danger" id="calDeclineBtn" style="display:none;" onclick="calRespond('declined')">Rifiuta invito</button>
+                <button type="button" class="cal-btn cal-btn-accept" id="calAcceptBtn" style="display:none;" onclick="calRespond('accepted')">Accetta</button>
                 <button type="button" class="cal-btn cal-btn-danger" id="calDeleteBtn" style="display:none;" onclick="calDeleteEvent()">Elimina</button>
                 <button type="button" class="cal-btn cal-btn-ghost" onclick="calCloseModal()">Annulla</button>
                 <button type="submit" class="cal-btn cal-btn-primary" id="calSubmitBtn">
@@ -1537,6 +1541,14 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 const icon = document.getElementById('calSubmitIcon');
                 if (icon) icon.style.display = 'none'; // niente "+" in modalita' modifica/dettaglio
 
+                // Bottoni accetta/rifiuta visibili solo se invitato (non owner) E status=pending
+                const me = (data.participants || []).find(p =>
+                    String(p.user_type).toLowerCase() === String(CALLER_TYPE).toLowerCase() &&
+                    parseInt(p.user_id, 10) === CALLER_ID);
+                const isInvitedPending = me && me.status === 'pending';
+                document.getElementById('calAcceptBtn').style.display = isInvitedPending ? 'inline-flex' : 'none';
+                document.getElementById('calDeclineBtn').style.display = isInvitedPending ? 'inline-flex' : 'none';
+
                 document.getElementById('calTitle').value = ev.title || '';
                 document.getElementById('calLocation').value = ev.location || '';
                 document.getElementById('calTitle').disabled  = !canEdit;
@@ -1569,6 +1581,25 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 renderParts();
 
                 modal.classList.add('show');
+            })
+            .catch(err => { console.error(err); alert('Errore di connessione'); });
+    };
+
+    window.calRespond = function(status) {
+        if (!editingEventId) return;
+        const fd = new FormData();
+        fd.append('action', 'respond_event');
+        fd.append('event_id', editingEventId);
+        fd.append('status', status);
+        fd.append('csrf_token', CSRF_TOKEN);
+        fetch('', { method: 'POST', body: fd })
+            .then(async r => {
+                const txt = await r.text();
+                try { return JSON.parse(txt); } catch (_) { throw new Error(txt.slice(0,200)); }
+            })
+            .then(data => {
+                if (data.success) window.location.reload();
+                else alert(data.error || 'Errore');
             })
             .catch(err => { console.error(err); alert('Errore di connessione'); });
     };
