@@ -596,7 +596,28 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     z-index: 1500;
     max-height: 320px;
 }
-.cal-pop-date { z-index: 1600; }
+
+/* La pill data ha bisogno di spazio sotto */
+.cal-pick-wrap.cal-date-wrap { margin-bottom: 4px; }
+
+/* DATE PICKER: popup centrato (non più dropdown) per essere sempre interamente visibile */
+.cal-pop-date {
+    position: fixed !important;
+    top: 50% !important; left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(360px, calc(100vw - 32px));
+    max-width: 360px;
+    z-index: 2100 !important;
+    box-shadow: 0 24px 64px rgba(15,23,42,0.25) !important;
+}
+/* Backdrop dietro al date popup */
+.cal-date-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.40);
+    z-index: 2050;
+    display: none;
+}
+.cal-date-backdrop.show { display: block; }
 .cal-pop[hidden] { display: none !important; }
 
 /* Mini calendario */
@@ -1184,6 +1205,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 </div>
 
 <!-- Modal Add/Detail Event -->
+<div class="cal-date-backdrop" id="calDateBackdrop" onclick="closePops()"></div>
 <div class="cal-modal-overlay" id="calModal" onclick="if(event.target === this) calCloseModal()">
     <div class="cal-modal">
         <div class="cal-modal-h">
@@ -1211,7 +1233,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                     </div>
 
                     <!-- Date pill -->
-                    <div class="cal-pick-wrap">
+                    <div class="cal-pick-wrap cal-date-wrap">
                         <button type="button" class="cal-pill cal-pill-date" id="calDateBtn">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             <span id="calDateLabel">Seleziona data</span>
@@ -1483,7 +1505,10 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     function closePops() {
         document.querySelectorAll('.cal-pop').forEach(p => p.hidden = true);
         document.querySelectorAll('.cal-pill').forEach(p => p.classList.remove('is-open'));
+        const bd = document.getElementById('calDateBackdrop');
+        if (bd) bd.classList.remove('show');
     }
+    window.closePops = closePops;
     function openPop(btnId, popId, before) {
         const isOpen = !document.getElementById(popId).hidden;
         closePops();
@@ -1491,6 +1516,11 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         if (before) before();
         document.getElementById(popId).hidden = false;
         document.getElementById(btnId).classList.add('is-open');
+        // Se è il date popup, mostra il backdrop
+        if (popId === 'calDatePop') {
+            const bd = document.getElementById('calDateBackdrop');
+            if (bd) bd.classList.add('show');
+        }
     }
 
     document.getElementById('calDateBtn').addEventListener('click', () => {
