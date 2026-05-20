@@ -24,6 +24,7 @@ $unreadCommCount = Communication::countUnread($currentEmployee['id'], $employeeD
 $unreadDocsCount = Document::getUnreadCountForEmployee($currentEmployee['id'])
     + (class_exists('EmployeeDocument') ? EmployeeDocument::getUnreadCountForEmployee($currentEmployee['id']) : 0);
 $unreadChats = class_exists('Chat') ? (int) Chat::countUnread('employee', $currentEmployee['id']) : 0;
+$pendingInvites = class_exists('CalendarEvent') ? CalendarEvent::countPendingInvitations('employee', (int)$currentEmployee['id']) : 0;
 $employeeName = htmlspecialchars($currentEmployee['first_name'] . ' ' . $currentEmployee['last_name']);
 $employeeInitials = strtoupper(substr($currentEmployee['first_name'], 0, 1) . substr($currentEmployee['last_name'], 0, 1));
 
@@ -168,8 +169,9 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
                 <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 <span class="nav-content">
                     <span class="nav-title">Calendario</span>
-                    <span class="nav-sub">Eventi e riunioni</span>
+                    <span class="nav-sub"><?php echo $pendingInvites > 0 ? $pendingInvites . ' invito' . ($pendingInvites === 1 ? '' : 'i') . ' da confermare' : 'Eventi e riunioni'; ?></span>
                 </span>
+                <?php if ($pendingInvites > 0): ?><span class="nav-pulse" title="<?php echo $pendingInvites; ?>"></span><?php endif; ?>
             </a>
             <a href="<?php echo $baseUrl; ?>/employee/chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>" data-tooltip="Chat">
                 <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>

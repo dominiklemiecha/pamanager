@@ -71,6 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(CalendarEvent::update($id, $callerType, $callerId, $update));
                 exit;
             }
+            case 'move_event': {
+                // Solo orari, niente title/location/description
+                $id = (int) ($_POST['event_id'] ?? 0);
+                $update = [
+                    'start_at' => $_POST['start_at'] ?? '',
+                    'end_at'   => $_POST['end_at']   ?? '',
+                ];
+                echo json_encode(CalendarEvent::update($id, $callerType, $callerId, $update));
+                exit;
+            }
             case 'get_event': {
                 $id = (int) ($_POST['event_id'] ?? 0);
                 $ev = CalendarEvent::getById($id);
@@ -400,6 +410,10 @@ foreach ($__events as $ev) {
 }
 .cal-evt .evt-dot { opacity: 0.5; }
 .cal-evt .evt-owner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-evt.is-draggable { cursor: grab; }
+.cal-evt.is-draggable:active { cursor: grabbing; }
+.cal-evt.is-dragging { opacity: 0.4; }
+.cal-day-col.is-drop-target { background: rgba(11,58,164,0.06); outline: 2px dashed rgba(11,58,164,0.30); outline-offset: -4px; }
 .cal-evt.is-declined { opacity: 0.45; text-decoration: line-through; }
 .cal-evt.is-pending::after {
     content: '⌛';
@@ -885,15 +899,20 @@ foreach ($__events as $ev) {
                         <?php
                         $owner = $__ownerByEv[(int)$ev['id']] ?? ['name' => '', 'photo' => null];
                         $ownerInitials = mb_strtoupper(mb_substr($owner['name'] ?? '?', 0, 1));
+                        $canDrag = CalendarEvent::canManage($ev, $callerType, $callerId);
+                        $durationMin = max(15, (int) round((strtotime($ev['end_at']) - strtotime($ev['start_at'])) / 60));
                         ?>
-                        <a class="cal-evt <?= $extraClass ?>"
+                        <a class="cal-evt <?= $extraClass ?> <?= $canDrag ? 'is-draggable' : '' ?>"
                            style="top: <?= $top ?>px; height: <?= $height ?>px;
                                   background: <?= $col['bg'] ?>;
                                   color: <?= $col['text'] ?>;
                                   border-left-color: <?= $col['border'] ?>;"
                            href="#"
                            onclick="calOpenDetail(<?= (int)$ev['id'] ?>); return false;"
-                           data-event-id="<?= (int)$ev['id'] ?>">
+                           data-event-id="<?= (int)$ev['id'] ?>"
+                           data-duration="<?= $durationMin ?>"
+                           data-start="<?= $ev['start_at'] ?>"
+                           <?= $canDrag ? 'draggable="true"' : '' ?>>
                             <span class="evt-owner-av" style="background: <?= $col['border'] ?>;">
                                 <?php if (!empty($owner['photo'])): ?>
                                     <img src="<?= e(PUBLIC_URL . '/' . ltrim($owner['photo'], '/')) ?>" alt="">
@@ -1556,5 +1575,83 @@ foreach ($__events as $ev) {
     // Auto-scroll a 8:00 al load
     const grid = document.getElementById('calGrid');
     if (grid) grid.scrollTop = 60; // 8:00 - 7:00 = 60px
+
+    // ========================= DRAG & DROP =========================
+    // 1 minuto = 1px (--cal-hour-h = 60), griglia inizia alle 7:00.
+    // Snap a 15 minuti.
+    const SNAP_MIN = 15;
+    let dragData = null;
+
+    document.querySelectorAll('.cal-evt.is-draggable').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+            dragData = {
+                id: card.dataset.eventId,
+                duration: parseInt(card.dataset.duration, 10) || 60,
+            };
+            card.classList.add('is-dragging');
+            try { e.dataTransfer.setData('text/plain', card.dataset.eventId); } catch (_) {}
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('is-dragging');
+            document.querySelectorAll('.cal-day-col').forEach(c => c.classList.remove('is-drop-target'));
+        });
+    });
+
+    document.querySelectorAll('.cal-day-col').forEach(col => {
+        col.addEventListener('dragover', (e) => {
+            if (!dragData) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            col.classList.add('is-drop-target');
+        });
+        col.addEventListener('dragleave', () => col.classList.remove('is-drop-target'));
+        col.addEventListener('drop', (e) => {
+            if (!dragData) return;
+            e.preventDefault();
+            col.classList.remove('is-drop-target');
+
+            // Calcola minuti dal top della colonna in base alla posizione di drop.
+            const rect = col.getBoundingClientRect();
+            let offsetPx = e.clientY - rect.top;
+            // 1 minuto = 1px, partendo dalle 7:00. Snap a 15 min.
+            let mins = Math.max(0, Math.round(offsetPx / SNAP_MIN) * SNAP_MIN);
+            const startMinutesFromBase = mins; // dalle 07:00
+            const totalStartMin = 7 * 60 + startMinutesFromBase;
+            const startH = Math.floor(totalStartMin / 60);
+            const startM = totalStartMin % 60;
+            if (startH >= 22) return; // fuori range
+
+            const day = col.dataset.day; // YYYY-MM-DD
+            const dur = dragData.duration;
+            const endTotalMin = totalStartMin + dur;
+            const endH = Math.floor(endTotalMin / 60);
+            const endM = endTotalMin % 60;
+            const pad = n => String(n).padStart(2, '0');
+            const newStart = `${day} ${pad(startH)}:${pad(startM)}:00`;
+            const newEnd   = `${day} ${pad(endH)}:${pad(endM)}:00`;
+
+            // POST move_event (solo orari, no rischio di sovrascrivere title/location)
+            const fd = new FormData();
+            fd.append('csrf_token', CSRF_TOKEN);
+            fd.append('action', 'move_event');
+            fd.append('event_id', dragData.id);
+            fd.append('start_at', newStart);
+            fd.append('end_at', newEnd);
+
+            fetch('', { method: 'POST', body: fd })
+                .then(async r => {
+                    const txt = await r.text();
+                    try { return JSON.parse(txt); } catch (_) { throw new Error(txt.slice(0,200)); }
+                })
+                .then(data => {
+                    if (data.success) window.location.reload();
+                    else alert(data.error || 'Errore aggiornamento');
+                })
+                .catch(err => { console.error(err); alert('Errore di connessione'); });
+
+            dragData = null;
+        });
+    });
 })();
 </script>
