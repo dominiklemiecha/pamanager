@@ -363,6 +363,7 @@ foreach ($__events as $ev) {
     border-right: 1px solid var(--cal-line);
     position: relative;
     min-height: calc(var(--cal-hour-h) * 14);
+    cursor: cell;
 }
 .cal-day-col:last-child { border-right: none; }
 .cal-day-col.is-today { background: rgba(34,197,94,0.04); }
@@ -1900,7 +1901,42 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         });
     });
 
+    // CLICK su uno slot vuoto -> apre modal "Nuovo evento" pre-riempito con quel giorno/ora
     document.querySelectorAll('.cal-day-col').forEach(col => {
+        col.addEventListener('click', (e) => {
+            // Ignora clic su eventi esistenti (gestiti dal loro onclick) o linea ora
+            if (e.target.closest('.cal-evt') || e.target.closest('.cal-now-line')) return;
+
+            const rect = col.getBoundingClientRect();
+            const offsetPx = e.clientY - rect.top;
+            // 1 minuto = 1px, partendo dalle 7:00. Snap a 15 min.
+            const mins = Math.max(0, Math.round(offsetPx / SNAP_MIN) * SNAP_MIN);
+            const totalStartMin = 7 * 60 + mins;
+            if (totalStartMin >= 22 * 60) return;
+            const startH = Math.floor(totalStartMin / 60);
+            const startM = totalStartMin % 60;
+            const endTotalMin = totalStartMin + 60; // default 1h
+            const endH = Math.floor(endTotalMin / 60);
+            const endM = endTotalMin % 60;
+            const day = col.dataset.day;
+
+            // Apri il modal in modalità "nuovo evento" e poi sovrascrivi date/orari
+            if (typeof window.calOpenModal === 'function') {
+                window.calOpenModal();
+                state.date = day;
+                state.t1 = pad(startH) + ':' + pad(startM);
+                state.t2 = pad(endH) + ':' + pad(endM);
+                const [y, m] = day.split('-').map(Number);
+                state.miniMonth = new Date(y, m - 1, 1);
+                renderDateLabel();
+                renderTimeLabel(1);
+                renderTimeLabel(2);
+                syncHidden();
+                // Focus al titolo
+                setTimeout(() => document.getElementById('calTitle')?.focus(), 50);
+            }
+        });
+
         col.addEventListener('dragover', (e) => {
             if (!dragData) return;
             e.preventDefault();
