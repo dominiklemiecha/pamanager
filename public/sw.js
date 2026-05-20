@@ -3,7 +3,7 @@
  * Gestisce caching offline e push notifications
  */
 
-const CACHE_NAME = 'pamanager-v14';
+const CACHE_NAME = 'pamanager-v15';
 
 // Base path dello scope del Service Worker (es. "/pamanager/public/" o "/")
 // Calcolato dalla directory del file sw.js — robusto anche se self.registration non è ancora pronto.
@@ -26,11 +26,10 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('[SW] Caching static assets');
-                return cache.addAll(STATIC_ASSETS.map(url => {
-                    // Aggiungi base URL se configurato
-                    return url;
-                })).catch(err => {
+                console.log('[SW] Caching static assets (forced reload, bypass HTTP cache)');
+                // cache: 'reload' bypassa la HTTP cache del browser -> sempre versione fresca dal server
+                const reqs = STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' }));
+                return cache.addAll(reqs).catch(err => {
                     console.log('[SW] Cache addAll failed:', err);
                 });
             })
@@ -42,16 +41,21 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     console.log('[SW] Activating...');
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME)
-                    .map((name) => {
-                        console.log('[SW] Deleting old cache:', name);
-                        return caches.delete(name);
-                    })
-            );
-        }).then(() => self.clients.claim())
+        Promise.all([
+            // Cancella vecchie cache
+            caches.keys().then((cacheNames) => Promise.all(
+                cacheNames.filter((name) => name !== CACHE_NAME).map((name) => {
+                    console.log('[SW] Deleting old cache:', name);
+                    return caches.delete(name);
+                })
+            )),
+            // Aggiorna sempre la offline.html con la versione fresca dal server
+            caches.open(CACHE_NAME).then(cache =>
+                fetch(OFFLINE_URL, { cache: 'reload' })
+                    .then(r => r.ok ? cache.put(OFFLINE_URL, r) : null)
+                    .catch(() => null)
+            ),
+        ]).then(() => self.clients.claim())
     );
 });
 
