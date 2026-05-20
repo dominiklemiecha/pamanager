@@ -463,6 +463,214 @@ try {
     </div>
 </div>
 
+<!-- ======== Timbra entrata/uscita ======== -->
+<?php
+$__lastPunch = class_exists('AttendancePunch') ? AttendancePunch::lastPunch((int)$employee['id']) : null;
+$__todayLast = null;
+if ($__lastPunch && date('Y-m-d', strtotime($__lastPunch['punch_at'])) === date('Y-m-d')) {
+    $__todayLast = $__lastPunch;
+}
+$__nextKind = ($__todayLast && $__todayLast['kind'] === 'in') ? 'out' : 'in';
+$__nextLabel = $__nextKind === 'in' ? 'Timbra entrata' : 'Timbra uscita';
+$__sub = $__todayLast
+    ? 'Ultima: ' . ($__todayLast['kind'] === 'in' ? 'entrata' : 'uscita') . ' alle ' . date('H:i', strtotime($__todayLast['punch_at']))
+    : 'Nessuna timbratura oggi';
+
+// URL tenant-specifica
+$__compRow = Database::fetchOne("SELECT slug FROM companies WHERE id = ?", [(int)$employee['company_id']]);
+$__cSlug = $__compRow['slug'] ?? '';
+$__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug) : '');
+?>
+<button type="button" class="eh-punch-btn <?= $__nextKind ?>" onclick="ehPunchOpen()">
+    <span class="eh-punch-ic">
+        <?php if ($__nextKind === 'in'): ?>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        <?php else: ?>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <?php endif; ?>
+    </span>
+    <span class="eh-punch-body">
+        <span class="eh-punch-title"><?= $__nextLabel ?></span>
+        <span class="eh-punch-sub"><?= htmlspecialchars($__sub) ?></span>
+    </span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="color:rgba(255,255,255,0.65);"><polyline points="9 18 15 12 9 6"/></svg>
+</button>
+
+<!-- Bottom-sheet timbratura -->
+<div class="eh-sheet-backdrop" id="ehSheetBackdrop" onclick="ehPunchClose()"></div>
+<div class="eh-sheet" id="ehSheet" role="dialog" aria-modal="true">
+    <button type="button" class="eh-sheet-back" onclick="ehPunchClose()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+        Torna indietro
+    </button>
+    <div class="eh-sheet-body">
+        <div class="eh-nfc-illu">
+            <!-- Telefono che tocca tag NFC con onde -->
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Onde NFC -->
+                <path d="M120 70 Q 140 100 120 130" stroke="#0b3aa4" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.4">
+                    <animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.5s" repeatCount="indefinite"/>
+                </path>
+                <path d="M135 60 Q 165 100 135 140" stroke="#0b3aa4" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.3">
+                    <animate attributeName="opacity" values="0.1;0.5;0.1" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+                </path>
+                <path d="M150 50 Q 190 100 150 150" stroke="#0b3aa4" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.2">
+                    <animate attributeName="opacity" values="0;0.35;0" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+                </path>
+                <!-- Telefono -->
+                <rect x="35" y="40" width="80" height="130" rx="14" fill="white" stroke="#0b3aa4" stroke-width="3"/>
+                <rect x="42" y="50" width="66" height="100" rx="4" fill="#eef2ff"/>
+                <circle cx="75" cy="160" r="4" fill="#0b3aa4"/>
+                <!-- Logo dentro schermo -->
+                <text x="75" y="105" text-anchor="middle" font-family="Inter, sans-serif" font-size="22" font-weight="700" fill="#0b3aa4">CHR</text>
+            </svg>
+        </div>
+        <h3 class="eh-sheet-title">Avvicina il telefono alla carta NFC</h3>
+        <p class="eh-sheet-text">Tieni il telefono vicino al lato della carta NTAG215. Se non parte automaticamente, premi il pulsante qui sotto.</p>
+        <a href="<?= htmlspecialchars($__punchUrl) ?>" class="eh-sheet-cta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Avvia timbratura manuale
+        </a>
+        <p class="eh-sheet-hint">In alternativa puoi aprire questa pagina sul telefono: <code><?= htmlspecialchars($__punchUrl) ?></code></p>
+    </div>
+</div>
+
+<style>
+.eh-punch-btn {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%;
+    padding: 16px 20px;
+    background: #0b3aa4; color: white;
+    border: none; border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(11,58,164,0.25);
+    margin-bottom: 14px;
+    text-align: left;
+    transition: transform .08s ease, box-shadow .12s ease, filter .12s ease;
+    font-family: inherit;
+}
+.eh-punch-btn.out { background: #d97706; box-shadow: 0 6px 16px rgba(217,119,6,0.25); }
+.eh-punch-btn:hover { filter: brightness(1.05); }
+.eh-punch-btn:active { transform: scale(0.99); }
+.eh-punch-ic {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.18);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.eh-punch-ic svg { width: 22px; height: 22px; }
+.eh-punch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.eh-punch-title {
+    font-family: 'Host Grotesk', 'Inter', sans-serif;
+    font-size: 17px; font-weight: 700;
+    letter-spacing: -0.01em;
+}
+.eh-punch-sub { font-size: 12px; opacity: 0.85; }
+
+/* Bottom sheet */
+.eh-sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.55);
+    z-index: 2090;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+}
+.eh-sheet-backdrop.show { opacity: 1; pointer-events: auto; }
+.eh-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: 60vh; max-height: 600px;
+    background: white;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -24px 64px rgba(15,23,42,0.20);
+    z-index: 2100;
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex; flex-direction: column;
+}
+.eh-sheet.show { transform: translateY(0); }
+.eh-sheet::before {
+    content: ''; position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 4px;
+    background: #cbd5e0; border-radius: 999px;
+}
+.eh-sheet-back {
+    position: absolute; top: 14px; left: 14px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    border: none; background: transparent;
+    color: #0b3aa4; font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.eh-sheet-back:hover { background: rgba(11,58,164,0.08); }
+.eh-sheet-body {
+    padding: 56px 28px 32px;
+    text-align: center;
+    overflow-y: auto;
+    flex: 1;
+}
+.eh-nfc-illu {
+    width: 180px; height: 180px;
+    margin: 0 auto 14px;
+}
+.eh-nfc-illu svg { width: 100%; height: 100%; }
+.eh-sheet-title {
+    font-family: 'Host Grotesk', 'Inter', sans-serif;
+    font-size: 19px; font-weight: 700;
+    color: #0b3aa4;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+}
+.eh-sheet-text {
+    color: #6e7191; font-size: 13.5px;
+    line-height: 1.5;
+    margin-bottom: 22px;
+    max-width: 340px;
+    margin-left: auto; margin-right: auto;
+}
+.eh-sheet-cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 24px;
+    background: #0b3aa4; color: white;
+    border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    text-decoration: none;
+    transition: background .12s ease;
+}
+.eh-sheet-cta:hover { background: #082b7b; color: white; text-decoration: none; }
+.eh-sheet-hint {
+    margin-top: 18px;
+    font-size: 11.5px; color: #94a3b8;
+    line-height: 1.5;
+}
+.eh-sheet-hint code {
+    background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    word-break: break-all;
+}
+
+@media (max-width: 480px) {
+    .eh-sheet { height: 70vh; }
+    .eh-nfc-illu { width: 150px; height: 150px; }
+}
+</style>
+
+<script>
+function ehPunchOpen() {
+    document.getElementById('ehSheet').classList.add('show');
+    document.getElementById('ehSheetBackdrop').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+function ehPunchClose() {
+    document.getElementById('ehSheet').classList.remove('show');
+    document.getElementById('ehSheetBackdrop').classList.remove('show');
+    document.body.style.overflow = '';
+}
+</script>
+
 <!-- ======== Quick actions ======== -->
 <div class="eh-actions">
     <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new&type=ferie" class="eh-action">
