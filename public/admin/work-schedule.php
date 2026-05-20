@@ -40,8 +40,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $defaults = LeaveBalance::companyDefaults($companyId);
 $ccnls = LeaveBalance::availableCcnls($companyId);
-$compRow = Database::fetchOne("SELECT default_ccnl_id FROM companies WHERE id = ?", [$companyId]);
+$compRow = Database::fetchOne("SELECT default_ccnl_id, slug, name FROM companies WHERE id = ?", [$companyId]);
 $currentDefaultCcnl = $compRow['default_ccnl_id'] ?? null;
+$companySlug = $compRow['slug'] ?? '';
+// Auto-genera slug se mancante (azienda creata prima dell'introduzione delle URL tenant)
+if (empty($companySlug) && !empty($compRow['name'])) {
+    $base = preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($compRow['name'], 'UTF-8'));
+    $base = trim($base, '-');
+    $candidate = $base ?: ('az' . $companyId);
+    $i = 1;
+    while (Database::exists('companies', 'slug = ? AND id != ?', [$candidate, $companyId])) {
+        $candidate = $base . '-' . (++$i);
+    }
+    Database::update('companies', ['slug' => $candidate], 'id = ?', [$companyId]);
+    $companySlug = $candidate;
+}
+$punchUrl = PUBLIC_URL . '/punch.php?c=' . urlencode($companySlug);
 $pageTitle = 'Configurazione · Orario lavorativo';
 include dirname(__DIR__) . '/includes/header-admin.php';
 include dirname(__DIR__) . '/includes/_config-tabs.php';
@@ -85,6 +99,30 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
                 <?php endforeach; ?>
             </select>
         </div>
+
+        <h3 style="margin-top: 24px;">Timbratura NFC (NTAG215)</h3>
+        <p class="desc">Scrivi questa URL sulla carta NFC con l'app <strong>NFC Tools</strong> (record di tipo URI). Solo i dipendenti della tua azienda possono timbrare con questa carta.</p>
+        <div class="cfg-fg" style="max-width: 100%;">
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" id="punchUrlField" value="<?= htmlspecialchars($punchUrl) ?>" readonly
+                       style="flex:1; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: #f8fafc;">
+                <button type="button" class="cfg-btn cfg-btn-ghost" onclick="copyPunchUrl()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copia
+                </button>
+            </div>
+            <small style="color:#94a3b8; margin-top:6px; display:block;">Slug azienda: <code><?= htmlspecialchars($companySlug) ?></code></small>
+        </div>
+        <script>
+        function copyPunchUrl() {
+            const el = document.getElementById('punchUrlField');
+            el.select(); el.setSelectionRange(0, 99999);
+            navigator.clipboard?.writeText(el.value).then(() => {
+                el.style.background = '#dcfce7';
+                setTimeout(() => { el.style.background = '#f8fafc'; }, 800);
+            });
+        }
+        </script>
 
         <div class="cfg-actions">
             <button type="submit" class="cfg-btn cfg-btn-primary">

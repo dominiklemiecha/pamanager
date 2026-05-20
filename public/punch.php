@@ -11,15 +11,43 @@ require_once dirname(__DIR__) . '/config/config.php';
 Auth::init();
 setSecurityHeaders();
 
+// Eventuale slug azienda (per URL tenant-specifica scritta sulla carta).
+// Se mancante o "any", funziona generico in base alla sessione del dipendente.
+$companySlug = trim($_GET['c'] ?? '');
+
 if (!Auth::isEmployeeLoggedIn()) {
-    header('Location: ' . PUBLIC_URL . '/auth/login.php?return=' . urlencode('/punch.php'));
+    $return = '/punch.php' . ($companySlug !== '' ? '?c=' . urlencode($companySlug) : '');
+    header('Location: ' . PUBLIC_URL . '/auth/login.php?return=' . urlencode($return));
     exit;
 }
 
 $employee = Auth::getEmployee();
 $employeeId = (int) $employee['id'];
 
-$result = AttendancePunch::record($employeeId, 'nfc');
+// Se passata una slug azienda, verifica che il dipendente appartenga a quella tenant
+$companyMismatch = false;
+$companyName = '';
+if ($companySlug !== '') {
+    $comp = Database::fetchOne("SELECT id, name, slug FROM companies WHERE slug = ?", [$companySlug]);
+    if (!$comp) {
+        $companyMismatch = true;
+        $companyName = $companySlug;
+    } else {
+        $companyName = $comp['name'];
+        if ((int) $comp['id'] !== (int) $employee['company_id']) {
+            $companyMismatch = true;
+        }
+    }
+}
+
+if ($companyMismatch) {
+    $result = [
+        'success' => false,
+        'error'   => 'Questa carta non appartiene alla tua azienda (' . htmlspecialchars($companyName) . '). Usa la carta corretta o contatta l\'amministratore.',
+    ];
+} else {
+    $result = AttendancePunch::record($employeeId, 'nfc');
+}
 $summary = AttendancePunch::todaySummary($employeeId);
 $totalH = floor($summary['total_seconds'] / 3600);
 $totalM = floor(($summary['total_seconds'] % 3600) / 60);
