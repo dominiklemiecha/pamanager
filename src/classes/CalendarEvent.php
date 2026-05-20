@@ -78,8 +78,8 @@ class CalendarEvent
     {
         $ev = self::getById($id);
         if (!$ev) return ['success' => false, 'error' => 'Evento non trovato'];
-        if ($ev['owner_type'] !== $callerType || (int) $ev['owner_id'] !== $callerId) {
-            return ['success' => false, 'error' => 'Solo il creatore puo modificare l\'evento'];
+        if (!self::canManage($ev, $callerType, $callerId)) {
+            return ['success' => false, 'error' => 'Non hai i permessi per modificare l\'evento'];
         }
         $update = [];
         foreach (['title','description','location','start_at','end_at','color','all_day'] as $k) {
@@ -100,11 +100,27 @@ class CalendarEvent
     {
         $ev = self::getById($id);
         if (!$ev) return ['success' => false, 'error' => 'Evento non trovato'];
-        if ($ev['owner_type'] !== $callerType || (int) $ev['owner_id'] !== $callerId) {
-            return ['success' => false, 'error' => 'Solo il creatore puo eliminare l\'evento'];
+        if (!self::canManage($ev, $callerType, $callerId)) {
+            return ['success' => false, 'error' => 'Non hai i permessi per eliminare l\'evento'];
         }
         Database::delete('calendar_events', 'id = ?', [$id]);
         return ['success' => true];
+    }
+
+    /**
+     * Può gestire (modificare/eliminare) l'evento se è il creatore o è admin/admin_reparto della stessa tenant.
+     */
+    public static function canManage(array $event, string $callerType, int $callerId): bool
+    {
+        $isOwner = (strcasecmp((string)$event['owner_type'], $callerType) === 0)
+                   && ((int)$event['owner_id'] === $callerId);
+        if ($isOwner) return true;
+        if (!in_array($callerType, ['admin', 'admin_reparto'], true)) return false;
+        if (class_exists('Tenant')) {
+            $cid = Tenant::currentCompanyId();
+            return (int)$event['company_id'] === (int)$cid;
+        }
+        return true;
     }
 
     public static function getById(int $id): ?array
