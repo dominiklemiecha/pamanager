@@ -927,6 +927,12 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     .cal-mini-label { font-size: 13px; }
     .cal-mini-nav { width: 26px; height: 26px; }
 
+    /* Spazio fra date pill, time pill row e duration chips per non attaccare tutto */
+    .cal-when { gap: 12px; }
+    .cal-pick-wrap { margin-bottom: 0; }
+    .cal-pick-row { margin-top: 2px; }
+    .cal-duration-chips { margin-top: 10px; }
+
     .cal-pop-time { max-height: 220px; }
     .cal-time-opt { padding: 8px 12px; font-size: 13px; }
 
