@@ -76,7 +76,11 @@ $__heatmap_cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
 $empSql = "SELECT id, first_name, last_name, photo_path, department_id, availability_status, availability_set_at
            FROM employees WHERE is_active = TRUE AND company_id = ?";
 $empParams = [$__heatmap_cid];
-if ($heatmapDepartmentId !== null) {
+// Filtra per reparto solo se scope='mine' (o se non c'è toggle, mantiene il comportamento legacy)
+$__hmCurrentScope = $_GET['scope'] ?? $heatmapDefaultScope;
+$__applyDeptFilter = $heatmapDepartmentId !== null
+    && (!$heatmapShowScopeToggle || $__hmCurrentScope === 'mine');
+if ($__applyDeptFilter) {
     $empSql .= " AND department_id = ?";
     $empParams[] = $heatmapDepartmentId;
 }

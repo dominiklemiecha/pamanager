@@ -551,9 +551,11 @@ try {
 
 <!-- ======== Heatmap presenze settimanale ======== -->
 <?php
-$heatmapDepartmentId = !empty($employee['department_id']) ? (int) $employee['department_id'] : null;
-$heatmapBaseUrl = PUBLIC_URL . '/employee/';
-$heatmapShowScopeToggle = false;
+$heatmapDepartmentId    = !empty($employee['department_id']) ? (int) $employee['department_id'] : null;
+$heatmapMyDepartmentId  = $heatmapDepartmentId;
+$heatmapBaseUrl         = PUBLIC_URL . '/employee/';
+$heatmapShowScopeToggle = $heatmapDepartmentId !== null; // mostra "Mio reparto / Tutti" se ha un reparto
+$heatmapDefaultScope    = 'mine';
 include dirname(__DIR__) . '/includes/widget-availability-heatmap.php';
 ?>
 
