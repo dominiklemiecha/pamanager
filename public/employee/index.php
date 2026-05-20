@@ -477,7 +477,12 @@ $__sub = $__todayLast
     : 'Nessuna timbratura oggi';
 
 // URL tenant-specifica
-$__compRow = Database::fetchOne("SELECT slug FROM companies WHERE id = ?", [(int)$employee['company_id']]);
+$__empCompanyId = (int) ($employee['company_id']
+    ?? Database::fetchColumn("SELECT company_id FROM employees WHERE id = ?", [(int)$employee['id']])
+    ?? 0);
+$__compRow = $__empCompanyId
+    ? Database::fetchOne("SELECT slug FROM companies WHERE id = ?", [$__empCompanyId])
+    : null;
 $__cSlug = $__compRow['slug'] ?? '';
 $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug) : '');
 ?>
