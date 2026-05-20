@@ -189,6 +189,17 @@ html { font-size: 14px; }
 @media (min-width: 1920px) { html { font-size: 16px; } }
 @media (min-width: 2400px) { html { font-size: 17px; } }
 @media (min-width: 2880px) { html { font-size: 18px; } }
+
+/* Centra l'intera app (sidebar + main) su schermi grandi così non rimane spazio vuoto a destra */
+@media (min-width: 1800px) {
+    .app { max-width: 1800px; margin-left: auto; margin-right: auto; }
+}
+@media (min-width: 2200px) {
+    .app { max-width: 2000px; }
+}
+@media (min-width: 2800px) {
+    .app { max-width: 2200px; }
+}
 body {
     font-family: var(--font);
     background: var(--bg);
