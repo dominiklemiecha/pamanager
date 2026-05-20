@@ -688,11 +688,13 @@ foreach ($__events as $ev) {
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 700;
     text-transform: uppercase;
-    overflow: hidden;
     position: relative;
-    cursor: pointer;
+    cursor: default;
 }
-.cal-participants .av img { width: 100%; height: 100%; object-fit: cover; }
+.cal-participants .av img {
+    width: 100%; height: 100%; object-fit: cover;
+    border-radius: 50%;
+}
 .cal-participants .av .x {
     position: absolute; top: -4px; right: -4px;
     width: 16px; height: 16px;
