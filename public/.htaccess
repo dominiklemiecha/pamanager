@@ -109,6 +109,12 @@ Options -Indexes
         Header set Cache-Control "public, max-age=15552000, immutable"
         Header unset Pragma
     </FilesMatch>
+    # Service Worker e pagina offline: MAI cacheare (così aggiornamenti arrivano subito)
+    <FilesMatch "^(sw\.js|offline\.html)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
 </IfModule>
 
 # Compressione anche per WebP/SVG
