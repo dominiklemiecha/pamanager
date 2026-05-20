@@ -841,20 +841,20 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     .cal-evt .evt-time { font-size: 10px; }
     .cal-modal { max-width: 100%; max-height: 92vh; overflow-y: auto; }
 
-    /* Footer modal: pulsanti grandi e in colonna su mobile per leggibilita' + facilita' tap */
+    /* Footer modal: pulsanti compatti in colonna su mobile */
     .cal-modal-footer {
         flex-direction: column;
-        gap: 8px;
-        padding: 12px 16px 16px;
+        gap: 6px;
+        padding: 10px 14px 12px;
         background: white;
         position: sticky; bottom: 0;
         box-shadow: 0 -4px 12px rgba(15,23,42,0.06);
     }
     .cal-modal-footer .cal-btn {
         width: 100%;
-        min-height: 46px;
-        font-size: 14px;
-        padding: 12px 16px;
+        min-height: 38px;
+        font-size: 13px;
+        padding: 8px 14px;
     }
     /* Ordine visibile: Salva/Crea o Accetta in alto, poi Rifiuta/Annulla, Elimina in fondo */
     .cal-modal-footer .cal-btn-primary { order: 1; }
