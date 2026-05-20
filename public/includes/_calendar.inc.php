@@ -1549,7 +1549,8 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         openPop('calT2Btn', 'calT2Pop', () => renderTimeList(2));
     });
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.cal-pick-wrap')) closePops();
+        // Il date popup è stato spostato al body (fuori da .cal-pick-wrap), quindi accetta anche .cal-pop
+        if (!e.target.closest('.cal-pick-wrap, .cal-pop')) closePops();
     });
 
     window.calOpenModal = function(eventId) {
