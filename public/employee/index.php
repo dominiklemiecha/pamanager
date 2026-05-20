@@ -549,6 +549,12 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
     transition: transform .08s ease, box-shadow .12s ease, filter .12s ease;
     font-family: inherit;
 }
+/* Timbratura disponibile solo su mobile (la card NFC si tappa col telefono) */
+@media (min-width: 821px) {
+    .eh-punch-btn,
+    .eh-sheet,
+    .eh-sheet-backdrop { display: none !important; }
+}
 .eh-punch-btn.out { background: #d97706; box-shadow: 0 6px 16px rgba(217,119,6,0.25); }
 .eh-punch-btn:hover { filter: brightness(1.05); }
 .eh-punch-btn:active { transform: scale(0.99); }
