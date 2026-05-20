@@ -808,13 +808,15 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     padding: 14px 22px;
     border-top: 1px solid var(--cal-line);
     display: flex; justify-content: flex-end; gap: 8px;
+    flex-wrap: wrap;
 }
 .cal-btn {
-    padding: 9px 18px;
+    padding: 10px 18px;
     border-radius: 8px; border: 1px solid transparent;
     font-family: inherit; font-size: 13px; font-weight: 600;
     cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 42px;
 }
 .cal-btn-primary { background: #0b3aa4; color: white; }
 .cal-btn-primary:hover { background: #082b7b; }
@@ -838,6 +840,33 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     .cal-evt { font-size: 11px; padding: 6px 8px; }
     .cal-evt .evt-time { font-size: 10px; }
     .cal-modal { max-width: 100%; max-height: 92vh; overflow-y: auto; }
+
+    /* Footer modal: pulsanti grandi e in colonna su mobile per leggibilita' + facilita' tap */
+    .cal-modal-footer {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 16px 16px;
+        background: white;
+        position: sticky; bottom: 0;
+        box-shadow: 0 -4px 12px rgba(15,23,42,0.06);
+    }
+    .cal-modal-footer .cal-btn {
+        width: 100%;
+        min-height: 46px;
+        font-size: 14px;
+        padding: 12px 16px;
+    }
+    /* Ordine visibile: Salva/Crea o Accetta in alto, poi Rifiuta/Annulla, Elimina in fondo */
+    .cal-modal-footer .cal-btn-primary { order: 1; }
+    .cal-modal-footer #calAcceptBtn   { order: 1; }
+    .cal-modal-footer #calDeclineBtn  { order: 2; }
+    .cal-modal-footer .cal-btn-ghost  { order: 3; }
+    .cal-modal-footer .cal-btn-danger { order: 4; }
+    .cal-modal-footer #calDeleteBtn   { order: 5; }
+
+    /* Modal body: padding meno aggressivo */
+    .cal-modal-h { padding: 14px 16px; }
+    .cal-modal-body { padding: 14px 16px; }
 }
 </style>
 
