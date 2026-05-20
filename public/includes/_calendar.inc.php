@@ -242,7 +242,21 @@ foreach ($__events as $ev) {
     background: white;
     border: 1px solid #e6e8f0;
     border-radius: 14px;
-    overflow: hidden;
+    /* niente overflow:hidden: rompe sticky sui figli */
+    overflow: visible;
+}
+
+/* Toolbar + Day headers sticky in cima quando si scorre la pagina (desktop) */
+.cal-sticky-head {
+    position: sticky;
+    top: var(--header-h, 60px);
+    z-index: 20;
+    background: white;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+}
+@media (max-width: 720px) {
+    .cal-sticky-head { position: static; }
 }
 .cal-toolbar {
     display: flex; align-items: center; gap: 12px;
@@ -979,6 +993,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 </style>
 
 <div class="cal-wrap">
+    <div class="cal-sticky-head">
     <div class="cal-toolbar">
         <div class="cal-nav">
             <a href="?view=<?= e($__view) ?>&d=<?= $__prevDate ?>" class="cal-nav-btn" aria-label="Precedente">
@@ -1019,6 +1034,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         </div>
     </div>
     <?php endif; ?>
+    </div><!-- /cal-sticky-head -->
 
     <div class="cal-grid" id="calGrid">
         <div class="cal-time-col">
