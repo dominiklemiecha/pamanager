@@ -109,11 +109,17 @@ Options -Indexes
         Header set Cache-Control "public, max-age=15552000, immutable"
         Header unset Pragma
     </FilesMatch>
-    # Service Worker e pagina offline: MAI cacheare (così aggiornamenti arrivano subito)
-    <FilesMatch "^(sw\.js|offline\.html)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    # Service Worker: niente cache HTTP (così gli aggiornamenti arrivano subito).
+    # NOTA: NON usare no-store: bloccherebbe anche il SW Cache API.
+    <FilesMatch "^sw\.js$">
+        Header set Cache-Control "no-cache, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"
+    </FilesMatch>
+    # offline.html: must-revalidate via no-cache; il Cache API del SW deve poterla salvare.
+    <FilesMatch "^offline\.html$">
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header unset Pragma
     </FilesMatch>
 </IfModule>
 

@@ -3,7 +3,7 @@
  * Gestisce caching offline e push notifications
  */
 
-const CACHE_NAME = 'pamanager-v15';
+const CACHE_NAME = 'pamanager-v16';
 
 // Base path dello scope del Service Worker (es. "/pamanager/public/" o "/")
 // Calcolato dalla directory del file sw.js — robusto anche se self.registration non è ancora pronto.
@@ -92,9 +92,15 @@ self.addEventListener('fetch', (event) => {
                     // Se è una pagina HTML, prova mostrare la pagina offline
                     const accept = event.request.headers.get('accept') || '';
                     if (accept.includes('text/html')) {
-                        return caches.match(OFFLINE_URL).then(r => r || new Response('', { status: 504, statusText: 'Offline' }));
+                        return caches.match(OFFLINE_URL).then(r => {
+                            if (r) return r;
+                            // Ultimo fallback: pagina inline minima, MAI 504 vuoto (Chrome mostrerebbe error page generico)
+                            return new Response(
+                                '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title><style>body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0;padding:20px}.c{background:#fff;border:1px solid #e6e8f0;border-radius:14px;padding:28px;max-width:380px;text-align:center;box-shadow:0 12px 32px rgba(15,23,42,.08)}h1{color:#0b3aa4;margin:0 0 10px;font-size:20px}p{color:#6e7191;margin:0 0 18px;font-size:14px;line-height:1.5}.b{display:inline-block;background:#0b3aa4;color:#fff;padding:10px 22px;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;border:none;text-decoration:none}</style></head><body><div class="c"><h1>Sei offline</h1><p>Non sei connesso a internet. Verifica la connessione e riprova.</p><button class="b" onclick="location.reload()">Riprova</button></div></body></html>',
+                                { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+                            );
+                        });
                     }
-                    // Per asset non-HTML, restituisci una risposta vuota per evitare "Failed to convert value to 'Response'"
                     return new Response('', { status: 504, statusText: 'Offline' });
                 });
             })
