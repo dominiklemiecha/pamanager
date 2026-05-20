@@ -683,13 +683,20 @@ foreach ($__events as $ev) {
     min-height: 48px;
 }
 .cal-participants .av {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 6px 4px 4px;
-    background: #f1f5f9;
-    border-radius: 999px;
-    font-size: 12px; font-weight: 600;
-    color: #1e1e2f;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px 4px 4px !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px !important;
+    font-size: 12.5px; font-weight: 600;
+    color: #1e1e2f !important;
     max-width: 100%;
+    width: auto !important;
+    height: auto !important;
+    min-height: 32px;
+    overflow: visible !important;
 }
 .cal-participants .av .av-photo {
     width: 24px; height: 24px; border-radius: 50%;
