@@ -1510,13 +1510,20 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     }
     window.closePops = closePops;
     function openPop(btnId, popId, before) {
-        const isOpen = !document.getElementById(popId).hidden;
+        const pop = document.getElementById(popId);
+        const isOpen = !pop.hidden;
         closePops();
         if (isOpen) return;
         if (before) before();
-        document.getElementById(popId).hidden = false;
+
+        // Sposta il date popup al body così esce dal stacking context del modal
+        if (popId === 'calDatePop' && pop.parentElement !== document.body) {
+            document.body.appendChild(pop);
+        }
+
+        pop.hidden = false;
         document.getElementById(btnId).classList.add('is-open');
-        // Se è il date popup, mostra il backdrop
+
         if (popId === 'calDatePop') {
             const bd = document.getElementById('calDateBackdrop');
             if (bd) bd.classList.add('show');
