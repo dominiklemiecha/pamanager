@@ -28,7 +28,24 @@ $employeeId = (int) $employee['id'];
 $companyMismatch = false;
 $companyName = '';
 if ($companySlug !== '') {
-    $comp = Database::fetchOne("SELECT id, name, slug FROM companies WHERE slug = ?", [$companySlug]);
+    $slugLower = mb_strtolower($companySlug);
+    $comp = Database::fetchOne("SELECT id, name, slug FROM companies WHERE LOWER(slug) = ?", [$slugLower]);
+    if (!$comp) {
+        // Fallback: lo slug potrebbe non essere ancora stato salvato sul DB. Verifica
+        // se il nome dell'azienda del dipendente, slug-ificato, corrisponde al param.
+        $empComp = Database::fetchOne(
+            "SELECT id, name, slug FROM companies WHERE id = ?",
+            [(int) $employee['company_id']]
+        );
+        if ($empComp) {
+            $autoSlug = preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($empComp['name'], 'UTF-8'));
+            $autoSlug = trim($autoSlug, '-');
+            if ($autoSlug !== '' && $autoSlug === $slugLower) {
+                Database::update('companies', ['slug' => $autoSlug], 'id = ?', [(int) $empComp['id']]);
+                $comp = ['id' => (int) $empComp['id'], 'name' => $empComp['name'], 'slug' => $autoSlug];
+            }
+        }
+    }
     if (!$comp) {
         $companyMismatch = true;
         $companyName = $companySlug;

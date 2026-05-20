@@ -12,6 +12,11 @@ setSecurityHeaders();
 
 function login_redirect_for(string $type, array $entity): string
 {
+    // Rispetta ?return=/path-locale se valido (solo path interni, no URL esterne)
+    $ret = $_GET['return'] ?? $_POST['return'] ?? '';
+    if (is_string($ret) && $ret !== '' && preg_match('#^/[a-zA-Z0-9/_\-.?=&%]*$#', $ret)) {
+        return PUBLIC_URL . $ret;
+    }
     if ($type === 'employee') return PUBLIC_URL . '/employee/';
     return match($entity['role'] ?? '') {
         'admin'             => PUBLIC_URL . '/admin/',
@@ -399,6 +404,9 @@ $usernameValue = htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')
 
                     <form method="POST">
                         <?php echo $csrfField; ?>
+                        <?php if (!empty($_GET['return']) && is_string($_GET['return']) && preg_match('#^/[a-zA-Z0-9/_\-.?=&%]*$#', $_GET['return'])): ?>
+                            <input type="hidden" name="return" value="<?= htmlspecialchars($_GET['return']) ?>">
+                        <?php endif; ?>
 
                         <div class="login-fg">
                             <label for="username">Username o codice fiscale</label>
