@@ -555,7 +555,7 @@ $heatmapDepartmentId    = !empty($employee['department_id']) ? (int) $employee['
 $heatmapMyDepartmentId  = $heatmapDepartmentId;
 $heatmapBaseUrl         = PUBLIC_URL . '/employee/';
 $heatmapShowScopeToggle = $heatmapDepartmentId !== null; // mostra "Mio reparto / Tutti" se ha un reparto
-$heatmapDefaultScope    = 'mine';
+$heatmapDefaultScope    = 'all';
 include dirname(__DIR__) . '/includes/widget-availability-heatmap.php';
 ?>
 
