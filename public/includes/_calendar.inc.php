@@ -76,8 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ev = CalendarEvent::getById($id);
                 if (!$ev) { echo json_encode(['success' => false, 'error' => 'Evento non trovato']); exit; }
                 $parts = CalendarEvent::getParticipants($id);
-                $canEdit = (strcasecmp((string)$ev['owner_type'], (string)$callerType) === 0)
+                // Owner può sempre modificare; admin/admin_reparto possono modificare qualunque evento della tenant
+                $isOwner = (strcasecmp((string)$ev['owner_type'], (string)$callerType) === 0)
                            && ((int) $ev['owner_id'] === (int) $callerId);
+                $isCompanyAdmin = in_array($callerType, ['admin','admin_reparto'], true);
+                $canEdit = $isOwner || $isCompanyAdmin;
                 echo json_encode([
                     'success'      => true,
                     'event'        => $ev,
@@ -232,29 +235,44 @@ foreach ($__events as $ev) {
     text-transform: capitalize;
     letter-spacing: -0.01em;
 }
+/* Day/Week toggle - stile cd-tabs */
 .cal-view-toggle {
     margin-left: auto;
-    background: #f1f5f9; border-radius: 999px; padding: 3px;
-    display: inline-flex; gap: 2px;
+    background: #f1f5f9; border-radius: 10px; padding: 4px;
+    display: inline-flex; gap: 2px; flex-wrap: wrap;
 }
 .cal-view-toggle a {
-    padding: 6px 16px; border-radius: 999px;
+    padding: 7px 14px; border-radius: 8px;
     font-size: 12px; font-weight: 600;
     color: #6e7191; text-decoration: none;
     transition: all .12s ease;
+    white-space: nowrap;
 }
-.cal-view-toggle a.active { background: #1e1e2f; color: white; }
+.cal-view-toggle a:hover { color: #0b3aa4; text-decoration: none; }
+.cal-view-toggle a.active {
+    background: white; color: #0b3aa4;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+}
+/* Nuovo evento — blu sidebar */
 .cal-add-btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 9px 18px;
-    border: none; border-radius: 999px;
-    background: #1e1e2f; color: white;
+    border: none; border-radius: 10px;
+    background: #0b3aa4; color: white;
     font-family: inherit; font-size: 13px; font-weight: 600;
     cursor: pointer;
     transition: all .12s ease;
+    box-shadow: 0 1px 2px rgba(11,58,164,0.20);
 }
-.cal-add-btn:hover { background: #0b3aa4; }
+.cal-add-btn:hover { background: #082b7b; }
 .cal-add-btn svg { width: 14px; height: 14px; }
+
+/* Mobile: nascondi il toggle Settimana, mostra solo Giorno */
+@media (max-width: 720px) {
+    .cal-view-toggle a[href*="view=week"] { display: none; }
+    .cal-view-toggle { padding: 3px; }
+    .cal-view-toggle a { padding: 6px 12px; font-size: 11px; }
+}
 
 /* ============ GRID ============ */
 .cal-grid {
@@ -1467,6 +1485,17 @@ foreach ($__events as $ev) {
                 else alert(data.error || 'Errore');
             });
     };
+
+    // Su mobile (≤720px) forza view=day: la settimanale non è leggibile
+    (function() {
+        if (window.innerWidth <= 720) {
+            const u = new URL(window.location.href);
+            if ((u.searchParams.get('view') ?? 'week') === 'week') {
+                u.searchParams.set('view', 'day');
+                window.location.replace(u.toString());
+            }
+        }
+    })();
 
     // Auto-scroll a 8:00 al load
     const grid = document.getElementById('calGrid');
