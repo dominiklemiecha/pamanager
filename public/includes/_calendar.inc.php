@@ -607,8 +607,11 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     transform: translate(-50%, -50%) !important;
     width: min(360px, calc(100vw - 32px));
     max-width: 360px;
+    max-height: none !important;   /* libera il vincolo del .cal-pop generico */
+    height: auto !important;
     z-index: 2100 !important;
     box-shadow: 0 24px 64px rgba(15,23,42,0.25) !important;
+    overflow: visible;
 }
 /* Backdrop dietro al date popup */
 .cal-date-backdrop {
