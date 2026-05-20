@@ -184,21 +184,15 @@
    ================================ */
 *, *::before, *::after { box-sizing: border-box; }
 html { font-size: 14px; }
-/* Scale up on large screens: rem-based spacing/sizes seguono la base */
+/* Scale font-size su schermi grandi: rem-based spacing/sizes seguono la base */
 @media (min-width: 1600px) { html { font-size: 15px; } }
 @media (min-width: 1920px) { html { font-size: 16px; } }
 @media (min-width: 2400px) { html { font-size: 17px; } }
 @media (min-width: 2880px) { html { font-size: 18px; } }
 
-/* Centra l'intera app (sidebar + main) su schermi grandi così non rimane spazio vuoto a destra */
-@media (min-width: 1800px) {
-    .app { max-width: 1800px; margin-left: auto; margin-right: auto; }
-}
-@media (min-width: 2200px) {
-    .app { max-width: 2000px; }
-}
-@media (min-width: 2800px) {
-    .app { max-width: 2200px; }
+/* Schermi grandi: il content riempie tutto il viewport (no max-width) come Gmail/Drive */
+@media (min-width: 1400px) {
+    .app-content, .admin-page { max-width: none !important; }
 }
 body {
     font-family: var(--font);
