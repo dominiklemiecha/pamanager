@@ -209,6 +209,29 @@ foreach ($__events as $ev) {
 ?>
 
 <style>
+/* ============ SIDEBAR FIX per pagine calendario ============
+   La sidebar globale è position:sticky 100vh — se la pagina calendario è molto alta
+   (vista settimana, modal aperti) sticky può fallire e la sidebar viene renderizzata
+   tutta alta. La fissiamo via position:fixed solo qui. */
+@media (min-width: 821px) {
+    body:has(.cal-wrap) .app {
+        display: block !important;
+        grid-template-columns: none !important;
+    }
+    body:has(.cal-wrap) .app-sidebar {
+        position: fixed !important;
+        top: 0; left: 0;
+        height: 100vh !important;
+        width: var(--sidebar-w, 220px);
+        overflow-y: auto;
+        z-index: 30;
+    }
+    body:has(.cal-wrap) .app-main {
+        margin-left: var(--sidebar-w, 220px);
+        min-height: 100vh;
+    }
+}
+
 /* ============ CALENDAR ============ */
 .cal-wrap {
     --cal-hour-h: 60px;
