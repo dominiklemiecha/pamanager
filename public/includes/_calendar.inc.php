@@ -76,11 +76,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ev = CalendarEvent::getById($id);
                 if (!$ev) { echo json_encode(['success' => false, 'error' => 'Evento non trovato']); exit; }
                 $parts = CalendarEvent::getParticipants($id);
+                $canEdit = (strcasecmp((string)$ev['owner_type'], (string)$callerType) === 0)
+                           && ((int) $ev['owner_id'] === (int) $callerId);
                 echo json_encode([
-                    'success' => true,
-                    'event'   => $ev,
+                    'success'      => true,
+                    'event'        => $ev,
                     'participants' => $parts,
-                    'can_edit' => ($ev['owner_type'] === $callerType && (int)$ev['owner_id'] === $callerId),
+                    'can_edit'     => $canEdit,
+                    'owner'        => [
+                        'name'  => CalendarEvent::resolveName($ev['owner_type'], (int)$ev['owner_id']),
+                        'photo' => CalendarEvent::resolvePhoto($ev['owner_type'], (int)$ev['owner_id']),
+                    ],
                 ]);
                 exit;
             }
@@ -162,14 +168,18 @@ if ($__view === 'day') {
 // Contatti invitabili
 $__contacts = CalendarEvent::listInvitableContacts($callerType, $callerId, $departmentId);
 
-// Colori palette per gli eventi (rotazione su owner_id)
+// Palette pastello per gli eventi (rotazione su evento.id per maggior varietà)
 $__palette = [
-    ['bg' => '#fef3c7', 'border' => '#f59e0b', 'text' => '#92400e'], // amber
+    ['bg' => '#fef3c7', 'border' => '#f59e0b', 'text' => '#92400e'], // amber/peach
     ['bg' => '#dbeafe', 'border' => '#3b82f6', 'text' => '#1e40af'], // blue
-    ['bg' => '#dcfce7', 'border' => '#22c55e', 'text' => '#166534'], // green
-    ['bg' => '#fee2e2', 'border' => '#ef4444', 'text' => '#991b1b'], // red
+    ['bg' => '#dcfce7', 'border' => '#22c55e', 'text' => '#166534'], // green/mint
+    ['bg' => '#fce7f3', 'border' => '#ec4899', 'text' => '#9d174d'], // pink/rose
     ['bg' => '#ede9fe', 'border' => '#8b5cf6', 'text' => '#5b21b6'], // violet
     ['bg' => '#ffedd5', 'border' => '#f97316', 'text' => '#9a3412'], // orange
+    ['bg' => '#cffafe', 'border' => '#06b6d4', 'text' => '#155e75'], // cyan
+    ['bg' => '#fee2e2', 'border' => '#ef4444', 'text' => '#991b1b'], // red
+    ['bg' => '#fef9c3', 'border' => '#eab308', 'text' => '#854d0e'], // yellow
+    ['bg' => '#d1fae5', 'border' => '#10b981', 'text' => '#065f46'], // emerald
 ];
 
 // Pre-calcola partecipanti + owner info per evento
@@ -378,9 +388,39 @@ foreach ($__events as $ev) {
     position: absolute; top: 4px; right: 6px;
     font-size: 10px;
 }
-/* Eventi corti: nascondi la riga meta se troppo piccoli */
+/* Riga partecipanti sulla card (stacked avatars) */
+.cal-evt .evt-parts {
+    display: flex; align-items: center;
+    margin-top: 4px;
+}
+.cal-evt .evt-part-av {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    color: #1e1e2f; font-size: 9px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1.5px solid rgba(255,255,255,0.9);
+    margin-left: -5px;
+    overflow: hidden;
+    text-transform: uppercase;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+}
+.cal-evt .evt-part-av:first-child { margin-left: 0; }
+.cal-evt .evt-part-av img { width: 100%; height: 100%; object-fit: cover; }
+.cal-evt .evt-part-more {
+    margin-left: 4px;
+    font-size: 10px; font-weight: 700;
+    background: rgba(0,0,0,0.08);
+    color: currentColor;
+    padding: 1px 6px;
+    border-radius: 999px;
+}
+
+/* Eventi corti: nascondi la riga meta + parts se troppo piccoli */
 .cal-evt[style*="height: 30px"] .evt-meta,
-.cal-evt[style*="height: 20px"] .evt-meta { display: none; }
+.cal-evt[style*="height: 20px"] .evt-meta,
+.cal-evt[style*="height: 30px"] .evt-parts,
+.cal-evt[style*="height: 20px"] .evt-parts,
+.cal-evt[style*="height: 40px"] .evt-parts { display: none; }
 
 /* ============ MODAL ============ */
 .cal-modal-overlay {
@@ -788,8 +828,8 @@ foreach ($__events as $ev) {
                         $top    = $startMin;       // 1 minute = 1 px (var --cal-hour-h = 60)
                         $height = $endMin - $startMin;
 
-                        // Palette via owner_id
-                        $palIdx = (int)$ev['owner_id'] % count($__palette);
+                        // Palette via event_id per maggior varietà tra eventi della stessa persona
+                        $palIdx = ((int)$ev['id'] + (int)$ev['owner_id']) % count($__palette);
                         $col = $__palette[$palIdx];
                         $myStatus = $ev['my_status'] ?? null;
                         $extraClass = '';
@@ -822,6 +862,24 @@ foreach ($__events as $ev) {
                                     <span class="evt-dot">•</span>
                                     <span class="evt-owner"><?= e($owner['name'] ?? '') ?></span>
                                 </div>
+                                <?php $parts = $__participantsByEv[(int)$ev['id']] ?? []; if (!empty($parts)): ?>
+                                    <div class="evt-parts">
+                                        <?php foreach (array_slice($parts, 0, 4) as $p):
+                                            $pInit = mb_strtoupper(mb_substr($p['name'] ?? '?', 0, 1));
+                                        ?>
+                                            <span class="evt-part-av" title="<?= e($p['name'] ?? '') ?>">
+                                                <?php if (!empty($p['photo_path'])): ?>
+                                                    <img src="<?= e(PUBLIC_URL . '/' . ltrim($p['photo_path'], '/')) ?>" alt="">
+                                                <?php else: ?>
+                                                    <?= e($pInit) ?>
+                                                <?php endif; ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                        <?php if (count($parts) > 4): ?>
+                                            <span class="evt-part-more">+<?= count($parts) - 4 ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </a>
                     <?php endforeach; ?>
@@ -1346,18 +1404,22 @@ foreach ($__events as $ev) {
         fd.append('event_id', eventId);
         fd.append('csrf_token', CSRF_TOKEN);
         fetch('', { method: 'POST', body: fd })
-            .then(r => r.json())
+            .then(async r => {
+                const txt = await r.text();
+                try { return JSON.parse(txt); }
+                catch (e) { console.error('Non-JSON:', txt); throw new Error('Risposta server invalida'); }
+            })
             .then(data => {
                 if (!data.success) { alert(data.error || 'Errore'); return; }
                 const ev = data.event;
-                const canEdit = data.can_edit;
+                const canEdit = !!data.can_edit;
                 titleEl.textContent = canEdit ? 'Modifica evento' : 'Dettaglio evento';
                 submitLabel.textContent = canEdit ? 'Salva modifiche' : 'Chiudi';
                 deleteBtn.style.display = canEdit ? 'inline-flex' : 'none';
 
                 document.getElementById('calTitle').value = ev.title || '';
                 document.getElementById('calLocation').value = ev.location || '';
-                document.getElementById('calTitle').disabled = !canEdit;
+                document.getElementById('calTitle').disabled  = !canEdit;
                 document.getElementById('calLocation').disabled = !canEdit;
 
                 // Popola data/orari nello stato
