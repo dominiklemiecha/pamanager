@@ -454,9 +454,13 @@ foreach ($__events as $ev) {
     background: white;
     border-radius: 16px;
     width: 100%; max-width: 460px;
+    max-height: 92vh;
     box-shadow: 0 24px 64px rgba(15,23,42,0.25);
+    display: flex; flex-direction: column;
     overflow: hidden;
 }
+.cal-modal-body { overflow-y: auto; flex: 1; }
+.cal-modal-h, .cal-modal-footer { flex-shrink: 0; }
 .cal-modal-h {
     padding: 18px 22px;
     border-bottom: 1px solid var(--cal-line);
@@ -503,17 +507,20 @@ foreach ($__events as $ev) {
 .cal-pill {
     width: 100%;
     display: inline-flex; align-items: center; gap: 10px;
-    padding: 11px 14px;
-    border: 1px solid var(--cal-line);
-    border-radius: 12px;
-    background: white;
-    font-family: inherit; font-size: 14px; font-weight: 600;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: #f1f5f9;
+    font-family: inherit; font-size: 13px; font-weight: 600;
     color: #1e1e2f;
     cursor: pointer; transition: all .12s ease;
 }
 .cal-pill svg:first-child { color: #0b3aa4; flex-shrink: 0; }
-.cal-pill:hover { border-color: #0b3aa4; }
-.cal-pill.is-open { border-color: #0b3aa4; box-shadow: 0 0 0 3px rgba(11,58,164,0.10); }
+.cal-pill:hover { background: #e2e8f0; color: #0b3aa4; }
+.cal-pill.is-open {
+    background: white; color: #0b3aa4;
+    box-shadow: 0 0 0 1px #e2e8f0, 0 0 0 4px rgba(11,58,164,0.10);
+}
 
 .cal-pop {
     position: absolute; top: calc(100% + 6px); left: 0; right: 0;
@@ -687,14 +694,17 @@ foreach ($__events as $ev) {
 }
 .cal-participants .av img { width: 100%; height: 100%; object-fit: cover; }
 .cal-participants .av .x {
-    position: absolute; top: -3px; right: -3px;
-    width: 14px; height: 14px;
+    position: absolute; top: -4px; right: -4px;
+    width: 16px; height: 16px;
     background: #ef4444; color: white;
     border-radius: 50%;
-    font-size: 10px; line-height: 14px; text-align: center;
-    display: none;
+    font-size: 12px; line-height: 14px; text-align: center; font-weight: 700;
+    border: 2px solid white;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.18);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
 }
-.cal-participants .av:hover .x { display: block; }
+.cal-participants .av .x:hover { background: #b91c1c; }
 .cal-part-add-btn {
     width: 32px; height: 32px; border-radius: 50%;
     border: 1.5px dashed #cbd5e0;
@@ -747,8 +757,8 @@ foreach ($__events as $ev) {
     cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px;
 }
-.cal-btn-primary { background: #1e1e2f; color: white; }
-.cal-btn-primary:hover { background: #0b3aa4; }
+.cal-btn-primary { background: #0b3aa4; color: white; }
+.cal-btn-primary:hover { background: #082b7b; }
 .cal-btn-ghost { background: white; color: #475569; border-color: var(--cal-line); }
 .cal-btn-ghost:hover { border-color: #0b3aa4; color: #0b3aa4; }
 .cal-btn-danger { background: white; color: #b91c1c; border-color: #fecaca; }
@@ -1045,7 +1055,7 @@ foreach ($__events as $ev) {
                 <button type="button" class="cal-btn cal-btn-danger" id="calDeleteBtn" style="display:none;" onclick="calDeleteEvent()">Elimina</button>
                 <button type="button" class="cal-btn cal-btn-ghost" onclick="calCloseModal()">Annulla</button>
                 <button type="submit" class="cal-btn cal-btn-primary" id="calSubmitBtn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <svg id="calSubmitIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span id="calSubmitLabel">Crea evento</span>
                 </button>
             </div>
@@ -1168,15 +1178,24 @@ foreach ($__events as $ev) {
                 btn.addEventListener('click', () => {
                     if (which === 1) {
                         state.t1 = v;
-                        // Se end < start, aggiorna end di +1h
-                        if (!state.t2 || state.t2 <= state.t1) {
-                            const [hh, mm] = v.split(':').map(Number);
-                            const end = new Date(); end.setHours(hh, mm + 60, 0, 0);
-                            state.t2 = fmtTime(end);
-                            renderTimeLabel(2);
-                            renderTimeList(2);
+                        // Se c'e' una durata chip attiva: applicala. Altrimenti mantieni delta esistente.
+                        const activeChip = document.querySelector('.cal-chip.active');
+                        let mins = null;
+                        if (activeChip) mins = parseInt(activeChip.dataset.mins, 10);
+                        else if (state.t2 && state.t1) {
+                            const [h1,m1] = state.t1.split(':').map(Number);
+                            const [h2,m2] = state.t2.split(':').map(Number);
+                            mins = (h2*60+m2) - (h1*60+m1);
+                            if (mins <= 0) mins = 60;
+                        } else {
+                            mins = 60;
                         }
+                        const [hh, mm] = v.split(':').map(Number);
+                        const end = new Date(); end.setHours(hh, mm + mins, 0, 0);
+                        state.t2 = fmtTime(end);
                         renderTimeLabel(1);
+                        renderTimeLabel(2);
+                        renderTimeList(2);
                     } else {
                         state.t2 = v;
                         renderTimeLabel(2);
@@ -1241,6 +1260,8 @@ foreach ($__events as $ev) {
         deleteBtn.style.display = 'none';
         document.getElementById('calTitle').disabled = false;
         document.getElementById('calLocation').disabled = false;
+        const icon = document.getElementById('calSubmitIcon');
+        if (icon) icon.style.display = '';
 
         // Default: oggi, prossima mezz'ora, durata 1h
         const now = new Date();
@@ -1434,6 +1455,8 @@ foreach ($__events as $ev) {
                 titleEl.textContent = canEdit ? 'Modifica evento' : 'Dettaglio evento';
                 submitLabel.textContent = canEdit ? 'Salva modifiche' : 'Chiudi';
                 deleteBtn.style.display = canEdit ? 'inline-flex' : 'none';
+                const icon = document.getElementById('calSubmitIcon');
+                if (icon) icon.style.display = 'none'; // niente "+" in modalita' modifica/dettaglio
 
                 document.getElementById('calTitle').value = ev.title || '';
                 document.getElementById('calLocation').value = ev.location || '';
