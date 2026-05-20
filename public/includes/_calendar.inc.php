@@ -683,30 +683,39 @@ foreach ($__events as $ev) {
     min-height: 48px;
 }
 .cal-participants .av {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: #cbd5e0; color: white;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700;
-    text-transform: uppercase;
-    position: relative;
-    cursor: default;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 6px 4px 4px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    color: #1e1e2f;
+    max-width: 100%;
 }
-.cal-participants .av img {
-    width: 100%; height: 100%; object-fit: cover;
-    border-radius: 50%;
+.cal-participants .av .av-photo {
+    width: 24px; height: 24px; border-radius: 50%;
+    overflow: hidden;
+    background: #0b3aa4; color: white;
+    font-size: 10px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.cal-participants .av .av-photo img { width: 100%; height: 100%; object-fit: cover; }
+.cal-participants .av .av-name {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 160px;
 }
 .cal-participants .av .x {
-    position: absolute; top: -4px; right: -4px;
-    width: 16px; height: 16px;
-    background: #ef4444; color: white;
-    border-radius: 50%;
-    font-size: 12px; line-height: 14px; text-align: center; font-weight: 700;
-    border: 2px solid white;
-    box-shadow: 0 1px 2px rgba(15,23,42,0.18);
-    cursor: pointer;
+    width: 20px; height: 20px;
+    background: transparent; color: #94a3b8;
+    border: none; border-radius: 50%;
+    font-size: 14px; font-weight: 700; line-height: 1;
     display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all .12s ease;
 }
-.cal-participants .av .x:hover { background: #b91c1c; }
+.cal-participants .av .x:hover { background: #fee2e2; color: #b91c1c; }
 .cal-part-add-btn {
     width: 32px; height: 32px; border-radius: 50%;
     border: 1.5px dashed #cbd5e0;
@@ -1359,33 +1368,48 @@ foreach ($__events as $ev) {
     };
 
     function renderParts() {
-        // Pulisci avatars (ma mantieni il + btn)
+        // Pulisci chip (ma mantieni il + btn)
         [...partsList.querySelectorAll('.av')].forEach(a => a.remove());
         const addBtn = partsList.querySelector('.cal-part-add-btn');
         selectedParts.forEach(p => {
-            const av = document.createElement('span');
-            av.className = 'av';
-            av.style.background = '#0b3aa4';
-            av.title = p.name;
+            const chip = document.createElement('span');
+            chip.className = 'av';
+            chip.title = p.name;
+
+            // Foto/iniziale
+            const photo = document.createElement('span');
+            photo.className = 'av-photo';
             if (p.photo) {
                 const img = document.createElement('img');
                 img.src = (window.PAM?.baseUrl || '') + '/' + String(p.photo).replace(/^\//, '');
                 img.alt = p.name;
-                av.appendChild(img);
+                photo.appendChild(img);
             } else {
-                av.textContent = p.name.charAt(0).toUpperCase();
+                photo.textContent = (p.name || '?').charAt(0).toUpperCase();
             }
-            const x = document.createElement('span');
+            chip.appendChild(photo);
+
+            // Nome
+            const name = document.createElement('span');
+            name.className = 'av-name';
+            name.textContent = p.name || '';
+            chip.appendChild(name);
+
+            // X (bottone reale)
+            const x = document.createElement('button');
+            x.type = 'button';
             x.className = 'x';
-            x.textContent = '×';
-            x.onclick = (ev) => {
+            x.setAttribute('aria-label', 'Rimuovi ' + (p.name || ''));
+            x.innerHTML = '&times;';
+            x.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 selectedParts = selectedParts.filter(sp => !(sp.user_type === p.user_type && sp.user_id === p.user_id));
                 document.querySelector('.cal-contact-item[data-type="' + p.user_type + '"][data-id="' + p.user_id + '"]')?.classList.remove('selected');
                 renderParts();
-            };
-            av.appendChild(x);
-            partsList.insertBefore(av, addBtn);
+            });
+            chip.appendChild(x);
+
+            partsList.insertBefore(chip, addBtn);
         });
         partsJson.value = JSON.stringify(selectedParts.map(p => ({ user_type: p.user_type, user_id: p.user_id })));
     }
