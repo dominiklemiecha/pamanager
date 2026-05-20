@@ -876,13 +876,8 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         text-align: center;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    /* Riga 2: Day/Week toggle (sinistra) + Nuovo evento (destra) */
-    .cal-view-toggle {
-        margin-left: 0;
-        padding: 3px;
-        flex: 0 1 auto;
-    }
-    .cal-view-toggle a { padding: 6px 14px; font-size: 12px; }
+    /* Su mobile mostra solo la view "Giorno" — il toggle Settimana non serve */
+    .cal-view-toggle { display: none !important; }
     .cal-add-btn {
         padding: 9px 14px;
         font-size: 12px;
