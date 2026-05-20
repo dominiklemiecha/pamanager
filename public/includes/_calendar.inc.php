@@ -413,6 +413,10 @@ foreach ($__events as $ev) {
 .cal-evt.is-draggable { cursor: grab; }
 .cal-evt.is-draggable:active { cursor: grabbing; }
 .cal-evt.is-dragging { opacity: 0.4; }
+/* Mentre stiamo trascinando un evento, manina chiusa ovunque (override del default drag) */
+body.cal-dragging,
+body.cal-dragging *,
+body.cal-dragging .cal-evt { cursor: grabbing !important; }
 .cal-day-col.is-drop-target { background: rgba(11,58,164,0.06); outline: 2px dashed rgba(11,58,164,0.30); outline-offset: -4px; }
 .cal-evt.is-declined { opacity: 0.45; text-decoration: line-through; }
 .cal-evt.is-pending::after {
@@ -1584,16 +1588,23 @@ foreach ($__events as $ev) {
 
     document.querySelectorAll('.cal-evt.is-draggable').forEach(card => {
         card.addEventListener('dragstart', (e) => {
+            // offsetY = distanza dal top della card al cursor al momento del grab.
+            // La useremo per posizionare il top dell'evento dove era visivamente, non dove sta il cursore.
+            const rect = card.getBoundingClientRect();
+            const grabOffsetY = e.clientY - rect.top;
             dragData = {
                 id: card.dataset.eventId,
                 duration: parseInt(card.dataset.duration, 10) || 60,
+                grabOffsetY: grabOffsetY,
             };
             card.classList.add('is-dragging');
+            document.body.classList.add('cal-dragging');
             try { e.dataTransfer.setData('text/plain', card.dataset.eventId); } catch (_) {}
             e.dataTransfer.effectAllowed = 'move';
         });
         card.addEventListener('dragend', () => {
             card.classList.remove('is-dragging');
+            document.body.classList.remove('cal-dragging');
             document.querySelectorAll('.cal-day-col').forEach(c => c.classList.remove('is-drop-target'));
         });
     });
@@ -1611,9 +1622,11 @@ foreach ($__events as $ev) {
             e.preventDefault();
             col.classList.remove('is-drop-target');
 
-            // Calcola minuti dal top della colonna in base alla posizione di drop.
+            // Posiziona il TOP della card dove era visivamente: clientY - grabOffsetY.
+            // Poi rispetto al top della colonna.
             const rect = col.getBoundingClientRect();
-            let offsetPx = e.clientY - rect.top;
+            const cardTopY = e.clientY - (dragData.grabOffsetY || 0);
+            let offsetPx = cardTopY - rect.top;
             // 1 minuto = 1px, partendo dalle 7:00. Snap a 15 min.
             let mins = Math.max(0, Math.round(offsetPx / SNAP_MIN) * SNAP_MIN);
             const startMinutesFromBase = mins; // dalle 07:00
