@@ -272,4 +272,25 @@ class CalendarEvent
         }
         return [];
     }
+
+    /**
+     * Conta inviti pendenti (eventi futuri in cui l'utente è invitato con status=pending).
+     * Usato per il badge in sidebar.
+     */
+    public static function countPendingInvitations(string $userType, int $userId): int
+    {
+        try {
+            return (int) Database::fetchColumn(
+                "SELECT COUNT(*)
+                 FROM calendar_event_participants ep
+                 JOIN calendar_events e ON e.id = ep.event_id
+                 WHERE ep.user_type = ? AND ep.user_id = ?
+                   AND ep.status = 'pending'
+                   AND e.end_at >= NOW()",
+                [$userType, $userId]
+            );
+        } catch (Throwable $err) {
+            return 0;
+        }
+    }
 }
