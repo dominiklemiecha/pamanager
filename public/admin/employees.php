@@ -592,10 +592,16 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <h2>Gestione dipendenti</h2>
                 <p>Anagrafica, accessi e contatti. <?= $countActive ?> dipendent<?= $countActive === 1 ? 'e' : 'i' ?> attiv<?= $countActive === 1 ? 'o' : 'i' ?><?php if ($countInactive > 0): ?> · <?= $countInactive ?> disattivat<?= $countInactive === 1 ? 'o' : 'i' ?><?php endif; ?>.</p>
             </div>
-            <a href="?action=new" class="btn btn-lg" style="background: #0b3aa4; border: 1px solid #0b3aa4; color: white;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                Nuovo dipendente
-            </a>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <a href="attendance.php" class="btn btn-lg" style="background: white; border: 1px solid #e6e8f0; color: #0b3aa4;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Timbrature
+                </a>
+                <a href="?action=new" class="btn btn-lg" style="background: #0b3aa4; border: 1px solid #0b3aa4; color: white;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Nuovo dipendente
+                </a>
+            </div>
         </div>
     <?php else: ?>
         <div class="page-top" style="margin-bottom: var(--sp-4);">

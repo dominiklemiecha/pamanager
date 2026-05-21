@@ -122,45 +122,6 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
             </select>
         </div>
 
-        <h3 style="margin-top: 24px;">Timbratura NFC (NTAG215)</h3>
-        <p class="desc">Imposta un identificativo breve per la tua azienda. La URL completa qui sotto va scritta sulla carta NFC con l'app <strong>NFC Tools</strong> (record di tipo URI). Solo i dipendenti di questa azienda potranno timbrare.</p>
-        <div class="cfg-fg" style="max-width: 100%;">
-            <label for="nfc_slug">Identificativo (solo lettere/numeri/trattini)</label>
-            <input type="text" id="nfc_slug" name="nfc_slug" value="<?= htmlspecialchars($companySlug) ?>"
-                   pattern="[a-z0-9-]+" maxlength="40"
-                   placeholder="es. connecteed"
-                   oninput="updatePunchUrl()"
-                   style="font-family: inherit; font-size: 14px;">
-            <small style="color:#94a3b8; margin-top:4px; display:block;">Verrà sanitizzato automaticamente al salvataggio.</small>
-        </div>
-
-        <div class="cfg-fg" style="max-width: 100%;">
-            <label>URL da scrivere sulla carta</label>
-            <div style="display:flex; gap:8px; align-items:center;">
-                <input type="text" id="punchUrlField" value="<?= htmlspecialchars($punchUrl) ?>" readonly
-                       style="flex:1; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: #f8fafc;">
-                <button type="button" class="cfg-btn cfg-btn-ghost" onclick="copyPunchUrl()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    Copia
-                </button>
-            </div>
-            <small style="color:#94a3b8; margin-top:6px; display:block;">La URL si aggiorna mentre digiti l'identificativo. Salva le impostazioni prima di scriverla sulla carta.</small>
-        </div>
-        <script>
-        const PUNCH_BASE = <?= json_encode($__pubPath . '/punch.php') ?>;
-        function updatePunchUrl() {
-            const slug = (document.getElementById('nfc_slug').value || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-            document.getElementById('punchUrlField').value = PUNCH_BASE + (slug ? '?c=' + slug : '');
-        }
-        function copyPunchUrl() {
-            const el = document.getElementById('punchUrlField');
-            el.select(); el.setSelectionRange(0, 99999);
-            navigator.clipboard?.writeText(el.value).then(() => {
-                el.style.background = '#dcfce7';
-                setTimeout(() => { el.style.background = '#f8fafc'; }, 800);
-            });
-        }
-        </script>
 
         <div class="cfg-actions">
             <button type="submit" class="cfg-btn cfg-btn-primary">
