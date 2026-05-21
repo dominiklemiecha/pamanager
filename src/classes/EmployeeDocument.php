@@ -211,6 +211,18 @@ class EmployeeDocument
         if ($user) {
             $userType = $user['role'];
             $userId = $user['id'];
+            // Check tenant: il documento deve appartenere alla company corrente del caller
+            $callerCid = class_exists('Tenant') ? Tenant::currentCompanyId() : null;
+            if ($callerCid !== null && isset($document['company_id']) && (int) $document['company_id'] !== (int) $callerCid) {
+                if (class_exists('AuditLog')) {
+                    AuditLog::logUnauthorizedAccess('employee_document', [
+                        'document_id' => $id,
+                        'user_id' => $userId,
+                        'reason' => 'cross_tenant'
+                    ]);
+                }
+                return ['success' => false, 'error' => 'Accesso non autorizzato'];
+            }
             if ($userType === 'admin_reparto') {
                 $emp = Employee::getById((int) $document['employee_id']);
                 if (!$emp || (int) ($emp['department_id'] ?? 0) !== (int) ($user['department_id'] ?? -1)) {

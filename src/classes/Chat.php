@@ -121,6 +121,24 @@ class Chat
     }
 
     /**
+     * Verifica che (userType, userId) sia partecipante della conversazione.
+     * Restituisce anche il record conversazione per uso successivo.
+     */
+    public static function isParticipant(int $conversationId, string $userType, int $userId): ?array
+    {
+        $row = Database::fetchOne(
+            "SELECT * FROM chat_conversations
+             WHERE id = ?
+               AND (
+                  (participant1_type = ? AND participant1_id = ?)
+                  OR (participant2_type = ? AND participant2_id = ?)
+               )",
+            [$conversationId, $userType, $userId, $userType, $userId]
+        );
+        return $row ?: null;
+    }
+
+    /**
      * Invia un messaggio
      */
     public static function sendMessage(
