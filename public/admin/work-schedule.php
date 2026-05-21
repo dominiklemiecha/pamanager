@@ -28,12 +28,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Ore/giorno deve essere tra 0 e 24.';
         } else {
             $defaultCcnl = !empty($_POST['default_ccnl_id']) ? (int) $_POST['default_ccnl_id'] : null;
-            Database::update('companies', [
+            // Slug NFC: solo lettere/numeri/trattino, lowercased
+            $postedSlug = trim((string) ($_POST['nfc_slug'] ?? ''));
+            $cleanSlug = preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($postedSlug));
+            $cleanSlug = trim($cleanSlug, '-');
+            $update = [
                 'working_days'    => implode(',', $clean),
                 'hours_per_day'   => $hours,
                 'default_ccnl_id' => $defaultCcnl,
-            ], 'id = ?', [$companyId]);
-            $message = 'Impostazioni salvate.';
+            ];
+            if ($cleanSlug !== '') {
+                // Verifica unicità globale
+                $exists = Database::exists('companies', 'slug = ? AND id != ?', [$cleanSlug, $companyId]);
+                if ($exists) {
+                    $error = "Slug '$cleanSlug' già usato da un'altra azienda. Scegli un altro nome.";
+                } else {
+                    $update['slug'] = $cleanSlug;
+                }
+            }
+            if (!$error) {
+                Database::update('companies', $update, 'id = ?', [$companyId]);
+                $message = 'Impostazioni salvate.';
+            }
         }
     }
 }
@@ -101,8 +117,19 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
         </div>
 
         <h3 style="margin-top: 24px;">Timbratura NFC (NTAG215)</h3>
-        <p class="desc">Scrivi questa URL sulla carta NFC con l'app <strong>NFC Tools</strong> (record di tipo URI). Solo i dipendenti della tua azienda possono timbrare con questa carta.</p>
+        <p class="desc">Imposta un identificativo breve per la tua azienda. La URL completa qui sotto va scritta sulla carta NFC con l'app <strong>NFC Tools</strong> (record di tipo URI). Solo i dipendenti di questa azienda potranno timbrare.</p>
         <div class="cfg-fg" style="max-width: 100%;">
+            <label for="nfc_slug">Identificativo (solo lettere/numeri/trattini)</label>
+            <input type="text" id="nfc_slug" name="nfc_slug" value="<?= htmlspecialchars($companySlug) ?>"
+                   pattern="[a-z0-9-]+" maxlength="40"
+                   placeholder="es. connecteed"
+                   oninput="updatePunchUrl()"
+                   style="font-family: inherit; font-size: 14px;">
+            <small style="color:#94a3b8; margin-top:4px; display:block;">Verrà sanitizzato automaticamente al salvataggio.</small>
+        </div>
+
+        <div class="cfg-fg" style="max-width: 100%;">
+            <label>URL da scrivere sulla carta</label>
             <div style="display:flex; gap:8px; align-items:center;">
                 <input type="text" id="punchUrlField" value="<?= htmlspecialchars($punchUrl) ?>" readonly
                        style="flex:1; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: #f8fafc;">
@@ -111,9 +138,14 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
                     Copia
                 </button>
             </div>
-            <small style="color:#94a3b8; margin-top:6px; display:block;">Slug azienda: <code><?= htmlspecialchars($companySlug) ?></code></small>
+            <small style="color:#94a3b8; margin-top:6px; display:block;">La URL si aggiorna mentre digiti l'identificativo. Salva le impostazioni prima di scriverla sulla carta.</small>
         </div>
         <script>
+        const PUNCH_BASE = <?= json_encode(PUBLIC_URL . '/punch.php') ?>;
+        function updatePunchUrl() {
+            const slug = (document.getElementById('nfc_slug').value || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+            document.getElementById('punchUrlField').value = PUNCH_BASE + (slug ? '?c=' + slug : '');
+        }
         function copyPunchUrl() {
             const el = document.getElementById('punchUrlField');
             el.select(); el.setSelectionRange(0, 99999);
