@@ -80,10 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $day = $_GET['d'] ?? date('Y-m-d');
 $employees = Database::fetchAll(
-    "SELECT id, first_name, last_name, photo_path, department_id, ccnl_id
-     FROM employees
-     WHERE company_id = ? AND is_active = TRUE
-     ORDER BY last_name, first_name",
+    "SELECT e.id, e.first_name, e.last_name, e.photo_path, e.department_id, e.ccnl_id, d.name AS department_name
+     FROM employees e
+     LEFT JOIN departments d ON d.id = e.department_id
+     WHERE e.company_id = ? AND e.is_active = TRUE
+     ORDER BY e.last_name, e.first_name",
     [$companyId]
 );
 
@@ -99,12 +100,39 @@ foreach ($punches as $p) {
     $byEmp[(int) $p['employee_id']][] = $p;
 }
 
+// ===== Statistiche =====
+$totalEmp = count($employees);
+$empWithPunches = 0;
+$empCurrentlyIn = 0; // chi ha ultima timbratura = IN
+$totalHours = 0;
+$manualCount = 0;
+foreach ($employees as $emp) {
+    $list = $byEmp[(int) $emp['id']] ?? [];
+    if (empty($list)) continue;
+    $empWithPunches++;
+    $openIn = null;
+    foreach ($list as $p) {
+        if ($p['source'] === 'manual') $manualCount++;
+        if ($p['kind'] === 'in') $openIn = strtotime($p['punch_at']);
+        elseif ($p['kind'] === 'out' && $openIn !== null) {
+            $totalHours += (strtotime($p['punch_at']) - $openIn) / 3600;
+            $openIn = null;
+        }
+    }
+    // Se è ancora "dentro" oggi
+    if ($openIn !== null) {
+        $empCurrentlyIn++;
+        if ($day === date('Y-m-d')) $totalHours += (time() - $openIn) / 3600;
+    }
+}
+$empAbsent = $totalEmp - $empWithPunches;
+
 $pageTitle = 'Timbrature';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
 
 <style>
-.att-page { display: flex; flex-direction: column; gap: 16px; }
+.att-page { display: flex; flex-direction: column; gap: 14px; }
 .att-toolbar {
     background: white; border: 1px solid #e6e8f0; border-radius: 14px;
     padding: 14px 18px;
@@ -113,6 +141,58 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .att-toolbar h2 {
     font-family: 'Host Grotesk', sans-serif;
     margin: 0; font-size: 18px; color: #0b3aa4; letter-spacing: -0.01em;
+}
+
+/* Stats cards */
+.att-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+.att-stat {
+    background: white; border: 1px solid #e6e8f0; border-radius: 12px;
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+}
+.att-stat-ic {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.att-stat-ic svg { width: 20px; height: 20px; }
+.att-stat-ic.present  { background: rgba(22,163,74,0.10);  color: #16a34a; }
+.att-stat-ic.now-in   { background: rgba(11,58,164,0.10);  color: #0b3aa4; }
+.att-stat-ic.absent   { background: rgba(217,119,6,0.10);  color: #d97706; }
+.att-stat-ic.hours    { background: rgba(139,92,246,0.10); color: #8b5cf6; }
+.att-stat-label { font-size: 11px; font-weight: 700; color: #6e7191; text-transform: uppercase; letter-spacing: 0.04em; }
+.att-stat-value {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700; color: #1e1e2f;
+    letter-spacing: -0.02em; line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+}
+.att-stat-hint { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+@media (max-width: 720px) {
+    .att-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Search bar */
+.att-search-bar {
+    background: white; border: 1px solid #e6e8f0; border-radius: 12px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 10px;
+}
+.att-search-bar svg { color: #94a3b8; flex-shrink: 0; }
+.att-search-bar input {
+    flex: 1; min-width: 0;
+    border: none; background: transparent;
+    font-family: inherit; font-size: 14px;
+    color: #1e1e2f; outline: none;
+    padding: 6px 0;
+}
+.att-search-bar select {
+    padding: 6px 10px; border: 1px solid #e6e8f0; border-radius: 8px;
+    font-family: inherit; font-size: 13px; background: white;
 }
 .att-toolbar .date-nav {
     display: inline-flex; align-items: center; gap: 4px;
@@ -129,13 +209,33 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .att-toolbar .date-nav a:hover, .att-toolbar .date-nav button:hover { border-color: #0b3aa4; color: #0b3aa4; }
 
-.att-emp {
+.att-list {
     background: white; border: 1px solid #e6e8f0; border-radius: 14px;
-    padding: 16px 18px;
-    display: grid; grid-template-columns: 220px 1fr auto; gap: 18px;
-    align-items: center;
+    overflow: hidden;
 }
-.att-emp-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.att-emp {
+    padding: 14px 18px;
+    display: grid; grid-template-columns: 260px 1fr auto; gap: 16px;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .12s ease;
+}
+.att-emp:last-child { border-bottom: none; }
+.att-emp:hover { background: #fafbfd; }
+.att-emp.is-absent .att-emp-status { color: #d97706; }
+.att-emp.is-in     .att-emp-status { color: #16a34a; }
+.att-emp.is-out    .att-emp-status { color: #6e7191; }
+.att-emp-status {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-top: 2px;
+}
+.att-emp-status::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+}
+.att-emp-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .att-emp-info .av {
     width: 36px; height: 36px; border-radius: 50%;
     background: linear-gradient(135deg, #0b3aa4, #082b7b);
@@ -236,19 +336,86 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </div>
     </div>
 
+    <!-- Stats -->
+    <div class="att-stats">
+        <div class="att-stat">
+            <div class="att-stat-ic present">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div>
+                <div class="att-stat-label">Presenti oggi</div>
+                <div class="att-stat-value"><?= $empWithPunches ?>/<?= $totalEmp ?></div>
+                <div class="att-stat-hint">timbrature registrate</div>
+            </div>
+        </div>
+        <div class="att-stat">
+            <div class="att-stat-ic now-in">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            </div>
+            <div>
+                <div class="att-stat-label">Attualmente in sede</div>
+                <div class="att-stat-value"><?= $empCurrentlyIn ?></div>
+                <div class="att-stat-hint">ultima timbratura = IN</div>
+            </div>
+        </div>
+        <div class="att-stat">
+            <div class="att-stat-ic absent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            </div>
+            <div>
+                <div class="att-stat-label">Senza timbrature</div>
+                <div class="att-stat-value"><?= $empAbsent ?></div>
+                <div class="att-stat-hint">nessuna timbratura oggi</div>
+            </div>
+        </div>
+        <div class="att-stat">
+            <div class="att-stat-ic hours">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+                <div class="att-stat-label">Ore totali</div>
+                <div class="att-stat-value"><?= number_format($totalHours, 1, ',', '.') ?>h</div>
+                <div class="att-stat-hint"><?php if ($manualCount > 0): ?><?= $manualCount ?> manuali<?php else: ?>tutte da NFC<?php endif; ?></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search + filter -->
+    <div class="att-search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="attSearch" placeholder="Cerca dipendente o reparto...">
+        <select id="attFilter">
+            <option value="">Tutti</option>
+            <option value="in">In sede</option>
+            <option value="out">Usciti</option>
+            <option value="absent">Senza timbrature</option>
+            <option value="manual">Con manuali</option>
+        </select>
+    </div>
+
+    <div class="att-list">
     <?php foreach ($employees as $emp):
         $eid = (int) $emp['id'];
         $list = $byEmp[$eid] ?? [];
         $initials = mb_strtoupper(mb_substr($emp['first_name'] ?? '?', 0, 1) . mb_substr($emp['last_name'] ?? '', 0, 1));
-        // Calcola ore stimato
-        $totalSec = 0; $openIn = null;
+        // Calcola ore stimato + stato
+        $totalSec = 0; $openIn = null; $hasManual = false; $lastKind = '';
         foreach ($list as $p) {
+            if ($p['source'] === 'manual') $hasManual = true;
+            $lastKind = $p['kind'];
             if ($p['kind'] === 'in') $openIn = strtotime($p['punch_at']);
             elseif ($p['kind'] === 'out' && $openIn !== null) { $totalSec += strtotime($p['punch_at']) - $openIn; $openIn = null; }
         }
         $h = floor($totalSec / 3600); $m = floor(($totalSec % 3600) / 60);
+        if (empty($list)) { $statusCls = 'is-absent'; $statusLbl = 'Senza timbrature'; $filterKey = 'absent'; }
+        elseif ($lastKind === 'in') { $statusCls = 'is-in'; $statusLbl = 'In sede'; $filterKey = 'in'; }
+        else { $statusCls = 'is-out'; $statusLbl = 'Uscito'; $filterKey = 'out'; }
+        $searchKey = mb_strtolower(($emp['last_name'] ?? '') . ' ' . ($emp['first_name'] ?? '') . ' ' . ($emp['department_name'] ?? ''));
     ?>
-    <div class="att-emp">
+    <div class="att-emp <?= $statusCls ?>"
+         data-search="<?= htmlspecialchars($searchKey) ?>"
+         data-status="<?= $filterKey ?>"
+         data-manual="<?= $hasManual ? '1' : '0' ?>">
         <div class="att-emp-info">
             <div class="av">
                 <?php if (!empty($emp['photo_path'])): ?>
@@ -259,7 +426,11 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             </div>
             <div>
                 <div class="name"><?= htmlspecialchars($emp['last_name'] . ' ' . $emp['first_name']) ?></div>
-                <div class="totals"><?= count($list) ?> timbrature · <?= sprintf('%dh %02dm', $h, $m) ?></div>
+                <div class="totals">
+                    <?= count($list) ?> timbrature · <?= sprintf('%dh %02dm', $h, $m) ?>
+                    <?php if (!empty($emp['department_name'])): ?> · <?= htmlspecialchars($emp['department_name']) ?><?php endif; ?>
+                </div>
+                <div class="att-emp-status"><?= htmlspecialchars($statusLbl) ?></div>
             </div>
         </div>
         <div class="att-punches">
@@ -296,6 +467,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </div>
     </div>
     <?php endforeach; ?>
+    </div>
+    <div id="attEmpty" style="display:none; text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
+        Nessun dipendente corrisponde alla ricerca.
+    </div>
 </div>
 
 <!-- Modal aggiungi/modifica timbratura -->
@@ -375,6 +550,31 @@ function pmEdit(d) {
     document.getElementById('pmModal').classList.add('show');
 }
 function pmClose() { document.getElementById('pmModal').classList.remove('show'); }
+// Search + filter live
+(function() {
+    const q = document.getElementById('attSearch');
+    const f = document.getElementById('attFilter');
+    const empty = document.getElementById('attEmpty');
+    function apply() {
+        const txt = (q.value || '').toLowerCase().trim();
+        const filt = f.value;
+        let visible = 0;
+        document.querySelectorAll('.att-emp').forEach(row => {
+            const hay = row.dataset.search || '';
+            const matchTxt = !txt || hay.includes(txt);
+            let matchFilt = true;
+            if (filt === 'in' || filt === 'out' || filt === 'absent') matchFilt = row.dataset.status === filt;
+            else if (filt === 'manual') matchFilt = row.dataset.manual === '1';
+            const show = matchTxt && matchFilt;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        empty.style.display = visible === 0 ? 'block' : 'none';
+    }
+    q?.addEventListener('input', apply);
+    f?.addEventListener('change', apply);
+})();
+
 function pmDelete() {
     if (!confirm('Eliminare questa timbratura?')) return;
     const f = document.createElement('form');
