@@ -147,20 +147,17 @@ body {
             <div class="kind">Timbratura</div>
             <div class="err-msg"><?= htmlspecialchars($err) ?></div>
         <?php endif; ?>
-        <div class="close-hint">Puoi chiudere questa scheda</div>
+        <div class="close-hint">Ti riporto alla home…</div>
     </div>
 <script>
-// Tenta di chiudere la scheda dopo 1.8s. Funziona su tab aperte da JS;
-// le tab aperte direttamente da NFC su iOS non chiudono via JS — il messaggio
-// "Puoi chiudere" guida l'utente.
+// Vibrazione di conferma se supportata
+if (navigator.vibrate) {
+    try { navigator.vibrate([80]); } catch (_) {}
+}
+// Dopo aver mostrato la conferma per 1.5s, redirect alla home dipendente.
 setTimeout(function(){
-    try {
-        window.close();
-        // Fallback: vibrazione + back se possibile
-        if (navigator.vibrate) navigator.vibrate(80);
-        history.back();
-    } catch (e) {}
-}, 1800);
+    window.location.replace(<?= json_encode(PUBLIC_URL . '/employee/') ?>);
+}, 1500);
 </script>
 </body>
 </html>
