@@ -303,6 +303,17 @@ class LeaveRequest
     }
 
     /**
+     * Verifica che la richiesta appartenga alla company corrente del caller.
+     * Ritorna true se ok, false altrimenti.
+     */
+    private static function inCurrentTenant(array $request): bool
+    {
+        if (!class_exists('Tenant')) return true;
+        $cid = Tenant::currentCompanyId();
+        return (int) ($request['company_id'] ?? 0) === (int) $cid;
+    }
+
+    /**
      * Approva una richiesta
      */
     public static function approve(int $id, int $approvedBy): array
@@ -310,6 +321,9 @@ class LeaveRequest
         $request = self::getById($id);
         if (!$request) {
             return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (!self::inCurrentTenant($request)) {
+            return ['success' => false, 'error' => 'Richiesta non appartiene all\'azienda corrente'];
         }
 
         if ($request['status'] !== 'pending') {
@@ -362,6 +376,9 @@ class LeaveRequest
         $request = self::getById($id);
         if (!$request) {
             return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (!self::inCurrentTenant($request)) {
+            return ['success' => false, 'error' => 'Richiesta non appartiene all\'azienda corrente'];
         }
 
         if ($request['status'] !== 'pending') {
@@ -430,6 +447,9 @@ class LeaveRequest
         if (!$request) {
             return ['success' => false, 'error' => 'Richiesta non trovata'];
         }
+        if (!self::inCurrentTenant($request)) {
+            return ['success' => false, 'error' => 'Richiesta non appartiene all\'azienda corrente'];
+        }
 
         try {
             // Elimina allegato se presente
@@ -455,6 +475,9 @@ class LeaveRequest
         $request = self::getById($id);
         if (!$request) {
             return ['success' => false, 'error' => 'Richiesta non trovata'];
+        }
+        if (!self::inCurrentTenant($request)) {
+            return ['success' => false, 'error' => 'Richiesta non appartiene all\'azienda corrente'];
         }
 
         $update = [];
@@ -622,6 +645,15 @@ class LeaveRequest
         $employee = Auth::getEmployee();
 
         if ($user) {
+            // Sicurezza: la richiesta deve appartenere alla tenant corrente
+            if (!self::inCurrentTenant($request)) {
+                if (class_exists('AuditLog')) {
+                    AuditLog::logUnauthorizedAccess('leave_attachment', [
+                        'request_id' => $id, 'user_id' => $user['id'], 'reason' => 'cross_tenant'
+                    ]);
+                }
+                return ['success' => false, 'error' => 'Accesso non autorizzato'];
+            }
             if ($user['role'] === 'admin_reparto') {
                 $emp = Employee::getById((int) $request['employee_id']);
                 if (!$emp || (int) ($emp['department_id'] ?? 0) !== (int) ($user['department_id'] ?? -1)) {
@@ -852,6 +884,10 @@ class LeaveRequest
         $employee = Auth::getEmployee();
 
         if ($user) {
+            // Sicurezza: la richiesta deve appartenere alla tenant corrente
+            if (!self::inCurrentTenant($request)) {
+                return ['success' => false, 'error' => 'Accesso non autorizzato'];
+            }
             if ($user['role'] === 'admin_reparto') {
                 $emp = Employee::getById((int) $request['employee_id']);
                 if (!$emp || (int) ($emp['department_id'] ?? 0) !== (int) ($user['department_id'] ?? -1)) {

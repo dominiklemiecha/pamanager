@@ -22,6 +22,16 @@ class Employee
     }
 
     /**
+     * Verifica che il dipendente appartenga alla company corrente del caller.
+     */
+    private static function inCurrentTenant(array $employee): bool
+    {
+        if (!class_exists('Tenant')) return true;
+        $cid = Tenant::currentCompanyId();
+        return (int) ($employee['company_id'] ?? 0) === (int) $cid;
+    }
+
+    /**
      * Ottiene un dipendente per username
      */
     public static function getByUsername(string $username): ?array
@@ -253,6 +263,9 @@ class Employee
         if (!$employee) {
             return ['success' => false, 'error' => 'Dipendente non trovato'];
         }
+        if (!self::inCurrentTenant($employee)) {
+            return ['success' => false, 'error' => 'Dipendente non appartiene all\'azienda corrente'];
+        }
 
         $updateData = [];
 
@@ -373,6 +386,9 @@ class Employee
         $employee = self::getById($id);
         if (!$employee) {
             return ['success' => false, 'error' => 'Dipendente non trovato'];
+        }
+        if (!self::inCurrentTenant($employee)) {
+            return ['success' => false, 'error' => 'Dipendente non appartiene all\'azienda corrente'];
         }
 
         try {

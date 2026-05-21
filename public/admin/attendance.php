@@ -40,6 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Compila tutti i campi obbligatori.';
                     break;
                 }
+                // Sicurezza: il dipendente deve appartenere alla tenant corrente
+                $__emp = Database::fetchOne("SELECT company_id FROM employees WHERE id = ?", [$eid]);
+                if (!$__emp || (int) $__emp['company_id'] !== (int) $companyId) {
+                    $error = 'Dipendente non valido per la tua azienda.';
+                    break;
+                }
                 $punchAt = $date . ' ' . $time . ':00';
                 $r = AttendancePunch::createManual($eid, $punchAt, $kind, $notes);
                 if ($r['success']) {

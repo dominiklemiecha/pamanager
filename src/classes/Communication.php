@@ -193,11 +193,24 @@ class Communication
     /**
      * Aggiorna una comunicazione
      */
+    /**
+     * Verifica scope tenant: il record deve appartenere alla company corrente.
+     */
+    private static function inCurrentTenant(array $row): bool
+    {
+        if (!class_exists('Tenant')) return true;
+        $cid = Tenant::currentCompanyId();
+        return (int) ($row['company_id'] ?? 0) === (int) $cid;
+    }
+
     public static function update(int $id, array $data): array
     {
         $communication = self::getById($id);
         if (!$communication) {
             return ['success' => false, 'error' => 'Comunicazione non trovata'];
+        }
+        if (!self::inCurrentTenant($communication)) {
+            return ['success' => false, 'error' => 'Comunicazione non appartiene all\'azienda corrente'];
         }
 
         $updateData = [];
@@ -248,6 +261,9 @@ class Communication
         if (!$communication) {
             return ['success' => false, 'error' => 'Comunicazione non trovata'];
         }
+        if (!self::inCurrentTenant($communication)) {
+            return ['success' => false, 'error' => 'Comunicazione non appartiene all\'azienda corrente'];
+        }
 
         try {
             // Elimina allegato se presente
@@ -273,6 +289,9 @@ class Communication
         $communication = self::getById($id);
         if (!$communication) {
             return ['success' => false, 'error' => 'Comunicazione non trovata'];
+        }
+        if (!self::inCurrentTenant($communication)) {
+            return ['success' => false, 'error' => 'Comunicazione non appartiene all\'azienda corrente'];
         }
 
         $newStatus = !$communication['is_published'];

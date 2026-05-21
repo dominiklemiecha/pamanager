@@ -364,9 +364,20 @@ class Document
         $userId = 0;
 
         if ($user) {
-            // Admin e commercialista possono vedere tutto
+            // Admin e commercialista possono vedere tutto MA SOLO della tenant corrente
             $userType = $user['role'];
             $userId = $user['id'];
+            $callerCid = class_exists('Tenant') ? Tenant::currentCompanyId() : null;
+            if ($callerCid !== null && isset($document['company_id']) && (int) $document['company_id'] !== (int) $callerCid) {
+                if (class_exists('AuditLog')) {
+                    AuditLog::logUnauthorizedAccess('document', [
+                        'document_id' => $id,
+                        'user_id'     => $userId,
+                        'reason'      => 'cross_tenant',
+                    ]);
+                }
+                return ['success' => false, 'error' => 'Accesso non autorizzato'];
+            }
         } elseif ($employee) {
             $userType = 'employee';
             $userId = $employee['id'];

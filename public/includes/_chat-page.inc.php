@@ -47,6 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $convId = (int) ($_POST['conversation_id'] ?? 0);
                 $msg    = $_POST['message'] ?? '';
 
+                // Sicurezza: solo i partecipanti possono inviare nella conversazione
+                if (!Chat::isParticipant($convId, $userType, $userId)) {
+                    echo json_encode(['success' => false, 'error' => 'Accesso non autorizzato']);
+                    exit;
+                }
+
                 $attachPath = null;
                 $attachName = null;
                 $attachSize = null;
@@ -70,6 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             case 'get_messages':
                 $convId = (int) ($_POST['conversation_id'] ?? 0);
+                // Sicurezza: SOLO i partecipanti possono leggere la conversazione
+                if (!Chat::isParticipant($convId, $userType, $userId)) {
+                    echo json_encode(['success' => false, 'error' => 'Accesso non autorizzato']);
+                    exit;
+                }
                 Chat::markAsRead($convId, $userType, $userId);
                 $messages = Chat::getMessages($convId);
                 echo json_encode(['success' => true, 'messages' => array_reverse($messages)]);
@@ -125,10 +136,15 @@ $selectedConvId   = (int) ($_GET['conv'] ?? 0);
 $selectedMessages = [];
 $selectedConv     = null;
 if ($selectedConvId) {
-    Chat::markAsRead($selectedConvId, $userType, $userId);
-    $selectedMessages = array_reverse(Chat::getMessages($selectedConvId));
-    foreach ($conversations as $c) {
-        if ((int)$c['id'] === $selectedConvId) { $selectedConv = $c; break; }
+    // Sicurezza: SOLO i partecipanti possono caricare la conversazione
+    if (!Chat::isParticipant($selectedConvId, $userType, $userId)) {
+        $selectedConvId = 0;
+    } else {
+        Chat::markAsRead($selectedConvId, $userType, $userId);
+        $selectedMessages = array_reverse(Chat::getMessages($selectedConvId));
+        foreach ($conversations as $c) {
+            if ((int)$c['id'] === $selectedConvId) { $selectedConv = $c; break; }
+        }
     }
 }
 
