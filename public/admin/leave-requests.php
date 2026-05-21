@@ -468,17 +468,8 @@ try {
     border-color: #fecaca;
 }
 
-/* Riga evidenziata in rosso: malattia pending senza docs */
-.lp-table tr.lp-row-missing td {
-    background: #fef2f2 !important;
-    border-left: 3px solid #dc2626;
-}
-.lp-table tr.lp-row-missing td:first-child {
-    border-left: 3px solid #dc2626;
-}
-.lp-table tr.lp-row-missing:hover td {
-    background: #fee2e2 !important;
-}
+/* Malattia pending senza docs: il badge "doc. in attesa" è sufficiente.
+   Niente sfondo/bordo rosso sull'intera riga. */
 
 .lp-status {
     display: inline-flex; align-items: center; gap: 4px;
