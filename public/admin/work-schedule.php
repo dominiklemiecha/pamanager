@@ -71,7 +71,13 @@ if (empty($companySlug) && !empty($compRow['name'])) {
     Database::update('companies', ['slug' => $candidate], 'id = ?', [$companyId]);
     $companySlug = $candidate;
 }
-$punchUrl = PUBLIC_URL . '/punch.php?c=' . urlencode($companySlug);
+// Costruisce URL ASSOLUTA per il tag NFC (scheme + host obbligatori).
+$__scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
+$__host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$__pubPath = (defined('PUBLIC_URL') && strpos(PUBLIC_URL, '://') !== false)
+    ? PUBLIC_URL
+    : ($__scheme . '://' . $__host . PUBLIC_URL);
+$punchUrl = $__pubPath . '/punch.php?c=' . urlencode($companySlug);
 $pageTitle = 'Configurazione · Orario lavorativo';
 include dirname(__DIR__) . '/includes/header-admin.php';
 include dirname(__DIR__) . '/includes/_config-tabs.php';
@@ -141,7 +147,7 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
             <small style="color:#94a3b8; margin-top:6px; display:block;">La URL si aggiorna mentre digiti l'identificativo. Salva le impostazioni prima di scriverla sulla carta.</small>
         </div>
         <script>
-        const PUNCH_BASE = <?= json_encode(PUBLIC_URL . '/punch.php') ?>;
+        const PUNCH_BASE = <?= json_encode($__pubPath . '/punch.php') ?>;
         function updatePunchUrl() {
             const slug = (document.getElementById('nfc_slug').value || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
             document.getElementById('punchUrlField').value = PUNCH_BASE + (slug ? '?c=' + slug : '');
