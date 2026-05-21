@@ -518,24 +518,44 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
     </button>
     <div class="eh-sheet-body">
         <div class="eh-nfc-illu">
-            <!-- Telefono che tocca tag NFC con onde -->
-            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Onde NFC -->
-                <path d="M120 70 Q 140 100 120 130" stroke="#0b3aa4" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.4">
-                    <animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.5s" repeatCount="indefinite"/>
-                </path>
-                <path d="M135 60 Q 165 100 135 140" stroke="#0b3aa4" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.3">
-                    <animate attributeName="opacity" values="0.1;0.5;0.1" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
-                </path>
-                <path d="M150 50 Q 190 100 150 150" stroke="#0b3aa4" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.2">
-                    <animate attributeName="opacity" values="0;0.35;0" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
-                </path>
-                <!-- Telefono -->
-                <rect x="35" y="40" width="80" height="130" rx="14" fill="white" stroke="#0b3aa4" stroke-width="3"/>
-                <rect x="42" y="50" width="66" height="100" rx="4" fill="#eef2ff"/>
-                <circle cx="75" cy="160" r="4" fill="#0b3aa4"/>
-                <!-- Logo dentro schermo -->
-                <text x="75" y="105" text-anchor="middle" font-family="Inter, sans-serif" font-size="22" font-weight="700" fill="#0b3aa4">CHR</text>
+            <svg viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Card NFC in basso -->
+                <g class="eh-nfc-card">
+                    <rect x="40" y="155" width="160" height="70" rx="10" fill="#0b3aa4"/>
+                    <rect x="40" y="155" width="160" height="70" rx="10" fill="url(#cardGlow)" opacity="0.4"/>
+                    <!-- Onde NFC sulla card (si attivano al "contatto") -->
+                    <g class="eh-nfc-waves">
+                        <circle cx="160" cy="190" r="10" stroke="white" stroke-width="2.5" fill="none" opacity="0.85"/>
+                        <circle cx="160" cy="190" r="18" stroke="white" stroke-width="2" fill="none" opacity="0.55"/>
+                        <circle cx="160" cy="190" r="26" stroke="white" stroke-width="1.5" fill="none" opacity="0.30"/>
+                    </g>
+                    <!-- Logo chip NFC -->
+                    <rect x="60" y="178" width="22" height="22" rx="3" fill="white" opacity="0.85"/>
+                    <path d="M64 196 L64 184 Q64 182 66 182 L78 182" stroke="#0b3aa4" stroke-width="1.5" fill="none"/>
+                    <path d="M68 196 L68 188 Q68 186 70 186 L78 186" stroke="#0b3aa4" stroke-width="1.5" fill="none"/>
+                    <text x="120" y="195" text-anchor="middle" font-family="'Host Grotesk', sans-serif" font-size="11" font-weight="700" fill="white" letter-spacing="1.5">NTAG215</text>
+                </g>
+
+                <!-- Telefono che si abbassa verso la card -->
+                <g class="eh-nfc-phone">
+                    <rect x="80" y="10" width="80" height="130" rx="14" fill="white" stroke="#0b3aa4" stroke-width="3"/>
+                    <rect x="87" y="20" width="66" height="100" rx="4" fill="#eef2ff"/>
+                    <circle cx="120" cy="130" r="4" fill="#0b3aa4"/>
+                    <!-- App content stilizzata -->
+                    <rect x="93" y="30" width="36" height="6" rx="3" fill="#0b3aa4" opacity="0.6"/>
+                    <rect x="93" y="42" width="54" height="4" rx="2" fill="#cbd5e0"/>
+                    <circle cx="103" cy="72" r="9" fill="#16a34a"/>
+                    <text x="103" y="76" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="white">✓</text>
+                    <rect x="118" y="68" width="30" height="4" rx="2" fill="#0b3aa4"/>
+                    <rect x="118" y="76" width="20" height="3" rx="1.5" fill="#cbd5e0"/>
+                </g>
+
+                <defs>
+                    <linearGradient id="cardGlow" x1="40" y1="155" x2="200" y2="225" gradientUnits="userSpaceOnUse">
+                        <stop offset="0" stop-color="white" stop-opacity="0.20"/>
+                        <stop offset="1" stop-color="white" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
             </svg>
         </div>
         <h3 class="eh-sheet-title">Avvicina il telefono alla carta NFC</h3>
@@ -626,10 +646,44 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
     flex: 1;
 }
 .eh-nfc-illu {
-    width: 180px; height: 180px;
+    width: 200px; height: 200px;
     margin: 0 auto 14px;
+    perspective: 600px;
 }
-.eh-nfc-illu svg { width: 100%; height: 100%; }
+.eh-nfc-illu svg { width: 100%; height: 100%; display: block; }
+
+/* Animazione "approccio NFC": il telefono scende, le onde pulsano al contatto */
+.eh-nfc-phone {
+    transform-origin: 120px 75px;
+    animation: ehPhoneDown 2.4s ease-in-out infinite;
+}
+@keyframes ehPhoneDown {
+    0%,   100% { transform: translateY(-6px) rotate(-2deg); }
+    35%        { transform: translateY(0px)  rotate(0deg); }
+    50%        { transform: translateY(8px)  rotate(0deg); }
+    65%        { transform: translateY(0px)  rotate(0deg); }
+}
+.eh-nfc-card {
+    animation: ehCardPulse 2.4s ease-in-out infinite;
+    transform-origin: 120px 190px;
+}
+@keyframes ehCardPulse {
+    0%,   45%, 70%, 100% { transform: scale(1); }
+    50%, 60%             { transform: scale(1.03); }
+}
+.eh-nfc-waves > circle {
+    transform-origin: 160px 190px;
+    opacity: 0;
+}
+.eh-nfc-waves > circle:nth-child(1) { animation: ehWaveBurst 2.4s ease-out 1.20s infinite; }
+.eh-nfc-waves > circle:nth-child(2) { animation: ehWaveBurst 2.4s ease-out 1.35s infinite; }
+.eh-nfc-waves > circle:nth-child(3) { animation: ehWaveBurst 2.4s ease-out 1.50s infinite; }
+@keyframes ehWaveBurst {
+    0%   { opacity: 0;    transform: scale(0.6); }
+    20%  { opacity: 0.85; transform: scale(1);   }
+    50%  { opacity: 0;    transform: scale(1.6); }
+    100% { opacity: 0;    transform: scale(1.6); }
+}
 .eh-sheet-title {
     font-family: 'Host Grotesk', 'Inter', sans-serif;
     font-size: 19px; font-weight: 700;
