@@ -465,6 +465,14 @@ try {
 
 <!-- ======== Timbra entrata/uscita ======== -->
 <?php
+// Verifica se la timbratura è abilitata per l'azienda del dipendente
+$__empCidForPunch = (int) ($employee['company_id']
+    ?? Database::fetchColumn("SELECT company_id FROM employees WHERE id = ?", [(int)$employee['id']])
+    ?? 0);
+$__punchEnabled = $__empCidForPunch
+    ? (int) (Database::fetchColumn("SELECT timbratura_enabled FROM companies WHERE id = ?", [$__empCidForPunch]) ?? 1) === 1
+    : false;
+if ($__punchEnabled):
 $__lastPunch = class_exists('AttendancePunch') ? AttendancePunch::lastPunch((int)$employee['id']) : null;
 $__todayLast = null;
 if ($__lastPunch && date('Y-m-d', strtotime($__lastPunch['punch_at'])) === date('Y-m-d')) {
@@ -676,6 +684,7 @@ function ehPunchClose() {
     document.body.style.overflow = '';
 }
 </script>
+<?php endif; /* $__punchEnabled */ ?>
 
 <!-- ======== Quick actions ======== -->
 <div class="eh-actions">

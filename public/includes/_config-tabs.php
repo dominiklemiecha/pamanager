@@ -11,12 +11,14 @@ $__cfgBaseUrl = PUBLIC_URL . '/admin';
 
 $__cfgTitles = [
     'profile'         => 'Profilo Admin',
+    'punch-settings'  => 'Timbrature NFC',
     'password-resets' => 'Reset Password',
     'smtp-settings'   => 'Email / SMTP',
     'work-schedule'   => 'Orario lavorativo',
 ];
 $__cfgSubs = [
     'profile'         => 'Le tue informazioni personali e impostazioni account',
+    'punch-settings'  => 'Abilita/disabilita timbrature e configura la carta NFC',
     'password-resets' => 'Gestisci richieste di reset e password manuali',
     'smtp-settings'   => 'Server SMTP per l\'invio delle notifiche email',
     'work-schedule'   => 'Giorni e ore lavorative usate dal saldo ferie',
@@ -37,6 +39,10 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
     <a href="<?= $__cfgBaseUrl ?>/profile.php"
        class="cd-tab <?= $__cfgPage === 'profile' ? 'active' : '' ?>">
         Profilo
+    </a>
+    <a href="<?= $__cfgBaseUrl ?>/punch-settings.php"
+       class="cd-tab <?= $__cfgPage === 'punch-settings' ? 'active' : '' ?>">
+        Timbrature
     </a>
     <a href="<?= $__cfgBaseUrl ?>/password-resets.php"
        class="cd-tab <?= $__cfgPage === 'password-resets' ? 'active' : '' ?>">

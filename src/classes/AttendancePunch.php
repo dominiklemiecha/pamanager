@@ -133,6 +133,49 @@ class AttendancePunch
         return Database::fetchAll($sql, $params);
     }
 
+    /**
+     * Crea manualmente una timbratura (admin force).
+     */
+    public static function createManual(int $employeeId, string $punchAt, string $kind, ?string $notes = null): array
+    {
+        if (!in_array($kind, ['in', 'out'], true)) return ['success' => false, 'error' => 'Tipo timbratura non valido'];
+        $emp = Database::fetchOne("SELECT company_id FROM employees WHERE id = ?", [$employeeId]);
+        if (!$emp) return ['success' => false, 'error' => 'Dipendente non trovato'];
+
+        $id = Database::insert('attendance_punches', [
+            'company_id'  => (int) $emp['company_id'],
+            'employee_id' => $employeeId,
+            'punch_at'    => $punchAt,
+            'kind'        => $kind,
+            'source'      => 'manual',
+            'notes'       => $notes,
+        ]);
+        return ['success' => true, 'id' => (int) $id];
+    }
+
+    public static function updateManual(int $id, string $punchAt, string $kind, ?string $notes = null): array
+    {
+        if (!in_array($kind, ['in', 'out'], true)) return ['success' => false, 'error' => 'Tipo non valido'];
+        Database::update('attendance_punches', [
+            'punch_at' => $punchAt,
+            'kind'     => $kind,
+            'notes'    => $notes,
+        ], 'id = ?', [$id]);
+        return ['success' => true];
+    }
+
+    public static function deleteOne(int $id): array
+    {
+        Database::delete('attendance_punches', 'id = ?', [$id]);
+        return ['success' => true];
+    }
+
+    public static function getById(int $id): ?array
+    {
+        $r = Database::fetchOne("SELECT * FROM attendance_punches WHERE id = ?", [$id]);
+        return $r ?: null;
+    }
+
     public static function getIp(): string
     {
         if (function_exists('getClientIp')) return getClientIp();

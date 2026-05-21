@@ -56,7 +56,14 @@ if ($companySlug !== '') {
     }
 }
 
-if ($companyMismatch) {
+$__cidCheck = $empCompId;
+$__enabled = $__cidCheck
+    ? (int) (Database::fetchColumn("SELECT timbratura_enabled FROM companies WHERE id = ?", [$__cidCheck]) ?? 1) === 1
+    : true;
+
+if (!$__enabled) {
+    $result = ['success' => false, 'error' => 'Timbrature disabilitate. Contatta l\'amministratore.'];
+} elseif ($companyMismatch) {
     $result = ['success' => false, 'error' => 'Carta non valida per la tua azienda.'];
 } else {
     $result = AttendancePunch::record($employeeId, 'nfc');
