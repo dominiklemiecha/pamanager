@@ -15,6 +15,15 @@ $companyId = Tenant::currentCompanyId();
 $message = '';
 $error = '';
 
+// Se le timbrature sono disabilitate, redirect a punch-settings con avviso
+$__punchEnabled = (int) (Database::fetchColumn(
+    "SELECT timbratura_enabled FROM companies WHERE id = ?", [$companyId]
+) ?? 1) === 1;
+if (!$__punchEnabled) {
+    header('Location: punch-settings.php?msg=enable_first');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
     $action = $_POST['action'] ?? '';
