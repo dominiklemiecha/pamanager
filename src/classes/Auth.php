@@ -303,8 +303,12 @@ class Auth
             'first_name' => $employee['first_name'],
             'last_name' => $employee['last_name'],
             'email' => $employee['email'],
-            'department_id' => $employee['department_id'] ?? null
+            'department_id' => $employee['department_id'] ?? null,
+            'company_id' => $employee['company_id'] ?? null,
         ];
+        // Reset tenant-switcher dell'eventuale sessione admin precedente:
+        // il dipendente è tied alla sua company, non deve mai vedere altre tenant.
+        unset($_SESSION['tenant_company_id']);
         $_SESSION[self::SESSION_ROLE_KEY] = 'employee';
         $_SESSION['last_activity'] = time();
         $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -436,7 +440,25 @@ class Auth
      */
     public static function getEmployee(): ?array
     {
-        return $_SESSION[self::SESSION_EMPLOYEE_KEY] ?? null;
+        $emp = $_SESSION[self::SESSION_EMPLOYEE_KEY] ?? null;
+        if (!$emp || empty($emp['id'])) return $emp;
+        // Hydration retroattiva: sessioni create prima dell'aggiunta di company_id
+        if (empty($emp['company_id'])) {
+            try {
+                $row = Database::fetchOne(
+                    "SELECT company_id, department_id FROM employees WHERE id = ?",
+                    [(int) $emp['id']]
+                );
+                if ($row && !empty($row['company_id'])) {
+                    $emp['company_id'] = (int) $row['company_id'];
+                    if (empty($emp['department_id'])) $emp['department_id'] = $row['department_id'] ?? null;
+                    $_SESSION[self::SESSION_EMPLOYEE_KEY] = $emp;
+                    // Allinea anche il tenant switcher
+                    unset($_SESSION['tenant_company_id']);
+                }
+            } catch (Throwable $e) { /* ignora */ }
+        }
+        return $emp;
     }
 
     /**
