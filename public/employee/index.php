@@ -533,7 +533,7 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
                     <rect x="60" y="178" width="22" height="22" rx="3" fill="white" opacity="0.85"/>
                     <path d="M64 196 L64 184 Q64 182 66 182 L78 182" stroke="#0b3aa4" stroke-width="1.5" fill="none"/>
                     <path d="M68 196 L68 188 Q68 186 70 186 L78 186" stroke="#0b3aa4" stroke-width="1.5" fill="none"/>
-                    <text x="120" y="195" text-anchor="middle" font-family="'Host Grotesk', sans-serif" font-size="11" font-weight="700" fill="white" letter-spacing="1.5">NTAG215</text>
+                    <text x="120" y="195" text-anchor="middle" font-family="'Host Grotesk', sans-serif" font-size="12" font-weight="700" fill="white" letter-spacing="2">BADGE</text>
                 </g>
 
                 <!-- Telefono che si abbassa verso la card -->
@@ -559,7 +559,7 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
             </svg>
         </div>
         <h3 class="eh-sheet-title">Avvicina il telefono alla carta NFC</h3>
-        <p class="eh-sheet-text">Tieni il telefono vicino al lato della carta NTAG215. La timbratura parte in automatico al contatto.</p>
+        <p class="eh-sheet-text">Tieni il telefono vicino al badge. La timbratura parte in automatico al contatto.</p>
     </div>
 </div>
 
@@ -613,7 +613,7 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
 .eh-sheet-backdrop.show { opacity: 1; pointer-events: auto; }
 .eh-sheet {
     position: fixed; left: 0; right: 0; bottom: 0;
-    height: 60vh; max-height: 600px;
+    height: auto; max-height: 480px;
     background: white;
     border-radius: 24px 24px 0 0;
     box-shadow: 0 -24px 64px rgba(15,23,42,0.20);
@@ -621,6 +621,7 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
     transform: translateY(100%);
     transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1);
     display: flex; flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
 }
 .eh-sheet.show { transform: translateY(0); }
 .eh-sheet::before {
@@ -640,14 +641,14 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
 }
 .eh-sheet-back:hover { background: rgba(11,58,164,0.08); }
 .eh-sheet-body {
-    padding: 56px 28px 32px;
+    padding: 48px 24px 22px;
     text-align: center;
     overflow-y: auto;
     flex: 1;
 }
 .eh-nfc-illu {
-    width: 200px; height: 200px;
-    margin: 0 auto 14px;
+    width: 170px; height: 170px;
+    margin: 0 auto 8px;
     perspective: 600px;
 }
 .eh-nfc-illu svg { width: 100%; height: 100%; display: block; }
@@ -694,7 +695,7 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
 .eh-sheet-text {
     color: #6e7191; font-size: 13.5px;
     line-height: 1.5;
-    margin-bottom: 22px;
+    margin-bottom: 4px;
     max-width: 340px;
     margin-left: auto; margin-right: auto;
 }
@@ -721,8 +722,9 @@ $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug
 }
 
 @media (max-width: 480px) {
-    .eh-sheet { height: 70vh; }
+    .eh-sheet { max-height: 420px; }
     .eh-nfc-illu { width: 150px; height: 150px; }
+    .eh-sheet-body { padding: 44px 20px 20px; }
 }
 </style>
 
