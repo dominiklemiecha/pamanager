@@ -342,6 +342,12 @@ class Employee
         }
         if (array_key_exists('iban', $data))           $updateData['iban']           = $data['iban'] ? strtoupper(preg_replace('/\s+/', '', $data['iban'])) : null;
 
+        // UID badge NFC per apertura porta (migration 038)
+        if (array_key_exists('nfc_uid', $data)) {
+            $__uid = strtoupper(preg_replace('/[^0-9A-Fa-f]/', '', (string) $data['nfc_uid']));
+            $updateData['nfc_uid'] = $__uid !== '' ? $__uid : null;
+        }
+
         // Orario di lavoro (migration 025): null = usa default azienda, '' = nessun giorno
         if (array_key_exists('working_days', $data)) {
             $updateData['working_days'] = $data['working_days'];

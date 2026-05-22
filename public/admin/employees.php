@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $__eid = (int)($_POST['id'] ?? 0);
             $__field = $_POST['field'] ?? '';
             $__value = trim($_POST['value'] ?? '');
-            $__allowed = ['first_name','last_name','position','email','phone','birth_date','address','hire_date','job_level','iban','ral_amount','monthly_salary','department_id'];
+            $__allowed = ['first_name','last_name','position','email','phone','birth_date','address','hire_date','job_level','iban','ral_amount','monthly_salary','department_id','nfc_uid'];
             if ($__eid > 0 && in_array($__field, $__allowed, true)) {
                 $__upd = [];
                 if (in_array($__field, ['birth_date','hire_date'], true)) {
@@ -1464,6 +1464,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <div class="fact"><div class="l">RAL annua</div><div class="v"><?php $renderEdit('ral_amount', 'number', $employee['ral_amount'] ?? '', !empty($employee['ral_amount']) ? '€ ' . number_format((float)$employee['ral_amount'], 0, ',', '.') : '<span style="color:var(--muted);">—</span>'); ?></div></div>
                             <div class="fact"><div class="l">Mensile</div><div class="v"><?php $renderEdit('monthly_salary', 'number', $employee['monthly_salary'] ?? '', !empty($employee['monthly_salary']) ? '€ ' . number_format((float)$employee['monthly_salary'], 0, ',', '.') : '<span style="color:var(--muted);">—</span>'); ?></div></div>
                             <div class="fact" style="grid-column: span 2;"><div class="l">IBAN</div><div class="v"><?php $renderEdit('iban', 'text', $employee['iban'] ?? '', $employee['iban'] ? '<code>' . htmlspecialchars($employee['iban']) . '</code>' : '<span style="color:var(--muted);">—</span>'); ?></div></div>
+                            <div class="fact" style="grid-column: span 2;">
+                                <div class="l">UID badge porta <span style="font-weight: 400; color: #94a3b8; font-size: 11px;">(NFC apertura porta)</span></div>
+                                <div class="v"><?php $renderEdit('nfc_uid', 'text', $employee['nfc_uid'] ?? '', !empty($employee['nfc_uid']) ? '<code>' . htmlspecialchars($employee['nfc_uid']) . '</code>' : '<span style="color:var(--muted);">— non assegnato</span>'); ?></div>
+                            </div>
                         </div>
                     </div>
                 </div>
