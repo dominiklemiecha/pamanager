@@ -12,6 +12,8 @@ $__cfgBaseUrl = PUBLIC_URL . '/admin';
 $__cfgTitles = [
     'profile'         => 'Profilo Admin',
     'punch-settings'  => 'Timbrature NFC',
+    'door-settings'   => 'Apertura porta',
+    'door-log'        => 'Log apertura porta',
     'password-resets' => 'Reset Password',
     'smtp-settings'   => 'Email / SMTP',
     'work-schedule'   => 'Orario lavorativo',
@@ -19,6 +21,8 @@ $__cfgTitles = [
 $__cfgSubs = [
     'profile'         => 'Le tue informazioni personali e impostazioni account',
     'punch-settings'  => 'Abilita/disabilita timbrature e configura la carta NFC',
+    'door-settings'   => 'Apri la porta con badge NFC tramite ESP32 + RC522',
+    'door-log'        => 'Storico tentativi di apertura della porta',
     'password-resets' => 'Gestisci richieste di reset e password manuali',
     'smtp-settings'   => 'Server SMTP per l\'invio delle notifiche email',
     'work-schedule'   => 'Giorni e ore lavorative usate dal saldo ferie',
@@ -43,6 +47,10 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
     <a href="<?= $__cfgBaseUrl ?>/punch-settings.php"
        class="cd-tab <?= $__cfgPage === 'punch-settings' ? 'active' : '' ?>">
         Timbrature
+    </a>
+    <a href="<?= $__cfgBaseUrl ?>/door-settings.php"
+       class="cd-tab <?= in_array($__cfgPage, ['door-settings', 'door-log']) ? 'active' : '' ?>">
+        Apertura porta
     </a>
     <a href="<?= $__cfgBaseUrl ?>/password-resets.php"
        class="cd-tab <?= $__cfgPage === 'password-resets' ? 'active' : '' ?>">
