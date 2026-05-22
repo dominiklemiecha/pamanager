@@ -265,7 +265,10 @@ class LeaveRequest
         try {
             // Resolve company_id dall'employee (autoritativo: ogni leave appartiene alla company dell'employee)
             $__emp = Database::fetchOne("SELECT company_id FROM employees WHERE id = ?", [(int)$data['employee_id']]);
-            $id = Database::insert('leave_requests', [
+
+            // Permesso L.104: diritto soggettivo del dipendente, niente approvazione admin.
+            $autoApprove = ($data['leave_type'] === 'permesso_104');
+            $insertData = [
                 'company_id'  => (int)($__emp['company_id'] ?? (class_exists('Tenant') ? Tenant::currentCompanyId() : 1)),
                 'employee_id' => (int) $data['employee_id'],
                 'leave_type' => $data['leave_type'],
@@ -281,13 +284,19 @@ class LeaveRequest
                 'protocol_number' => isset($data['protocol_number']) && trim((string)$data['protocol_number']) !== ''
                     ? trim((string)$data['protocol_number'])
                     : null,
-                'status' => 'pending'
-            ]);
+                'status' => $autoApprove ? 'approved' : 'pending',
+            ];
+            if ($autoApprove) {
+                $insertData['approved_at'] = date('Y-m-d H:i:s');
+            }
+            $id = Database::insert('leave_requests', $insertData);
 
-            self::logAction('leave_request_created', $id, null, $data);
+            self::logAction($autoApprove ? 'leave_request_auto_approved' : 'leave_request_created', $id, null, $data);
 
-            // Notifica admin_reparto del dipendente
-            self::notifyDepartmentAdmins($employee, $data);
+            // Notifica admin_reparto solo se serve approvazione (i 104 si autoapprovano e non bloccano l'admin)
+            if (!$autoApprove) {
+                self::notifyDepartmentAdmins($employee, $data);
+            }
 
             return ['success' => true, 'id' => $id];
         } catch (Throwable $e) {
