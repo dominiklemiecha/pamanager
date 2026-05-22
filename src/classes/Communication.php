@@ -104,16 +104,24 @@ class Communication
      */
     public static function countUnread(int $employeeId, ?int $departmentId = null): int
     {
+        // Deriva la company del dipendente: il count non deve mai attraversare le tenant.
+        $empCompanyId = (int) (Database::fetchColumn(
+            "SELECT company_id FROM employees WHERE id = ?",
+            [$employeeId]
+        ) ?? 0);
+        if ($empCompanyId <= 0) return 0;
+
         $sql = "SELECT COUNT(*)
                 FROM communications c
-                WHERE c.is_published = TRUE
+                WHERE c.company_id = ?
+                  AND c.is_published = TRUE
                   AND c.publish_date <= CURDATE()
                   AND (c.expire_date IS NULL OR c.expire_date >= CURDATE())
                   AND NOT EXISTS (
                       SELECT 1 FROM communication_reads cr
                       WHERE cr.communication_id = c.id AND cr.employee_id = ?
                   )";
-        $params = [$employeeId];
+        $params = [$empCompanyId, $employeeId];
 
         // Filtra per reparto se specificato
         if ($departmentId !== null) {
