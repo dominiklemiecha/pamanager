@@ -45,6 +45,15 @@ class Database
                 self::$config['password'],
                 self::$config['options']
             );
+
+            // Allinea il timezone della sessione MySQL a quello di PHP (Europe/Rome).
+            // Senza questo, NOW()/CURRENT_TIMESTAMP usano UTC del container e gli orari sballano.
+            try {
+                $offset = (new DateTime())->format('P'); // '+02:00' / '+01:00' (DST-aware)
+                self::$instance->exec("SET time_zone = '" . $offset . "'");
+            } catch (Throwable $__tz) {
+                self::logError('Impossibile impostare time_zone MySQL: ' . $__tz->getMessage());
+            }
         } catch (PDOException $e) {
             self::logError('Connessione database fallita: ' . $e->getMessage());
             throw new RuntimeException('Errore di connessione al database');
