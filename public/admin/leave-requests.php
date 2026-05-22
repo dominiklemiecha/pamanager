@@ -992,7 +992,20 @@ try {
                                 <small><?= substr($req['start_time'], 0, 5) ?> - <?= substr($req['end_time'], 0, 5) ?></small>
                             <?php endif; ?>
                         </td>
-                        <td data-label="Giorni"><?= $workingDays ?></td>
+                        <td data-label="Giorni">
+                            <?php if (!$req['is_full_day'] && $req['start_time'] && $req['end_time']):
+                                $__minutes = max(0, (strtotime($req['end_time']) - strtotime($req['start_time'])) / 60);
+                                $__h = floor($__minutes / 60);
+                                $__m = (int) round($__minutes - $__h * 60);
+                                if ($__m === 60) { $__h++; $__m = 0; }
+                                $__lbl = $__h > 0 ? $__h . 'h' : '';
+                                if ($__m > 0) { $__lbl .= ($__lbl ? ' ' : '') . $__m . 'm'; }
+                                if ($__lbl === '') { $__lbl = '0m'; }
+                                echo e($__lbl);
+                            else:
+                                echo (int) $workingDays . ($workingDays == 1 ? ' g' : ' gg');
+                            endif; ?>
+                        </td>
                         <td data-label="Stato">
                             <span class="lp-status <?= $req['status'] ?>">
                                 <?= e(LeaveRequest::STATUSES[$req['status']] ?? $req['status']) ?>
