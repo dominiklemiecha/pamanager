@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'leave_type' => $leaveType,
                 'start_date' => $_POST['start_date'] ?? '',
                 'end_date' => $_POST['end_date'] ?? '',
-                'is_full_day' => isset($_POST['is_full_day']),
+                'is_full_day' => (($_POST['is_full_day'] ?? '1') === '1'),
                 'start_time' => $_POST['start_time'] ?? '',
                 'end_time' => $_POST['end_time'] ?? '',
                 'reason' => $_POST['reason'] ?? '',
