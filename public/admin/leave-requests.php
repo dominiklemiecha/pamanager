@@ -468,6 +468,21 @@ try {
     border-color: #fecaca;
 }
 
+/* Quando ci sono più badge nella colonna Tipo, impilali in verticale
+   per non comprimere la colonna Azioni con i pulsanti. */
+.lp-table td[data-label="Tipo"] { vertical-align: top; }
+.lp-table td[data-label="Tipo"] > .lp-type,
+.lp-table td[data-label="Tipo"] > .lp-sick-meta,
+.lp-table td[data-label="Tipo"] > .lp-sick-missing {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+}
+.lp-table td[data-label="Tipo"] > .lp-type:first-child { margin-top: 0; }
+
 /* Malattia pending senza docs: il badge "doc. in attesa" è sufficiente.
    Niente sfondo/bordo rosso sull'intera riga. */
 
