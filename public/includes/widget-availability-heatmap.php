@@ -139,6 +139,29 @@ $leaveTypeLabels = [
     'altro' => 'Assenza',
 ];
 
+// Privacy L.104: dato sanitario sensibile. Nella tooltip del widget la causale
+// L.104 e' visibile solo a chi ne ha bisogno per legge/paghe: admin (HR) e
+// accountant (commercialista/consulente del lavoro). admin_reparto e employee
+// vedono un generico "Permesso". L'utente vede sempre la causale sulle proprie
+// assenze.
+$__hmCurrentRole  = null;
+$__hmCurrentEmpId = 0;
+if (class_exists('Auth')) {
+    try {
+        $__hmU = Auth::getUser();
+        if ($__hmU && !empty($__hmU['role'])) {
+            $__hmCurrentRole = $__hmU['role'];
+        } else {
+            $__hmE = Auth::getEmployee();
+            if ($__hmE && !empty($__hmE['id'])) {
+                $__hmCurrentRole  = 'employee';
+                $__hmCurrentEmpId = (int) $__hmE['id'];
+            }
+        }
+    } catch (Throwable $e) {}
+}
+$__hmMaskL104 = !in_array($__hmCurrentRole, ['admin', 'accountant'], true);
+
 $availabilityLabels = [
     'operative'  => 'Operativo',
     'in_call'    => 'In chiamata',
@@ -229,7 +252,12 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 $hit = $approvedHit ?? $pendingHit;
                 if ($hit) {
                     $state = $approvedHit ? 'absent' : 'pending';
-                    $label = $leaveTypeLabels[$hit['leave_type']] ?? 'Assenza';
+                    $__hmType = $hit['leave_type'];
+                    if ($__hmMaskL104 && $__hmType === 'permesso_104' && (int)$emp['id'] !== $__hmCurrentEmpId) {
+                        $label = 'Permesso';
+                    } else {
+                        $label = $leaveTypeLabels[$__hmType] ?? 'Assenza';
+                    }
                     if (!empty($hit['start_time']) && !empty($hit['end_time'])) {
                         $st = substr($hit['start_time'], 0, 5);
                         $et = substr($hit['end_time'], 0, 5);
