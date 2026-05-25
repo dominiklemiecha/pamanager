@@ -255,12 +255,14 @@ class LeaveRequest
             return ['success' => false, 'error' => 'Dipendente non trovato'];
         }
 
-        // Verifica sovrapposizioni
-        if (self::hasOverlap((int) $data['employee_id'], $data['start_date'], $data['end_date'])) {
+        $isFullDay = isset($data['is_full_day']) ? (bool) $data['is_full_day'] : true;
+        $newStartTime = (!$isFullDay && !empty($data['start_time'])) ? $data['start_time'] : null;
+        $newEndTime = (!$isFullDay && !empty($data['end_time'])) ? $data['end_time'] : null;
+
+        // Verifica sovrapposizioni (considera gli orari per permessi parziali)
+        if (self::hasOverlap((int) $data['employee_id'], $data['start_date'], $data['end_date'], null, $isFullDay, $newStartTime, $newEndTime)) {
             return ['success' => false, 'error' => 'Esiste già una richiesta per questo periodo'];
         }
-
-        $isFullDay = isset($data['is_full_day']) ? (bool) $data['is_full_day'] : true;
 
         try {
             // Resolve company_id dall'employee (autoritativo: ogni leave appartiene alla company dell'employee)
@@ -533,10 +535,17 @@ class LeaveRequest
     }
 
     /**
-     * Verifica sovrapposizioni di date
+     * Verifica sovrapposizioni di date (e di orari per permessi parziali nello stesso giorno).
      */
-    public static function hasOverlap(int $employeeId, string $startDate, string $endDate, ?int $excludeId = null): bool
-    {
+    public static function hasOverlap(
+        int $employeeId,
+        string $startDate,
+        string $endDate,
+        ?int $excludeId = null,
+        bool $isFullDay = true,
+        ?string $startTime = null,
+        ?string $endTime = null
+    ): bool {
         $sql = "SELECT COUNT(*) FROM leave_requests
                 WHERE employee_id = ?
                   AND status NOT IN ('rejected', 'cancelled')
@@ -544,6 +553,22 @@ class LeaveRequest
                        OR (start_date <= ? AND end_date >= ?)
                        OR (start_date >= ? AND end_date <= ?))";
         $params = [$employeeId, $endDate, $startDate, $startDate, $startDate, $startDate, $endDate];
+
+        // Se la nuova richiesta è parziale (orari specifici nello stesso giorno),
+        // escludi le richieste esistenti che pur cadendo nello stesso giorno
+        // hanno una fascia oraria DISGIUNTA da quella nuova.
+        if (!$isFullDay && $startTime !== null && $endTime !== null) {
+            $sql .= " AND NOT (
+                          is_full_day = 0
+                          AND start_time IS NOT NULL AND end_time IS NOT NULL
+                          AND start_date = ? AND end_date = ?
+                          AND (start_time >= ? OR end_time <= ?)
+                      )";
+            $params[] = $startDate;
+            $params[] = $endDate;
+            $params[] = $endTime;
+            $params[] = $startTime;
+        }
 
         if ($excludeId !== null) {
             $sql .= " AND id != ?";
