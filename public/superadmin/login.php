@@ -6,17 +6,34 @@ setSecurityHeaders();
 if (!SuperAdmin::configured()) {
     http_response_code(503);
     if (isset($_GET['check'])) {
-        $keys = ['SUPERADMIN_USER', 'SUPERADMIN_PASS_HASH', 'SUPERADMIN_TOTP_SECRET'];
         header('Content-Type: text/plain');
-        foreach ($keys as $k) {
+        $f = '/var/www/html/storage/superadmin.env';
+        echo "Persist file: $f\n";
+        echo "  exists:   " . (file_exists($f) ? 'YES' : 'NO') . "\n";
+        echo "  readable: " . (is_readable($f) ? 'YES' : 'NO') . "\n";
+        if (file_exists($f)) {
+            echo "  size:     " . filesize($f) . " bytes\n";
+            echo "  perms:    " . substr(sprintf('%o', fileperms($f)), -4) . "\n";
+            echo "  owner:    " . (function_exists('posix_getpwuid') ? (posix_getpwuid(fileowner($f))['name'] ?? '?') : fileowner($f)) . "\n";
+        }
+        echo "\nFile keys parsed:\n";
+        $rc = new ReflectionClass(SuperAdmin::class);
+        $m = $rc->getMethod('loadPersistFile'); $m->setAccessible(true);
+        $parsed = $m->invoke(null);
+        foreach (['SUPERADMIN_USER','SUPERADMIN_PASS_HASH','SUPERADMIN_TOTP_SECRET'] as $k) {
+            echo "  $k: " . (isset($parsed[$k]) ? "YES(len=" . strlen($parsed[$k]) . ")" : "NO") . "\n";
+        }
+        echo "\nProcess env:\n";
+        foreach (['SUPERADMIN_USER','SUPERADMIN_PASS_HASH','SUPERADMIN_TOTP_SECRET'] as $k) {
             $g = getenv($k);
             $e = $_ENV[$k] ?? null;
             $s = $_SERVER[$k] ?? null;
-            echo "$k: getenv=" . ($g === false ? 'NO' : 'YES(' . strlen((string)$g) . ')')
+            echo "  $k: getenv=" . ($g === false ? 'NO' : 'YES(' . strlen((string)$g) . ')')
                . " \$_ENV=" . ($e === null ? 'NO' : 'YES(' . strlen((string)$e) . ')')
                . " \$_SERVER=" . ($s === null ? 'NO' : 'YES(' . strlen((string)$s) . ')')
                . "\n";
         }
+        echo "\nApp user: " . (function_exists('posix_getpwuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? '?') : 'unknown') . "\n";
         exit;
     }
     die('Superadmin non configurato. Crea /var/www/html/storage/superadmin.env con le 3 variabili SUPERADMIN_USER, SUPERADMIN_PASS_HASH, SUPERADMIN_TOTP_SECRET. Diagnostica: ?check=1');
