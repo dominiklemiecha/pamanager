@@ -42,17 +42,27 @@ class User
     public static function getAll(?string $role = null): array
     {
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
-        // Scoping multi-tenant: utenti dell'azienda corrente.
-        // Gli admin globali (company_id = NULL) sono inclusi solo se viene richiesto il ruolo 'admin'.
-        $sql = "SELECT u.id, u.username, u.role, u.name, u.email, u.is_active, u.created_at, u.last_login,
-                       u.department_id, d.name AS department_name, d.code AS department_code
+        // Scoping multi-tenant.
+        // - admin: include anche admin globali (company_id NULL)
+        // - accountant / consulente_lavoro: include anche utenti linkati via user_companies
+        //   a una delle aziende accessibili al viewer (consulenti condivisi tra tenant)
+        $accessible = class_exists('Tenant') ? Tenant::accessibleCompanyIdsForCurrentUser() : [];
+        if (empty($accessible)) $accessible = [$cid];
+
+        $sql = "SELECT DISTINCT u.id, u.username, u.role, u.name, u.email, u.is_active, u.created_at, u.last_login,
+                       u.company_id, u.department_id, d.name AS department_name, d.code AS department_code
                 FROM users u
                 LEFT JOIN departments d ON u.department_id = d.id
                 WHERE (u.company_id = ?";
         $params = [$cid];
 
         if ($role === 'admin') {
-            $sql .= " OR u.company_id IS NULL"; // admin globali visibili
+            $sql .= " OR u.company_id IS NULL";
+        }
+        if (in_array($role, ['accountant', 'consulente_lavoro'], true) && !empty($accessible)) {
+            $ph = implode(',', array_fill(0, count($accessible), '?'));
+            $sql .= " OR u.id IN (SELECT user_id FROM user_companies WHERE company_id IN ($ph))";
+            foreach ($accessible as $aid) $params[] = (int)$aid;
         }
         $sql .= ")";
 

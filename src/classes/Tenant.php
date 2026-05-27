@@ -126,6 +126,14 @@ class Tenant
         return [];
     }
 
+    /** ID delle aziende accessibili al viewer corrente (admin / staff). */
+    public static function accessibleCompanyIdsForCurrentUser(): array
+    {
+        $user = Auth::getUser();
+        if (!$user) return [];
+        return self::accessibleCompanyIds($user);
+    }
+
     /** ID delle aziende accessibili come array di interi. */
     private static function accessibleCompanyIds(array $user): array
     {

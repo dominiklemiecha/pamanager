@@ -14,6 +14,17 @@
 $user   = Auth::getUser();
 $action = $_GET['action'] ?? 'list';
 
+// Aziende gestibili dall'admin corrente (per condivisione consulenti tra tenant)
+$accessibleCids = Tenant::accessibleCompanyIdsForCurrentUser();
+$accessibleSet  = array_flip(array_map('intval', $accessibleCids));
+
+/** True se l'utente $u e' "ospite" (consulente condiviso da un altro tenant). */
+$isGuestUser = function (array $u) use ($accessibleSet): bool {
+    $cid = isset($u['company_id']) ? (int)$u['company_id'] : 0;
+    if ($cid <= 0) return false; // owner globale, non ospite
+    return !isset($accessibleSet[$cid]);
+};
+
 /**
  * Invia email di benvenuto con credenziali al nuovo utente.
  */
@@ -111,6 +122,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'update':
             if ($id) {
+                $target = User::getById($id);
+                $isGuest = $target && $isGuestUser($target);
+
+                if ($isGuest) {
+                    // Consulente condiviso da altro tenant: l'admin corrente puo' SOLO
+                    // gestire le aziende del proprio tenant. Niente modifiche al profilo.
+                    $rawCids = $_POST['company_ids'] ?? [];
+                    if (!is_array($rawCids)) $rawCids = [];
+                    $newAccessibleLinks = array_values(array_filter(
+                        array_map('intval', $rawCids),
+                        fn($v) => isset($accessibleSet[$v])
+                    ));
+                    $allLinks = Tenant::getUserCompanyIds($id);
+                    // Conserva i link su aziende NON mie
+                    $foreignLinks = array_values(array_filter(
+                        $allLinks,
+                        fn($v) => !isset($accessibleSet[$v])
+                    ));
+                    $merged = array_unique(array_merge($foreignLinks, $newAccessibleLinks));
+                    Tenant::setUserCompanies($id, $merged);
+                    header("Location: {$SELF}?message=updated");
+                    exit;
+                }
+
                 $result = User::update($id, [
                     'username'  => $_POST['username'] ?? '',
                     'name'      => $_POST['name'] ?? '',
@@ -130,6 +165,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'delete':
             if ($id) {
+                $target = User::getById($id);
+                if ($target && $isGuestUser($target)) {
+                    $error = 'Non puoi eliminare un ' . strtolower($LABEL) . ' condiviso da un altro tenant. Usa "Rimuovi dalle mie aziende".';
+                    break;
+                }
                 $result = User::delete($id);
                 if ($result['success']) {
                     header("Location: {$SELF}?message=deleted");
@@ -141,6 +181,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'reset_password':
             if ($id) {
+                $target = User::getById($id);
+                if ($target && $isGuestUser($target)) {
+                    $error = 'Non puoi resettare la password di un ' . strtolower($LABEL) . ' condiviso.';
+                    break;
+                }
                 $result = User::resetPassword($id);
                 if ($result['success']) {
                     $generatedPassword = $result['password'];
@@ -159,6 +204,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $error = $result['error'];
                 }
+            }
+            break;
+
+        case 'link_existing':
+            $email = trim($_POST['link_email'] ?? '');
+            $rawCids = $_POST['link_company_ids'] ?? [];
+            if (!is_array($rawCids)) $rawCids = [];
+            $selectedCids = array_values(array_filter(array_map('intval', $rawCids), fn($v) => $v > 0));
+            // Restringe alle aziende che l'admin puo' realmente gestire
+            $selectedCids = array_values(array_filter($selectedCids, fn($v) => isset($accessibleSet[$v])));
+
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $error = 'Inserisci una email valida del ' . strtolower($LABEL) . ' esistente.';
+                break;
+            }
+            if (empty($selectedCids)) {
+                $error = 'Seleziona almeno un\'azienda a cui collegare il ' . strtolower($LABEL) . '.';
+                break;
+            }
+
+            $existing = Database::fetchOne(
+                "SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND role = ? LIMIT 1",
+                [$email, $ROLE]
+            );
+            if (!$existing) {
+                // Errore generico: non riveliamo l'esistenza di account con altro ruolo
+                $error = 'Nessun ' . strtolower($LABEL) . ' attivo trovato con questa email. Verifica o crea un nuovo account.';
+                break;
+            }
+            if (empty($existing['is_active'])) {
+                $error = 'Account ' . strtolower($LABEL) . ' disattivato. Contatta l\'amministrazione.';
+                break;
+            }
+
+            $alreadyLinked = Tenant::getUserCompanyIds((int)$existing['id']);
+            $added = 0;
+            foreach ($selectedCids as $cid) {
+                if (in_array($cid, $alreadyLinked, true)) continue;
+                try {
+                    Database::insert('user_companies', ['user_id' => (int)$existing['id'], 'company_id' => $cid]);
+                    $added++;
+                } catch (Throwable $e) {
+                    error_log('[link_existing] ' . $e->getMessage());
+                }
+            }
+            if (class_exists('AuditLog')) {
+                try { AuditLog::log('user', (int)$existing['id'], 'linked_to_companies', null, ['company_ids' => $selectedCids]); } catch (Throwable $e) {}
+            }
+            header("Location: {$SELF}?message=linked&n={$added}");
+            exit;
+
+        case 'unlink_from_my':
+            if ($id && !empty($accessibleCids)) {
+                $u = User::getById($id);
+                if (!$u || $u['role'] !== $ROLE) {
+                    $error = 'Utente non trovato';
+                    break;
+                }
+                // Rimuove solo i collegamenti alle MIE aziende; l'utente resta attivo
+                $ph = implode(',', array_fill(0, count($accessibleCids), '?'));
+                $params = array_merge([(int)$id], array_map('intval', $accessibleCids));
+                Database::execute(
+                    "DELETE FROM user_companies WHERE user_id = ? AND company_id IN ($ph)",
+                    $params
+                );
+                if (class_exists('AuditLog')) {
+                    try { AuditLog::log('user', (int)$id, 'unlinked_from_companies', null, ['company_ids' => $accessibleCids]); } catch (Throwable $e) {}
+                }
+                header("Location: {$SELF}?message=unlinked");
+                exit;
             }
             break;
 
@@ -186,10 +301,13 @@ if (isset($_GET['message']) && !$message) {
             ? ' &mdash; credenziali inviate via email.'
             : ($emailStatus === 'fail' ? ' &mdash; email <strong>NON inviata</strong>, comunica le credenziali manualmente.' : ''))
         : '';
+    $linkedN = (int)($_GET['n'] ?? 0);
     $messages = [
-        'created' => "{$LABEL} creato con successo{$emailSuffix}",
-        'updated' => "{$LABEL} aggiornato",
-        'deleted' => "{$LABEL} eliminato",
+        'created'  => "{$LABEL} creato con successo{$emailSuffix}",
+        'updated'  => "{$LABEL} aggiornato",
+        'deleted'  => "{$LABEL} eliminato",
+        'linked'   => "{$LABEL} collegato a {$linkedN} azienda" . ($linkedN === 1 ? '' : 'e'),
+        'unlinked' => "{$LABEL} rimosso dalle tue aziende",
     ];
     $message = $messages[$_GET['message']] ?? '';
 }
@@ -210,7 +328,8 @@ if ($action === 'list') {
 
 $pageTitle = $action === 'new'  ? "Nuovo {$LABEL}"
            : ($action === 'edit' ? "Modifica {$LABEL}"
-           : "Gestione {$LABEL_PLURAL}");
+           : ($action === 'link' ? "Aggiungi {$LABEL} esistente"
+           : "Gestione {$LABEL_PLURAL}"));
 
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
@@ -456,10 +575,16 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         <?php endif; ?>
         </p>
     </div>
-    <a href="?action=new" class="urm-hero-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        Nuovo <?= e($LABEL) ?>
-    </a>
+    <div style="display:flex; gap:8px;">
+        <a href="?action=link" class="urm-hero-btn" style="background:white; color:#0b3aa4; border:1px solid #0b3aa4;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Aggiungi esistente
+        </a>
+        <a href="?action=new" class="urm-hero-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nuovo <?= e($LABEL) ?>
+        </a>
+    </div>
 </div>
 <?php endif; ?>
 
@@ -519,8 +644,9 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             <div class="urm-grid">
                 <?php foreach ($users as $u):
                     $initials = strtoupper(substr($u['name'] ?? $u['username'], 0, 2));
+                    $cardGuest = $isGuestUser($u);
                 ?>
-                    <div class="urm-card <?= !$u['is_active'] ? 'inactive' : '' ?>">
+                    <div class="urm-card <?= !$u['is_active'] ? 'inactive' : '' ?> <?= $cardGuest ? 'is-guest' : '' ?>">
                         <div class="urm-card-top">
                             <div class="urm-avatar"><?= e($initials) ?></div>
                             <div class="urm-card-info">
@@ -529,27 +655,41 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                 <span class="urm-card-status <?= $u['is_active'] ? 'on' : 'off' ?>">
                                     <?= $u['is_active'] ? 'Attivo' : 'Disattivato' ?>
                                 </span>
+                                <?php if ($cardGuest): ?>
+                                    <span class="urm-card-status" style="background:#fef2f2; color:#c53030; border:1px solid #fecaca;">Condiviso</span>
+                                <?php endif; ?>
                             </div>
                             <div class="urm-quick">
                                 <a href="?action=edit&id=<?= $u['id'] ?>" class="urm-ibtn primary" title="Modifica">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </a>
-                                <form method="POST" onsubmit="return confirm('Resettare la password? Verrà generata una nuova password sicura.')">
-                                    <?= CSRF::field() ?>
-                                    <input type="hidden" name="action" value="reset_password">
-                                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                                    <button type="submit" class="urm-ibtn warn" title="Reset password">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                                    </button>
-                                </form>
-                                <form method="POST" onsubmit="return confirm('Eliminare definitivamente <?= e($u['username']) ?>? Operazione irreversibile.')">
-                                    <?= CSRF::field() ?>
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                                    <button type="submit" class="urm-ibtn danger" title="Elimina">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                                    </button>
-                                </form>
+                                <?php if (!$cardGuest): ?>
+                                    <form method="POST" onsubmit="return confirm('Resettare la password? Verrà generata una nuova password sicura.')">
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="reset_password">
+                                        <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                        <button type="submit" class="urm-ibtn warn" title="Reset password">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                                        </button>
+                                    </form>
+                                    <form method="POST" onsubmit="return confirm('Eliminare definitivamente <?= e($u['username']) ?>? Operazione irreversibile.')">
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                        <button type="submit" class="urm-ibtn danger" title="Elimina">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <form method="POST" onsubmit="return confirm('Rimuovere <?= e($u['username']) ?> dalle tue aziende? L\'account resta attivo sugli altri tenant.')">
+                                        <?= CSRF::field() ?>
+                                        <input type="hidden" name="action" value="unlink_from_my">
+                                        <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                                        <button type="submit" class="urm-ibtn danger" title="Rimuovi dalle mie aziende">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M5.17 11.75l-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="8" y1="2" x2="8" y2="5"/><line x1="2" y1="8" x2="5" y2="8"/><line x1="16" y1="19" x2="16" y2="22"/><line x1="19" y1="16" x2="22" y2="16"/></svg>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -584,7 +724,64 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             </div>
         <?php endif; ?>
 
+    <?php elseif ($action === 'link'): ?>
+        <?php
+        $linkableCompanies = !empty($accessibleCids)
+            ? Database::fetchAll(
+                "SELECT id, name FROM companies WHERE is_active = 1 AND id IN (" .
+                    implode(',', array_fill(0, count($accessibleCids), '?')) . ") ORDER BY name",
+                array_map('intval', $accessibleCids)
+            )
+            : [];
+        ?>
+        <form method="POST" class="urm-form" autocomplete="off">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="link_existing">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom:14px; font-size:13px; color:#475569;">
+                Inserisci l'email del <?= e(strtolower($LABEL)) ?> esistente. Se gia' registrato sulla piattaforma,
+                verra' collegato alle aziende che selezioni. <strong>Non viene creato un nuovo account.</strong>
+            </div>
+            <div class="urm-form-grid">
+                <div class="urm-field full">
+                    <label for="link_email">Email del <?= e(strtolower($LABEL)) ?> <span class="req">*</span></label>
+                    <input type="email" id="link_email" name="link_email" required maxlength="100"
+                           value="<?= e($_POST['link_email'] ?? '') ?>"
+                           placeholder="esempio@studio.it">
+                </div>
+                <?php if (!empty($linkableCompanies)): ?>
+                    <div class="urm-field full">
+                        <label>Collega alle aziende <span class="req">*</span></label>
+                        <small>Solo le aziende che gestisci appaiono qui.</small>
+                        <div class="urm-companies">
+                            <?php foreach ($linkableCompanies as $co): ?>
+                                <label class="urm-company-chip">
+                                    <input type="checkbox" name="link_company_ids[]" value="<?= (int)$co['id'] ?>">
+                                    <span><?= e($co['name']) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="urm-field full"><div class="alert alert-error">Nessuna azienda gestibile.</div></div>
+                <?php endif; ?>
+            </div>
+            <div class="urm-form-actions">
+                <a href="<?= e($SELF) ?>" class="urm-btn urm-btn-ghost">Annulla</a>
+                <button type="submit" class="urm-btn urm-btn-primary" <?= empty($linkableCompanies) ? 'disabled' : '' ?>>
+                    Collega <?= e($LABEL) ?>
+                </button>
+            </div>
+        </form>
+
     <?php elseif ($action === 'new' || $action === 'edit'): ?>
+        <?php $editIsGuest = ($action === 'edit' && $current && $isGuestUser($current)); ?>
+        <?php if ($editIsGuest): ?>
+            <div class="alert alert-info" style="border-radius:10px; margin-bottom:14px; background:#fef2f2; border:1px solid #fecaca; color:#c53030; padding:12px 16px;">
+                <strong><?= e($LABEL) ?> condiviso</strong> &mdash; questo account appartiene a un altro tenant.
+                Puoi solo gestire l'assegnazione alle <strong>tue</strong> aziende. Nome, email, username e password
+                sono modificabili solo dal tenant proprietario.
+            </div>
+        <?php endif; ?>
         <form method="POST" class="urm-form" autocomplete="off">
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="<?= $action === 'new' ? 'create' : 'update' ?>">
@@ -594,20 +791,24 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     <label for="username">Username <span class="req">*</span></label>
                     <input type="text" id="username" name="username" required
                            minlength="3" maxlength="50" pattern="[a-zA-Z0-9_\.]+"
-                           value="<?= e($current['username'] ?? $_POST['username'] ?? '') ?>">
+                           value="<?= e($current['username'] ?? $_POST['username'] ?? '') ?>"
+                           <?= $editIsGuest ? 'readonly disabled' : '' ?>>
                     <small>Solo lettere, numeri, underscore e punti</small>
                 </div>
 
                 <div class="urm-field">
                     <label for="name">Nome completo <span class="req">*</span></label>
                     <input type="text" id="name" name="name" required maxlength="100"
-                           value="<?= e($current['name'] ?? $_POST['name'] ?? '') ?>">
+                           value="<?= e($current['name'] ?? $_POST['name'] ?? '') ?>"
+                           <?= $editIsGuest ? 'readonly disabled' : '' ?>>
                 </div>
 
                 <div class="urm-field full">
                     <label for="email">Email<?= $action === 'new' ? ' *' : '' ?></label>
-                    <input type="email" id="email" name="email" maxlength="100" <?= $action === 'new' ? 'required' : '' ?>
-                           value="<?= e($current['email'] ?? $_POST['email'] ?? '') ?>">
+                    <input type="email" id="email" name="email" maxlength="100"
+                           <?= $action === 'new' ? 'required' : '' ?>
+                           value="<?= e($current['email'] ?? $_POST['email'] ?? '') ?>"
+                           <?= $editIsGuest ? 'readonly disabled' : '' ?>>
                     <small>Le credenziali di accesso verranno inviate a questa email</small>
                 </div>
 
@@ -626,7 +827,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     </div>
                 <?php endif; ?>
 
-                <?php if ($action === 'edit'): ?>
+                <?php if ($action === 'edit' && !$editIsGuest): ?>
                     <div class="urm-field full">
                         <label class="urm-toggle">
                             <input type="checkbox" name="is_active" <?= $current['is_active'] ? 'checked' : '' ?>>
@@ -636,7 +837,16 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <?php endif; ?>
 
                 <?php
-                $allCompanies = Database::fetchAll("SELECT id, name FROM companies WHERE is_active = 1 ORDER BY name");
+                // Mostra solo le aziende che l'admin corrente puo' gestire
+                if (!empty($accessibleCids)) {
+                    $allCompanies = Database::fetchAll(
+                        "SELECT id, name FROM companies WHERE is_active = 1 AND id IN (" .
+                            implode(',', array_fill(0, count($accessibleCids), '?')) . ") ORDER BY name",
+                        array_map('intval', $accessibleCids)
+                    );
+                } else {
+                    $allCompanies = Database::fetchAll("SELECT id, name FROM companies WHERE is_active = 1 ORDER BY name");
+                }
                 $assignedCompanyIds = $current ? Tenant::getUserCompanyIds((int)$current['id']) : [];
                 ?>
                 <?php if (!empty($allCompanies)): ?>
