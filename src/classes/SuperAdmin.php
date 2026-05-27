@@ -204,7 +204,9 @@ class SuperAdmin
     private static function sendWelcomeEmail(string $email, string $name, string $companyName, string $token): bool
     {
         if (!class_exists('Mailer') || !Mailer::isConfigured()) return false;
-        $base = defined('PUBLIC_URL') ? rtrim(PUBLIC_URL, '/') : '';
+        // Preferisci APP_URL (ha lo schema https). PUBLIC_URL e' solo path -> nei mail
+        // client diventa http:// e viene bloccato dal redirect HTTPS.
+        $base = defined('APP_URL') && !empty(APP_URL) ? rtrim(APP_URL, '/') : (defined('PUBLIC_URL') ? rtrim(PUBLIC_URL, '/') : '');
         $url  = $base . '/auth/reset-password.php?token=' . urlencode($token);
         $companySafe = htmlspecialchars($companyName);
         $nameSafe = htmlspecialchars($name);
