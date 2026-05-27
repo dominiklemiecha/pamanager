@@ -16,10 +16,38 @@ class SuperAdmin
     private const SESSION_TS     = 'superadmin_login_ts';
     private const MAX_SESSION_S  = 3600; // 1h idle, poi richiede re-login
 
+    /** Path persistente (volume Dokploy) per credenziali quando l'env del container non e' affidabile. */
+    private const PERSIST_FILE = '/var/www/html/storage/superadmin.env';
+
+    private static ?array $persistCache = null;
+
+    private static function loadPersistFile(): array
+    {
+        if (self::$persistCache !== null) return self::$persistCache;
+        $out = [];
+        if (is_readable(self::PERSIST_FILE)) {
+            $lines = @file(self::PERSIST_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+            foreach ($lines as $ln) {
+                $ln = trim($ln);
+                if ($ln === '' || $ln[0] === '#') continue;
+                $pos = strpos($ln, '=');
+                if ($pos === false) continue;
+                $k = trim(substr($ln, 0, $pos));
+                $v = trim(substr($ln, $pos + 1));
+                $v = trim($v, "\"'");
+                if ($k !== '') $out[$k] = $v;
+            }
+        }
+        return self::$persistCache = $out;
+    }
+
     private static function env(string $key): string
     {
-        // Cerca in tutte le sorgenti possibili (Dokploy/Docker espone in modo
-        // diverso a seconda di come Apache passa l'env al modulo PHP).
+        // 1) File persistente (sopravvive a redeploy Dokploy)
+        $persist = self::loadPersistFile();
+        if (!empty($persist[$key])) return (string) $persist[$key];
+
+        // 2) Env del container / Apache
         $candidates = [
             getenv($key),
             $_ENV[$key] ?? null,
