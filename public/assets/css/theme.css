@@ -1628,6 +1628,18 @@ body.login-page {
 }
 .heatmap-off-label svg { color: #94a3b8; }
 
+/* Festivita nazionale (prevale su is-nonworking) */
+.heatmap-day-row.is-holiday {
+    background: repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(229,62,62,0.06) 8px, rgba(229,62,62,0.06) 16px);
+}
+.heatmap-day-row.is-holiday .heatmap-day-name,
+.heatmap-day-row.is-holiday .heatmap-day-num { color: #c53030; }
+.heatmap-day-row.is-holiday .heatmap-off-label {
+    background: #fef2f2;
+    color: #c53030;
+}
+.heatmap-day-row.is-holiday .heatmap-off-label svg { color: #e53e3e; }
+
 .heatmap-day-row.is-empty .heatmap-stack::before {
     content: 'Nessun risultato'; color: #94a3b8; font-size: 0.78rem; font-style: italic;
     align-self: center; margin-left: 4px;

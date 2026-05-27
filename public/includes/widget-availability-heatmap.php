@@ -51,13 +51,18 @@ $days = [];
 $dayLabelsMap = [1=>'Lun',2=>'Mar',3=>'Mer',4=>'Gio',5=>'Ven',6=>'Sab',7=>'Dom'];
 $dayLabels = [];
 $dayIsWorking = [];
+$dayHolidayName = [];
 for ($i = 0; $i < 7; $i++) {
     $d = (clone $weekStart)->modify('+' . $i . ' days');
     $dowNum = (int) $d->format('N');
     $key = $__hmKeyMap[$dowNum] ?? null;
-    $days[] = $d->format('Y-m-d');
+    $ymd = $d->format('Y-m-d');
+    $days[] = $ymd;
     $dayLabels[] = $dayLabelsMap[$dowNum];
-    $dayIsWorking[] = ($key !== null && in_array($key, $__hmWorkingDays, true));
+    $holiday = class_exists('ItalianHolidays') ? ItalianHolidays::nameFor($ymd) : null;
+    $dayHolidayName[] = $holiday;
+    // Festivita prevale sui giorni lavorativi configurati
+    $dayIsWorking[] = ($holiday === null) && ($key !== null && in_array($key, $__hmWorkingDays, true));
 }
 
 // Range etichetta header
@@ -300,8 +305,11 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 else $countAbsent++;
             }
         ?>
-            <?php $__isWk = $dayIsWorking[$i] ?? true; ?>
-            <div class="heatmap-day-row <?= $isToday ? 'is-today' : '' ?> <?= !$__isWk ? 'is-nonworking' : '' ?>">
+            <?php
+                $__isWk = $dayIsWorking[$i] ?? true;
+                $__hmHoliday = $dayHolidayName[$i] ?? null;
+            ?>
+            <div class="heatmap-day-row <?= $isToday ? 'is-today' : '' ?> <?= !$__isWk ? 'is-nonworking' : '' ?> <?= $__hmHoliday ? 'is-holiday' : '' ?>">
                 <div class="heatmap-day-label">
                     <span class="heatmap-day-name"><?= $dayLabels[$i] ?></span>
                     <span class="heatmap-day-num"><?= $dObj->format('j') ?></span>
@@ -338,8 +346,13 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 <?php else: ?>
                     <div class="heatmap-stack heatmap-stack-off">
                         <span class="heatmap-off-label">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
-                            Giorno non lavorativo
+                            <?php if ($__hmHoliday): ?>
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true"><path d="M12 2l2.39 6.96H22l-6.18 4.49 2.36 6.96L12 16.9l-6.18 4.51 2.36-6.96L2 8.96h7.61z"/></svg>
+                                Festivit&agrave; &middot; <?= htmlspecialchars($__hmHoliday) ?>
+                            <?php else: ?>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                                Giorno non lavorativo
+                            <?php endif; ?>
                         </span>
                     </div>
                     <div class="heatmap-day-count"></div>
