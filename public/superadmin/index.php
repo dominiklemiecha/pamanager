@@ -27,16 +27,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = $r['error'];
         }
     } elseif ($action === 'deactivate') {
-        $r = SuperAdmin::deactivateTenant((int)($_POST['company_id'] ?? 0));
+        $r = SuperAdmin::deactivateAdmin((int)($_POST['user_id'] ?? 0));
         $r['success'] ? $message = 'Tenant disattivato' : $error = $r['error'];
     } elseif ($action === 'activate') {
-        $r = SuperAdmin::activateTenant((int)($_POST['company_id'] ?? 0));
+        $r = SuperAdmin::activateAdmin((int)($_POST['user_id'] ?? 0));
         $r['success'] ? $message = 'Tenant riattivato' : $error = $r['error'];
     } elseif ($action === 'delete') {
         if (($_POST['confirm'] ?? '') !== 'ELIMINA') {
             $error = 'Conferma mancante o errata';
         } else {
-            $r = SuperAdmin::deleteTenant((int)($_POST['company_id'] ?? 0));
+            $r = SuperAdmin::deleteAdmin((int)($_POST['user_id'] ?? 0));
             $r['success'] ? $message = 'Tenant eliminato definitivamente' : $error = $r['error'];
         }
     } elseif ($action === 'resend_welcome') {
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$tenants = SuperAdmin::listTenants();
+$tenants = SuperAdmin::listAdmins();
 ?>
 <!DOCTYPE html>
 <html lang="it"><head>
@@ -131,58 +131,62 @@ form.inline{display:inline-block;margin:0;}
     <?php else: ?>
     <table>
         <thead><tr>
-            <th>Azienda</th><th>Admin</th><th>Email</th><th>Dipendenti</th><th>Ultimo login</th><th>Stato</th><th></th>
+            <th>Admin tenant</th><th>Email</th><th>Aziende</th><th>Dipendenti</th><th>Ultimo login</th><th>Stato</th><th></th>
         </tr></thead>
         <tbody>
-        <?php foreach ($tenants as $t): ?>
+        <?php foreach ($tenants as $t):
+            $companies = $t['companies'] ?? [];
+            $companyNames = array_map(fn($c) => $c['name'], $companies);
+        ?>
             <tr>
                 <td>
-                    <strong><?= htmlspecialchars($t['company_name'] ?? '') ?></strong>
-                    <div class="tiny">#<?= (int)$t['company_id'] ?> &middot; creata <?= htmlspecialchars(substr($t['created_at'] ?? '', 0, 10)) ?></div>
+                    <strong><?= htmlspecialchars($t['name'] ?? '—') ?></strong>
+                    <div class="tiny">@<?= htmlspecialchars($t['username'] ?? '') ?> &middot; <?= empty($t['company_id']) ? 'admin globale' : 'admin tenant #' . (int)$t['company_id'] ?></div>
                 </td>
-                <td><?= htmlspecialchars($t['admin_name'] ?? '—') ?>
-                    <?php if (!empty($t['admin_username'])): ?>
-                        <div class="tiny">@<?= htmlspecialchars($t['admin_username']) ?></div>
+                <td><?= htmlspecialchars($t['email'] ?? '—') ?></td>
+                <td>
+                    <strong><?= count($companies) ?></strong>
+                    <?php if (!empty($companyNames)): ?>
+                        <div class="tiny"><?= htmlspecialchars(implode(', ', $companyNames)) ?></div>
                     <?php endif; ?>
                 </td>
-                <td><?= htmlspecialchars($t['admin_email'] ?? '—') ?></td>
                 <td><?= (int)($t['employees_count'] ?? 0) ?></td>
                 <td><?= !empty($t['last_login']) ? htmlspecialchars($t['last_login']) : '<span class="tiny">Mai</span>' ?></td>
                 <td>
-                    <span class="status <?= $t['company_active'] ? 'on' : 'off' ?>">
-                        <?= $t['company_active'] ? 'Attivo' : 'Disattivato' ?>
+                    <span class="status <?= $t['is_active'] ? 'on' : 'off' ?>">
+                        <?= $t['is_active'] ? 'Attivo' : 'Disattivato' ?>
                     </span>
                 </td>
                 <td style="white-space:nowrap;">
-                    <?php if (!empty($t['admin_id']) && empty($t['last_login'])): ?>
+                    <?php if (empty($t['last_login'])): ?>
                         <form class="inline" method="POST" onsubmit="return confirm('Reinviare email primo accesso?')">
                             <?= CSRF::field() ?>
                             <input type="hidden" name="action" value="resend_welcome">
-                            <input type="hidden" name="user_id" value="<?= (int)$t['admin_id'] ?>">
+                            <input type="hidden" name="user_id" value="<?= (int)$t['id'] ?>">
                             <button class="icon" title="Reinvia email primo accesso">↻ email</button>
                         </form>
                     <?php endif; ?>
 
-                    <?php if ($t['company_active']): ?>
-                        <form class="inline" method="POST" onsubmit="return confirm('Disattivare il tenant? L\'admin non potra\' piu\' accedere.')">
+                    <?php if ($t['is_active']): ?>
+                        <form class="inline" method="POST" onsubmit="return confirm('Disattivare il tenant? L\'admin e tutte le sue aziende verranno disattivati.')">
                             <?= CSRF::field() ?>
                             <input type="hidden" name="action" value="deactivate">
-                            <input type="hidden" name="company_id" value="<?= (int)$t['company_id'] ?>">
+                            <input type="hidden" name="user_id" value="<?= (int)$t['id'] ?>">
                             <button class="icon" title="Disattiva">Disattiva</button>
                         </form>
                     <?php else: ?>
                         <form class="inline" method="POST">
                             <?= CSRF::field() ?>
                             <input type="hidden" name="action" value="activate">
-                            <input type="hidden" name="company_id" value="<?= (int)$t['company_id'] ?>">
+                            <input type="hidden" name="user_id" value="<?= (int)$t['id'] ?>">
                             <button class="icon" title="Riattiva">Riattiva</button>
                         </form>
                     <?php endif; ?>
 
-                    <form class="inline" method="POST" onsubmit="var c=prompt('Per eliminare DEFINITIVAMENTE scrivi: ELIMINA'); if(c===null) return false; this.confirm.value=c; return true;">
+                    <form class="inline" method="POST" onsubmit="var c=prompt('Per eliminare DEFINITIVAMENTE l\'admin e TUTTE le sue <?= count($companies) ?> aziende, scrivi: ELIMINA'); if(c===null) return false; this.confirm.value=c; return true;">
                         <?= CSRF::field() ?>
                         <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="company_id" value="<?= (int)$t['company_id'] ?>">
+                        <input type="hidden" name="user_id" value="<?= (int)$t['id'] ?>">
                         <input type="hidden" name="confirm" value="">
                         <button class="icon danger" title="Elimina definitivamente">Elimina</button>
                     </form>

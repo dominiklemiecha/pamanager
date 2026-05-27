@@ -268,19 +268,113 @@ class SuperAdmin
         }
     }
 
-    /** Lista tenant (1 azienda = 1 riga) con info admin principale. */
-    public static function listTenants(): array
+    /** Lista admin tenant (1 admin = 1 riga) con elenco aziende gestite. */
+    public static function listAdmins(): array
     {
-        return Database::fetchAll(
-            "SELECT c.id AS company_id, c.name AS company_name, c.is_active AS company_active,
-                    c.created_at,
-                    u.id AS admin_id, u.name AS admin_name, u.email AS admin_email,
-                    u.username AS admin_username, u.is_active AS admin_active,
-                    u.last_login,
-                    (SELECT COUNT(*) FROM employees e WHERE e.company_id = c.id AND e.is_active = 1) AS employees_count
-             FROM companies c
-             LEFT JOIN users u ON u.company_id = c.id AND u.role = 'admin'
-             ORDER BY c.created_at DESC"
+        $admins = Database::fetchAll(
+            "SELECT id, username, name, email, company_id, is_active, last_login, created_at
+             FROM users WHERE role = 'admin' ORDER BY created_at DESC"
         );
+        foreach ($admins as &$a) {
+            $a['companies'] = self::companiesForAdmin((int)$a['id'], $a['company_id']);
+            $a['employees_count'] = 0;
+            $ids = array_column($a['companies'], 'id');
+            if (!empty($ids)) {
+                $ph = implode(',', array_fill(0, count($ids), '?'));
+                $row = Database::fetchOne(
+                    "SELECT COUNT(*) AS n FROM employees WHERE is_active = 1 AND company_id IN ($ph)",
+                    array_map('intval', $ids)
+                );
+                $a['employees_count'] = (int)($row['n'] ?? 0);
+            }
+        }
+        unset($a);
+        return $admins;
+    }
+
+    /**
+     * Aziende gestite da un admin:
+     *  - admin globale (company_id NULL): tutte le aziende attive (modello legacy single-tenant)
+     *  - admin tenant: la sua company_id + eventuali link via user_companies
+     */
+    public static function companiesForAdmin(int $userId, ?int $primaryCompanyId): array
+    {
+        if ($primaryCompanyId === null) {
+            // Admin globale: vede tutte (legacy)
+            return Database::fetchAll("SELECT id, name, is_active FROM companies ORDER BY name");
+        }
+        $ids = [(int)$primaryCompanyId];
+        $linked = Database::fetchAll("SELECT company_id FROM user_companies WHERE user_id = ?", [$userId]);
+        foreach ($linked as $l) {
+            $cid = (int)$l['company_id'];
+            if ($cid > 0 && !in_array($cid, $ids, true)) $ids[] = $cid;
+        }
+        if (empty($ids)) return [];
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        return Database::fetchAll(
+            "SELECT id, name, is_active FROM companies WHERE id IN ($ph) ORDER BY name",
+            array_map('intval', $ids)
+        );
+    }
+
+    /** Disattiva admin (e tutte le sue aziende). */
+    public static function deactivateAdmin(int $userId): array
+    {
+        try {
+            $u = Database::fetchOne("SELECT id, company_id FROM users WHERE id = ? AND role = 'admin'", [$userId]);
+            if (!$u) return ['success' => false, 'error' => 'Admin non trovato'];
+            Database::update('users', ['is_active' => 0], 'id = ?', [$userId]);
+            $companies = self::companiesForAdmin($userId, $u['company_id']);
+            foreach ($companies as $c) {
+                Database::update('companies', ['is_active' => 0], 'id = ?', [(int)$c['id']]);
+            }
+            if (class_exists('AuditLog')) {
+                try { AuditLog::log('superadmin_admin_deactivated', 'user', $userId); } catch (Throwable $e) {}
+            }
+            return ['success' => true];
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public static function activateAdmin(int $userId): array
+    {
+        try {
+            $u = Database::fetchOne("SELECT id, company_id FROM users WHERE id = ? AND role = 'admin'", [$userId]);
+            if (!$u) return ['success' => false, 'error' => 'Admin non trovato'];
+            Database::update('users', ['is_active' => 1], 'id = ?', [$userId]);
+            $companies = self::companiesForAdmin($userId, $u['company_id']);
+            foreach ($companies as $c) {
+                Database::update('companies', ['is_active' => 1], 'id = ?', [(int)$c['id']]);
+            }
+            if (class_exists('AuditLog')) {
+                try { AuditLog::log('superadmin_admin_activated', 'user', $userId); } catch (Throwable $e) {}
+            }
+            return ['success' => true];
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /** Elimina admin + tutte le sue aziende e dati. Irreversibile. */
+    public static function deleteAdmin(int $userId): array
+    {
+        try {
+            $u = Database::fetchOne("SELECT id, company_id FROM users WHERE id = ? AND role = 'admin'", [$userId]);
+            if (!$u) return ['success' => false, 'error' => 'Admin non trovato'];
+            $companies = self::companiesForAdmin($userId, $u['company_id']);
+            foreach ($companies as $c) {
+                self::deleteTenant((int)$c['id']);
+            }
+            // Cancella eventuale admin globale rimasto (se company_id NULL non e' stato toccato)
+            Database::execute("DELETE FROM user_companies WHERE user_id = ?", [$userId]);
+            Database::execute("DELETE FROM users WHERE id = ?", [$userId]);
+            if (class_exists('AuditLog')) {
+                try { AuditLog::log('superadmin_admin_deleted', 'user', $userId); } catch (Throwable $e) {}
+            }
+            return ['success' => true];
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
     }
 }
