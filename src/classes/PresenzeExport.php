@@ -32,6 +32,30 @@ class PresenzeExport
     {
         $this->loadEmployees();
         $this->loadLeaves();
+        $this->loadHolidays();
+    }
+
+    /**
+     * Inietta il codice FE su tutti i giorni festivi del mese per ogni dipendente.
+     * Se esiste gia' un codice (es. ferie F) lo combina con '/' come per le leaves.
+     */
+    private function loadHolidays(): void
+    {
+        if (!class_exists('ItalianHolidays')) return;
+        $monthYM = sprintf('%04d-%02d', $this->year, $this->month);
+        $holidayMap = ItalianHolidays::forYear($this->year);
+        foreach ($holidayMap as $ymd => $_name) {
+            if (substr($ymd, 0, 7) !== $monthYM) continue;
+            foreach ($this->employees as $emp) {
+                $empId = (int) $emp['id'];
+                $existing = $this->cells[$empId][$ymd] ?? '';
+                if ($existing === '') {
+                    $this->cells[$empId][$ymd] = 'FE';
+                } elseif (strpos($existing, 'FE') === false) {
+                    $this->cells[$empId][$ymd] = $existing . '/FE';
+                }
+            }
+        }
     }
 
     public function streamToBrowser(): void
@@ -457,11 +481,12 @@ class PresenzeExport
             throw new RuntimeException('Riga date (riga 3) non riconosciuta nel template.');
         }
 
-        // 1b) Colonne weekend
+        // 1b) Colonne weekend + festivita (stessa resa grafica grigia)
         $weekendCols = [];
         foreach ($colDate as $col => $date) {
             $dow = (int)date('N', strtotime($date));
-            if ($dow >= 6) $weekendCols[$col] = true;
+            $isHoliday = class_exists('ItalianHolidays') && ItalianHolidays::isHoliday($date);
+            if ($dow >= 6 || $isHoliday) $weekendCols[$col] = true;
         }
 
         // 1c) Stili dei codici dalla legenda (B23..B26)
