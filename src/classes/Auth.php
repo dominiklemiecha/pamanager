@@ -228,13 +228,16 @@ class Auth
         // Rigenera ID sessione per prevenire session fixation
         session_regenerate_id(true);
 
-        // Salva dati utente in sessione
+        // Salva dati utente in sessione.
+        // company_id e' CRITICO: senza, Tenant::accessibleCompanyIds tratta
+        // qualunque admin come "globale" e gli mostra TUTTI i tenant.
         $_SESSION[self::SESSION_USER_KEY] = [
             'id' => $user['id'],
             'username' => $user['username'],
             'role' => $user['role'],
             'name' => $user['name'],
             'email' => $user['email'],
+            'company_id' => $user['company_id'] ?? null,
             'department_id' => $user['department_id'] ?? null,
             'mfa_enabled' => $user['mfa_enabled'] ?? false
         ];
@@ -436,7 +439,23 @@ class Auth
      */
     public static function getUser(): ?array
     {
-        return $_SESSION[self::SESSION_USER_KEY] ?? null;
+        $user = $_SESSION[self::SESSION_USER_KEY] ?? null;
+        if (!$user || empty($user['id'])) return $user;
+        // Hydration retroattiva: sessioni create prima del fix che salva company_id
+        // (vedi completeUserLogin). Senza il check su array_key_exists distinguiamo
+        // "campo assente" (session vecchia) da "company_id NULL" (admin globale legittimo).
+        if (!array_key_exists('company_id', $user)) {
+            try {
+                $row = Database::fetchOne("SELECT company_id, department_id FROM users WHERE id = ?", [(int)$user['id']]);
+                if ($row !== null) {
+                    $user['company_id'] = $row['company_id'] !== null ? (int)$row['company_id'] : null;
+                    if (empty($user['department_id'])) $user['department_id'] = $row['department_id'] ?? null;
+                    $_SESSION[self::SESSION_USER_KEY] = $user;
+                    unset($_SESSION['tenant_company_id']);
+                }
+            } catch (Throwable $e) { /* fallback silenzioso */ }
+        }
+        return $user;
     }
 
     /**
