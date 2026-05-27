@@ -150,6 +150,9 @@ try {
 }
 $__today = (new DateTime('today'))->format('Y-m-d');
 
+// Festivita nazionali per i giorni visibili
+$__holidayByDay = [];
+
 if ($__view === 'day') {
     $__rangeStart = (clone $__ref)->setTime(0,0,0);
     $__rangeEnd   = (clone $__ref)->setTime(23,59,59);
@@ -162,6 +165,12 @@ if ($__view === 'day') {
     $__days = [];
     for ($i = 0; $i < 7; $i++) {
         $__days[] = (clone $__rangeStart)->modify('+' . $i . ' days')->format('Y-m-d');
+    }
+}
+if (class_exists('ItalianHolidays')) {
+    foreach ($__days as $__d) {
+        $__hn = ItalianHolidays::nameFor($__d);
+        if ($__hn) $__holidayByDay[$__d] = $__hn;
     }
 }
 
@@ -385,6 +394,29 @@ foreach ($__events as $ev) {
 }
 .cal-day-head.is-today .dnum { color: #0b3aa4; }
 .cal-day-head.is-today { background: rgba(11,58,164,0.06); }
+
+.cal-day-head.is-holiday { background: #fef2f2; }
+.cal-day-head.is-holiday .dnum,
+.cal-day-head.is-holiday .dow { color: #c53030; }
+.cal-day-head .dholiday {
+    font-size: 10px; font-weight: 600; color: #c53030;
+    margin-top: 2px; text-transform: uppercase; letter-spacing: .03em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-day-col.is-holiday {
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(229,62,62,0.05) 10px, rgba(229,62,62,0.05) 20px);
+}
+.cal-day-holiday-banner {
+    position: absolute; top: 4px; left: 4px; right: 4px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 8px;
+    background: #fef2f2; color: #c53030;
+    border: 1px solid #fecaca; border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+    z-index: 2; pointer-events: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.cal-day-holiday-banner span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Linee orarie nelle colonne giorno */
 .cal-day-col::before {
@@ -1090,9 +1122,14 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 $dObj = new DateTime($d);
                 $isToday = $d === $__today;
             ?>
-                <div class="cal-day-head <?= $isToday ? 'is-today' : '' ?>">
+                <?php $__hd = $__holidayByDay[$d] ?? null; ?>
+                <div class="cal-day-head <?= $isToday ? 'is-today' : '' ?> <?= $__hd ? 'is-holiday' : '' ?>"
+                     <?= $__hd ? 'title="Festivita: ' . e($__hd) . '"' : '' ?>>
                     <div class="dow"><?= $__dowMap[(int)$dObj->format('N')] ?></div>
                     <div class="dnum"><?= $dObj->format('j') ?></div>
+                    <?php if ($__hd): ?>
+                        <div class="dholiday"><?= e($__hd) ?></div>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -1109,8 +1146,15 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         <div class="cal-days <?= $__view === 'week' ? 'is-week' : 'is-day' ?>" id="calDays">
             <?php foreach ($__days as $dIndex => $d):
                 $isToday = $d === $__today;
+                $__colHoliday = $__holidayByDay[$d] ?? null;
             ?>
-                <div class="cal-day-col <?= $isToday ? 'is-today' : '' ?>" data-day="<?= e($d) ?>">
+                <div class="cal-day-col <?= $isToday ? 'is-today' : '' ?> <?= $__colHoliday ? 'is-holiday' : '' ?>" data-day="<?= e($d) ?>">
+                    <?php if ($__colHoliday): ?>
+                        <div class="cal-day-holiday-banner" title="Festivita nazionale">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" aria-hidden="true"><path d="M12 2l2.39 6.96H22l-6.18 4.49 2.36 6.96L12 16.9l-6.18 4.51 2.36-6.96L2 8.96h7.61z"/></svg>
+                            <span><?= e($__colHoliday) ?></span>
+                        </div>
+                    <?php endif; ?>
                     <?php
                     // Eventi del giorno
                     foreach ($__events as $ev):
