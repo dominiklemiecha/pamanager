@@ -263,8 +263,12 @@ class Auth
         $usernameNormalized = trim($username);
         $fiscalCodeNormalized = strtoupper(trim($username));
 
+        // Username/codice fiscale sono unici per azienda (migration 039). Se lo stesso
+        // valore esiste in piu' aziende dello stesso tenant, prendiamo il record con
+        // ultimo login piu' recente, poi id maggiore (deterministico).
         $employee = Database::fetchOne(
-            "SELECT * FROM employees WHERE (username = ? OR fiscal_code = ?) AND is_active = TRUE",
+            "SELECT * FROM employees WHERE (username = ? OR fiscal_code = ?) AND is_active = TRUE
+             ORDER BY last_login DESC, id DESC LIMIT 1",
             [$usernameNormalized, $fiscalCodeNormalized]
         );
 

@@ -142,15 +142,17 @@ class Employee
             return ['success' => false, 'error' => 'Reparto non valido o non attivo'];
         }
 
-        // Verifica username unico
-        if (Database::exists('employees', 'username = ?', [$data['username']])) {
-            return ['success' => false, 'error' => 'Username già esistente'];
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+
+        // Verifica username unico nella stessa azienda
+        if (Database::exists('employees', 'username = ? AND company_id = ?', [$data['username'], $cid])) {
+            return ['success' => false, 'error' => 'Username gia esistente in questa azienda'];
         }
 
-        // Verifica codice fiscale unico
+        // Verifica codice fiscale unico nella stessa azienda
         $fiscalCode = strtoupper(trim($data['fiscal_code']));
-        if (Database::exists('employees', 'fiscal_code = ?', [$fiscalCode])) {
-            return ['success' => false, 'error' => 'Codice fiscale già registrato'];
+        if (Database::exists('employees', 'fiscal_code = ? AND company_id = ?', [$fiscalCode, $cid])) {
+            return ['success' => false, 'error' => 'Codice fiscale gia registrato in questa azienda'];
         }
 
         // Validazione email (obbligatoria per invio credenziali)
@@ -277,8 +279,8 @@ class Employee
             if (!preg_match('/^[a-zA-Z0-9_\.]+$/', $data['username'])) {
                 return ['success' => false, 'error' => 'Username può contenere solo lettere, numeri, underscore e punti'];
             }
-            if (Database::exists('employees', 'username = ? AND id != ?', [$data['username'], $id])) {
-                return ['success' => false, 'error' => 'Username già esistente'];
+            if (Database::exists('employees', 'username = ? AND company_id = ? AND id != ?', [$data['username'], (int)$employee['company_id'], $id])) {
+                return ['success' => false, 'error' => 'Username gia esistente in questa azienda'];
             }
             $updateData['username'] = $data['username'];
         }
@@ -290,8 +292,8 @@ class Employee
                 if (!self::validateFiscalCode($fiscalCode)) {
                     return ['success' => false, 'error' => 'Codice fiscale non valido'];
                 }
-                if (Database::exists('employees', 'fiscal_code = ? AND id != ?', [$fiscalCode, $id])) {
-                    return ['success' => false, 'error' => 'Codice fiscale già registrato'];
+                if (Database::exists('employees', 'fiscal_code = ? AND company_id = ? AND id != ?', [$fiscalCode, (int)$employee['company_id'], $id])) {
+                    return ['success' => false, 'error' => 'Codice fiscale gia registrato in questa azienda'];
                 }
                 $updateData['fiscal_code'] = $fiscalCode;
             }
