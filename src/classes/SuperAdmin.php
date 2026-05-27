@@ -16,17 +16,32 @@ class SuperAdmin
     private const SESSION_TS     = 'superadmin_login_ts';
     private const MAX_SESSION_S  = 3600; // 1h idle, poi richiede re-login
 
+    private static function env(string $key): string
+    {
+        // Cerca in tutte le sorgenti possibili (Dokploy/Docker espone in modo
+        // diverso a seconda di come Apache passa l'env al modulo PHP).
+        $candidates = [
+            getenv($key),
+            $_ENV[$key] ?? null,
+            $_SERVER[$key] ?? null,
+        ];
+        foreach ($candidates as $v) {
+            if ($v !== false && $v !== null && $v !== '') return (string) $v;
+        }
+        return '';
+    }
+
     public static function configured(): bool
     {
-        return getenv('SUPERADMIN_USER') !== false
-            && getenv('SUPERADMIN_PASS_HASH') !== false
-            && getenv('SUPERADMIN_TOTP_SECRET') !== false;
+        return self::env('SUPERADMIN_USER') !== ''
+            && self::env('SUPERADMIN_PASS_HASH') !== ''
+            && self::env('SUPERADMIN_TOTP_SECRET') !== '';
     }
 
     public static function checkPassword(string $username, string $password): bool
     {
-        $expectedUser = (string) getenv('SUPERADMIN_USER');
-        $hash         = (string) getenv('SUPERADMIN_PASS_HASH');
+        $expectedUser = self::env('SUPERADMIN_USER');
+        $hash         = self::env('SUPERADMIN_PASS_HASH');
         if ($expectedUser === '' || $hash === '') return false;
         if (!hash_equals($expectedUser, $username)) return false;
         return password_verify($password, $hash);
@@ -34,7 +49,7 @@ class SuperAdmin
 
     public static function checkTotp(string $code): bool
     {
-        $secret = (string) getenv('SUPERADMIN_TOTP_SECRET');
+        $secret = self::env('SUPERADMIN_TOTP_SECRET');
         if ($secret === '') return false;
         return MFA::verifyCode($secret, $code);
     }

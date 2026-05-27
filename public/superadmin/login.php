@@ -5,7 +5,21 @@ setSecurityHeaders();
 
 if (!SuperAdmin::configured()) {
     http_response_code(503);
-    die('Superadmin non configurato. Esegui tools/superadmin-init.php e imposta le variabili ENV.');
+    if (isset($_GET['check'])) {
+        $keys = ['SUPERADMIN_USER', 'SUPERADMIN_PASS_HASH', 'SUPERADMIN_TOTP_SECRET'];
+        header('Content-Type: text/plain');
+        foreach ($keys as $k) {
+            $g = getenv($k);
+            $e = $_ENV[$k] ?? null;
+            $s = $_SERVER[$k] ?? null;
+            echo "$k: getenv=" . ($g === false ? 'NO' : 'YES(' . strlen((string)$g) . ')')
+               . " \$_ENV=" . ($e === null ? 'NO' : 'YES(' . strlen((string)$e) . ')')
+               . " \$_SERVER=" . ($s === null ? 'NO' : 'YES(' . strlen((string)$s) . ')')
+               . "\n";
+        }
+        exit;
+    }
+    die('Superadmin non configurato. Visita ?check=1 per diagnostica, oppure esegui tools/superadmin-init.php e imposta le variabili ENV.');
 }
 
 if (SuperAdmin::isAuthed()) { header('Location: index.php'); exit; }
