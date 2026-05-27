@@ -19,7 +19,7 @@ if (!SuperAdmin::configured()) {
         }
         exit;
     }
-    die('Superadmin non configurato. Visita ?check=1 per diagnostica, oppure esegui tools/superadmin-init.php e imposta le variabili ENV.');
+    die('Superadmin non configurato. Crea /var/www/html/storage/superadmin.env con le 3 variabili SUPERADMIN_USER, SUPERADMIN_PASS_HASH, SUPERADMIN_TOTP_SECRET. Diagnostica: ?check=1');
 }
 
 if (SuperAdmin::isAuthed()) { header('Location: index.php'); exit; }
