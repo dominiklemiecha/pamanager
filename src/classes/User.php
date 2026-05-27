@@ -127,6 +127,14 @@ class User
             return ['success' => false, 'error' => 'Username già esistente'];
         }
 
+        // Verifica email unica (un solo account per email)
+        $emailNorm = isset($data['email']) ? trim((string)$data['email']) : '';
+        if ($emailNorm !== '') {
+            if (Database::exists('users', 'LOWER(email) = LOWER(?)', [$emailNorm])) {
+                return ['success' => false, 'error' => 'EMAIL_EXISTS'];
+            }
+        }
+
         // Verifica complessità password
         if (!self::validatePasswordStrength($data['password'])) {
             return ['success' => false, 'error' => 'Password troppo debole. Deve contenere almeno una maiuscola, una minuscola, un numero e un carattere speciale.'];
@@ -180,7 +188,13 @@ class User
         }
 
         if (isset($data['email'])) {
-            $updateData['email'] = ($data['email'] === '') ? null : $data['email'];
+            $newEmail = trim((string)$data['email']);
+            if ($newEmail !== '' && strcasecmp($newEmail, (string)($user['email'] ?? '')) !== 0) {
+                if (Database::exists('users', 'LOWER(email) = LOWER(?) AND id != ?', [$newEmail, $id])) {
+                    return ['success' => false, 'error' => 'Email gia usata da un altro utente'];
+                }
+            }
+            $updateData['email'] = ($newEmail === '') ? null : $newEmail;
         }
 
         if (isset($data['is_active']) && $data['is_active'] !== '') {

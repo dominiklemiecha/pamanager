@@ -115,7 +115,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
             } else {
-                $error  = $result['error'];
+                if ($result['error'] === 'EMAIL_EXISTS') {
+                    $emailEsc = htmlspecialchars($_POST['email'] ?? '');
+                    $existing = Database::fetchOne(
+                        "SELECT id, role FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1",
+                        [trim($_POST['email'] ?? '')]
+                    );
+                    if ($existing && $existing['role'] === $ROLE) {
+                        $linkUrl = htmlspecialchars($SELF) . '?action=link';
+                        $error = "Esiste gia' un {$LABEL} con questa email. "
+                               . "Usa <a href=\"{$linkUrl}\" style=\"color:#0b3aa4;font-weight:600;\">Aggiungi esistente</a> "
+                               . "per collegarlo alle tue aziende.";
+                    } else {
+                        $error = "Email <strong>{$emailEsc}</strong> gia' usata da un altro utente del sistema.";
+                    }
+                } else {
+                    $error = $result['error'];
+                }
                 $action = 'new';
             }
             break;
@@ -626,7 +642,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     <?php endif; ?>
 
     <?php if ($error): ?>
-        <div class="alert alert-error" style="border-radius:10px;"><?= e($error) ?></div>
+        <div class="alert alert-error" style="border-radius:10px;"><?= $error /* gia' sanificato a monte */ ?></div>
     <?php endif; ?>
 
     <?php if ($action === 'list'): ?>
