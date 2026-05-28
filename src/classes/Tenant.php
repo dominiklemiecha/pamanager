@@ -18,38 +18,36 @@ class Tenant
     private const SESSION_KEY = 'tenant_company_id';
     private const SWITCH_ROLES = ['admin', 'accountant', 'consulente_lavoro'];
 
-    /** Restituisce la company_id corrente per il viewer. Fallback su prima accessibile o 1. */
+    /**
+     * Company corrente per il viewer.
+     * SICUREZZA: ritorna solo aziende REALMENTE accessibili al viewer. Se non ne ha
+     * nessuna ritorna 0 (=> nessun dato). NIENTE fallback a company 1 e NIENTE uso
+     * di session non validate: erano vettori di leak cross-tenant.
+     */
     public static function currentCompanyId(): int
     {
-        // 1) Dipendente loggato: tied
+        // 1) Dipendente loggato: tied alla sua azienda
         $emp = Auth::getEmployee();
         if ($emp && !empty($emp['company_id'])) return (int)$emp['company_id'];
 
+        // 2) User loggato (admin / accountant / consulente / admin_reparto)
         $user = Auth::getUser();
-
-        // 2) User loggato
         if ($user) {
             $accessible = self::accessibleCompanyIds($user);
+            if (empty($accessible)) return 0; // nessuna azienda assegnata => nessun dato
 
-            // Se in sessione c'e' una company VALIDA fra quelle accessibili, usala
+            // La company in sessione vale SOLO se e' tra le accessibili
             if (!empty($_SESSION[self::SESSION_KEY])) {
                 $sessionId = (int)$_SESSION[self::SESSION_KEY];
                 if (in_array($sessionId, $accessible, true)) return $sessionId;
             }
-
-            // Default: prima accessibile, o users.company_id, o 1
-            if (!empty($accessible)) {
-                $first = $accessible[0];
-                $_SESSION[self::SESSION_KEY] = $first;
-                return $first;
-            }
-            if (!empty($user['company_id'])) return (int)$user['company_id'];
+            $first = (int)$accessible[0];
+            $_SESSION[self::SESSION_KEY] = $first;
+            return $first;
         }
 
-        // 3) Sessione persistente (caso edge: post-logout/login altro user)
-        if (!empty($_SESSION[self::SESSION_KEY])) return (int)$_SESSION[self::SESSION_KEY];
-
-        return 1;
+        // 3) Nessuno loggato: nessun dato
+        return 0;
     }
 
     public static function currentCompany(): ?array
