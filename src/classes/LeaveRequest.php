@@ -120,6 +120,9 @@ class LeaveRequest
      */
     public static function getApproved(?int $year = null, ?int $month = null): array
     {
+        // SCOPING multi-tenant: filtra per l'azienda corrente del viewer.
+        // Senza questo, accountant/consulente vedevano le ferie di TUTTE le aziende.
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
         $sql = "SELECT lr.*,
                        e.first_name, e.last_name, e.fiscal_code, e.photo_path,
                        d.name AS department_name, d.code AS department_code,
@@ -128,8 +131,8 @@ class LeaveRequest
                 JOIN employees e ON lr.employee_id = e.id
                 LEFT JOIN departments d ON e.department_id = d.id
                 LEFT JOIN users u ON lr.approved_by = u.id
-                WHERE lr.status = 'approved'";
-        $params = [];
+                WHERE lr.status = 'approved' AND e.company_id = ?";
+        $params = [$cid];
 
         if ($year !== null) {
             $sql .= " AND YEAR(lr.start_date) = ?";
