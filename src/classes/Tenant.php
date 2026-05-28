@@ -64,10 +64,8 @@ class Tenant
         if (!$user) return false;
         if (!in_array($user['role'] ?? '', self::SWITCH_ROLES, true)) return false;
         $accessible = self::accessibleCompanyIds($user);
-        // Admin globale (company_id NULL esplicito): sempre switch
-        if ($user['role'] === 'admin' && array_key_exists('company_id', $user) && $user['company_id'] === null) {
-            return true;
-        }
+        // Admin globale vero: sempre switch (vede tutte)
+        if (self::isTrueGlobalAdmin($user)) return true;
         return count($accessible) > 1;
     }
 
@@ -98,41 +96,30 @@ class Tenant
         $user = Auth::getUser();
         if (!$user) return [];
 
-        // Admin globale (company_id NULL): tutte (legacy single-tenant)
-        if ($user['role'] === 'admin' && !array_key_exists('company_id', $user)) {
-            // Sicurezza: campo assente => non assumiamo globale, blocca
-            return [];
-        }
-        if ($user['role'] === 'admin' && $user['company_id'] === null) {
+        $ids = self::accessibleCompanyIds($user);
+        // Caso speciale: admin globale "vero" (NULL + nessun user_companies) -> tutte
+        if (self::isTrueGlobalAdmin($user)) {
             return Database::fetchAll("SELECT * FROM companies WHERE is_active = 1 ORDER BY name");
         }
+        if (empty($ids)) return [];
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        return Database::fetchAll(
+            "SELECT * FROM companies WHERE id IN ($ph) AND is_active = 1 ORDER BY name",
+            array_map('intval', $ids)
+        );
+    }
 
-        // Admin tenant + staff esterno: company_id primaria + user_companies extra
-        if (in_array($user['role'], ['admin', 'accountant', 'consulente_lavoro'], true)) {
-            $ids = [];
-            if (!empty($user['company_id'])) $ids[] = (int)$user['company_id'];
-            $extra = Database::fetchAll(
-                "SELECT company_id FROM user_companies WHERE user_id = ?",
-                [(int)$user['id']]
-            );
-            foreach ($extra as $r) {
-                $cid = (int)$r['company_id'];
-                if ($cid > 0 && !in_array($cid, $ids, true)) $ids[] = $cid;
-            }
-            if (empty($ids)) return [];
-            $ph = implode(',', array_fill(0, count($ids), '?'));
-            return Database::fetchAll(
-                "SELECT * FROM companies WHERE id IN ($ph) AND is_active = 1 ORDER BY name",
-                $ids
-            );
-        }
-
-        // Fallback singola company_id (admin_reparto, ecc.)
-        if (!empty($user['company_id'])) {
-            $row = Database::fetchOne("SELECT * FROM companies WHERE id = ?", [$user['company_id']]);
-            return $row ? [$row] : [];
-        }
-        return [];
+    /**
+     * True solo se admin con company_id esplicitamente NULL E senza alcun
+     * collegamento in user_companies (vero superadmin/maintainer legacy).
+     * Un admin NULL CON user_companies e' invece scopato a quelle aziende.
+     */
+    private static function isTrueGlobalAdmin(array $user): bool
+    {
+        if (($user['role'] ?? '') !== 'admin') return false;
+        if (!array_key_exists('company_id', $user) || $user['company_id'] !== null) return false;
+        $n = Database::fetchOne("SELECT COUNT(*) AS n FROM user_companies WHERE user_id = ?", [(int)$user['id']]);
+        return (int)($n['n'] ?? 0) === 0;
     }
 
     /** ID delle aziende accessibili al viewer corrente (admin / staff). */
@@ -146,20 +133,20 @@ class Tenant
     /** ID delle aziende accessibili come array di interi. */
     private static function accessibleCompanyIds(array $user): array
     {
-        // Admin globale SOLO se company_id e' esplicitamente NULL (non assente).
-        // Senza questo check, una session corrotta puo' elevare un admin tenant
-        // a globale e fargli vedere TUTTI gli altri tenant.
-        if ($user['role'] === 'admin' && !array_key_exists('company_id', $user)) {
+        // Campo company_id assente in sessione: NON assumere globale (session corrotta) -> blocca
+        if (($user['role'] ?? '') === 'admin' && !array_key_exists('company_id', $user)) {
             return [];
         }
-        if ($user['role'] === 'admin' && $user['company_id'] === null) {
+        // Admin globale "vero" (NULL + zero user_companies): tutte le aziende attive
+        if (self::isTrueGlobalAdmin($user)) {
             return array_map('intval', array_column(
                 Database::fetchAll("SELECT id FROM companies WHERE is_active = 1 ORDER BY id"),
                 'id'
             ));
         }
-        // Admin tenant + staff esterno: company_id primaria + user_companies extra
-        if (in_array($user['role'], ['admin', 'accountant', 'consulente_lavoro'], true)) {
+        // Admin tenant (anche company_id NULL ma CON user_companies) + staff esterno:
+        // company_id primaria + tutte le righe user_companies
+        if (in_array($user['role'] ?? '', ['admin', 'accountant', 'consulente_lavoro'], true)) {
             $ids = [];
             if (!empty($user['company_id'])) $ids[] = (int)$user['company_id'];
             $rows = Database::fetchAll(
