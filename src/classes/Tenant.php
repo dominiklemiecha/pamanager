@@ -66,8 +66,8 @@ class Tenant
         if (!$user) return false;
         if (!in_array($user['role'] ?? '', self::SWITCH_ROLES, true)) return false;
         $accessible = self::accessibleCompanyIds($user);
-        if ($user['role'] === 'admin' && empty($user['company_id'])) {
-            // Admin globale: sempre switch (su tutte le aziende attive)
+        // Admin globale (company_id NULL esplicito): sempre switch
+        if ($user['role'] === 'admin' && array_key_exists('company_id', $user) && $user['company_id'] === null) {
             return true;
         }
         return count($accessible) > 1;
@@ -100,29 +100,40 @@ class Tenant
         $user = Auth::getUser();
         if (!$user) return [];
 
-        // Admin globale: tutte
-        if ($user['role'] === 'admin' && empty($user['company_id'])) {
+        // Admin globale (company_id NULL): tutte (legacy single-tenant)
+        if ($user['role'] === 'admin' && !array_key_exists('company_id', $user)) {
+            // Sicurezza: campo assente => non assumiamo globale, blocca
+            return [];
+        }
+        if ($user['role'] === 'admin' && $user['company_id'] === null) {
             return Database::fetchAll("SELECT * FROM companies WHERE is_active = 1 ORDER BY name");
         }
 
-        // Staff esterno multi-azienda: user_companies
-        if (in_array($user['role'], ['accountant', 'consulente_lavoro'], true)) {
-            $rows = Database::fetchAll(
-                "SELECT c.* FROM companies c
-                 JOIN user_companies uc ON uc.company_id = c.id
-                 WHERE uc.user_id = ? AND c.is_active = 1
-                 ORDER BY c.name",
-                [$user['id']]
+        // Admin tenant + staff esterno: company_id primaria + user_companies extra
+        if (in_array($user['role'], ['admin', 'accountant', 'consulente_lavoro'], true)) {
+            $ids = [];
+            if (!empty($user['company_id'])) $ids[] = (int)$user['company_id'];
+            $extra = Database::fetchAll(
+                "SELECT company_id FROM user_companies WHERE user_id = ?",
+                [(int)$user['id']]
             );
-            if (!empty($rows)) return $rows;
+            foreach ($extra as $r) {
+                $cid = (int)$r['company_id'];
+                if ($cid > 0 && !in_array($cid, $ids, true)) $ids[] = $cid;
+            }
+            if (empty($ids)) return [];
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            return Database::fetchAll(
+                "SELECT * FROM companies WHERE id IN ($ph) AND is_active = 1 ORDER BY name",
+                $ids
+            );
         }
 
-        // Fallback: singola company_id del user
+        // Fallback singola company_id (admin_reparto, ecc.)
         if (!empty($user['company_id'])) {
             $row = Database::fetchOne("SELECT * FROM companies WHERE id = ?", [$user['company_id']]);
             return $row ? [$row] : [];
         }
-
         return [];
     }
 
@@ -137,30 +148,35 @@ class Tenant
     /** ID delle aziende accessibili come array di interi. */
     private static function accessibleCompanyIds(array $user): array
     {
-        // Admin globale: tutte attive
-        if ($user['role'] === 'admin' && empty($user['company_id'])) {
+        // Admin globale SOLO se company_id e' esplicitamente NULL (non assente).
+        // Senza questo check, una session corrotta puo' elevare un admin tenant
+        // a globale e fargli vedere TUTTI gli altri tenant.
+        if ($user['role'] === 'admin' && !array_key_exists('company_id', $user)) {
+            return [];
+        }
+        if ($user['role'] === 'admin' && $user['company_id'] === null) {
             return array_map('intval', array_column(
                 Database::fetchAll("SELECT id FROM companies WHERE is_active = 1 ORDER BY id"),
                 'id'
             ));
         }
-        // Staff esterno: user_companies
-        if (in_array($user['role'], ['accountant', 'consulente_lavoro'], true)) {
+        // Admin tenant + staff esterno: company_id primaria + user_companies extra
+        if (in_array($user['role'], ['admin', 'accountant', 'consulente_lavoro'], true)) {
+            $ids = [];
+            if (!empty($user['company_id'])) $ids[] = (int)$user['company_id'];
             $rows = Database::fetchAll(
                 "SELECT c.id FROM companies c
                  JOIN user_companies uc ON uc.company_id = c.id
-                 WHERE uc.user_id = ? AND c.is_active = 1
-                 ORDER BY c.id",
-                [$user['id']]
+                 WHERE uc.user_id = ? AND c.is_active = 1",
+                [(int)$user['id']]
             );
-            if (!empty($rows)) {
-                return array_map('intval', array_column($rows, 'id'));
+            foreach ($rows as $r) {
+                $cid = (int)$r['id'];
+                if ($cid > 0 && !in_array($cid, $ids, true)) $ids[] = $cid;
             }
+            return $ids;
         }
-        // Fallback singolo
-        if (!empty($user['company_id'])) {
-            return [(int)$user['company_id']];
-        }
+        if (!empty($user['company_id'])) return [(int)$user['company_id']];
         return [];
     }
 
