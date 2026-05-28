@@ -298,6 +298,36 @@ class SuperAdmin
         }
     }
 
+    /** Tutte le aziende del sistema (per assegnazione). */
+    public static function allCompanies(): array
+    {
+        return Database::fetchAll("SELECT id, name, is_active FROM companies ORDER BY name");
+    }
+
+    /**
+     * Imposta esattamente le aziende possedute da un admin (scrive user_companies).
+     * Cosi' un admin con company_id NULL smette di essere "globale" e vede solo queste.
+     */
+    public static function setAdminCompanies(int $userId, array $companyIds): array
+    {
+        $u = Database::fetchOne("SELECT id FROM users WHERE id = ? AND role = 'admin'", [$userId]);
+        if (!$u) return ['success' => false, 'error' => 'Admin non trovato'];
+        $ids = array_values(array_unique(array_filter(array_map('intval', $companyIds), fn($v) => $v > 0)));
+        try {
+            Database::delete('user_companies', 'user_id = ?', [$userId]);
+            foreach ($ids as $cid) {
+                try { Database::insert('user_companies', ['user_id' => $userId, 'company_id' => $cid]); }
+                catch (Throwable $e) { error_log('[setAdminCompanies] ' . $e->getMessage()); }
+            }
+            if (class_exists('AuditLog')) {
+                try { AuditLog::log('superadmin_admin_companies_set', 'user', $userId, null, ['company_ids' => $ids]); } catch (Throwable $e) {}
+            }
+            return ['success' => true];
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
     /** Lista admin tenant (1 admin = 1 riga) con elenco aziende gestite. */
     public static function listAdmins(): array
     {
@@ -329,12 +359,13 @@ class SuperAdmin
      */
     public static function companiesForAdmin(int $userId, ?int $primaryCompanyId): array
     {
-        if ($primaryCompanyId === null) {
-            // Admin globale: vede tutte (legacy)
+        $linked = Database::fetchAll("SELECT company_id FROM user_companies WHERE user_id = ?", [$userId]);
+        // Admin globale "vero" (NULL + zero link): tutte le aziende
+        if ($primaryCompanyId === null && empty($linked)) {
             return Database::fetchAll("SELECT id, name, is_active FROM companies ORDER BY name");
         }
-        $ids = [(int)$primaryCompanyId];
-        $linked = Database::fetchAll("SELECT company_id FROM user_companies WHERE user_id = ?", [$userId]);
+        $ids = [];
+        if ($primaryCompanyId !== null) $ids[] = (int)$primaryCompanyId;
         foreach ($linked as $l) {
             $cid = (int)$l['company_id'];
             if ($cid > 0 && !in_array($cid, $ids, true)) $ids[] = $cid;

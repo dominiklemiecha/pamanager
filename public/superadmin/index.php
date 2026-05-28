@@ -42,10 +42,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'resend_welcome') {
         $r = SuperAdmin::resendWelcome((int)($_POST['user_id'] ?? 0));
         $r['success'] ? $message = 'Email primo accesso reinviata' : $error = $r['error'];
+    } elseif ($action === 'set_companies') {
+        $r = SuperAdmin::setAdminCompanies(
+            (int)($_POST['user_id'] ?? 0),
+            $_POST['company_ids'] ?? []
+        );
+        $r['success'] ? $message = 'Aziende assegnate aggiornate' : $error = $r['error'];
     }
 }
 
 $tenants = SuperAdmin::listAdmins();
+$allCompanies = SuperAdmin::allCompanies();
 ?>
 <!DOCTYPE html>
 <html lang="it"><head>
@@ -149,6 +156,26 @@ form.inline{display:inline-block;margin:0;}
                     <?php if (!empty($companyNames)): ?>
                         <div class="tiny"><?= htmlspecialchars(implode(', ', $companyNames)) ?></div>
                     <?php endif; ?>
+                    <details style="margin-top:6px;">
+                        <summary class="tiny" style="cursor:pointer;color:#60a5fa;">Assegna aziende</summary>
+                        <form method="POST" style="margin-top:8px;">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="set_companies">
+                            <input type="hidden" name="user_id" value="<?= (int)$t['id'] ?>">
+                            <?php
+                                $ownedIds = array_map(fn($c) => (int)$c['id'], $companies);
+                                foreach ($allCompanies as $co):
+                            ?>
+                                <label style="display:block;font-size:12px;margin:3px 0;color:#e2e8f0;">
+                                    <input type="checkbox" name="company_ids[]" value="<?= (int)$co['id'] ?>"
+                                        <?= in_array((int)$co['id'], $ownedIds, true) ? 'checked' : '' ?>>
+                                    <?= htmlspecialchars($co['name']) ?><?= $co['is_active'] ? '' : ' (disatt.)' ?>
+                                </label>
+                            <?php endforeach; ?>
+                            <button class="icon" type="submit" style="margin-top:6px;">Salva aziende</button>
+                            <div class="tiny" style="margin-top:4px;">Vuoto = admin globale (vede tutto). Selezionate = solo quelle.</div>
+                        </form>
+                    </details>
                 </td>
                 <td><?= (int)($t['employees_count'] ?? 0) ?></td>
                 <td><?= !empty($t['last_login']) ? htmlspecialchars($t['last_login']) : '<span class="tiny">Mai</span>' ?></td>
