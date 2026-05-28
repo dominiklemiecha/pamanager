@@ -1,7 +1,8 @@
 <?php
 /**
- * Admin → gestione aziende (multi-tenant).
- * Solo admin globali (users.company_id IS NULL) accedono qui.
+ * Admin -> gestione aziende.
+ * Admin globale: vede tutte le aziende del sistema.
+ * Admin tenant: vede e gestisce solo le proprie (company_id primaria + link in user_companies).
  */
 
 require_once dirname(__DIR__, 2) . '/config/config.php';
@@ -11,11 +12,8 @@ setSecurityHeaders();
 Auth::requireUser('admin');
 
 $user = Auth::getUser();
-if (!Tenant::canSwitch()) {
-    http_response_code(403);
-    echo '<h2>Accesso negato</h2><p>Questa pagina e riservata all\'amministratore principale.</p>';
-    exit;
-}
+$isGlobalAdmin = ($user['role'] === 'admin' && array_key_exists('company_id', $user) && $user['company_id'] === null);
+$accessibleCids = Tenant::accessibleCompanyIdsForCurrentUser();
 
 $message = $error = null;
 
@@ -28,28 +26,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name === '') { $error = 'Nome obbligatorio.'; }
         else {
             try {
-                $id = Database::insert('companies', [
+                $newId = Database::insert('companies', [
                     'name' => $name,
                     'slug' => slugifyCompany($name),
                     'is_active' => 1,
                     'needs_setup' => 0,
                 ]);
+                // Tenant admin: aggancia la nuova azienda a se stesso via user_companies
+                if (!$isGlobalAdmin) {
+                    try {
+                        Database::insert('user_companies', ['user_id' => (int)$user['id'], 'company_id' => $newId]);
+                    } catch (Throwable $e) { /* gia' presente, OK */ }
+                }
                 header('Location: companies.php?msg=created'); exit;
             } catch (Throwable $e) { $error = 'Errore: ' . $e->getMessage(); }
         }
     } elseif ($action === 'update') {
         $id = (int)($_POST['id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
-        if ($id && $name !== '') {
+        if (!$isGlobalAdmin && !in_array($id, $accessibleCids, true)) {
+            $error = 'Non puoi modificare questa azienda.';
+        } elseif ($id && $name !== '') {
             Database::update('companies', ['name' => $name, 'needs_setup' => 0], 'id = ?', [$id]);
             header('Location: companies.php?msg=updated'); exit;
         }
     } elseif ($action === 'toggle') {
         $id = (int)($_POST['id'] ?? 0);
-        $row = Database::fetchOne("SELECT is_active FROM companies WHERE id = ?", [$id]);
-        if ($row && (int)$id !== 1) { // non disattivare l'azienda 1
-            Database::update('companies', ['is_active' => $row['is_active'] ? 0 : 1], 'id = ?', [$id]);
-            header('Location: companies.php?msg=toggled'); exit;
+        if (!$isGlobalAdmin && !in_array($id, $accessibleCids, true)) {
+            $error = 'Non puoi modificare questa azienda.';
+        } else {
+            $row = Database::fetchOne("SELECT is_active FROM companies WHERE id = ?", [$id]);
+            if ($row && (int)$id !== 1) { // non disattivare l'azienda 1
+                Database::update('companies', ['is_active' => $row['is_active'] ? 0 : 1], 'id = ?', [$id]);
+                header('Location: companies.php?msg=toggled'); exit;
+            }
         }
     } elseif ($action === 'switch') {
         $id = (int)($_POST['id'] ?? 0);
@@ -64,7 +74,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$row) {
             $error = 'Azienda non trovata.';
-        } elseif ($id === 1) {
+        } elseif (!$isGlobalAdmin && !in_array($id, $accessibleCids, true)) {
+            $error = 'Non puoi eliminare questa azienda.';
+        } elseif ($id === 1 && $isGlobalAdmin) {
             $error = 'Non puoi eliminare l\'azienda principale.';
         } elseif ($id === Tenant::currentCompanyId()) {
             $error = 'Non puoi eliminare l\'azienda corrente. Cambia azienda dal switcher prima di eliminarla.';
@@ -99,14 +111,28 @@ function slugifyCompany(string $s): string {
     return trim($s, '-');
 }
 
-// Stats per azienda
-$rows = Database::fetchAll("
-    SELECT c.*,
-        (SELECT COUNT(*) FROM employees WHERE company_id = c.id AND is_active = TRUE) AS emp_count,
-        (SELECT COUNT(*) FROM departments WHERE company_id = c.id) AS dept_count
-    FROM companies c
-    ORDER BY c.is_active DESC, c.id
-");
+// Stats per azienda - scoped al tenant admin se non globale
+if ($isGlobalAdmin) {
+    $rows = Database::fetchAll("
+        SELECT c.*,
+            (SELECT COUNT(*) FROM employees WHERE company_id = c.id AND is_active = TRUE) AS emp_count,
+            (SELECT COUNT(*) FROM departments WHERE company_id = c.id) AS dept_count
+        FROM companies c
+        ORDER BY c.is_active DESC, c.id
+    ");
+} elseif (!empty($accessibleCids)) {
+    $ph = implode(',', array_fill(0, count($accessibleCids), '?'));
+    $rows = Database::fetchAll("
+        SELECT c.*,
+            (SELECT COUNT(*) FROM employees WHERE company_id = c.id AND is_active = TRUE) AS emp_count,
+            (SELECT COUNT(*) FROM departments WHERE company_id = c.id) AS dept_count
+        FROM companies c
+        WHERE c.id IN ($ph)
+        ORDER BY c.is_active DESC, c.id
+    ", array_map('intval', $accessibleCids));
+} else {
+    $rows = [];
+}
 
 if (isset($_GET['msg'])) {
     $messages = [

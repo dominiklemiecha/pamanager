@@ -57,8 +57,18 @@ foreach (preg_split('/\s+/', trim($currentUser['name'] ?? '')) as $p) {
 }
 $__userInitials = mb_strtoupper($__userInitials ?: 'U');
 
-// Tenant data (mockup-style)
-$__tenants = (class_exists('Tenant') && Tenant::canSwitch()) ? Tenant::getAccessibleCompanies() : [];
+// Tenant data: per admin sempre la lista (anche con 1 sola azienda, cosi' compare
+// il menu "Gestisci aziende"). Per altri ruoli solo se canSwitch.
+$__tenants = [];
+if (class_exists('Tenant')) {
+    $__u = Auth::getUser();
+    $__role = $__u['role'] ?? '';
+    if ($__role === 'admin') {
+        $__tenants = Tenant::getAccessibleCompanies();
+    } elseif (Tenant::canSwitch()) {
+        $__tenants = Tenant::getAccessibleCompanies();
+    }
+}
 $__currentTenant = (class_exists('Tenant')) ? Tenant::currentCompany() : null;
 $__tenantMark = '';
 if (!empty($__currentTenant['name'])) {
@@ -293,7 +303,7 @@ if (!empty($__currentTenant['name'])) {
             <button class="header-btn mobile-menu-btn" id="mobileMenuBtn" aria-label="Apri menu">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <?php if (count($__tenants) > 1):
+            <?php if (count($__tenants) >= 1):
                 $__currentActive = !empty($__currentTenant['is_active']);
             ?>
             <div class="tenant-switcher tenant-switcher-top" id="sidebar-tenant">
