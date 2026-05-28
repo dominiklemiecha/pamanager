@@ -139,6 +139,14 @@ class PresenzeExport
         }
     }
 
+    /** Formatta un orario HH:MM:SS -> "17:30" (con minuti) o "18" (se :00). */
+    private static function fmtTime(string $t): string
+    {
+        $h = (int)substr($t, 0, 2);
+        $m = (int)substr($t, 3, 2);
+        return $m === 0 ? (string)$h : sprintf('%d:%02d', $h, $m);
+    }
+
     /** Formatta ore: intero se .0, altrimenti 1 decimale. */
     private static function fmtHours(float $h): string
     {
@@ -158,9 +166,7 @@ class PresenzeExport
             case 'permesso':
                 $isFull = !empty($r['is_full_day']) || empty($r['start_time']) || empty($r['end_time']);
                 if ($isFull) return 'ROL';
-                $sh = (int)substr($r['start_time'], 0, 2);
-                $eh = (int)substr($r['end_time'],   0, 2);
-                return 'ROL ' . $sh . '-' . $eh;
+                return 'ROL ' . self::fmtTime($r['start_time']) . '-' . self::fmtTime($r['end_time']);
             default: return '';
         }
     }
