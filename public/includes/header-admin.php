@@ -63,9 +63,9 @@ $__tenants = [];
 if (class_exists('Tenant')) {
     $__u = Auth::getUser();
     $__role = $__u['role'] ?? '';
-    if ($__role === 'admin') {
-        $__tenants = Tenant::getAccessibleCompanies();
-    } elseif (Tenant::canSwitch()) {
+    // admin / accountant / consulente_lavoro: mostra sempre il chip azienda
+    // (cosi' sanno in quale tenant sono e, se ne hanno piu' di una, possono switchare)
+    if (in_array($__role, ['admin', 'accountant', 'consulente_lavoro'], true)) {
         $__tenants = Tenant::getAccessibleCompanies();
     }
 }
