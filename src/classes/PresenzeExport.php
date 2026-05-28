@@ -15,6 +15,8 @@ class PresenzeExport
     private array $employees = [];
     /** @var array<int, array<string, string>> [empId][YYYY-MM-DD] = code */
     private array $cells = [];
+    /** @var array<int, array{ferie_d:int,permessi_h:float,malattia_d:int,p104_d:int}> riepilogo per dipendente */
+    private array $summary = [];
     public int $writtenEmployees = 0;
     public int $templateRowsAvailable = 0;
     public bool $overflow = false;
@@ -113,8 +115,35 @@ class PresenzeExport
                 $existing = $this->cells[$empId][$key] ?? '';
                 if ($existing === '') $this->cells[$empId][$key] = $code;
                 elseif (strpos($existing, $code) === false) $this->cells[$empId][$key] = $existing . '/' . $code;
+
+                // Riepilogo: ferie/malattia/104 in giorni, permessi in ore
+                if (!isset($this->summary[$empId])) {
+                    $this->summary[$empId] = ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_d' => 0];
+                }
+                switch ($r['leave_type']) {
+                    case 'ferie':         $this->summary[$empId]['ferie_d']++;    break;
+                    case 'malattia':      $this->summary[$empId]['malattia_d']++; break;
+                    case 'permesso_104':  $this->summary[$empId]['p104_d']++;     break;
+                    case 'permesso':
+                        $isFull = !empty($r['is_full_day']) || empty($r['start_time']) || empty($r['end_time']);
+                        if ($isFull) {
+                            $this->summary[$empId]['permessi_h'] += 8.0; // giorno intero = 8h
+                        } else {
+                            $s = strtotime($key . ' ' . $r['start_time']);
+                            $e = strtotime($key . ' ' . $r['end_time']);
+                            if ($e > $s) $this->summary[$empId]['permessi_h'] += ($e - $s) / 3600.0;
+                        }
+                        break;
+                }
             }
         }
+    }
+
+    /** Formatta ore: intero se .0, altrimenti 1 decimale. */
+    private static function fmtHours(float $h): string
+    {
+        if (abs($h - round($h)) < 0.01) return (string)(int)round($h);
+        return rtrim(rtrim(number_format($h, 1, '.', ''), '0'), '.');
     }
 
     private function codeForLeave(array $r): string
@@ -543,6 +572,36 @@ class PresenzeExport
         }
         $this->writtenEmployees = $maxWrite;
 
+        // 3b) Colonne riepilogo dopo l'ultimo giorno: Ferie (gg), Permessi (ore),
+        // Malattia (gg), 104 (gg). Header in riga 3, valori nelle righe dipendente.
+        $lastDayColNum = 1; // almeno colonna A
+        foreach (array_keys($colDate) as $col) {
+            $lastDayColNum = max($lastDayColNum, self::colToNum($col));
+        }
+        $sumCols = [
+            self::numToCol($lastDayColNum + 2) => ['header' => 'Ferie',    'unit' => 'gg'],
+            self::numToCol($lastDayColNum + 3) => ['header' => 'Permessi', 'unit' => 'ore'],
+            self::numToCol($lastDayColNum + 4) => ['header' => 'Malattia', 'unit' => 'gg'],
+            self::numToCol($lastDayColNum + 5) => ['header' => '104',      'unit' => 'gg'],
+        ];
+        // Intestazioni in riga 3
+        foreach ($sumCols as $colL => $meta) {
+            $this->writeCell($dom, $xpath, $colL . '3', $meta['header'] . ' (' . $meta['unit'] . ')');
+        }
+        // Valori per dipendente
+        for ($i = 0; $i < $maxWrite; $i++) {
+            $row   = $empRowsTemplate[$i];
+            $empId = (int)$this->employees[$i]['id'];
+            $s = $this->summary[$empId] ?? ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_d' => 0];
+            $cols = array_keys($sumCols);
+            $this->writeCell($dom, $xpath, $cols[0] . $row, $s['ferie_d']    > 0 ? $s['ferie_d'] . ' gg'                         : '');
+            $this->writeCell($dom, $xpath, $cols[1] . $row, $s['permessi_h'] > 0 ? self::fmtHours($s['permessi_h']) . ' ore'    : '');
+            $this->writeCell($dom, $xpath, $cols[2] . $row, $s['malattia_d'] > 0 ? $s['malattia_d'] . ' gg'                      : '');
+            $this->writeCell($dom, $xpath, $cols[3] . $row, $s['p104_d']     > 0 ? $s['p104_d'] . ' gg'                          : '');
+        }
+        // Larghezza colonne riepilogo
+        $this->setColumnWidth($dom, $xpath, $lastDayColNum + 2, $lastDayColNum + 5, 11.0);
+
         // 4) Cancella righe decorative (1,2,4) + righe dipendente non usate.
         // Renumera tutto in modo che la riga date diventi riga 1.
         $rowsToRemove = [1, 2, 4];
@@ -727,6 +786,25 @@ class PresenzeExport
         }
     }
 
+    private function setColumnWidth(DOMDocument $dom, DOMXPath $xpath, int $minCol, int $maxCol, float $width): void
+    {
+        $ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        $colsList = $xpath->query('//s:cols');
+        if ($colsList->length === 0) {
+            $cols = $dom->createElementNS($ns, 'cols');
+            $sheetData = $xpath->query('//s:sheetData')->item(0);
+            if ($sheetData) $sheetData->parentNode->insertBefore($cols, $sheetData);
+        } else {
+            $cols = $colsList->item(0);
+        }
+        $newCol = $dom->createElementNS($ns, 'col');
+        $newCol->setAttribute('min', (string)$minCol);
+        $newCol->setAttribute('max', (string)$maxCol);
+        $newCol->setAttribute('width', (string)$width);
+        $newCol->setAttribute('customWidth', '1');
+        $cols->appendChild($newCol);
+    }
+
     private function setFreezeFirstColumn(DOMDocument $dom, DOMXPath $xpath): void
     {
         $ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -792,6 +870,29 @@ class PresenzeExport
     private static function colCompare(string $a, string $b): int
     {
         return strlen($a) === strlen($b) ? strcmp($a, $b) : (strlen($a) - strlen($b));
+    }
+
+    /** Lettera colonna -> indice 1-based (A=1, B=2, ..., Z=26, AA=27...). */
+    private static function colToNum(string $col): int
+    {
+        $col = strtoupper($col);
+        $n = 0;
+        for ($i = 0, $len = strlen($col); $i < $len; $i++) {
+            $n = $n * 26 + (ord($col[$i]) - 64);
+        }
+        return $n;
+    }
+
+    /** Indice 1-based -> lettera colonna. */
+    private static function numToCol(int $n): string
+    {
+        $s = '';
+        while ($n > 0) {
+            $r = ($n - 1) % 26;
+            $s = chr(65 + $r) . $s;
+            $n = intdiv($n - 1, 26);
+        }
+        return $s;
     }
 
     private static function excelSerialToDate(int $serial): string
