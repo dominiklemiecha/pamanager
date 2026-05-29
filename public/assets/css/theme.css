@@ -1609,16 +1609,61 @@ body.login-page {
 }
 
 .heatmap-stack {
-    display: flex; flex-wrap: wrap; min-width: 0;
-    align-content: flex-start; align-items: flex-start;
-    row-gap: 5px;
-    padding: 4px 0 4px 12px; margin: 0 0 0 -2px;
-    outline: none; position: relative;
-    min-height: 42px;
-    /* max 2 righe di avatar (34px) poi clip: il numero esatto e' nelle pill */
-    max-height: 76px; overflow: hidden;
+    display: flex; flex-wrap: nowrap; min-width: 0;
+    align-items: center;
+    padding: 4px 0; margin: 0;
+    outline: none; position: relative; min-height: 38px;
 }
 .heatmap-stack-avatar.is-hidden { display: none !important; }
+
+/* Cap a 8 volti + chip "+N"; rimosso quando un filtro/ricerca e' attivo */
+.heatmap-stack.is-capped .heatmap-stack-avatar:nth-child(n+9) { display: none !important; }
+.heatmap-stack:not(.is-capped) .heatmap-more-btn { display: none !important; }
+.heatmap-more-btn {
+    flex-shrink: 0; margin-left: -18px;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid #fff; background: #eef2ff; color: #044bff;
+    font-size: 11px; font-weight: 800; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 1px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.06);
+    transition: background .12s, transform .12s; z-index: 2; position: relative;
+}
+.heatmap-more-btn:hover { background: #044bff; color: #fff; transform: translateY(-1px); }
+
+/* Popup roster completo */
+.heatmap-roster-overlay {
+    position: fixed; inset: 0; background: rgba(16,24,40,.5);
+    z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.heatmap-roster-overlay[hidden] { display: none; }
+.heatmap-roster-modal {
+    background: #fff; border-radius: 16px; width: 100%; max-width: 440px;
+    max-height: 82vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 48px rgba(16,24,40,.24); overflow: hidden;
+}
+.heatmap-roster-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; border-bottom: 1px solid #f2f4f7;
+}
+.heatmap-roster-head h4 { margin: 0; font-size: 15px; font-weight: 700; color: #101828; }
+.heatmap-roster-close {
+    border: 0; background: #f2f4f7; width: 30px; height: 30px; border-radius: 8px;
+    font-size: 20px; line-height: 1; color: #475467; cursor: pointer;
+}
+.heatmap-roster-close:hover { background: #e4e7ec; color: #101828; }
+.heatmap-roster-list { overflow-y: auto; padding: 8px; }
+.hr-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; }
+.hr-item:hover { background: #f9fafb; }
+.hr-av { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; }
+.hr-av img { width: 100%; height: 100%; object-fit: cover; }
+.hr-info { flex: 1; min-width: 0; }
+.hr-name { font-size: 13px; font-weight: 600; color: #101828; }
+.hr-status { font-size: 12px; font-weight: 600; }
+.hr-status.is-present { color: #16a34a; }
+.hr-status.is-busy    { color: #d97706; }
+.hr-status.is-pending { color: #2877ff; }
+.hr-status.is-absent  { color: #dc2626; }
 
 /* Contatori come pill colorate in fondo alla card */
 .heatmap-day-count { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
@@ -1626,10 +1671,10 @@ body.login-page {
     font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 7px;
     font-variant-numeric: tabular-nums;
 }
-.hm-count-present { color: #15803d; background: #dcfce7; }
-.hm-count-busy    { color: #b45309; background: #fef3c7; }
-.hm-count-pending { color: #1d4ed8; background: #dbeafe; }
-.hm-count-absent  { color: #b91c1c; background: #fee2e2; }
+.hm-count-present { color: #16a34a; background: #dcfce7; }
+.hm-count-busy    { color: #d97706; background: #fef3c7; }
+.hm-count-pending { color: #2877ff; background: #dbeafe; }
+.hm-count-absent  { color: #dc2626; background: #fee2e2; }
 .hm-count-present::after { content: ' disp.'; font-weight: 600; }
 .hm-count-busy::after    { content: ' occ.';  font-weight: 600; }
 .hm-count-pending::after { content: ' appr.'; font-weight: 600; }
@@ -1783,7 +1828,7 @@ html, body { max-width: 100%; }
 }
 .heatmap-stack-avatar {
     flex-shrink: 0;
-    margin-left: -10px;
+    margin-left: -18px;
     transform: translateX(0);
     transition: transform .2s ease;
     position: relative; cursor: default;
@@ -1797,7 +1842,7 @@ html, body { max-width: 100%; }
 }
 
 .heatmap-stack-photo {
-    width: 38px; height: 38px; border-radius: 50%;
+    width: 32px; height: 32px; border-radius: 50%;
     overflow: hidden; position: relative;
     background: #fff; border: 2px solid #fff;
     box-shadow: 0 0 0 1px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04);

@@ -295,11 +295,27 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 ];
             }
 
-            // Ordina: present -> busy -> pending -> absent
-            $stateOrder = ['present' => 0, 'busy' => 1, 'pending' => 2, 'absent' => 3];
-            usort($rowAvatars, function($a, $b) use ($stateOrder) {
+            // Ordine display: prima i "mancanti" (assenti/in approvazione/occupati),
+            // poi i disponibili mescolati in modo deterministico per giorno (variano
+            // giorno per giorno ma restano stabili sullo stesso giorno tra reload).
+            $stateOrder = ['absent' => 0, 'pending' => 1, 'busy' => 2, 'present' => 3];
+            $__missing = []; $__available = [];
+            foreach ($rowAvatars as $a) {
+                if ($a['state'] === 'present') $__available[] = $a; else $__missing[] = $a;
+            }
+            usort($__missing, function($a, $b) use ($stateOrder) {
                 return ($stateOrder[$a['state']] <=> $stateOrder[$b['state']]) ?: strcmp($a['name'], $b['name']);
             });
+            mt_srand(crc32($dayDate));
+            // Fisher-Yates con mt_rand (shuffle() non e' seedabile in modo affidabile)
+            for ($__k = count($__available) - 1; $__k > 0; $__k--) {
+                $__j = mt_rand(0, $__k);
+                [$__available[$__k], $__available[$__j]] = [$__available[$__j], $__available[$__k]];
+            }
+            mt_srand();
+            $rowAvatars = array_merge($__missing, $__available);
+            $__CAP = 8;
+            $__moreCount = max(0, count($rowAvatars) - $__CAP);
 
             $countPresent = 0; $countBusy = 0; $countPending = 0; $countAbsent = 0;
             foreach ($rowAvatars as $a) {
@@ -320,7 +336,7 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                     <?php if ($isToday && $__isWk): ?><span class="heatmap-day-badge">Oggi</span><?php endif; ?>
                 </div>
                 <?php if ($__isWk): ?>
-                    <div class="heatmap-stack" tabindex="0">
+                    <div class="heatmap-stack is-capped" tabindex="0" data-day-label="<?= htmlspecialchars($dayLabels[$i] . ' ' . $dObj->format('j')) ?>">
                         <?php foreach ($rowAvatars as $idx => $av): ?>
                             <div class="heatmap-stack-avatar is-<?= $av['state'] ?>" tabindex="0"
                                  data-state="<?= $av['state'] ?>"
@@ -340,6 +356,9 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                        <?php if ($__moreCount > 0): ?>
+                            <button type="button" class="heatmap-more-btn" aria-label="Mostra tutti i <?= count($rowAvatars) ?> dipendenti">+<?= $__moreCount ?></button>
+                        <?php endif; ?>
                     </div>
                     <div class="heatmap-day-count">
                         <span class="hm-count hm-count-present" title="Disponibili"><?= $countPresent ?></span>
@@ -365,4 +384,15 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
+
+    <!-- Popup roster completo (popolato via JS al click su "+N") -->
+    <div class="heatmap-roster-overlay" hidden>
+        <div class="heatmap-roster-modal" role="dialog" aria-modal="true" aria-labelledby="heatmapRosterTitle">
+            <div class="heatmap-roster-head">
+                <h4 id="heatmapRosterTitle">Presenze</h4>
+                <button type="button" class="heatmap-roster-close" aria-label="Chiudi">&times;</button>
+            </div>
+            <div class="heatmap-roster-list"></div>
+        </div>
+    </div>
 </section>

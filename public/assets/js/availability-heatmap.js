@@ -98,6 +98,7 @@
 
         function applyFilters() {
             const hasFilter = activeStates.size > 0;
+            const filtering = !!currentQuery || hasFilter;
             avatars.forEach((av) => {
                 const state = av.dataset.state || '';
                 const name  = av.dataset.name  || '';
@@ -108,6 +109,11 @@
             });
             legendBtns.forEach((b) => {
                 b.classList.toggle('is-active', activeStates.has(b.dataset.filterState));
+            });
+            // Con un filtro attivo mostra TUTTI i match (no cap a 8); altrimenti cap + "+N"
+            card.querySelectorAll('.heatmap-stack').forEach((s) => {
+                if (s.classList.contains('heatmap-stack-off')) return;
+                s.classList.toggle('is-capped', !filtering);
             });
             updateRowEmptyState();
             updateCounts();
@@ -195,6 +201,65 @@
             if (resizeRaf) cancelAnimationFrame(resizeRaf);
             resizeRaf = requestAnimationFrame(fitAllStacks);
         });
+
+        // ===== Popup roster completo (click su "+N") =====
+        const overlay = card.querySelector('.heatmap-roster-overlay');
+        const rosterList = overlay ? overlay.querySelector('.heatmap-roster-list') : null;
+        const rosterTitle = overlay ? overlay.querySelector('#heatmapRosterTitle') : null;
+
+        function openRoster(stack) {
+            if (!overlay || !rosterList) return;
+            const label = stack.dataset.dayLabel || 'Presenze';
+            if (rosterTitle) rosterTitle.textContent = 'Presenze · ' + label;
+            rosterList.innerHTML = '';
+            // Ordine popup: assenti/pending/occupati prima, poi disponibili
+            const order = { absent: 0, pending: 1, busy: 2, present: 3 };
+            const items = Array.from(stack.querySelectorAll('.heatmap-stack-avatar')).sort((a, b) => {
+                return (order[a.dataset.state] ?? 9) - (order[b.dataset.state] ?? 9);
+            });
+            items.forEach((av) => {
+                const photo = av.querySelector('.heatmap-stack-photo');
+                const nameEl = av.querySelector('.hst-name');
+                const statusEl = av.querySelector('.hst-status');
+                const state = av.dataset.state || 'present';
+                const row = document.createElement('div');
+                row.className = 'hr-item';
+                const avWrap = document.createElement('div');
+                avWrap.className = 'hr-av';
+                const img = photo ? photo.querySelector('img') : null;
+                const ini = photo ? photo.querySelector('.heatmap-stack-initials') : null;
+                if (img) {
+                    const i = document.createElement('img'); i.src = img.src; i.alt = ''; avWrap.appendChild(i);
+                } else if (ini) {
+                    avWrap.style.background = ini.style.background;
+                    avWrap.textContent = ini.textContent;
+                }
+                const info = document.createElement('div'); info.className = 'hr-info';
+                const nm = document.createElement('div'); nm.className = 'hr-name';
+                nm.textContent = nameEl ? nameEl.textContent : '';
+                const st = document.createElement('div'); st.className = 'hr-status is-' + state;
+                st.textContent = statusEl ? statusEl.textContent : '';
+                info.appendChild(nm); info.appendChild(st);
+                row.appendChild(avWrap); row.appendChild(info);
+                rosterList.appendChild(row);
+            });
+            overlay.hidden = false;
+        }
+        function closeRoster() { if (overlay) overlay.hidden = true; }
+
+        card.querySelectorAll('.heatmap-more-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const stack = btn.closest('.heatmap-stack');
+                if (stack) openRoster(stack);
+            });
+        });
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay || e.target.closest('.heatmap-roster-close')) closeRoster();
+            });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRoster(); });
+        }
 
         // Apply iniziale
         applyFilters();
