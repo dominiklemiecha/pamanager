@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($result['success']) {
                 $success = true;
-                $message = 'Se l\'account esiste, l\'amministratore riceverà la tua richiesta di reset password.';
+                $message = 'Se l\'account esiste, riceverai a breve un\'email con il link per reimpostare la password.';
             } else {
                 $error = $result['error'] ?? 'Errore durante la richiesta';
             }
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Recupero Password - PAManager';
+$pageTitle = 'Recupero Password - Connecteed HR';
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -97,7 +97,7 @@ $pageTitle = 'Recupero Password - PAManager';
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <h1>PAManager</h1>
+                <h1>Connecteed HR</h1>
                 <p>Recupero Password</p>
             </div>
 
@@ -106,7 +106,7 @@ $pageTitle = 'Recupero Password - PAManager';
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                     </svg>
-                    <h3>Richiesta Inviata</h3>
+                    <h3>Controlla la tua email</h3>
                     <p><?= htmlspecialchars($message) ?></p>
                 </div>
                 <div style="margin-top: 1.5rem; text-align: center;">
@@ -120,9 +120,9 @@ $pageTitle = 'Recupero Password - PAManager';
                 <div class="reset-info">
                     <p>
                         <?php if ($isEmployee): ?>
-                            Inserisci il tuo username, email o codice fiscale. Se l'account esiste, l'amministratore riceverà una notifica e potrà inviarti un link per reimpostare la password.
+                            Inserisci il tuo username, email o codice fiscale. Se l'account esiste, riceverai via email un link per reimpostare la password (valido 1 ora).
                         <?php else: ?>
-                            Inserisci il tuo username o email. Se l'account esiste, l'amministratore riceverà una notifica e potrà inviarti un link per reimpostare la password.
+                            Inserisci il tuo username o email. Se l'account esiste, riceverai via email un link per reimpostare la password (valido 1 ora).
                         <?php endif; ?>
                     </p>
                 </div>

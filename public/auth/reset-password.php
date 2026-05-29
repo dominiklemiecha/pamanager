@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenData) {
     }
 }
 
-$pageTitle = 'Reimposta Password - PAManager';
+$pageTitle = 'Reimposta Password - Connecteed HR';
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -127,7 +127,7 @@ $pageTitle = 'Reimposta Password - PAManager';
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <h1>PAManager</h1>
+                <h1>Connecteed HR</h1>
                 <p>Reimposta Password</p>
             </div>
 
