@@ -10,8 +10,18 @@ class Settings
     /** @var array<int, array<string, ?string>> [companyId => [key => value]] */
     private static array $cache = [];
 
+    /** Override esplicito della company (es. superadmin senza sessione tenant). */
+    private static ?int $forceCompanyId = null;
+
+    /** Forza la company per le letture successive (null = torna al comportamento normale). */
+    public static function forceCompany(?int $companyId): void
+    {
+        self::$forceCompanyId = $companyId;
+    }
+
     private static function cid(): int
     {
+        if (self::$forceCompanyId !== null) return self::$forceCompanyId;
         return class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
     }
 

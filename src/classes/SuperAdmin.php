@@ -201,9 +201,38 @@ class SuperAdmin
         }
     }
 
+    /**
+     * Company da cui inviare le email di sistema del superadmin.
+     * Il pannello superadmin non ha tenant corrente: usiamo la prima azienda
+     * con SMTP abilitato (di norma la principale, es. Connecteed).
+     */
+    private static function systemMailCompanyId(): ?int
+    {
+        $row = Database::fetchOne(
+            "SELECT company_id FROM app_settings
+             WHERE setting_key = 'smtp_enabled' AND setting_value = '1'
+             ORDER BY company_id LIMIT 1"
+        );
+        return $row ? (int)$row['company_id'] : null;
+    }
+
     private static function sendWelcomeEmail(string $email, string $name, string $companyName, string $token): bool
     {
-        if (!class_exists('Mailer') || !Mailer::isConfigured()) return false;
+        if (!class_exists('Mailer') || !class_exists('Settings')) return false;
+        // Forza lo SMTP della company di sistema (il superadmin non ha tenant corrente)
+        $mailCid = self::systemMailCompanyId();
+        if ($mailCid === null) return false;
+        Settings::forceCompany($mailCid);
+        try {
+            return self::doSendWelcome($email, $name, $companyName, $token);
+        } finally {
+            Settings::forceCompany(null);
+        }
+    }
+
+    private static function doSendWelcome(string $email, string $name, string $companyName, string $token): bool
+    {
+        if (!Mailer::isConfigured()) return false;
         // Preferisci APP_URL (ha lo schema https). PUBLIC_URL e' solo path -> nei mail
         // client diventa http:// e viene bloccato dal redirect HTTPS.
         $base = defined('APP_URL') && !empty(APP_URL) ? rtrim(APP_URL, '/') : (defined('PUBLIC_URL') ? rtrim(PUBLIC_URL, '/') : '');
