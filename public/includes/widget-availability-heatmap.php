@@ -229,10 +229,14 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
     <?php if (empty($employees)): ?>
         <div class="empty-state" style="padding:2rem;text-align:center;">Nessun dipendente da mostrare.</div>
     <?php else: ?>
+    <?php $__todayIdx = array_search($today, $days, true); ?>
     <div class="heatmap-days">
         <?php foreach ($days as $i => $dayDate):
             $dObj = new DateTime($dayDate);
             $isToday = $dayDate === $today;
+            // Ordine per mobile: oggi come prima card (rotazione settimanale). Se oggi
+            // non e' nella settimana visualizzata, ordine cronologico naturale.
+            $__mobileOrder = ($__todayIdx !== false) ? (($i - $__todayIdx + 7) % 7) : $i;
 
             // Costruisci array avatar con stato per ordinamento
             $rowAvatars = [];
@@ -309,7 +313,7 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 $__isWk = $dayIsWorking[$i] ?? true;
                 $__hmHoliday = $dayHolidayName[$i] ?? null;
             ?>
-            <div class="heatmap-day-row <?= $isToday ? 'is-today' : '' ?> <?= !$__isWk ? 'is-nonworking' : '' ?> <?= $__hmHoliday ? 'is-holiday' : '' ?>">
+            <div class="heatmap-day-row <?= $isToday ? 'is-today' : '' ?> <?= !$__isWk ? 'is-nonworking' : '' ?> <?= $__hmHoliday ? 'is-holiday' : '' ?>" style="--ord: <?= (int)$__mobileOrder ?>;">
                 <div class="heatmap-day-label">
                     <span class="heatmap-day-name"><?= $dayLabels[$i] ?></span>
                     <span class="heatmap-day-num"><?= $dObj->format('j') ?></span>

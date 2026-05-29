@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presenze settimanali — 5 design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Palette ConnecteedHR */
+  --c1:#044bff; --c2:#2877ff; --c3:#4fa1ff; --c4:#81c8ff; --cdeep:#003dd6;
+  /* Status */
+  --ok:#16a34a; --ok-bg:#dcfce7; --ok-soft:#f0fdf4;
+  --busy:#d97706; --busy-bg:#fef3c7; --busy-soft:#fffbeb;
+  --pend:#2877ff; --pend-bg:#dbeafe; --pend-soft:#eff6ff;
+  --abs:#dc2626; --abs-bg:#fee2e2; --abs-soft:#fef2f2;
+  --holiday:#c026d3; --holiday-bg:#fae8ff;
+  /* Neutri (Untitled UI gray scale) */
+  --g25:#fcfcfd; --g50:#f9fafb; --g100:#f2f4f7; --g200:#e4e7ec; --g300:#d0d5dd;
+  --g400:#98a2b3; --g500:#667085; --g600:#475467; --g700:#344054; --g800:#1d2939; --g900:#101828;
+  --radius:12px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-sm:0 1px 3px rgba(16,24,40,.10),0 1px 2px rgba(16,24,40,.06);
+  --shadow-md:0 4px 8px -2px rgba(16,24,40,.10),0 2px 4px -2px rgba(16,24,40,.06);
+  --shadow-lg:0 12px 16px -4px rgba(16,24,40,.08),0 4px 6px -2px rgba(16,24,40,.03);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(79,161,255,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(4,75,255,.07), transparent 55%),
+    var(--g50);
+  color:var(--g900);
+  -webkit-font-smoothing:antialiased;
+  padding:48px 24px 120px;
+  min-height:100vh;
+}
+.page{max-width:1180px;margin:0 auto}
+.page-head{margin-bottom:48px}
+.page-head .eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--c1);background:#fff;border:1px solid var(--g200);
+  padding:6px 12px;border-radius:999px;box-shadow:var(--shadow-xs);margin-bottom:18px;
+}
+.page-head .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--c1)}
+.page-head h1{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1.05}
+.page-head h1 em{font-style:normal;color:var(--c1)}
+.page-head p{margin-top:14px;color:var(--g500);font-size:16px;max-width:620px;line-height:1.6}
+
+.variant{margin-top:64px}
+.variant-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+.variant-num{
+  font-size:13px;font-weight:800;color:#fff;background:var(--c1);
+  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  box-shadow:var(--shadow-sm);flex-shrink:0;
+}
+.variant-head h2{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.variant-head .tag{font-size:12px;font-weight:600;color:var(--g500);background:var(--g100);padding:4px 10px;border-radius:999px}
+.variant-desc{color:var(--g500);font-size:14px;margin:0 0 22px 44px;max-width:680px;line-height:1.55}
+
+.frames{display:grid;grid-template-columns:1fr 280px;gap:28px;align-items:start}
+@media(max-width:920px){.frames{grid-template-columns:1fr}}
+.frame-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g400);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.frame-label svg{width:14px;height:14px}
+
+/* Desktop surface */
+.surface{background:#fff;border:1px solid var(--g200);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden}
+
+/* Phone */
+.phone{
+  width:280px;background:#fff;border:1px solid var(--g200);
+  border-radius:30px;box-shadow:var(--shadow-lg);overflow:hidden;
+  padding:10px 8px;
+}
+.phone-notch{width:84px;height:5px;background:var(--g200);border-radius:999px;margin:4px auto 12px}
+.phone-inner{border-radius:22px;overflow:hidden}
+
+/* ====== Shared widget bits ====== */
+.whead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--g100)}
+.wtitle{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.wrange{font-size:12px;color:var(--g400);font-weight:600;margin-top:2px}
+.wnav{display:flex;gap:4px}
+.navbtn{width:30px;height:30px;border:1px solid var(--g200);background:#fff;border-radius:8px;display:grid;place-items:center;cursor:pointer;color:var(--g500);transition:.15s}
+.navbtn:hover{background:var(--g50);color:var(--c1);border-color:var(--c3)}
+.navbtn svg{width:15px;height:15px}
+
+.avatar{border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex-shrink:0;border:2px solid #fff}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--g600);font-weight:600}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.ldot{width:8px;height:8px;border-radius:50%}
+
+/* status dot colors */
+.s-ok{background:var(--ok)} .s-busy{background:var(--busy)} .s-pend{background:var(--pend)} .s-abs{background:var(--abs)}
+
+.footnote{margin-top:14px;font-size:12px;color:var(--g400);margin-left:44px}
+.footnote code{background:var(--g100);padding:2px 6px;border-radius:5px;font-size:11px}
+
+/* Scrollbar sempre visibile per i caroselli mobile */
+.hscroll{scrollbar-width:thin;scrollbar-color:var(--c3) var(--g100)}
+.hscroll::-webkit-scrollbar{height:7px;-webkit-appearance:none}
+.hscroll::-webkit-scrollbar-track{background:var(--g100);border-radius:999px}
+.hscroll::-webkit-scrollbar-thumb{background:var(--c3);border-radius:999px}
+.hscroll::-webkit-scrollbar-thumb:hover{background:var(--c2)}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <span class="eyebrow"><span class="dot"></span>ConnecteedHR · UI Exploration</span>
+    <h1>Presenze settimanali<br><em>5 direzioni di design</em></h1>
+    <p>Cinque interpretazioni dello stesso widget, ognuna con vista desktop e mobile. Stessi dati di esempio (settimana 1–7 giugno 2026, con il 2 giugno festivo) per confrontarle a parità di contenuto. Componenti ispirati ai pattern Untitled UI, palette ufficiale ConnecteedHR.</p>
+  </header>
+
+  <section class="variant" id="v1">
+    <div class="variant-head"><span class="variant-num">1</span><h2>Day Cards</h2><span class="tag">Metric cards · avatar group</span></div>
+    <p class="variant-desc">Ogni giorno è una card con gruppo di avatar sovrapposti e contatori di stato. Pulita, scansionabile, perfetta per una panoramica rapida. Su mobile diventa carosello orizzontale.</p>
+    <div class="frames">
+      <div><div class="frame-label">Desktop</div><div class="surface" id="v1-d"></div></div>
+      <div><div class="frame-label">Mobile</div><div class="phone"><div class="phone-notch"></div><div class="phone-inner" id="v1-m"></div></div></div>
+    </div>
+  </section>
+
+  <section class="variant" id="v2">
+    <div class="variant-head"><span class="variant-num">2</span><h2>Capacity Rows</h2><span class="tag">Lista · barra capienza</span></div>
+    <p class="variant-desc">Righe orizzontali per giorno con una barra di capienza che mostra a colpo d'occhio la percentuale di team disponibile. Densità informativa alta ma elegante.</p>
+    <div class="frames">
+      <div><div class="frame-label">Desktop</div><div class="surface" id="v2-d"></div></div>
+      <div><div class="frame-label">Mobile</div><div class="phone"><div class="phone-notch"></div><div class="phone-inner" id="v2-m"></div></div></div>
+    </div>
+  </section>
+
+  <section class="variant" id="v3">
+    <div class="variant-head"><span class="variant-num">3</span><h2>Board Columns</h2><span class="tag">Kanban · colonne giorno</span></div>
+    <p class="variant-desc">Sette colonne affiancate stile board: ogni dipendente è una pill verticale colorata per stato. Ottimo per vedere chi c'è in ciascun giorno senza tooltip.</p>
+    <div class="frames">
+      <div><div class="frame-label">Desktop</div><div class="surface" id="v3-d"></div></div>
+      <div><div class="frame-label">Mobile</div><div class="phone"><div class="phone-notch"></div><div class="phone-inner" id="v3-m"></div></div></div>
+    </div>
+  </section>
+
+  <section class="variant" id="v4">
+    <div class="variant-head"><span class="variant-num">4</span><h2>Data Table</h2><span class="tag">Tabella densa · status pill</span></div>
+    <p class="variant-desc">Tabella stile Untitled UI: una riga per giorno, colonne per disponibili/occupati/in approvazione/assenti con pill. Per chi ama i numeri precisi.</p>
+    <div class="frames">
+      <div><div class="frame-label">Desktop</div><div class="surface" id="v4-d"></div></div>
+      <div><div class="frame-label">Mobile</div><div class="phone"><div class="phone-notch"></div><div class="phone-inner" id="v4-m"></div></div></div>
+    </div>
+  </section>
+
+  <section class="variant" id="v5">
+    <div class="variant-head"><span class="variant-num">5</span><h2>Heatmap Grid</h2><span class="tag">Intensità · colpo d'occhio</span></div>
+    <p class="variant-desc">Griglia a intensità cromatica: ogni cella è un giorno, il colore racconta quanti sono disponibili. Massima sintesi visiva, ideale come riquadro compatto in dashboard.</p>
+    <div class="frames">
+      <div><div class="frame-label">Desktop</div><div class="surface" id="v5-d"></div></div>
+      <div><div class="frame-label">Mobile</div><div class="phone"><div class="phone-notch"></div><div class="phone-inner" id="v5-m"></div></div></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ---------- Dati di esempio condivisi ---------- */
+const PAL=['#044bff','#2877ff','#003dd6','#4fa1ff','#1e40af','#3b82f6','#0ea5e9','#6366f1'];
+function col(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))>>>0;return PAL[h%PAL.length];}
+const TEAM=[
+ ['Giulia','Corsi'],['Marco','Grillo'],['Sara','De Vincenti'],['Luca','Leone'],
+ ['Chiara','Proietti'],['Diego','Barreto'],['Livia','Sacconi'],['Tonino','Pepe'],
+ ['Federico','Matturro'],['Paola','Iafrate'],['Giovanni','Meroni'],['Roberta','Ciavola']
+];
+function ini(p){return (p[0][0]+p[1][0]).toUpperCase();}
+// stato per giorno: o=ok/disponibile, b=busy, p=pending, a=absent
+// 7 giorni; lun..ven lavorativi, mar(2giu) festivo, sab/dom off
+const DAYS=[
+ {dow:'Lun',n:1,off:false,holiday:null,st:'ooooooooooab'},
+ {dow:'Mar',n:2,off:true ,holiday:'Festa della Repubblica',st:''},
+ {dow:'Mer',n:3,off:false,holiday:null,st:'oooooooooopo'},
+ {dow:'Gio',n:4,off:false,holiday:null,st:'ooooobooooao'},
+ {dow:'Ven',n:5,off:false,holiday:null,st:'ooooooooooao'},
+ {dow:'Sab',n:6,off:true ,holiday:null,st:''},
+ {dow:'Dom',n:7,off:true ,holiday:null,st:''},
+];
+const STMETA={o:{k:'ok',lbl:'Disponibile',c:'var(--ok)',bg:'var(--ok-bg)'},
+ b:{k:'busy',lbl:'Occupato',c:'var(--busy)',bg:'var(--busy-bg)'},
+ p:{k:'pend',lbl:'In approvazione',c:'var(--pend)',bg:'var(--pend-bg)'},
+ a:{k:'abs',lbl:'Assente',c:'var(--abs)',bg:'var(--abs-bg)'}};
+function counts(st){const c={o:0,b:0,p:0,a:0};for(const ch of st)if(c[ch]!=null)c[ch]++;return c;}
+function members(st){return [...st].map((ch,i)=>({p:TEAM[i%TEAM.length],s:ch}));}
+
+const CHEV_L='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
+const CHEV_R='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+const STAR='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.39 6.96H22l-6.18 4.49 2.36 6.96L12 16.9l-6.18 4.51 2.36-6.96L2 8.96h7.61z"/></svg>';
+
+function header(title){return `<div class="whead"><div><div class="wtitle">${title}</div><div class="wrange">1 – 7 giugno 2026</div></div>
+<div class="wnav"><button class="navbtn">${CHEV_L}</button><button class="navbtn">${CHEV_R}</button></div></div>`;}
+
+function avGroup(st,size,max){
+  const m=members(st);const shown=m.slice(0,max);const extra=m.length-shown.length;
+  let h=`<div style="display:flex;align-items:center">`;
+  shown.forEach((x,i)=>{const cc=col(x.p[0]+x.p[1]);
+    h+=`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${size*.38}px;background:${cc};margin-left:${i?-size*.32:0}px;position:relative">${ini(x.p)}
+      <span style="position:absolute;right:-1px;bottom:-1px;width:${size*.32}px;height:${size*.32}px;border-radius:50%;border:2px solid #fff;background:${STMETA[x.s].c}"></span></div>`;});
+  if(extra>0)h+=`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${size*.34}px;background:var(--g100);color:var(--g600);margin-left:${-size*.32}px">+${extra}</div>`;
+  h+=`</div>`;return h;
+}
+
+/* ===== Variant 1: Day Cards ===== */
+function v1(scope,mobile){
+  // Su mobile: ruota la settimana per partire dal giorno corrente (oggi = Mer 3)
+  const todayIdx=DAYS.findIndex(d=>d.n===3);
+  const order=mobile&&todayIdx>=0 ? [...DAYS.slice(todayIdx),...DAYS.slice(0,todayIdx)] : DAYS;
+  let cards='';
+  order.forEach(d=>{
+    const c=counts(d.st);const today=d.n===3;
+    if(d.off){
+      cards+=`<div style="border:1px dashed var(--g200);border-radius:14px;padding:16px;background:${d.holiday?'var(--holiday-bg)':'var(--g25)'};opacity:.9">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-weight:700;font-size:13px;color:${d.holiday?'var(--holiday)':'var(--g500)'}">${d.dow} ${d.n}</div></div>
+          ${d.holiday?STAR.replace('<svg','<svg width="15" height="15" style="color:var(--holiday)"'):''}
+        </div>
+        <div style="margin-top:10px;font-size:12px;font-weight:600;color:${d.holiday?'var(--holiday)':'var(--g400)'}">${d.holiday?d.holiday:'Giorno non lavorativo'}</div>
+      </div>`;return;
+    }
+    cards+=`<div style="border:1px solid var(--g200);border-radius:14px;padding:16px;background:#fff;box-shadow:var(--shadow-xs);${today?'outline:2px solid var(--c1);outline-offset:-1px':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div><span style="font-weight:700;font-size:13px">${d.dow}</span> <span style="color:var(--g400);font-weight:600;font-size:13px">${d.n}</span>
+        ${today?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:#fff;background:var(--c1);padding:2px 7px;border-radius:999px">OGGI</span>':''}</div>
+      </div>
+      ${avGroup(d.st,mobile?30:34,mobile?6:8)}
+      <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">
+        ${c.o?`<span style="font-size:11px;font-weight:700;color:var(--ok);background:var(--ok-bg);padding:3px 8px;border-radius:7px">${c.o} disp.</span>`:''}
+        ${c.b?`<span style="font-size:11px;font-weight:700;color:var(--busy);background:var(--busy-bg);padding:3px 8px;border-radius:7px">${c.b} occ.</span>`:''}
+        ${c.p?`<span style="font-size:11px;font-weight:700;color:var(--pend);background:var(--pend-bg);padding:3px 8px;border-radius:7px">${c.p} appr.</span>`:''}
+        ${c.a?`<span style="font-size:11px;font-weight:700;color:var(--abs);background:var(--abs-bg);padding:3px 8px;border-radius:7px">${c.a} ass.</span>`:''}
+      </div>
+    </div>`;
+  });
+  const body=mobile
+    ? `<div class="hscroll" style="display:flex;gap:12px;overflow-x:auto;padding:16px 16px 14px">${cards}</div>`
+    : `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px">${cards}</div>`;
+  scope.innerHTML=header('Presenze settimanali')+body;
+  if(mobile){scope.querySelectorAll(':scope > .hscroll > div').forEach(el=>el.style.minWidth='190px');}
+}
+
+/* ===== Variant 2: Capacity Rows ===== */
+function v2(scope,mobile){
+  let rows='';
+  DAYS.forEach(d=>{
+    const c=counts(d.st);const tot=d.st.length||12;const pct=Math.round((c.o/ (d.off?12:tot||1))*100);
+    const today=d.n===3;
+    if(d.off){
+      rows+=`<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--g100);background:${d.holiday?'var(--holiday-bg)':'transparent'}">
+        <div style="width:54px"><div style="font-weight:700;font-size:13px;color:${d.holiday?'var(--holiday)':'var(--g400)'}">${d.dow}</div><div style="font-size:18px;font-weight:800;color:${d.holiday?'var(--holiday)':'var(--g300)'}">${d.n}</div></div>
+        <div style="flex:1;font-size:12px;font-weight:600;color:${d.holiday?'var(--holiday)':'var(--g400)'};display:flex;align-items:center;gap:7px">${d.holiday?STAR.replace('<svg','<svg width="14" height="14"'):''}${d.holiday||'Giorno non lavorativo'}</div>
+      </div>`;return;
+    }
+    rows+=`<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--g100);${today?'background:var(--pend-soft)':''}">
+      <div style="width:54px;flex-shrink:0">
+        <div style="font-weight:700;font-size:13px;color:var(--g500)">${d.dow}${today?' ·':''}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--g900)">${d.n}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+          <span style="font-size:12px;font-weight:700;color:var(--g700)">${c.o}/${tot} disponibili</span>
+          <span style="font-size:12px;font-weight:700;color:var(--ok)">${pct}%</span>
+        </div>
+        <div style="height:8px;border-radius:999px;background:var(--g100);overflow:hidden;display:flex">
+          <div style="width:${(c.o/tot*100)}%;background:linear-gradient(90deg,var(--c1),var(--c3))"></div>
+          <div style="width:${(c.b/tot*100)}%;background:var(--busy)"></div>
+          <div style="width:${(c.p/tot*100)}%;background:var(--pend);opacity:.5"></div>
+          <div style="width:${(c.a/tot*100)}%;background:var(--abs);opacity:.35"></div>
+        </div>
+        ${!mobile?`<div style="margin-top:9px">${avGroup(d.st,26,10)}</div>`:''}
+      </div>
+      ${!mobile?`<div style="display:flex;gap:5px">
+        ${c.b?`<span title="Occupati" class="ldot s-busy" style="width:10px;height:10px"></span>`:''}
+      </div>`:''}
+    </div>`;
+  });
+  scope.innerHTML=header('Presenze settimanali')+`<div>${rows}</div>
+    <div style="padding:14px 20px;border-top:1px solid var(--g100)"><div class="legend">
+      <span><i class="ldot s-ok"></i>Disponibile</span><span><i class="ldot s-busy"></i>Occupato</span>
+      <span><i class="ldot s-pend" style="opacity:.5"></i>In approvazione</span><span><i class="ldot s-abs" style="opacity:.5"></i>Assente</span>
+    </div></div>`;
+}
+
+/* ===== Variant 3: Board Columns ===== */
+function v3(scope,mobile){
+  let colsH='';
+  DAYS.forEach(d=>{
+    const today=d.n===3;
+    let chips='';
+    if(d.off){
+      chips=`<div style="margin-top:auto;margin-bottom:auto;text-align:center;color:${d.holiday?'var(--holiday)':'var(--g300)'};font-size:11px;font-weight:600;padding:20px 6px">
+        ${d.holiday?STAR.replace('<svg','<svg width="18" height="18" style="display:block;margin:0 auto 6px"'):''}${d.holiday||'Riposo'}</div>`;
+    }else{
+      members(d.st).slice(0,mobile?6:12).forEach(x=>{
+        const m=STMETA[x.s];const cc=col(x.p[0]+x.p[1]);
+        chips+=`<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--g200);border-left:3px solid ${m.c};border-radius:8px;padding:5px 8px;box-shadow:var(--shadow-xs)">
+          <div class="avatar" style="width:22px;height:22px;font-size:9px;background:${cc};border-width:0">${ini(x.p)}</div>
+          <span style="font-size:11px;font-weight:600;color:var(--g700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.p[0]}</span>
+        </div>`;
+      });
+    }
+    colsH+=`<div style="min-width:${mobile?130:0}px;flex:1;background:${d.off?'var(--g25)':'var(--g50)'};border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:7px;${today?'outline:2px solid var(--c1);outline-offset:-1px':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 2px 6px">
+        <span style="font-size:12px;font-weight:700;color:${d.holiday?'var(--holiday)':'var(--g700)'}">${d.dow} ${d.n}</span>
+        ${!d.off?`<span style="font-size:10px;font-weight:800;color:var(--ok);background:#fff;border:1px solid var(--g200);padding:1px 6px;border-radius:999px">${counts(d.st).o}</span>`:''}
+      </div>${chips}</div>`;
+  });
+  scope.innerHTML=header('Presenze settimanali')+
+    `<div style="display:flex;gap:10px;padding:18px 18px 20px;${mobile?'overflow-x:auto':''}">${colsH}</div>`;
+}
+
+/* ===== Variant 4: Data Table ===== */
+function v4(scope,mobile){
+  const th=(t)=>`<th style="text-align:${t==='Giorno'?'left':'center'};padding:11px 14px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--g500);background:var(--g50);border-bottom:1px solid var(--g200);white-space:nowrap">${t}</th>`;
+  let rows='';
+  DAYS.forEach(d=>{
+    const c=counts(d.st);const today=d.n===3;
+    const pill=(v,m)=>v?`<span style="display:inline-block;min-width:26px;font-size:12px;font-weight:700;color:${m.c};background:${m.bg};padding:3px 9px;border-radius:7px">${v}</span>`:`<span style="color:var(--g300);font-size:13px">–</span>`;
+    if(d.off){
+      rows+=`<tr style="background:${d.holiday?'var(--holiday-bg)':'var(--g25)'}"><td style="padding:12px 14px;border-bottom:1px solid var(--g100)">
+        <div style="font-weight:700;font-size:13px;color:${d.holiday?'var(--holiday)':'var(--g400)'}">${d.dow} ${d.n}</div>
+        <div style="font-size:11px;color:${d.holiday?'var(--holiday)':'var(--g400)'};font-weight:600">${d.holiday||'Non lavorativo'}</div></td>
+        <td colspan="4" style="border-bottom:1px solid var(--g100)"></td></tr>`;return;
+    }
+    rows+=`<tr style="${today?'background:var(--pend-soft)':''}">
+      <td style="padding:12px 14px;border-bottom:1px solid var(--g100)">
+        <div style="font-weight:700;font-size:13px">${d.dow} ${d.n}${today?' <span style=\"font-size:10px;color:var(--c1)\">• oggi</span>':''}</div>
+        ${!mobile?`<div style="margin-top:6px">${avGroup(d.st,22,8)}</div>`:''}
+      </td>
+      <td style="text-align:center;padding:12px 8px;border-bottom:1px solid var(--g100)">${pill(c.o,STMETA.o)}</td>
+      <td style="text-align:center;padding:12px 8px;border-bottom:1px solid var(--g100)">${pill(c.b,STMETA.b)}</td>
+      <td style="text-align:center;padding:12px 8px;border-bottom:1px solid var(--g100)">${pill(c.p,STMETA.p)}</td>
+      <td style="text-align:center;padding:12px 8px;border-bottom:1px solid var(--g100)">${pill(c.a,STMETA.a)}</td>
+    </tr>`;
+  });
+  scope.innerHTML=header('Presenze settimanali')+
+    `<div style="${mobile?'overflow-x:auto':''}"><table style="width:100%;border-collapse:collapse;${mobile?'min-width:380px':''}">
+      <thead><tr>${th('Giorno')}${th('Disp.')}${th('Occ.')}${th('Appr.')}${th('Ass.')}</tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+}
+
+/* ===== Variant 5: Heatmap Grid ===== */
+function v5(scope,mobile){
+  function shade(c,off,holiday){
+    if(holiday)return {bg:'var(--holiday-bg)',fg:'var(--holiday)'};
+    if(off)return {bg:'var(--g100)',fg:'var(--g400)'};
+    const o=c.o;// 0..12
+    if(o>=11)return{bg:'var(--c1)',fg:'#fff'};
+    if(o>=9) return{bg:'var(--c2)',fg:'#fff'};
+    if(o>=7) return{bg:'var(--c3)',fg:'#08306b'};
+    if(o>=4) return{bg:'var(--c4)',fg:'#08306b'};
+    return{bg:'#e8f1ff',fg:'var(--c1)'};
+  }
+  let cells='';
+  DAYS.forEach(d=>{
+    const c=counts(d.st);const s=shade(c,d.off,d.holiday);const today=d.n===3;
+    cells+=`<div style="aspect-ratio:1;border-radius:14px;background:${s.bg};color:${s.fg};display:flex;flex-direction:column;justify-content:space-between;padding:${mobile?'9px':'13px'};position:relative;${today?'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--c1)':''}">
+      <div style="font-size:${mobile?10:11}px;font-weight:700;opacity:.9">${d.dow}<br><span style="font-size:${mobile?14:17}px;font-weight:800">${d.n}</span></div>
+      ${d.off?`<div style="font-size:${mobile?9:10}px;font-weight:700">${d.holiday?(mobile?'Festa':'Festività'):'—'}</div>`
+        :`<div style="font-size:${mobile?16:22}px;font-weight:800;line-height:1">${c.o}<span style="font-size:${mobile?9:11}px;font-weight:600;opacity:.8"> disp.</span></div>`}
+      ${(!d.off&&(c.a||c.p||c.b))?`<div style="position:absolute;top:8px;right:8px;display:flex;gap:3px">
+        ${c.b?'<span style=\"width:6px;height:6px;border-radius:50%;background:var(--busy)\"></span>':''}
+        ${c.p?'<span style=\"width:6px;height:6px;border-radius:50%;background:#fff;opacity:.7\"></span>':''}
+        ${c.a?'<span style=\"width:6px;height:6px;border-radius:50%;background:var(--abs)\"></span>':''}
+      </div>`:''}
+    </div>`;
+  });
+  scope.innerHTML=header('Presenze settimanali')+
+    `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:${mobile?7:10}px;padding:${mobile?14:20}px">${cells}</div>
+     <div style="padding:0 20px 18px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--g500);font-weight:600">
+       <span>Meno disp.</span>
+       <div style="display:flex;gap:3px">
+         <span style="width:16px;height:10px;border-radius:3px;background:#e8f1ff"></span>
+         <span style="width:16px;height:10px;border-radius:3px;background:var(--c4)"></span>
+         <span style="width:16px;height:10px;border-radius:3px;background:var(--c3)"></span>
+         <span style="width:16px;height:10px;border-radius:3px;background:var(--c2)"></span>
+         <span style="width:16px;height:10px;border-radius:3px;background:var(--c1)"></span>
+       </div>
+       <span>Più disp.</span>
+     </div>`;
+}
+
+/* render all */
+const R=[v1,v2,v3,v4,v5];
+R.forEach((fn,i)=>{fn(document.getElementById(`v${i+1}-d`),false);fn(document.getElementById(`v${i+1}-m`),true);});
+</script>
+</body>
+</html>
