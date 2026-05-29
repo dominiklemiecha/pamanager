@@ -22,6 +22,19 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
       PHP_TIMEZONE: "Europe/Rome"
+      # SMTP globale SaaS (impostare i valori dal pannello Dokploy > Environment)
+      SMTP_ENABLED: "${SMTP_ENABLED:-0}"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-ConnecteedHR}
+      # Superadmin (auth pannello /superadmin)
+      SUPERADMIN_USER: ${SUPERADMIN_USER:-}
+      SUPERADMIN_PASS_HASH: ${SUPERADMIN_PASS_HASH:-}
+      SUPERADMIN_TOTP_SECRET: ${SUPERADMIN_TOTP_SECRET:-}
     volumes:
       - uploads:/var/www/html/public/uploads
       - logs:/var/www/html/logs
