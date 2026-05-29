@@ -1436,22 +1436,8 @@ body.login-page {
         overflow: hidden;
     }
     .heatmap-card { padding: 14px 12px !important; }
-    .heatmap-day-row {
-        gap: 8px !important;
-        padding: 8px 0 !important;
-        flex-wrap: wrap;
-    }
-    .heatmap-day-label {
-        flex: 0 0 60px !important;
-        gap: 4px !important;
-    }
-    .heatmap-stack {
-        flex: 1 1 auto; min-width: 0;
-        overflow: hidden;
-    }
-    .heatmap-stack-avatar { width: 30px !important; height: 30px !important; }
-    .heatmap-stack-photo { width: 30px !important; height: 30px !important; }
-    .heatmap-day-count { flex-shrink: 0; }
+    /* NB: niente override del layout card qui — gestito dal media query a 768px
+       (le vecchie regole a righe rendevano le card 'appiccicate' su mobile) */
     .heatmap-toolbar { flex-direction: column; gap: 8px; align-items: stretch; }
     .heatmap-legend { flex-wrap: wrap; }
     .heatmap-header { flex-direction: column; gap: 10px; align-items: flex-start; }
