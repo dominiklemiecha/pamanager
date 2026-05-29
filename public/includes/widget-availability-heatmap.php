@@ -212,20 +212,6 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
         </div>
     </div>
 
-    <div class="heatmap-toolbar">
-        <div class="heatmap-search">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 13 15.5l.27.28v.79l5 5L19.49 20l-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
-            <input type="search" class="heatmap-search-input" placeholder="Cerca dipendente..." aria-label="Cerca dipendente">
-            <button type="button" class="heatmap-search-clear" aria-label="Pulisci ricerca" hidden>&times;</button>
-        </div>
-        <div class="heatmap-legend" role="group" aria-label="Filtra per stato">
-            <button type="button" class="heatmap-legend-btn" data-filter-state="present"><i class="hm-dot hm-present"></i> Disponibile</button>
-            <button type="button" class="heatmap-legend-btn" data-filter-state="busy"><i class="hm-dot hm-busy"></i> Occupato</button>
-            <button type="button" class="heatmap-legend-btn" data-filter-state="pending"><i class="hm-dot hm-pending"></i> In approvazione</button>
-            <button type="button" class="heatmap-legend-btn" data-filter-state="absent"><i class="hm-dot hm-absent"></i> Assente</button>
-        </div>
-    </div>
-
     <?php if (empty($employees)): ?>
         <div class="empty-state" style="padding:2rem;text-align:center;">Nessun dipendente da mostrare.</div>
     <?php else: ?>
