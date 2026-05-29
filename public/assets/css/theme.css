@@ -1620,15 +1620,15 @@ body.login-page {
 .heatmap-stack.is-capped .heatmap-stack-avatar:nth-child(n+9) { display: none !important; }
 .heatmap-stack:not(.is-capped) .heatmap-more-btn { display: none !important; }
 .heatmap-more-btn {
-    flex-shrink: 0; margin-left: -18px;
+    flex-shrink: 0; margin-left: -16px;
     width: 32px; height: 32px; border-radius: 50%;
-    border: 2px solid #fff; background: #eef2ff; color: #044bff;
+    border: 2px solid #fff; background: #2877ff; color: #fff;
     font-size: 11px; font-weight: 800; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
     box-shadow: 0 0 0 1px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.06);
-    transition: background .12s, transform .12s; z-index: 2; position: relative;
+    transition: background .12s, transform .12s; z-index: 1; position: relative;
 }
-.heatmap-more-btn:hover { background: #044bff; color: #fff; transform: translateY(-1px); }
+.heatmap-more-btn:hover { background: #044bff; transform: translateY(-1px); }
 
 /* Popup roster completo */
 .heatmap-roster-overlay {
@@ -1730,7 +1730,7 @@ body.login-page {
     .heatmap-days::-webkit-scrollbar-thumb { background: #4fa1ff; border-radius: 999px; }
     .heatmap-days::-webkit-scrollbar-thumb:hover { background: #2877ff; }
     .heatmap-day-row {
-        min-width: 158px; max-width: 200px; flex: 0 0 auto;
+        min-width: 200px; max-width: 220px; flex: 0 0 auto;
         scroll-snap-align: start;
         order: var(--ord, 0);
     }
@@ -1828,12 +1828,26 @@ html, body { max-width: 100%; }
 }
 .heatmap-stack-avatar {
     flex-shrink: 0;
-    margin-left: -18px;
+    margin-left: -16px;
     transform: translateX(0);
     transition: transform .2s ease;
     position: relative; cursor: default;
+    /* primo avatar sopra l'altro: cosi' il pallino di stato (in basso a destra)
+       resta visibile anche con la sovrapposizione */
+    z-index: calc(50 - var(--avatar-i, 0));
 }
 .heatmap-stack-avatar:first-child { margin-left: 0; }
+
+/* Pallino di stato per ogni avatar (colori mockup) */
+.heatmap-stack-avatar::after {
+    content: ''; position: absolute; right: -1px; bottom: -1px;
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid #fff; z-index: 4;
+}
+.heatmap-stack-avatar.is-present::after { background: #16a34a; }
+.heatmap-stack-avatar.is-busy::after    { background: #d97706; }
+.heatmap-stack-avatar.is-pending::after  { background: #2877ff; }
+.heatmap-stack-avatar.is-absent::after   { background: #dc2626; }
 
 /* Fan-out su hover dello stack: translateX dinamico (calcolato da JS in base allo spazio) */
 .heatmap-stack:hover .heatmap-stack-avatar,
