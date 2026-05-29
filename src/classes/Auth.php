@@ -859,14 +859,16 @@ class Auth
      */
     public static function verifyResetToken(string $token): ?array
     {
+        // I ruoli "staff" (admin/accountant/consulente_lavoro/admin_reparto) stanno
+        // nella tabella users; solo 'employee' sta in employees.
         $tokenData = Database::fetchOne(
             "SELECT prt.*,
-                    CASE WHEN prt.user_type IN ('admin', 'accountant')
+                    CASE WHEN prt.user_type <> 'employee'
                          THEN u.name ELSE e.first_name END as user_name,
-                    CASE WHEN prt.user_type IN ('admin', 'accountant')
+                    CASE WHEN prt.user_type <> 'employee'
                          THEN u.email ELSE e.email END as user_email
              FROM password_reset_tokens prt
-             LEFT JOIN users u ON prt.user_type IN ('admin', 'accountant') AND prt.user_id = u.id
+             LEFT JOIN users u ON prt.user_type <> 'employee' AND prt.user_id = u.id
              LEFT JOIN employees e ON prt.user_type = 'employee' AND prt.user_id = e.id
              WHERE prt.token = ? AND prt.expires_at > NOW() AND prt.used_at IS NULL",
             [$token]
@@ -892,7 +894,7 @@ class Auth
             return ['success' => false, 'errors' => $validation['errors']];
         }
 
-        $table = in_array($tokenData['user_type'], ['admin', 'accountant']) ? 'users' : 'employees';
+        $table = ($tokenData['user_type'] === 'employee') ? 'employees' : 'users';
         $hash = self::hashPassword($newPassword);
 
         try {
