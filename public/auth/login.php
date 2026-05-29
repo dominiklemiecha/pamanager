@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Accesso - PAManager';
+$pageTitle = 'Accesso - Connecteed HR';
 $csrfField = CSRF::field();
 $csrfMeta = CSRF::metaTag();
 $usernameValue = htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8');
@@ -103,7 +103,7 @@ $usernameValue = htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')
     <meta name="theme-color" content="#1a365d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PAManager">
+    <meta name="apple-mobile-web-app-title" content="Connecteed HR">
     <link rel="apple-touch-icon" href="<?= PUBLIC_URL ?>/assets/images/icon.php?size=180&v=4">
     <link rel="manifest" href="<?= PUBLIC_URL ?>/manifest.json.php">
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
