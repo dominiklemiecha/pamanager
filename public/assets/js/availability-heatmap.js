@@ -117,7 +117,9 @@
         function updateRowEmptyState() {
             card.querySelectorAll('.heatmap-day-row').forEach((row) => {
                 const stack = row.querySelector('.heatmap-stack');
-                if (!stack) return;
+                // I giorni non lavorativi/festivi (.heatmap-stack-off) non hanno avatar:
+                // non vanno marcati "is-empty" (mostrano gia' la propria etichetta).
+                if (!stack || stack.classList.contains('heatmap-stack-off')) return;
                 const visible = stack.querySelectorAll('.heatmap-stack-avatar:not(.is-hidden)').length;
                 row.classList.toggle('is-empty', visible === 0);
             });
@@ -144,33 +146,13 @@
             });
         }
 
-        // Comprime gli avatar di una riga finche non escono dal contenitore
+        // Layout a card: gli avatar vanno a capo su 2 righe via CSS (flex-wrap).
+        // Qui resettiamo eventuali margini inline e lasciamo fare al CSS.
         function fitStack(stack) {
-            const list = stack.querySelectorAll('.heatmap-stack-avatar:not(.is-hidden)');
-            const n = list.length;
-            if (n === 0) return;
-            if (n === 1) {
-                list[0].style.marginLeft = '0';
-                stack.style.setProperty('--avatar-shift', '0px');
-                return;
-            }
-            const w = stack.clientWidth;
-            const photo = list[0].querySelector('.heatmap-stack-photo');
-            const avatarW = photo ? photo.offsetWidth : AVATAR_W;
-            let visiblePx = (w - avatarW) / (n - 1);
-            if (visiblePx > MAX_VISIBLE) visiblePx = MAX_VISIBLE;
-            if (visiblePx < MIN_VISIBLE) visiblePx = MIN_VISIBLE;
-            const margin = visiblePx - avatarW;
-            list.forEach((a, i) => {
-                a.style.marginLeft = i === 0 ? '0' : margin + 'px';
+            stack.querySelectorAll('.heatmap-stack-avatar').forEach((a) => {
+                a.style.marginLeft = '';
             });
-            // Calcola lo shift massimo per il fan-out su hover senza uscire dalla card.
-            // Larghezza occupata a riposo = avatarW + (n-1) * visiblePx
-            const restWidth = avatarW + (n - 1) * visiblePx;
-            const slack = Math.max(0, w - restWidth - 4); // 4px di safety
-            const maxShiftPerAvatar = (n - 1) > 0 ? slack / (n - 1) : 0;
-            const shift = Math.min(3, maxShiftPerAvatar); // ideale 3px, ridotto se non c'e spazio
-            stack.style.setProperty('--avatar-shift', shift.toFixed(2) + 'px');
+            stack.style.removeProperty('--avatar-shift');
         }
 
         function fitAllStacks() {

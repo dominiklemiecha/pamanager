@@ -1609,10 +1609,14 @@ body.login-page {
 }
 
 .heatmap-stack {
-    display: flex; flex-wrap: nowrap; min-width: 0;
-    padding: 4px 0; margin: 0;
+    display: flex; flex-wrap: wrap; min-width: 0;
+    align-content: flex-start; align-items: flex-start;
+    row-gap: 5px;
+    padding: 4px 0 4px 12px; margin: 0 0 0 -2px;
     outline: none; position: relative;
-    min-height: 42px; align-items: center;
+    min-height: 42px;
+    /* max 2 righe di avatar (34px) poi clip: il numero esatto e' nelle pill */
+    max-height: 76px; overflow: hidden;
 }
 .heatmap-stack-avatar.is-hidden { display: none !important; }
 
@@ -1661,7 +1665,7 @@ body.login-page {
 .heatmap-day-row.is-holiday .heatmap-off-label { background: #fae8ff; color: #c026d3; }
 .heatmap-day-row.is-holiday .heatmap-off-label svg { color: #c026d3; }
 
-.heatmap-day-row.is-empty .heatmap-stack::before {
+.heatmap-day-row.is-empty .heatmap-stack:not(.heatmap-stack-off)::before {
     content: 'Nessun risultato'; color: #98a2b3; font-size: 0.78rem; font-style: italic;
     align-self: center;
 }
@@ -1681,7 +1685,7 @@ body.login-page {
     .heatmap-days::-webkit-scrollbar-thumb { background: #4fa1ff; border-radius: 999px; }
     .heatmap-days::-webkit-scrollbar-thumb:hover { background: #2877ff; }
     .heatmap-day-row {
-        min-width: 200px; flex: 0 0 auto;
+        min-width: 158px; max-width: 200px; flex: 0 0 auto;
         scroll-snap-align: start;
         order: var(--ord, 0);
     }
@@ -1779,9 +1783,9 @@ html, body { max-width: 100%; }
 }
 .heatmap-stack-avatar {
     flex-shrink: 0;
-    margin-left: -16px;
+    margin-left: -10px;
     transform: translateX(0);
-    transition: margin-left .25s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1);
+    transition: transform .2s ease;
     position: relative; cursor: default;
 }
 .heatmap-stack-avatar:first-child { margin-left: 0; }
