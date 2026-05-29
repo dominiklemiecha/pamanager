@@ -1944,40 +1944,15 @@ html, body { max-width: 100%; }
     transform: translateX(-50%) translateY(0);
 }
 
-.heatmap-day-count {
-    display: flex; gap: 0.35rem; flex-shrink: 0;
-    font-size: 0.72rem; font-weight: 600;
-}
-.hm-count {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 24px; height: 22px; padding: 0 6px;
-    border-radius: 999px; color: #fff;
-}
-.hm-count-present { background: #22c55e; }
-.hm-count-busy    { background: #eab308; }
-.hm-count-pending { background: #fff; color: #dc2626; box-shadow: inset 0 0 0 1.5px #dc2626; }
-.hm-count-absent  { background: #94a3b8; }
-
+/* Legenda toolbar: dot colori = mockup */
 .hm-dot {
-    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     background: #cbd5e1; vertical-align: middle;
 }
-.hm-dot.hm-present { background: #22c55e; }
-.hm-dot.hm-busy    { background: #eab308; }
-.hm-dot.hm-pending { background: #fff; box-shadow: inset 0 0 0 1.5px #dc2626; }
+.hm-dot.hm-present { background: #16a34a; }
+.hm-dot.hm-busy    { background: #d97706; }
+.hm-dot.hm-pending { background: #2877ff; }
 .hm-dot.hm-absent  { background: #dc2626; }
-
-.hm-count-absent  { background: #dc2626; }
-
-@media (max-width: 768px) {
-    .heatmap-day-label { width: 64px; gap: 0.3rem; }
-    .heatmap-day-num { font-size: 1rem; }
-    .heatmap-day-name { font-size: 0.7rem; }
-    .heatmap-day-badge { display: none; }
-    .heatmap-day-count { display: none !important; }
-    .heatmap-day-row { gap: 0.4rem; padding: 0.55rem 0.25rem; }
-    .heatmap-stack-photo { width: 32px; height: 32px; }
-}
 
 /* ========== Toggle stato disponibilita (employee topbar) ========== */
 .availability-toggle { position: relative; }
