@@ -221,7 +221,7 @@ class Employee
                 $nameSafe = htmlspecialchars($fullName);
 
                 $html = "<p>Ciao {$nameSafe},</p>"
-                      . "<p>È stato creato un account per te su PAManager. Queste sono le tue credenziali temporanee di accesso:</p>"
+                      . "<p>È stato creato un account per te su Connecteed HR. Queste sono le tue credenziali temporanee di accesso:</p>"
                       . "<ul>"
                       . "<li><strong>Username:</strong> {$usernameSafe}</li>"
                       . "<li><strong>Password temporanea:</strong> <code>{$passwordSafe}</code></li>"
@@ -230,13 +230,13 @@ class Employee
                       . "<p>Al primo accesso ti verrà richiesto di impostare una nuova password personale.</p>"
                       . "<p>Per motivi di sicurezza non condividere queste credenziali con altre persone.</p>";
                 $text = "Ciao {$fullName},\n\n"
-                      . "È stato creato un account per te su PAManager.\n\n"
+                      . "È stato creato un account per te su Connecteed HR.\n\n"
                       . "Username: {$data['username']}\n"
                       . "Password temporanea: {$data['password']}\n\n"
                       . "Login: {$loginUrl}\n\n"
                       . "Al primo accesso ti verrà richiesto di impostare una nuova password.";
 
-                $emailSent = Mailer::send($data['email'], $fullName, 'Le tue credenziali di accesso PAManager', $html, $text);
+                $emailSent = Mailer::send($data['email'], $fullName, 'Le tue credenziali di accesso Connecteed HR', $html, $text);
                 if (!$emailSent) {
                     $emailError = Mailer::getLastError();
                 }

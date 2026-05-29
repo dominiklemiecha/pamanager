@@ -21,8 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['admin_username'] ?? ''
         );
         if ($r['success']) {
-            $emailNote = !empty($r['email_sent']) ? ' Email di benvenuto inviata.' : ' <em>Email NON inviata: comunicare manualmente il link primo accesso.</em>';
-            $message = "Tenant creato.{$emailNote}";
+            if (!empty($r['email_sent'])) {
+                $message = "Tenant creato. Email di benvenuto inviata.";
+            } else {
+                $err = htmlspecialchars($r['email_error'] ?? 'SMTP non configurato');
+                $message = "Tenant creato. <em>Email NON inviata: {$err}</em> — comunica manualmente il link primo accesso.";
+            }
         } else {
             $error = $r['error'];
         }
