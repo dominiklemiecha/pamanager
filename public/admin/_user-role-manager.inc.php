@@ -42,7 +42,7 @@ function urm_send_credentials_email(string $email, string $name, string $usernam
     $roleSafe = htmlspecialchars($roleLabel);
 
     $html = "<p>Ciao {$nameSafe},</p>"
-          . "<p>E' stato creato un account come <strong>{$roleSafe}</strong> nel portale PAManager. Queste sono le tue credenziali di accesso:</p>"
+          . "<p>E' stato creato un account come <strong>{$roleSafe}</strong> nel portale Connecteed HR. Queste sono le tue credenziali di accesso:</p>"
           . "<ul>"
           . "<li><strong>Username:</strong> {$usernameSafe}</li>"
           . "<li><strong>Password temporanea:</strong> <code>{$passwordSafe}</code></li>"
@@ -51,13 +51,13 @@ function urm_send_credentials_email(string $email, string $name, string $usernam
           . "<p style=\"font-size:13px;color:#718096;\">Per motivi di sicurezza, ti consigliamo di cambiare la password al primo accesso. Non condividere queste credenziali con altre persone.</p>";
 
     $text = "Ciao {$name},\n\n"
-          . "E' stato creato un account come {$roleLabel} nel portale PAManager.\n\n"
+          . "E' stato creato un account come {$roleLabel} nel portale Connecteed HR.\n\n"
           . "Username: {$username}\n"
           . "Password temporanea: {$password}\n\n"
           . "Login: {$loginUrl}\n\n"
           . "Ti consigliamo di cambiare la password al primo accesso.";
 
-    $ok = Mailer::send($email, $name, "Le tue credenziali di accesso PAManager", $html, $text);
+    $ok = Mailer::send($email, $name, "Le tue credenziali di accesso Connecteed HR", $html, $text);
     return $ok
         ? ['sent' => true, 'error' => null]
         : ['sent' => false, 'error' => Mailer::getLastError() ?: 'Invio email fallito'];

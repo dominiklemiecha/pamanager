@@ -811,11 +811,11 @@ class Auth
                 $resetUrl = buildPublicUrl('/auth/reset-password.php?token=' . urlencode($token));
                 $name = htmlspecialchars($userData['name'] ?? '');
                 $html = "<p>Ciao {$name},</p>" .
-                        "<p>Hai richiesto il reset della password per il tuo account PAManager.</p>" .
+                        "<p>Hai richiesto il reset della password per il tuo account Connecteed HR.</p>" .
                         "<p><a href=\"{$resetUrl}\">Clicca qui per impostare una nuova password</a></p>" .
                         "<p>Il link è valido per 1 ora. Se non hai effettuato tu la richiesta puoi ignorare questa email.</p>";
-                $text = "Ciao {$name},\n\nReset password PAManager: {$resetUrl}\nLink valido 1 ora.";
-                $emailSent = Mailer::send($userData['email'], $userData['name'] ?? '', 'Recupero password PAManager', $html, $text);
+                $text = "Ciao {$name},\n\nReset password Connecteed HR: {$resetUrl}\nLink valido 1 ora.";
+                $emailSent = Mailer::send($userData['email'], $userData['name'] ?? '', 'Recupero password Connecteed HR', $html, $text);
             }
 
             // Se l'email è partita la richiesta è già evasa (status 'sent'), altrimenti

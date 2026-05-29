@@ -186,6 +186,7 @@ class SuperAdmin
 
             // Email primo accesso
             $emailSent = self::sendWelcomeEmail($adminEmail, $adminName, $companyName, $token);
+            $emailErr  = $emailSent ? null : (class_exists('Mailer') ? Mailer::getLastError() : 'Mailer assente');
 
             if (class_exists('AuditLog')) {
                 try { AuditLog::log('superadmin_tenant_created', 'company', $companyId, null, null, null, [
@@ -194,7 +195,7 @@ class SuperAdmin
                 ]); } catch (Throwable $e) {}
             }
 
-            return ['success' => true, 'company_id' => $companyId, 'user_id' => $userId, 'email_sent' => $emailSent];
+            return ['success' => true, 'company_id' => $companyId, 'user_id' => $userId, 'email_sent' => $emailSent, 'email_error' => $emailErr];
         } catch (Throwable $e) {
             error_log('[SuperAdmin::createTenant] ' . $e->getMessage());
             return ['success' => false, 'error' => 'Errore durante la creazione: ' . $e->getMessage()];
@@ -213,13 +214,13 @@ class SuperAdmin
         $nameSafe = htmlspecialchars($name);
 
         $html = "<p>Ciao {$nameSafe},</p>"
-              . "<p>E' stato creato un account amministratore per <strong>{$companySafe}</strong> sul portale PAManager.</p>"
+              . "<p>E' stato creato un account amministratore per <strong>{$companySafe}</strong> sul portale Connecteed HR.</p>"
               . "<p>Per attivarlo e impostare la tua password clicca qui sotto (link valido 48 ore):</p>"
               . "<p><a href=\"{$url}\" style=\"display:inline-block;padding:12px 24px;background:#0b3aa4;color:white;border-radius:8px;text-decoration:none;font-weight:600;\">Attiva account</a></p>"
               . "<p style=\"font-size:12px;color:#64748b;\">Se il bottone non funziona copia questo link: {$url}</p>";
-        $text = "Ciao {$name},\n\nE' stato creato un account amministratore per {$companyName} sul portale PAManager.\n\n"
+        $text = "Ciao {$name},\n\nE' stato creato un account amministratore per {$companyName} sul portale Connecteed HR.\n\n"
               . "Attiva il tuo account impostando la password al seguente link (valido 48h):\n{$url}\n";
-        return Mailer::send($email, $name, "Benvenuto su PAManager — attiva il tuo account", $html, $text);
+        return Mailer::send($email, $name, "Benvenuto su Connecteed HR — attiva il tuo account", $html, $text);
     }
 
     /**
@@ -241,7 +242,8 @@ class SuperAdmin
             'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
         ]);
         $sent = self::sendWelcomeEmail($u['email'], $u['name'] ?? '', $c['name'] ?? '', $token);
-        return ['success' => $sent, 'error' => $sent ? null : 'Invio email fallito'];
+        $err = class_exists('Mailer') ? Mailer::getLastError() : null;
+        return ['success' => $sent, 'error' => $sent ? null : ('Invio email fallito: ' . ($err ?: 'SMTP non configurato (controlla le env SMTP_*)'))];
     }
 
     /** Disattiva sia l'azienda che l'admin principale. */
