@@ -15,7 +15,6 @@ $__cfgTitles = [
     'door-settings'   => 'Apertura porta',
     'door-log'        => 'Log apertura porta',
     'password-resets' => 'Reset Password',
-    'smtp-settings'   => 'Email / SMTP',
     'work-schedule'   => 'Orario lavorativo',
 ];
 $__cfgSubs = [
@@ -24,7 +23,6 @@ $__cfgSubs = [
     'door-settings'   => 'Apri la porta con badge NFC tramite ESP32 + RC522',
     'door-log'        => 'Storico tentativi di apertura della porta',
     'password-resets' => 'Gestisci richieste di reset e password manuali',
-    'smtp-settings'   => 'Server SMTP per l\'invio delle notifiche email',
     'work-schedule'   => 'Giorni e ore lavorative usate dal saldo ferie',
 ];
 $__cfgCurrentTitle = $__cfgTitles[$__cfgPage] ?? 'Configurazione';
@@ -58,10 +56,6 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
         <?php if (!empty($pendingResets) && (int)$pendingResets > 0): ?>
             <span class="cd-tab-badge"><?= (int)$pendingResets ?></span>
         <?php endif; ?>
-    </a>
-    <a href="<?= $__cfgBaseUrl ?>/smtp-settings.php"
-       class="cd-tab <?= $__cfgPage === 'smtp-settings' ? 'active' : '' ?>">
-        Email / SMTP
     </a>
     <a href="<?= $__cfgBaseUrl ?>/work-schedule.php"
        class="cd-tab <?= $__cfgPage === 'work-schedule' ? 'active' : '' ?>">

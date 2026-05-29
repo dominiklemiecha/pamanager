@@ -87,17 +87,32 @@ class Settings
         }
     }
 
+    /** Legge una variabile d'ambiente da tutte le sorgenti possibili (Docker/Dokploy/.env). */
+    private static function env(string $key, string $default = ''): string
+    {
+        foreach ([getenv($key), $_ENV[$key] ?? null, $_SERVER[$key] ?? null] as $v) {
+            if ($v !== false && $v !== null && $v !== '') return (string) $v;
+        }
+        return $default;
+    }
+
+    /**
+     * Configurazione SMTP GLOBALE (SaaS): letta SOLO dalle variabili d'ambiente.
+     * Nessuna impostazione per-azienda. Variabili:
+     *   SMTP_ENABLED (1/0), SMTP_HOST, SMTP_PORT, SMTP_ENCRYPTION (none|tls|ssl),
+     *   SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL, SMTP_FROM_NAME
+     */
     public static function getSmtpConfig(): array
     {
         return [
-            'enabled'    => (bool) (self::get('smtp_enabled') === '1'),
-            'host'       => self::get('smtp_host', ''),
-            'port'       => (int) self::get('smtp_port', '587'),
-            'encryption' => self::get('smtp_encryption', 'tls'),
-            'username'   => self::get('smtp_username', ''),
-            'password'   => self::get('smtp_password', ''),
-            'from_email' => self::get('smtp_from_email', ''),
-            'from_name'  => self::get('smtp_from_name', 'PAManager'),
+            'enabled'    => self::env('SMTP_ENABLED', '0') === '1',
+            'host'       => self::env('SMTP_HOST'),
+            'port'       => (int) self::env('SMTP_PORT', '587'),
+            'encryption' => self::env('SMTP_ENCRYPTION', 'tls'),
+            'username'   => self::env('SMTP_USERNAME'),
+            'password'   => self::env('SMTP_PASSWORD'),
+            'from_email' => self::env('SMTP_FROM_EMAIL'),
+            'from_name'  => self::env('SMTP_FROM_NAME', 'ConnecteedHR'),
         ];
     }
 
