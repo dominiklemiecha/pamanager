@@ -111,14 +111,91 @@ class PayslipParser
         return null;
     }
 
-    /** Parse completo: CF + periodo + testo (per debug). */
+    /** Parse completo: CF + periodo + saldi ferie/permessi. */
     public static function parse(string $pdfPath): array
     {
         $text = self::extractText($pdfPath);
         return [
-            'cf'     => self::findFiscalCode($text),
-            'period' => self::findPeriod($text),
+            'cf'       => self::findFiscalCode($text),
+            'period'   => self::findPeriod($text),
+            'balances' => self::findBalances($text),
         ];
+    }
+
+    /**
+     * Cerca saldi ferie/permessi nel testo (formato Teamsystem):
+     *   ANNO PREC. MATURATO GODUTO RESIDUO PROIEZIONE
+     *   FERIE
+     *   g  7,36  1,83  5,53  20,17     <- numeri allineati posizionalmente
+     *   PERMESSI
+     *   h  10,64  9,33  1,31  22,67
+     *
+     * NB: celle con valore 0 vengono OMESSE dalla stampa (non rese come '0'),
+     * quindi servono X-position per mappare i numeri alle colonne giuste.
+     * Restituisce: ['ferie' => ['residuo' => float|null, 'maturato' => ..., ...], 'permesso' => same]
+     */
+    public static function findBalances(string $text): array
+    {
+        $out = ['ferie' => null, 'permesso' => null];
+        $lines = explode("\n", $text);
+
+        // 1) Cerca la riga header
+        $headerIdx = -1; $headerLine = '';
+        foreach ($lines as $i => $ln) {
+            if (preg_match('/ANNO\s*PREC\.?\s+MATURATO\s+GODUTO\s+RESIDUO\s+PROIEZIONE/i', $ln)) {
+                $headerIdx = $i; $headerLine = $ln; break;
+            }
+        }
+        if ($headerIdx < 0) return $out;
+
+        // 2) X position (right edge) di ciascuna colonna nell'header
+        $cols = [
+            'anno_prec'  => 'ANNO PREC.',
+            'maturato'   => 'MATURATO',
+            'goduto'     => 'GODUTO',
+            'residuo'    => 'RESIDUO',
+            'proiezione' => 'PROIEZIONE',
+        ];
+        $colPos = [];
+        foreach ($cols as $key => $label) {
+            $p = stripos($headerLine, $label);
+            if ($p !== false) $colPos[$key] = $p + strlen($label) - 1; // right edge
+        }
+        if (count($colPos) < 3) return $out;
+
+        // 3) Scansiona righe successive in cerca di marker g (ferie) / h (permesso)
+        for ($i = $headerIdx + 1; $i < min($headerIdx + 30, count($lines)); $i++) {
+            $ln = $lines[$i];
+            // Marker: una sola lettera g/h preceduta da spazi e seguita da numeri
+            if (!preg_match('/^(\s*)([gh])\s+(\d)/', $ln, $m)) continue;
+            $marker = $m[2];
+            $row = self::parseBalanceRow($ln, $colPos);
+            $key = ($marker === 'g') ? 'ferie' : 'permesso';
+            $out[$key] = $row;
+        }
+        return $out;
+    }
+
+    /** Estrae i numeri dalla riga, ognuno mappato alla colonna piu' vicina per X. */
+    private static function parseBalanceRow(string $line, array $colPos): array
+    {
+        $row = ['anno_prec' => null, 'maturato' => null, 'goduto' => null, 'residuo' => null, 'proiezione' => null];
+        if (!preg_match_all('/(\d+(?:[\.,]\d+)?)/u', $line, $matches, PREG_OFFSET_CAPTURE)) return $row;
+        foreach ($matches[1] as $match) {
+            [$val, $pos] = $match;
+            $rightEdge = $pos + strlen($val) - 1;
+            // Trova la colonna con right-edge piu' vicino al right-edge del numero
+            $bestKey = null; $bestDist = PHP_INT_MAX;
+            foreach ($colPos as $key => $cpos) {
+                $d = abs($cpos - $rightEdge);
+                if ($d < $bestDist) { $bestDist = $d; $bestKey = $key; }
+            }
+            // Tolleranza: il numero deve essere ragionevolmente vicino alla colonna
+            if ($bestKey !== null && $bestDist <= 14) {
+                $row[$bestKey] = (float) str_replace(',', '.', $val);
+            }
+        }
+        return $row;
     }
 
     private static function pickBestMatchByKeyword(string $haystack, array $matches, array $keywords): int

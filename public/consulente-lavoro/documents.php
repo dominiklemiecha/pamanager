@@ -69,6 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk
             }
             $cf = $parsed['cf'];
             $emp = $cf && isset($byCf[strtoupper($cf)]) ? $byCf[strtoupper($cf)] : null;
+            // Saldi (ferie/permesso) letti dal PDF: residuo / proiezione se presenti
+            $bal = $parsed['balances'] ?? ['ferie' => null, 'permesso' => null];
+            $ferieRes = $bal['ferie']['residuo'] ?? null;
+            $permRes  = $bal['permesso']['residuo'] ?? null;
             $rows[] = [
                 'filename'      => $origName,
                 'staging_id'    => $stageId,
@@ -77,6 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk
                 'employee_name' => $emp ? trim($emp['first_name'] . ' ' . $emp['last_name']) : null,
                 'month'         => $parsed['period']['month'] ?? null,
                 'year'          => $parsed['period']['year'] ?? null,
+                'ferie_residuo' => $ferieRes,
+                'perm_residuo'  => $permRes,
                 'status'        => $emp && $parsed['period'] ? 'ready' : ($cf ? 'partial' : 'unmatched'),
             ];
         }
@@ -124,6 +130,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk
                 $created++;
             } else {
                 $errors[] = ['filename' => $name, 'error' => $res['error'] ?? 'Errore upload'];
+            }
+
+            // Aggiornamento saldi opt-in: se la riga ha apply_balance=true, scrive snapshot
+            if (!empty($r['apply_balance'])) {
+                $setAt = sprintf('%04d-%02d-%02d', $year, $month, min(28, (int)date('t', mktime(0,0,0,$month,1,$year))));
+                $user = Auth::getUser();
+                $uid = $user['id'] ?? 0;
+                try {
+                    if (isset($r['ferie_residuo']) && $r['ferie_residuo'] !== '' && $r['ferie_residuo'] !== null) {
+                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $year, 'ferie', (float)$r['ferie_residuo'], $setAt, $uid);
+                    }
+                    if (isset($r['perm_residuo']) && $r['perm_residuo'] !== '' && $r['perm_residuo'] !== null) {
+                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $year, 'permesso', (float)$r['perm_residuo'], $setAt, $uid);
+                    }
+                } catch (Throwable $e) {
+                    $errors[] = ['filename' => $name, 'error' => 'Saldo non aggiornato: ' . $e->getMessage()];
+                }
             }
         }
         echo json_encode(['success' => true, 'created' => $created, 'errors' => $errors]);
@@ -1157,6 +1180,13 @@ document.addEventListener('DOMContentLoaded', function() {
             <button type="button" id="bulkCloseBtn" style="border:0; background:#f2f4f7; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:20px; color:#475467;">&times;</button>
         </div>
 
+        <label style="display:flex; align-items:flex-start; gap:10px; margin:14px 20px 0; padding:12px 14px; background:#eef3fb; border:1px solid #c7d6f0; border-radius:10px; cursor:pointer;">
+            <input type="checkbox" id="bulkUpdateBalances" style="margin-top:2px; accent-color:#0b3aa4;">
+            <span style="font-size:13px; color:#0b3aa4; font-weight:600; line-height:1.4;">Aggiorna anche saldi ferie/permessi leggendoli dal PDF
+                <span style="display:block; font-weight:400; color:#475467; font-size:12px; margin-top:2px;">In anteprima vedrai i residui rilevati e potrai scegliere riga per riga se applicarli al saldo del dipendente. Se la lettura non riesce, la riga resta caricabile solo come file.</span>
+            </span>
+        </label>
+
         <div id="bulkDrop" style="margin:20px; padding:36px; border:2px dashed #d0d5dd; border-radius:12px; background:#fafbfc; text-align:center; cursor:pointer;">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0b3aa4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <div style="font-size:14px; font-weight:600; color:#101828;">Trascina qui i PDF oppure <span style="color:#0b3aa4;">scegli file</span></div>
@@ -1177,6 +1207,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Dipendente</th>
                         <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Mese</th>
                         <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Anno</th>
+                        <th class="bulk-col-bal" style="padding:10px; border-bottom:1px solid #e4e7ec; display:none;">Ferie res.</th>
+                        <th class="bulk-col-bal" style="padding:10px; border-bottom:1px solid #e4e7ec; display:none;">Perm. res.</th>
+                        <th class="bulk-col-bal" style="padding:10px; border-bottom:1px solid #e4e7ec; text-align:center; display:none;">Aggiorna saldo</th>
                         <th style="padding:10px; border-bottom:1px solid #e4e7ec; text-align:center;">Stato</th>
                     </tr>
                 </thead>
@@ -1237,6 +1270,14 @@ document.addEventListener('DOMContentLoaded', function() {
     closeBtn.addEventListener('click', closeModal);
     overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
     resetBtn.addEventListener('click', closeModal);
+    // Toggle visibility colonne saldi
+    const updBalCb = document.getElementById('bulkUpdateBalances');
+    function syncBalCols(){
+        const show = updBalCb && updBalCb.checked;
+        document.querySelectorAll('.bulk-col-bal').forEach(el => el.style.display = show ? '' : 'none');
+    }
+    updBalCb?.addEventListener('change', syncBalCols);
+
     drop.addEventListener('click', () => input.click());
     drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.background='#eef3fb'; });
     drop.addEventListener('dragleave', () => drop.style.background='#fafbfc');
@@ -1267,6 +1308,7 @@ document.addEventListener('DOMContentLoaded', function() {
         rowsEl.innerHTML = '';
         rows.forEach((r,i) => rowsEl.appendChild(rowEl(r,i)));
         tableWrap.hidden = false; actions.hidden = false;
+        syncBalCols();
         updateSummary();
     }
 
@@ -1316,11 +1358,31 @@ document.addEventListener('DOMContentLoaded', function() {
         inpY.addEventListener('input', updateSummary);
         tdY.appendChild(inpY);
 
+        // Saldi rilevati (colonne nascoste se checkbox globale off)
+        const tdFR = document.createElement('td'); tdFR.className = 'bulk-col-bal'; tdFR.style.cssText = 'padding:8px; display:none; font-family:Space Grotesk,monospace; font-size:12px;';
+        if (r.ferie_residuo !== null && r.ferie_residuo !== undefined) {
+            tdFR.textContent = Number(r.ferie_residuo).toLocaleString('it-IT', {minimumFractionDigits:0, maximumFractionDigits:2}) + ' gg';
+            tdFR.dataset.role = 'fr'; tdFR.dataset.val = r.ferie_residuo;
+        } else { tdFR.innerHTML = '<span style="color:#cbd5e0;">—</span>'; }
+        const tdPR = document.createElement('td'); tdPR.className = 'bulk-col-bal'; tdPR.style.cssText = 'padding:8px; display:none; font-family:Space Grotesk,monospace; font-size:12px;';
+        if (r.perm_residuo !== null && r.perm_residuo !== undefined) {
+            tdPR.textContent = Number(r.perm_residuo).toLocaleString('it-IT', {minimumFractionDigits:0, maximumFractionDigits:2}) + ' h';
+            tdPR.dataset.role = 'pr'; tdPR.dataset.val = r.perm_residuo;
+        } else { tdPR.innerHTML = '<span style="color:#cbd5e0;">—</span>'; }
+        const tdApp = document.createElement('td'); tdApp.className = 'bulk-col-bal'; tdApp.style.cssText = 'padding:8px; text-align:center; display:none;';
+        const cbApp = document.createElement('input'); cbApp.type = 'checkbox'; cbApp.dataset.role = 'apply';
+        cbApp.style.cssText = 'width:16px; height:16px; accent-color:#0b3aa4; cursor:pointer;';
+        cbApp.checked = (r.ferie_residuo !== null || r.perm_residuo !== null);
+        cbApp.disabled = (r.ferie_residuo === null && r.perm_residuo === null);
+        tdApp.appendChild(cbApp);
+
         // Stato (badge popolato da updateSummary dopo che il tr e' nel DOM)
         const tdS = document.createElement('td'); tdS.style.padding='8px'; tdS.style.textAlign='center';
         tdS.dataset.role = 'st';
 
-        tr.appendChild(tdFile); tr.appendChild(tdCf); tr.appendChild(tdEmp); tr.appendChild(tdM); tr.appendChild(tdY); tr.appendChild(tdS);
+        tr.appendChild(tdFile); tr.appendChild(tdCf); tr.appendChild(tdEmp); tr.appendChild(tdM); tr.appendChild(tdY);
+        tr.appendChild(tdFR); tr.appendChild(tdPR); tr.appendChild(tdApp);
+        tr.appendChild(tdS);
         return tr;
     }
 
@@ -1354,13 +1416,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     commitBtn.addEventListener('click', async () => {
+        const updBal = document.getElementById('bulkUpdateBalances')?.checked;
         const rows = [];
         document.querySelectorAll('#bulkRows tr').forEach(tr => {
             const emp = tr.querySelector('select[data-role=emp]').value;
             const m = tr.querySelector('select[data-role=m]').value;
             const y = tr.querySelector('input[data-role=y]').value;
             if (!emp || !m || !y) return;
-            rows.push({ staging_id: tr.dataset.stagingId, filename: tr.dataset.filename, employee_id: parseInt(emp), month: parseInt(m), year: parseInt(y) });
+            const item = { staging_id: tr.dataset.stagingId, filename: tr.dataset.filename, employee_id: parseInt(emp), month: parseInt(m), year: parseInt(y) };
+            if (updBal) {
+                const applyCb = tr.querySelector('input[data-role=apply]');
+                if (applyCb && applyCb.checked) {
+                    item.apply_balance = 1;
+                    const fr = tr.querySelector('td[data-role=fr]')?.dataset.val;
+                    const pr = tr.querySelector('td[data-role=pr]')?.dataset.val;
+                    if (fr !== undefined) item.ferie_residuo = parseFloat(fr);
+                    if (pr !== undefined) item.perm_residuo = parseFloat(pr);
+                }
+            }
+            rows.push(item);
         });
         if (!rows.length) return;
         commitBtn.disabled = true; commitBtn.textContent = 'Caricamento...';
