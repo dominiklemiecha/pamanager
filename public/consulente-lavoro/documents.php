@@ -700,11 +700,30 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
             <h2>Carica nuovo documento</h2>
-            <button type="button" id="bulkOpenBtn" style="margin-left:auto; display:inline-flex; align-items:center; gap:8px; padding:8px 14px; background:#0b3aa4; color:#fff; border:0; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div style="padding:18px 20px; display:flex; gap:12px; flex-wrap:wrap;">
+            <button type="button" id="manualOpenBtn" style="flex:1; min-width:220px; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:14px 18px; background:#fff; color:#0b3aa4; border:1px solid #0b3aa4; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition:all .12s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Carica manualmente
+            </button>
+            <button type="button" id="bulkOpenBtn" style="flex:1; min-width:220px; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:14px 18px; background:#0b3aa4; color:#fff; border:1px solid #0b3aa4; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition:all .12s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 Caricamento massivo buste paga
             </button>
         </div>
+    </div>
+
+    <!-- Modale: Carica manualmente -->
+    <div id="manualOverlay" style="position:fixed; inset:0; background:rgba(16,24,40,.55); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#fff; border-radius:14px; width:100%; max-width:680px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 48px rgba(16,24,40,.24); overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e4e7ec;">
+                <div>
+                    <h3 style="margin:0; font-size:16px; font-weight:700; color:#101828;">Carica documento</h3>
+                    <p style="margin:4px 0 0; font-size:12px; color:#667085;">Carica un singolo file per un dipendente specifico.</p>
+                </div>
+                <button type="button" id="manualCloseBtn" style="border:0; background:#f2f4f7; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:20px; color:#475467;">&times;</button>
+            </div>
+            <div style="padding:20px; overflow:auto;">
         <form method="POST" enctype="multipart/form-data" class="upload-form">
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="upload">
@@ -776,7 +795,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 </button>
             </div>
         </form>
+            </div>
+        </div>
     </div>
+    <!-- /Modale manuale -->
 
     <!-- Filtri tab type + dipendente/periodo -->
     <div class="cd-filters">
@@ -1173,6 +1195,22 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script>
+// Modale "Carica manualmente"
+(function(){
+    const overlay = document.getElementById('manualOverlay');
+    const openBtn = document.getElementById('manualOpenBtn');
+    const closeBtn = document.getElementById('manualCloseBtn');
+    if (!overlay || !openBtn) return;
+    const open = () => overlay.style.display='flex';
+    const close = () => overlay.style.display='none';
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.style.display==='flex') close(); });
+    // Auto-apri se il server ha segnalato un errore di validazione sul form manuale
+    <?php if (!empty($error)): ?>open();<?php endif; ?>
+})();
+
 (function(){
     const openBtn = document.getElementById('bulkOpenBtn');
     const closeBtn = document.getElementById('bulkCloseBtn');
