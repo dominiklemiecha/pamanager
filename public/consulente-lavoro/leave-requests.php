@@ -10,6 +10,26 @@ Auth::init();
 setSecurityHeaders();
 Auth::requireUser('consulente_lavoro');
 
+// Download certificato malattia (sola lettura)
+if (isset($_GET['download_cert'])) {
+    $result = LeaveRequest::downloadCertificate((int) $_GET['download_cert']);
+    if (!$result['success']) {
+        http_response_code(403);
+        exit(htmlspecialchars($result['error']));
+    }
+    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (function_exists('setDownloadHeaders')) {
+        setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
+    } else {
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: attachment; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+    }
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($result['file_path']);
+    exit;
+}
+
 // Filtri
 $filterYear = !empty($_GET['year']) ? (int) $_GET['year'] : (int) date('Y');
 $filterMonth = !empty($_GET['month']) ? (int) $_GET['month'] : null;
@@ -392,6 +412,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         <th>Al</th>
                         <th>Giorni</th>
                         <th>Approvata il</th>
+                        <th>Doc. malattia</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -424,6 +445,29 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <td class="days-cell"><?= $workingDays ?></td>
                             <td>
                                 <?= $req['approved_at'] ? formatDate($req['approved_at']) : '-' ?>
+                            </td>
+                            <td>
+                                <?php if ($req['leave_type'] !== 'malattia'): ?>
+                                    <span style="color:#cbd5e0;">—</span>
+                                <?php else: ?>
+                                    <div style="display:flex; flex-direction:column; gap:3px; font-size:11px;">
+                                        <?php if (!empty($req['protocol_number'])): ?>
+                                            <span style="color:#0b3aa4; font-weight:600; font-family:'Space Grotesk',monospace;">PRT <?= e($req['protocol_number']) ?></span>
+                                        <?php else: ?>
+                                            <span style="color:#dc2626; font-weight:600;">Protocollo mancante</span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($req['certificate_path'])): ?>
+                                            <a href="?download_cert=<?= (int)$req['id'] ?>" style="display:inline-flex; align-items:center; gap:4px; color:#0b3aa4; text-decoration:none; font-weight:600;" title="Scarica certificato">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                                Certificato
+                                            </a>
+                                        <?php elseif (!empty($req['certificate_waived'])): ?>
+                                            <span style="color:#15803d; font-weight:600;">Esonero</span>
+                                        <?php else: ?>
+                                            <span style="color:#dc2626; font-weight:600;">Certificato mancante</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
