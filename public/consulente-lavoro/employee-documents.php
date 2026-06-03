@@ -109,23 +109,65 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     <?php elseif (strpos((string) $edStatus, 'error') === 0): ?><div class="alert alert-danger">Errore: <?= htmlspecialchars(substr((string) $edStatus, 6)) ?></div>
     <?php endif; ?>
 
-    <!-- Selezione dipendente -->
+    <!-- Selezione dipendente con barra di ricerca -->
     <div class="cl-doc-card">
         <div class="body">
-            <form method="GET">
-                <label style="display:block;font-size:.75rem;color:#4a5568;font-weight:600;margin-bottom:.3rem;text-transform:uppercase;">Seleziona dipendente</label>
-                <select name="employee_id" class="cl-select" onchange="this.form.submit()">
-                    <option value="">— Scegli un dipendente —</option>
-                    <?php foreach ($employees as $emp): ?>
-                        <option value="<?= (int) $emp['id'] ?>" <?= $selectedId === (int) $emp['id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($emp['last_name'] . ' ' . $emp['first_name']) ?>
-                            <?= !empty($emp['fiscal_code']) ? ' — ' . htmlspecialchars($emp['fiscal_code']) : '' ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+            <form method="GET" id="cl-emp-form">
+                <label style="display:block;font-size:.75rem;color:#4a5568;font-weight:600;margin-bottom:.3rem;text-transform:uppercase;">Cerca dipendente</label>
+                <div style="position:relative;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 13 15.5l.27.28v.79l5 5L19.49 20l-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+                    <input type="text" id="cl-emp-search" class="cl-select" autocomplete="off"
+                           style="padding-left:34px;"
+                           placeholder="Digita nome, cognome o codice fiscale..."
+                           value="<?= $selectedEmployee ? htmlspecialchars($selectedEmployee['last_name'] . ' ' . $selectedEmployee['first_name']) : '' ?>">
+                    <input type="hidden" name="employee_id" id="cl-emp-id" value="<?= $selectedId ?: '' ?>">
+                    <div id="cl-emp-dropdown" hidden style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px;max-height:260px;overflow-y:auto;box-shadow:0 6px 18px rgba(15,23,42,.10);z-index:50;">
+                    </div>
+                </div>
             </form>
         </div>
     </div>
+    <script>
+    (function(){
+        const EMPS = <?= json_encode(array_map(fn($e) => [
+            'id' => (int)$e['id'],
+            'name' => trim($e['last_name'] . ' ' . $e['first_name']),
+            'fc' => $e['fiscal_code'] ?? ''
+        ], $employees), JSON_UNESCAPED_UNICODE) ?>;
+        const input = document.getElementById('cl-emp-search');
+        const hidden = document.getElementById('cl-emp-id');
+        const dd = document.getElementById('cl-emp-dropdown');
+        const form = document.getElementById('cl-emp-form');
+        function render(list) {
+            if (!list.length) { dd.hidden = true; dd.innerHTML = ''; return; }
+            dd.innerHTML = list.slice(0, 20).map(e =>
+                `<div data-id="${e.id}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13px;">
+                    <div style="font-weight:600;color:#0f172a;">${e.name}</div>
+                    ${e.fc ? `<div style="font-size:11px;color:#64748b;font-family:'Space Grotesk',monospace;">${e.fc}</div>` : ''}
+                 </div>`
+            ).join('');
+            dd.hidden = false;
+        }
+        function filterAndShow(q) {
+            const Q = q.trim().toLowerCase();
+            if (!Q) { render(EMPS); return; }
+            render(EMPS.filter(e => e.name.toLowerCase().includes(Q) || (e.fc||'').toLowerCase().includes(Q)));
+        }
+        input.addEventListener('input', () => { hidden.value = ''; filterAndShow(input.value); });
+        input.addEventListener('focus', () => filterAndShow(input.value));
+        document.addEventListener('click', (e) => { if (!e.target.closest('#cl-emp-form')) dd.hidden = true; });
+        dd.addEventListener('click', (e) => {
+            const row = e.target.closest('[data-id]');
+            if (!row) return;
+            const emp = EMPS.find(x => x.id == row.dataset.id);
+            if (!emp) return;
+            input.value = emp.name;
+            hidden.value = emp.id;
+            dd.hidden = true;
+            form.submit();
+        });
+    })();
+    </script>
 
     <?php if ($selectedEmployee): ?>
         <div class="cl-doc-card">
