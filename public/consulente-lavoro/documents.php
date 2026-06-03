@@ -1278,9 +1278,9 @@ document.addEventListener('DOMContentLoaded', function() {
         inpY.addEventListener('input', updateSummary);
         tdY.appendChild(inpY);
 
-        // Stato
+        // Stato (badge popolato da updateSummary dopo che il tr e' nel DOM)
         const tdS = document.createElement('td'); tdS.style.padding='8px'; tdS.style.textAlign='center';
-        tdS.dataset.role = 'st'; setRowStatus(tdS, r);
+        tdS.dataset.role = 'st';
 
         tr.appendChild(tdFile); tr.appendChild(tdCf); tr.appendChild(tdEmp); tr.appendChild(tdM); tr.appendChild(tdY); tr.appendChild(tdS);
         return tr;
@@ -1290,9 +1290,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setRowStatus(td, r){
         const tr = td.closest('tr');
-        const emp = tr.querySelector('select[data-role=emp]').value;
-        const m = tr.querySelector('select[data-role=m]').value;
-        const y = tr.querySelector('input[data-role=y]').value;
+        if (!tr) return;
+        const emp = tr.querySelector('select[data-role=emp]')?.value || '';
+        const m = tr.querySelector('select[data-role=m]')?.value || '';
+        const y = tr.querySelector('input[data-role=y]')?.value || '';
         let label = '⚠ Da completare', color = '#b45309', bg = '#fef3c7';
         if (emp && m && y) { label = '✓ Pronto'; color='#15803d'; bg='#dcfce7'; }
         td.innerHTML = `<span style="display:inline-block; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:700; color:${color}; background:${bg};">${label}</span>`;
