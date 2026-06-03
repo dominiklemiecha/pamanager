@@ -1608,13 +1608,15 @@ body.login-page {
 .heatmap-more-btn {
     flex-shrink: 0; margin-left: -16px;
     width: 32px; height: 32px; border-radius: 50%;
-    border: 2px solid #fff; background: #2877ff; color: #fff;
+    border: 2px solid #fff; background: #e4e7ec; color: #344054;
     font-size: 11px; font-weight: 800; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
     box-shadow: 0 0 0 1px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.06);
-    transition: background .12s, transform .12s; z-index: 1; position: relative;
+    transition: background .12s, transform .12s;
+    /* Sempre in primo piano sopra tutti gli avatar */
+    z-index: 999; position: relative;
 }
-.heatmap-more-btn:hover { background: #044bff; transform: translateY(-1px); }
+.heatmap-more-btn:hover { background: #d0d5dd; color: #101828; transform: translateY(-1px); }
 
 /* Popup roster completo */
 .heatmap-roster-overlay {
@@ -1818,9 +1820,9 @@ html, body { max-width: 100%; }
     transform: translateX(0);
     transition: transform .2s ease;
     position: relative; cursor: default;
-    /* primo avatar sopra l'altro: cosi' il pallino di stato (in basso a destra)
-       resta visibile anche con la sovrapposizione */
-    z-index: calc(50 - var(--avatar-i, 0));
+    /* Stacking invertito: l'ultimo avatar e il chip "+N" stanno in primo piano.
+       z-index = var(--avatar-i): avatar 0 dietro, avatar N davanti, chip ancora sopra. */
+    z-index: var(--avatar-i, 0);
 }
 .heatmap-stack-avatar:first-child { margin-left: 0; }
 
