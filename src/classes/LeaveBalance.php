@@ -77,7 +77,10 @@ class LeaveBalance
         if (!in_array($type, self::TYPES, true)) return 0.0;
         // Se c'è uno snapshot, conta solo le richieste con start_date >= snapshot
         $start = $snapshotAt && $snapshotAt > "$year-01-01" ? $snapshotAt : "$year-01-01";
-        $end   = "$year-12-31";
+        // CAP a oggi: le ferie/permessi APPROVATI ma FUTURI non sono ancora
+        // "utilizzati" — diventano consumati solo dal giorno in cui iniziano.
+        $today = date('Y-m-d');
+        $end   = min("$year-12-31", $today);
         $rows = Database::fetchAll(
             "SELECT start_date, end_date, is_full_day, start_time, end_time
              FROM leave_requests
