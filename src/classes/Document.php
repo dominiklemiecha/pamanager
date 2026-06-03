@@ -130,7 +130,24 @@ class Document
     /**
      * Carica un documento
      */
-    public static function upload(array $file, array $data): array
+    /**
+     * Variante di upload() che accetta un file gia' presente su disco (non da $_FILES).
+     * Usata dal caricamento massivo buste paga (file di staging).
+     */
+    public static function uploadFromPath(string $srcPath, array $data): array
+    {
+        if (!is_file($srcPath)) return ['success' => false, 'error' => 'File sorgente non trovato'];
+        $fake = [
+            'name'     => $data['original_name'] ?? basename($srcPath),
+            'type'     => 'application/pdf',
+            'tmp_name' => $srcPath,
+            'error'    => UPLOAD_ERR_OK,
+            'size'     => filesize($srcPath) ?: 0,
+        ];
+        return self::upload($fake, $data, true);
+    }
+
+    public static function upload(array $file, array $data, bool $allowAnyPath = false): array
     {
         // Validazione dati
         if (empty($data['employee_id'])) {
@@ -173,9 +190,15 @@ class Document
 
         $filePath = $directory . '/' . $fileName;
 
-        // Sposta file
-        if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-            return ['success' => false, 'error' => 'Errore durante il salvataggio del file'];
+        // Sposta file: move_uploaded_file per upload HTTP, rename per file gia' su disco (staging).
+        if ($allowAnyPath) {
+            if (!@rename($file['tmp_name'], $filePath) && !@copy($file['tmp_name'], $filePath)) {
+                return ['success' => false, 'error' => 'Errore durante il salvataggio del file'];
+            }
+        } else {
+            if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+                return ['success' => false, 'error' => 'Errore durante il salvataggio del file'];
+            }
         }
 
         $user = Auth::getUser();
