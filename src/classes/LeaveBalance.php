@@ -16,6 +16,18 @@ class LeaveBalance
     public static function getForEmployee(int $employeeId, ?int $year = null): array
     {
         $year = $year ?? (int) date('Y');
+        // Lazy-trigger dell'accrual mensile: idempotente (no-op se gia' eseguito
+        // per il mese corrente, vedi accrual_last_month). Cosi' il saldo che
+        // l'utente vede e' sempre allineato al rateo del mese in corso, senza
+        // bisogno di un cron job dedicato.
+        try {
+            $emp = Database::fetchOne("SELECT company_id FROM employees WHERE id = ?", [$employeeId]);
+            if ($emp && !empty($emp['company_id'])) {
+                self::ensureCurrentYearAccrual($employeeId, (int) $emp['company_id']);
+            }
+        } catch (Throwable $e) {
+            error_log('[LeaveBalance] accrual auto-trigger failed: ' . $e->getMessage());
+        }
         $result = [];
         foreach (self::TYPES as $type) {
             $result[$type] = self::getOne($employeeId, $year, $type);
