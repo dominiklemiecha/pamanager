@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         default-mysql-client \
         ca-certificates \
         cron \
+        poppler-utils \
     && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \

@@ -14,6 +14,123 @@ $user = Auth::getUser();
 $message = '';
 $error = '';
 
+/**
+ * Caricamento massivo buste paga.
+ * - bulk_analyze: riceve N file PDF, per ciascuno estrae CF + mensilita',
+ *   prova il match con i dipendenti dell'azienda corrente, e ritorna JSON
+ *   con le righe candidate (file salvati in storage/payslip_staging/{sess}/).
+ * - bulk_commit: riceve gli ID staging + dipendente/mese/anno scelti
+ *   (eventualmente corretti a mano) e crea i Document via Document::upload.
+ */
+function payslipStagingDir(): string {
+    $dir = ROOT_PATH . '/storage/payslip_staging/' . substr(session_id() ?: 'anon', 0, 32);
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk_analyze' || ($_POST['action'] ?? '') === 'bulk_commit')) {
+    CSRF::verifyOrDie();
+    header('Content-Type: application/json');
+
+    if (($_POST['action'] ?? '') === 'bulk_analyze') {
+        $rows = [];
+        $files = $_FILES['files'] ?? null;
+        if (!$files || !is_array($files['name'])) {
+            echo json_encode(['success' => false, 'error' => 'Nessun file ricevuto']);
+            exit;
+        }
+        // Carica dipendenti dell'azienda corrente (per match CF)
+        $emps = Employee::getAll(true);
+        $byCf = [];
+        foreach ($emps as $e) {
+            if (!empty($e['fiscal_code'])) $byCf[strtoupper(trim($e['fiscal_code']))] = $e;
+        }
+        $staging = payslipStagingDir();
+
+        $n = count($files['name']);
+        for ($i = 0; $i < $n; $i++) {
+            if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+            $origName = (string) $files['name'][$i];
+            if (strtolower(pathinfo($origName, PATHINFO_EXTENSION)) !== 'pdf') {
+                $rows[] = ['filename' => $origName, 'status' => 'error', 'error' => 'Non e un PDF'];
+                continue;
+            }
+            $stageId = bin2hex(random_bytes(8));
+            $stagePath = $staging . '/' . $stageId . '.pdf';
+            if (!@move_uploaded_file($files['tmp_name'][$i], $stagePath)) {
+                $rows[] = ['filename' => $origName, 'status' => 'error', 'error' => 'Salvataggio fallito'];
+                continue;
+            }
+            try {
+                $parsed = PayslipParser::parse($stagePath);
+            } catch (Throwable $e) {
+                $rows[] = ['filename' => $origName, 'staging_id' => $stageId, 'status' => 'error', 'error' => 'Parser: ' . $e->getMessage()];
+                continue;
+            }
+            $cf = $parsed['cf'];
+            $emp = $cf && isset($byCf[strtoupper($cf)]) ? $byCf[strtoupper($cf)] : null;
+            $rows[] = [
+                'filename'      => $origName,
+                'staging_id'    => $stageId,
+                'cf'            => $cf,
+                'employee_id'   => $emp ? (int)$emp['id'] : null,
+                'employee_name' => $emp ? trim($emp['first_name'] . ' ' . $emp['last_name']) : null,
+                'month'         => $parsed['period']['month'] ?? null,
+                'year'          => $parsed['period']['year'] ?? null,
+                'status'        => $emp && $parsed['period'] ? 'ready' : ($cf ? 'partial' : 'unmatched'),
+            ];
+        }
+        echo json_encode(['success' => true, 'rows' => $rows]);
+        exit;
+    }
+
+    if (($_POST['action'] ?? '') === 'bulk_commit') {
+        $rowsRaw = $_POST['rows'] ?? '[]';
+        $rowsIn = is_string($rowsRaw) ? json_decode($rowsRaw, true) : (is_array($rowsRaw) ? $rowsRaw : []);
+        if (!is_array($rowsIn)) $rowsIn = [];
+        $staging = payslipStagingDir();
+        $created = 0; $errors = [];
+        foreach ($rowsIn as $r) {
+            $stageId = preg_replace('/[^a-f0-9]/', '', (string)($r['staging_id'] ?? ''));
+            $empId   = (int)($r['employee_id'] ?? 0);
+            $month   = (int)($r['month'] ?? 0);
+            $year    = (int)($r['year'] ?? 0);
+            $name    = (string)($r['filename'] ?? 'busta.pdf');
+            $stagePath = $staging . '/' . $stageId . '.pdf';
+            if ($stageId === '' || !is_file($stagePath) || $empId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
+                $errors[] = ['filename' => $name, 'error' => 'Dati riga incompleti'];
+                continue;
+            }
+            // Inietta nel formato atteso da Document::upload ($_FILES-like)
+            $fakeFile = [
+                'name'     => $name,
+                'type'     => 'application/pdf',
+                'tmp_name' => $stagePath,
+                'error'    => UPLOAD_ERR_OK,
+                'size'     => @filesize($stagePath) ?: 0,
+            ];
+            // Document::upload usa move_uploaded_file; lo bypasso copiando via apposita variante.
+            $res = Document::uploadFromPath($stagePath, [
+                'employee_id' => $empId,
+                'type'        => 'payslip',
+                'title'       => "Busta paga " . sprintf('%02d/%d', $month, $year),
+                'description' => '',
+                'month'       => $month,
+                'year'        => $year,
+                'original_name' => $name,
+            ]);
+            if (!empty($res['success'])) {
+                @unlink($stagePath);
+                $created++;
+            } else {
+                $errors[] = ['filename' => $name, 'error' => $res['error'] ?? 'Errore upload'];
+            }
+        }
+        echo json_encode(['success' => true, 'created' => $created, 'errors' => $errors]);
+        exit;
+    }
+}
+
 // Gestione upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     CSRF::verifyOrDie();
@@ -583,6 +700,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
             <h2>Carica nuovo documento</h2>
+            <button type="button" id="bulkOpenBtn" style="margin-left:auto; display:inline-flex; align-items:center; gap:8px; padding:8px 14px; background:#0b3aa4; color:#fff; border:0; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Caricamento massivo buste paga
+            </button>
         </div>
         <form method="POST" enctype="multipart/form-data" class="upload-form">
             <?= CSRF::field() ?>
@@ -1001,6 +1122,225 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+
+<!-- ===== Caricamento massivo buste paga ===== -->
+<div id="bulkOverlay" style="position:fixed; inset:0; background:rgba(16,24,40,.55); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:14px; width:100%; max-width:920px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 48px rgba(16,24,40,.24); overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e4e7ec;">
+            <div>
+                <h3 style="margin:0; font-size:16px; font-weight:700; color:#101828;">Caricamento massivo buste paga</h3>
+                <p style="margin:4px 0 0; font-size:12px; color:#667085;">Trascina PDF: il sistema legge codice fiscale e mensilità e li assegna ai dipendenti.</p>
+            </div>
+            <button type="button" id="bulkCloseBtn" style="border:0; background:#f2f4f7; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:20px; color:#475467;">&times;</button>
+        </div>
+
+        <div id="bulkDrop" style="margin:20px; padding:36px; border:2px dashed #d0d5dd; border-radius:12px; background:#fafbfc; text-align:center; cursor:pointer;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0b3aa4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-size:14px; font-weight:600; color:#101828;">Trascina qui i PDF oppure <span style="color:#0b3aa4;">scegli file</span></div>
+            <div style="font-size:12px; color:#667085; margin-top:4px;">Puoi selezionare più PDF contemporaneamente.</div>
+            <input type="file" id="bulkInput" accept="application/pdf" multiple hidden>
+        </div>
+
+        <div id="bulkProgress" style="padding:0 20px;" hidden>
+            <div style="font-size:13px; color:#475467; margin:8px 0 12px;">Analisi in corso...</div>
+        </div>
+
+        <div id="bulkTableWrap" style="flex:1; overflow:auto; padding:0 20px;" hidden>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:#f9fafb; text-align:left; color:#475467;">
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">File</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">CF</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Dipendente</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Mese</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Anno</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec; text-align:center;">Stato</th>
+                    </tr>
+                </thead>
+                <tbody id="bulkRows"></tbody>
+            </table>
+        </div>
+
+        <div id="bulkActions" style="padding:14px 20px; border-top:1px solid #e4e7ec; display:flex; justify-content:space-between; align-items:center; gap:10px;" hidden>
+            <div id="bulkSummary" style="font-size:12px; color:#475467;"></div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" id="bulkResetBtn" style="padding:9px 16px; border:1px solid #d0d5dd; background:#fff; border-radius:8px; font-weight:600; cursor:pointer; color:#475467;">Annulla</button>
+                <button type="button" id="bulkCommitBtn" style="padding:9px 18px; border:0; background:#0b3aa4; color:#fff; border-radius:8px; font-weight:700; cursor:pointer;">Conferma e carica</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    const openBtn = document.getElementById('bulkOpenBtn');
+    const closeBtn = document.getElementById('bulkCloseBtn');
+    const overlay = document.getElementById('bulkOverlay');
+    const drop = document.getElementById('bulkDrop');
+    const input = document.getElementById('bulkInput');
+    const progress = document.getElementById('bulkProgress');
+    const tableWrap = document.getElementById('bulkTableWrap');
+    const rowsEl = document.getElementById('bulkRows');
+    const actions = document.getElementById('bulkActions');
+    const summary = document.getElementById('bulkSummary');
+    const resetBtn = document.getElementById('bulkResetBtn');
+    const commitBtn = document.getElementById('bulkCommitBtn');
+
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const empData = JSON.parse(document.getElementById('employees_data')?.textContent || '[]');
+    const monthNames = ['','Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+    function openModal(){ overlay.style.display='flex'; resetUI(); }
+    function closeModal(){ overlay.style.display='none'; }
+    function resetUI(){ rowsEl.innerHTML=''; tableWrap.hidden=true; actions.hidden=true; progress.hidden=true; input.value=''; }
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    resetBtn.addEventListener('click', closeModal);
+    drop.addEventListener('click', () => input.click());
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.background='#eef3fb'; });
+    drop.addEventListener('dragleave', () => drop.style.background='#fafbfc');
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.style.background='#fafbfc'; handleFiles(e.dataTransfer.files); });
+    input.addEventListener('change', () => handleFiles(input.files));
+
+    async function handleFiles(files){
+        if (!files || !files.length) return;
+        progress.hidden = false; tableWrap.hidden = true; actions.hidden = true;
+        const fd = new FormData();
+        fd.append('action', 'bulk_analyze');
+        fd.append('csrf_token', CSRF_TOKEN);
+        for (const f of files) fd.append('files[]', f);
+        try {
+            const r = await fetch('documents.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+            const j = await r.json();
+            if (!j.success) throw new Error(j.error || 'Errore analisi');
+            renderRows(j.rows || []);
+        } catch (err) {
+            progress.hidden = true;
+            alert('Errore: ' + err.message);
+        }
+    }
+
+    function renderRows(rows){
+        progress.hidden = true;
+        if (!rows.length) { tableWrap.hidden = true; actions.hidden = true; return; }
+        rowsEl.innerHTML = '';
+        rows.forEach((r,i) => rowsEl.appendChild(rowEl(r,i)));
+        tableWrap.hidden = false; actions.hidden = false;
+        updateSummary();
+    }
+
+    function rowEl(r, idx){
+        const tr = document.createElement('tr');
+        tr.dataset.stagingId = r.staging_id || '';
+        tr.dataset.filename = r.filename || '';
+        tr.style.borderBottom = '1px solid #f2f4f7';
+
+        const tdFile = td(r.filename || '—'); tdFile.style.fontWeight = '600';
+        const tdCf = td(r.cf || '—'); tdCf.style.color = r.cf ? '#101828' : '#dc2626';
+
+        // Select dipendente
+        const tdEmp = document.createElement('td'); tdEmp.style.padding = '8px';
+        const sel = document.createElement('select');
+        sel.style.cssText = 'width:100%; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; font-size:12px;';
+        sel.dataset.role = 'emp';
+        const opt0 = new Option('— scegli —', '');
+        sel.appendChild(opt0);
+        empData.forEach(e => {
+            const o = new Option(e.name + (e.fiscal_code ? ' · '+e.fiscal_code : ''), e.id);
+            if (r.employee_id && e.id == r.employee_id) o.selected = true;
+            sel.appendChild(o);
+        });
+        sel.addEventListener('change', updateSummary);
+        tdEmp.appendChild(sel);
+
+        // Mese
+        const tdM = document.createElement('td'); tdM.style.padding = '8px';
+        const selM = document.createElement('select');
+        selM.style.cssText = 'width:100%; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; font-size:12px;';
+        selM.dataset.role = 'm';
+        for (let m=1; m<=12; m++) {
+            const o = new Option(monthNames[m], m);
+            if (r.month == m) o.selected = true;
+            selM.appendChild(o);
+        }
+        if (!r.month) selM.value = '';
+        selM.addEventListener('change', updateSummary);
+        tdM.appendChild(selM);
+
+        // Anno
+        const tdY = document.createElement('td'); tdY.style.padding = '8px';
+        const inpY = document.createElement('input'); inpY.type = 'number'; inpY.min = '2000'; inpY.max = '2100';
+        inpY.style.cssText = 'width:84px; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; font-size:12px;';
+        inpY.dataset.role = 'y'; inpY.value = r.year || '';
+        inpY.addEventListener('input', updateSummary);
+        tdY.appendChild(inpY);
+
+        // Stato
+        const tdS = document.createElement('td'); tdS.style.padding='8px'; tdS.style.textAlign='center';
+        tdS.dataset.role = 'st'; setRowStatus(tdS, r);
+
+        tr.appendChild(tdFile); tr.appendChild(tdCf); tr.appendChild(tdEmp); tr.appendChild(tdM); tr.appendChild(tdY); tr.appendChild(tdS);
+        return tr;
+    }
+
+    function td(txt){ const t = document.createElement('td'); t.style.padding='10px 8px'; t.textContent = txt; return t; }
+
+    function setRowStatus(td, r){
+        const tr = td.closest('tr');
+        const emp = tr.querySelector('select[data-role=emp]').value;
+        const m = tr.querySelector('select[data-role=m]').value;
+        const y = tr.querySelector('input[data-role=y]').value;
+        let label = '⚠ Da completare', color = '#b45309', bg = '#fef3c7';
+        if (emp && m && y) { label = '✓ Pronto'; color='#15803d'; bg='#dcfce7'; }
+        td.innerHTML = `<span style="display:inline-block; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:700; color:${color}; background:${bg};">${label}</span>`;
+    }
+
+    function updateSummary(){
+        let ready=0, total=0;
+        document.querySelectorAll('#bulkRows tr').forEach(tr => {
+            total++;
+            const emp = tr.querySelector('select[data-role=emp]').value;
+            const m = tr.querySelector('select[data-role=m]').value;
+            const y = tr.querySelector('input[data-role=y]').value;
+            if (emp && m && y) ready++;
+            const stTd = tr.querySelector('td[data-role=st]');
+            if (stTd) setRowStatus(stTd, {});
+        });
+        summary.textContent = `${ready} di ${total} pronte al caricamento`;
+        commitBtn.disabled = ready === 0;
+        commitBtn.style.opacity = ready === 0 ? '0.5' : '1';
+    }
+
+    commitBtn.addEventListener('click', async () => {
+        const rows = [];
+        document.querySelectorAll('#bulkRows tr').forEach(tr => {
+            const emp = tr.querySelector('select[data-role=emp]').value;
+            const m = tr.querySelector('select[data-role=m]').value;
+            const y = tr.querySelector('input[data-role=y]').value;
+            if (!emp || !m || !y) return;
+            rows.push({ staging_id: tr.dataset.stagingId, filename: tr.dataset.filename, employee_id: parseInt(emp), month: parseInt(m), year: parseInt(y) });
+        });
+        if (!rows.length) return;
+        commitBtn.disabled = true; commitBtn.textContent = 'Caricamento...';
+        const fd = new FormData();
+        fd.append('action', 'bulk_commit');
+        fd.append('csrf_token', CSRF_TOKEN);
+        fd.append('rows', JSON.stringify(rows));
+        try {
+            const r = await fetch('documents.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+            const j = await r.json();
+            const errLines = (j.errors||[]).map(e => `• ${e.filename}: ${e.error}`).join('\n');
+            alert(`Caricate ${j.created} buste paga.` + (errLines ? '\n\nErrori:\n'+errLines : ''));
+            window.location.href = 'documents.php?message=uploaded';
+        } catch (err) {
+            alert('Errore: '+err.message);
+            commitBtn.disabled = false; commitBtn.textContent = 'Conferma e carica';
+        }
+    });
+})();
 </script>
 
 <?php include dirname(__DIR__) . '/includes/footer-admin.php'; ?>
