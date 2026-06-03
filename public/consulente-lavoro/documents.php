@@ -134,15 +134,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk
 
             // Aggiornamento saldi opt-in: se la riga ha apply_balance=true, scrive snapshot
             if (!empty($r['apply_balance'])) {
-                $setAt = sprintf('%04d-%02d-%02d', $year, $month, min(28, (int)date('t', mktime(0,0,0,$month,1,$year))));
+                // balance_set_at = OGGI: il residuo letto dal PDF e' il valore che
+                // l'utente deve vedere ADESSO. Niente rateo retroattivo (altrimenti
+                // il sistema sommerebbe i mesi tra il PDF e oggi).
+                // Year viene riallineato all'anno corrente per coerenza con accrual.
+                $setAt = date('Y-m-d');
+                $balYear = (int) date('Y');
                 $user = Auth::getUser();
                 $uid = $user['id'] ?? 0;
                 try {
                     if (isset($r['ferie_residuo']) && $r['ferie_residuo'] !== '' && $r['ferie_residuo'] !== null) {
-                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $year, 'ferie', (float)$r['ferie_residuo'], $setAt, $uid);
+                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $balYear, 'ferie', (float)$r['ferie_residuo'], $setAt, $uid);
                     }
                     if (isset($r['perm_residuo']) && $r['perm_residuo'] !== '' && $r['perm_residuo'] !== null) {
-                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $year, 'permesso', (float)$r['perm_residuo'], $setAt, $uid);
+                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $balYear, 'permesso', (float)$r['perm_residuo'], $setAt, $uid);
                     }
                 } catch (Throwable $e) {
                     $errors[] = ['filename' => $name, 'error' => 'Saldo non aggiornato: ' . $e->getMessage()];
