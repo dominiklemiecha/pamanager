@@ -78,6 +78,12 @@ $pageTitle = 'Firma contratto';
 $__isPending = $hr['status'] === 'contract_pending';
 $__justSigned = !empty($_GET['signed']) && $hr['status'] === 'contract_signed';
 
+// Override CSP per il modal: il PDF same-origin deve poter essere embeddato in iframe.
+if ($__isPending && empty($_GET['signed'])) {
+    header_remove('Content-Security-Policy');
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'self'; child-src 'self'; form-action 'self'; base-uri 'self'");
+}
+
 // === Schermata di benvenuto post-firma (fullscreen, con coriandoli) ===
 if ($__justSigned):
     $__company = Database::fetchOne("SELECT name FROM companies WHERE id = ?", [(int)$hr['company_id']]);
