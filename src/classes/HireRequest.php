@@ -146,10 +146,12 @@ class HireRequest
             return ['success' => false, 'error' => 'Esiste gia una richiesta di assunzione in corso per questo codice fiscale'];
         }
 
-        $hasIdDoc = !empty($files['id_doc']['tmp_name'] ?? null);
-        $hasFcDoc = !empty($files['fiscal_code_doc']['tmp_name'] ?? null);
-        if (!$hasIdDoc) return ['success' => false, 'error' => 'Documento di riconoscimento obbligatorio'];
-        if (!$hasFcDoc) return ['success' => false, 'error' => 'Codice fiscale (PDF/immagine) obbligatorio'];
+        $idDocFiles = self::normalizeMulti($files['id_doc'] ?? []);
+        $fcDocFiles = self::normalizeMulti($files['fiscal_code_doc'] ?? []);
+        $permitFiles = self::normalizeMulti($files['permit'] ?? []);
+        $c2Files = self::normalizeMulti($files['c2'] ?? []);
+        if (empty($idDocFiles)) return ['success' => false, 'error' => 'Documento di riconoscimento obbligatorio'];
+        if (empty($fcDocFiles)) return ['success' => false, 'error' => 'Codice fiscale (PDF/immagine) obbligatorio'];
 
         $username = self::generateUsername($data['employee_first_name'], $data['employee_last_name'], $companyId);
         $consulenteId = self::findConsulenteForCompany($companyId);
@@ -193,11 +195,11 @@ class HireRequest
                 'notes' => !empty($data['notes']) ? trim($data['notes']) : null,
             ]);
 
-            // Allegati iniziali
-            self::saveUploadedFile($id, $files['id_doc'], 'id_doc');
-            self::saveUploadedFile($id, $files['fiscal_code_doc'], 'fiscal_code_doc');
-            if (!empty($files['permit']['tmp_name'])) self::saveUploadedFile($id, $files['permit'], 'permit');
-            if (!empty($files['c2']['tmp_name'])) self::saveUploadedFile($id, $files['c2'], 'c2');
+            // Allegati iniziali (multipli per categoria)
+            foreach ($idDocFiles as $f) self::saveUploadedFile($id, $f, 'id_doc');
+            foreach ($fcDocFiles as $f) self::saveUploadedFile($id, $f, 'fiscal_code_doc');
+            foreach ($permitFiles as $f) self::saveUploadedFile($id, $f, 'permit');
+            foreach ($c2Files as $f) self::saveUploadedFile($id, $f, 'c2');
 
             Database::commit();
         } catch (Throwable $e) {
@@ -221,6 +223,37 @@ class HireRequest
         }
 
         return ['success' => true, 'id' => $id];
+    }
+
+    /**
+     * Converte $_FILES['campo'] (sia singolo che multiplo name="campo[]")
+     * in array di file singoli, ognuno con {name, tmp_name, type, size, error}.
+     * Filtra entries vuote (UPLOAD_ERR_NO_FILE) o senza tmp_name.
+     */
+    private static function normalizeMulti(array $f): array
+    {
+        if (empty($f)) return [];
+        // Multi: $f['name'] e' un array
+        if (isset($f['name']) && is_array($f['name'])) {
+            $out = [];
+            $n = count($f['name']);
+            for ($i = 0; $i < $n; $i++) {
+                if (empty($f['tmp_name'][$i])) continue;
+                if (($f['error'][$i] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) continue;
+                $out[] = [
+                    'name'     => $f['name'][$i],
+                    'tmp_name' => $f['tmp_name'][$i],
+                    'type'     => $f['type'][$i] ?? null,
+                    'size'     => $f['size'][$i] ?? 0,
+                    'error'    => $f['error'][$i] ?? UPLOAD_ERR_OK,
+                ];
+            }
+            return $out;
+        }
+        // Singolo
+        if (empty($f['tmp_name'])) return [];
+        if (($f['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) return [];
+        return [$f];
     }
 
     /** Salva un file caricato in storage/hire-requests/{id}/{category}/. */

@@ -243,32 +243,43 @@ if ($action === 'new') {
     .file-drop-text strong { color: #044bff; font-weight: 600; }
     .file-drop-text small { display: block; color: #94a3b8; font-size: .72rem; margin-top: 2px; }
     .file-drop-name { font-size: .85rem; color: #16a34a; font-weight: 600; word-break: break-all; }
+    .file-drop-list { display: block; font-size: .82rem; color: #16a34a; word-break: break-all; }
+    .file-drop-list ul { list-style: none; padding: 0; margin: 0; }
+    .file-drop-list li { padding: 2px 0; line-height: 1.3; }
+    .file-drop-list li::before { content: '✓ '; color: #16a34a; font-weight: 700; }
 </style>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.file-drop').forEach(drop => {
             const input = drop.querySelector('.file-drop-input');
-            const nameEl = drop.querySelector('.file-drop-name');
+            const listEl = drop.querySelector('.file-drop-list');
             const textEl = drop.querySelector('.file-drop-text');
-            const updateName = () => {
-                if (input.files && input.files[0]) {
-                    nameEl.hidden = false;
-                    nameEl.textContent = '✓ ' + input.files[0].name;
-                    textEl.style.display = 'none';
-                    drop.classList.add('has-file');
-                } else {
-                    nameEl.hidden = true;
+            const renderList = () => {
+                const files = Array.from(input.files || []);
+                if (files.length === 0) {
+                    listEl.hidden = true;
+                    listEl.innerHTML = '';
                     textEl.style.display = '';
                     drop.classList.remove('has-file');
+                    return;
                 }
+                listEl.hidden = false;
+                textEl.style.display = 'none';
+                drop.classList.add('has-file');
+                const items = files.map(f => '<li>' + f.name.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</li>').join('');
+                listEl.innerHTML = '<strong>' + files.length + ' file selezionati:</strong><ul>' + items + '</ul>';
             };
-            input.addEventListener('change', updateName);
+            input.addEventListener('change', renderList);
             ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('is-dragover'); }));
             ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('is-dragover'); }));
             drop.addEventListener('drop', e => {
                 if (e.dataTransfer.files && e.dataTransfer.files.length) {
-                    input.files = e.dataTransfer.files;
-                    updateName();
+                    // merge: somma file gia' selezionati + nuovi (DataTransfer)
+                    const dt = new DataTransfer();
+                    Array.from(input.files || []).forEach(f => dt.items.add(f));
+                    Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+                    input.files = dt.files;
+                    renderList();
                 }
             });
         });
@@ -444,17 +455,17 @@ if ($action === 'new') {
                 foreach ($__uploads as $u):
                 ?>
                     <div class="hr-upload">
-                        <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;"><?= htmlspecialchars($u['label']) ?> <?= $u['required'] ? '<span style="color:#dc2626;">*</span>' : '<span style="color:#94a3b8; font-weight:500;">(opzionale)</span>' ?></label>
+                        <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;"><?= htmlspecialchars($u['label']) ?> <?= $u['required'] ? '<span style="color:#dc2626;">*</span>' : '<span style="color:#94a3b8; font-weight:500;">(opzionale)</span>' ?> <span style="color:#94a3b8; font-weight:500; font-size:.75rem;">— piu' file ammessi</span></label>
                         <label class="file-drop" data-target="<?= $u['name'] ?>">
-                            <input type="file" name="<?= $u['name'] ?>" <?= $u['required'] ? 'required' : '' ?> accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" class="file-drop-input">
+                            <input type="file" name="<?= $u['name'] ?>[]" multiple <?= $u['required'] ? 'required' : '' ?> accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" class="file-drop-input">
                             <span class="file-drop-icon">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                             </span>
                             <span class="file-drop-text">
                                 <strong>Scegli file</strong> o trascina qui
-                                <small><?= htmlspecialchars($u['hint']) ?></small>
+                                <small><?= htmlspecialchars($u['hint']) ?> — puoi selezionarne piu' di uno</small>
                             </span>
-                            <span class="file-drop-name" hidden></span>
+                            <span class="file-drop-list" hidden></span>
                         </label>
                     </div>
                 <?php endforeach; ?>
