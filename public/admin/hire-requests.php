@@ -385,6 +385,29 @@ if ($id > 0 && $action !== 'new') {
         <?php endif; ?>
     <?php endif; ?>
 
+    <?php if (!empty($byCat['contract']) || !empty($byCat['signature_image'])): ?>
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-body" style="padding:1.25rem;">
+                <h3 style="margin-top:0; font-size:1rem;">Contratto</h3>
+                <?php foreach ($byCat['contract'] ?? [] as $f): ?>
+                    <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
+                        <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank"><strong><?= htmlspecialchars($f['original_name']) ?></strong></a>
+                        <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
+                    </div>
+                <?php endforeach; ?>
+                <?php foreach ($byCat['signature_image'] ?? [] as $f): ?>
+                    <div style="margin-top:.75rem; padding:.85rem; background:#f0fdf4; border-radius:8px; font-size:.85rem;">
+                        <strong style="color:#16a34a;">✓ Firmato dal dipendente</strong>
+                        <div style="margin-top:.5rem; color:#475569;">Data: <?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></div>
+                        <?php if ($f['signed_ip']): ?><div style="color:#475569;">IP: <code><?= htmlspecialchars($f['signed_ip']) ?></code></div><?php endif; ?>
+                        <?php if ($f['signature_hash']): ?><div style="color:#475569;">SHA256 contratto: <code style="font-size:.72rem;"><?= htmlspecialchars($f['signature_hash']) ?></code></div><?php endif; ?>
+                        <div style="margin-top:.5rem;"><a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank">Vedi immagine firma</a></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if ($hr['rejection_reason']): ?>
         <div class="alert alert-error" style="margin-bottom:1rem;">
             <strong>Motivo rifiuto:</strong> <?= htmlspecialchars($hr['rejection_reason']) ?>

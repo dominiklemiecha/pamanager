@@ -14,6 +14,19 @@ $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $message = '';
 $error = '';
 
+// === POST: caricamento contratto ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload_contract') {
+    CSRF::verifyOrDie();
+    $reqId = (int)($_POST['id'] ?? 0);
+    $res = HireRequest::addContract($reqId, $_FILES['contract'] ?? []);
+    if ($res['success']) {
+        header('Location: hire-requests.php?id=' . $reqId . '&contract_uploaded=1');
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $reqId . '&err=' . urlencode($res['error'] ?? 'Errore'));
+    exit;
+}
+
 // === POST: caricamento prospetti ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload_prospects') {
     CSRF::verifyOrDie();
@@ -114,6 +127,32 @@ if ($id > 0) {
         <div class="alert alert-error" style="margin-bottom:1rem;"><?= htmlspecialchars($_GET['err']) ?></div>
     <?php endif; ?>
 
+    <?php if (!empty($_GET['contract_uploaded'])): ?>
+        <div class="alert alert-success" style="margin-bottom:1rem;">Contratto caricato. Il dipendente e' stato notificato e potra firmarlo dal portale.</div>
+    <?php endif; ?>
+
+    <?php if (in_array($hr['status'], ['approved','contract_pending'], true)): ?>
+        <div class="card" style="margin-bottom:1rem; border:2px solid #7c3aed;">
+            <div class="card-body" style="padding:1.25rem;">
+                <h3 style="margin-top:0; font-size:1rem; color:#7c3aed;">
+                    <?= $hr['status'] === 'approved' ? 'Carica il contratto da firmare' : 'Sostituisci contratto (in attesa firma)' ?>
+                </h3>
+                <p style="color:#64748b; font-size:.85rem; margin-bottom:1rem;">Un solo PDF. Il dipendente ricevera notifica e potra firmare digitalmente.</p>
+                <form method="POST" action="hire-requests.php" enctype="multipart/form-data">
+                    <?= CSRF::field() ?>
+                    <input type="hidden" name="action" value="upload_contract">
+                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                    <label style="display:flex; align-items:center; gap:.75rem; padding:.9rem 1rem; border:1.5px dashed #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; margin-bottom:1rem; position:relative;">
+                        <input type="file" name="contract" required accept=".pdf" style="position:absolute; inset:0; opacity:0; cursor:pointer;" onchange="this.nextElementSibling.nextElementSibling.textContent='✓ ' + this.files[0].name;">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span style="font-size:.85rem; color:#475569;"><strong style="color:#7c3aed;">Scegli contratto</strong> (solo PDF)</span>
+                    </label>
+                    <button type="submit" class="btn btn-primary" style="background:#7c3aed; border-color:#7c3aed;">Invia contratto al dipendente</button>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if (in_array($hr['status'], ['awaiting_prospects','prospects_review'], true)): ?>
         <div class="card" style="margin-bottom:1rem; border:2px solid #044bff;">
             <div class="card-body" style="padding:1.25rem;">
@@ -198,6 +237,31 @@ if ($id > 0) {
                             <strong><?= htmlspecialchars($f['display_name'] ?: $f['original_name']) ?></strong>
                         </a>
                         <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($byCat['contract']) || !empty($byCat['signature_image'])): ?>
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-body" style="padding:1.25rem;">
+                <h3 style="margin-top:0; font-size:1rem;">Contratto</h3>
+                <?php foreach ($byCat['contract'] ?? [] as $f): ?>
+                    <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
+                        <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank"><strong><?= htmlspecialchars($f['original_name']) ?></strong></a>
+                        <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
+                    </div>
+                <?php endforeach; ?>
+                <?php foreach ($byCat['signature_image'] ?? [] as $f): ?>
+                    <div style="margin-top:.75rem; padding:.85rem; background:#f0fdf4; border-radius:8px; font-size:.85rem;">
+                        <strong style="color:#16a34a;">✓ Firmato dal dipendente</strong>
+                        <div style="margin-top:.5rem; color:#475569;">Data: <?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></div>
+                        <?php if ($f['signed_ip']): ?><div style="color:#475569;">IP: <code><?= htmlspecialchars($f['signed_ip']) ?></code></div><?php endif; ?>
+                        <?php if ($f['signature_hash']): ?><div style="color:#475569;">SHA256 contratto: <code style="font-size:.72rem;"><?= htmlspecialchars($f['signature_hash']) ?></code></div><?php endif; ?>
+                        <div style="margin-top:.5rem;">
+                            <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank">Vedi immagine firma</a>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
