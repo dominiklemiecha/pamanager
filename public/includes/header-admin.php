@@ -233,9 +233,8 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
                     <span class="nav-content">
                         <span class="nav-title">Configurazione</span>
-                        <span class="nav-sub"><?php echo $pendingResets > 0 ? $pendingResets . ' reset password pending' : 'Sistema, email, orario'; ?></span>
+                        <span class="nav-sub">Sistema, email, orario</span>
                     </span>
-                    <?php if ($pendingResets > 0): ?><span class="nav-pulse"></span><?php endif; ?>
                 </a>
             <?php elseif ($isConsulente): ?>
                 <a href="<?php echo $baseUrl; ?>/consulente-lavoro/" class="nav-item <?php echo $currentPage === 'index' ? 'active' : ''; ?>" data-tooltip="Dashboard">

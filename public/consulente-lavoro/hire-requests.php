@@ -326,8 +326,37 @@ $statusColors = [
     'contract_signed' => '#16a34a', 'rejected' => '#dc2626', 'cancelled' => '#64748b',
 ];
 ?>
+<?php
+$__needsProspects = 0;
+$__needsContract  = 0;
+$__inProgress     = 0;
+foreach ($rows as $__r) {
+    if ($__r['status'] === 'awaiting_prospects') $__needsProspects++;
+    if ($__r['status'] === 'approved')           $__needsContract++;
+    if (in_array($__r['status'], ['awaiting_prospects','prospects_review','approved','contract_pending'], true)) $__inProgress++;
+}
+?>
 <div style="width:100%; margin:1.5rem 0;">
-    <h1 style="margin:0 0 1rem; font-size:1.5rem;">Richieste di assunzione</h1>
+    <div class="welcome-card lp-hero">
+        <div>
+            <h2>Assunzioni</h2>
+            <p>Carica i prospetti che l'admin deve approvare e successivamente il contratto da far firmare al dipendente.</p>
+            <?php if ($__needsProspects > 0 || $__needsContract > 0): ?>
+                <p style="margin-top:6px;"><strong style="color:#dc2626;">
+                    <?php if ($__needsProspects > 0): ?>
+                        <?= $__needsProspects ?> da prospettare<?= $__needsContract > 0 ? ' · ' : '' ?>
+                    <?php endif; ?>
+                    <?php if ($__needsContract > 0): ?>
+                        <?= $__needsContract ?> contratt<?= $__needsContract === 1 ? 'o' : 'i' ?> da caricare
+                    <?php endif; ?>
+                </strong></p>
+            <?php elseif ($__inProgress > 0): ?>
+                <p style="margin-top:6px;"><strong style="color:#044bff;"><?= $__inProgress ?> richiest<?= $__inProgress === 1 ? 'a' : 'e' ?> in corso, niente in attesa per te.</strong></p>
+            <?php else: ?>
+                <p style="margin-top:6px;"><strong style="color:#0c8a8a;">Tutto in ordine, nessuna richiesta in corso.</strong></p>
+            <?php endif; ?>
+        </div>
+    </div>
 
     <?php if (empty($rows)): ?>
         <div class="card"><div class="card-body" style="text-align:center; padding:3rem;">

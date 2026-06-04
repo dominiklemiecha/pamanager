@@ -807,10 +807,31 @@ $statusFilter = $_GET['status'] ?? '';
     <?php if (!empty($_GET['del_err'])): ?>
         <div class="alert alert-error" style="margin-bottom:1rem;">Impossibile eliminare: <?= htmlspecialchars($_GET['del_err']) ?></div>
     <?php endif; ?>
-    <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-        <h1 style="margin:0; font-size:1.5rem; flex:1;">Richieste di assunzione</h1>
-        <a href="hire-requests.php?action=new" class="btn btn-primary">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:middle; margin-right:6px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+
+    <?php
+    $__pendingApprove = 0;
+    $__inProgress = 0;
+    $__signed = 0;
+    foreach ($rows as $__r) {
+        if ($__r['status'] === 'prospects_review') $__pendingApprove++;
+        if (in_array($__r['status'], ['awaiting_prospects','prospects_review','approved','contract_pending'], true)) $__inProgress++;
+        if ($__r['status'] === 'contract_signed') $__signed++;
+    }
+    ?>
+    <div class="welcome-card lp-hero">
+        <div>
+            <h2>Assunzioni</h2>
+            <p>Avvia una nuova assunzione, monitora i prospetti del consulente e segui la firma del contratto da parte del dipendente.</p>
+            <?php if ($__pendingApprove > 0): ?>
+                <p style="margin-top:6px;"><strong style="color:#dc2626;"><?= $__pendingApprove ?> prospett<?= $__pendingApprove === 1 ? 'o' : 'i' ?> da approvare.</strong> Apri il dettaglio per decidere.</p>
+            <?php elseif ($__inProgress > 0): ?>
+                <p style="margin-top:6px;"><strong style="color:#044bff;"><?= $__inProgress ?> richiest<?= $__inProgress === 1 ? 'a' : 'e' ?> in corso.</strong> Niente da approvare adesso.</p>
+            <?php else: ?>
+                <p style="margin-top:6px;"><strong style="color:#0c8a8a;">Tutto in ordine, nessuna richiesta in corso.</strong></p>
+            <?php endif; ?>
+        </div>
+        <a href="hire-requests.php?action=new" class="btn btn-lg lp-hero-btn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Nuova assunzione
         </a>
     </div>
