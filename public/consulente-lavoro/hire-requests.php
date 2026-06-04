@@ -73,7 +73,7 @@ if ($id > 0) {
 
     $statusColors = [
         'awaiting_prospects' => '#eab308', 'prospects_review' => '#0ea5e9',
-        'approved' => '#16a34a', 'contract_pending' => '#7c3aed',
+        'approved' => '#16a34a', 'contract_pending' => '#044bff',
         'contract_signed' => '#16a34a', 'rejected' => '#dc2626', 'cancelled' => '#64748b',
     ];
     $statusColor = $statusColors[$hr['status']] ?? '#64748b';
@@ -132,24 +132,29 @@ if ($id > 0) {
     <?php endif; ?>
 
     <?php if (in_array($hr['status'], ['approved','contract_pending'], true)): ?>
-        <div class="card" style="margin-bottom:1rem; border:2px solid #7c3aed;">
-            <div class="card-body" style="padding:1.25rem;">
-                <h3 style="margin-top:0; font-size:1rem; color:#7c3aed;">
-                    <?= $hr['status'] === 'approved' ? 'Carica il contratto da firmare' : 'Sostituisci contratto (in attesa firma)' ?>
-                </h3>
-                <p style="color:#64748b; font-size:.85rem; margin-bottom:1rem;">Un solo PDF. Il dipendente ricevera notifica e potra firmare digitalmente.</p>
-                <form method="POST" action="hire-requests.php" enctype="multipart/form-data">
-                    <?= CSRF::field() ?>
-                    <input type="hidden" name="action" value="upload_contract">
-                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
-                    <label style="display:flex; align-items:center; gap:.75rem; padding:.9rem 1rem; border:1.5px dashed #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; margin-bottom:1rem; position:relative;">
-                        <input type="file" name="contract" required accept=".pdf" style="position:absolute; inset:0; opacity:0; cursor:pointer;" onchange="this.nextElementSibling.nextElementSibling.textContent='✓ ' + this.files[0].name;">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <span style="font-size:.85rem; color:#475569;"><strong style="color:#7c3aed;">Scegli contratto</strong> (solo PDF)</span>
-                    </label>
-                    <button type="submit" class="btn btn-primary" style="background:#7c3aed; border-color:#7c3aed;">Invia contratto al dipendente</button>
-                </form>
+        <div class="card" style="margin-bottom:1rem; overflow:hidden; border:1px solid #e2e8f0;">
+            <div style="padding:1rem 1.5rem; background:linear-gradient(90deg,#eff5ff 0%, #fff 100%); border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:12px;">
+                <div style="width:38px; height:38px; border-radius:50%; background:#dbeafe; display:flex; align-items:center; justify-content:center;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#044bff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">
+                        <?= $hr['status'] === 'approved' ? 'Carica il contratto da firmare' : 'Sostituisci contratto (in attesa firma)' ?>
+                    </div>
+                    <div style="font-size:.82rem; color:#64748b;">Un solo PDF. Il dipendente ricevera notifica e potra firmare digitalmente.</div>
+                </div>
             </div>
+            <form method="POST" action="hire-requests.php" enctype="multipart/form-data" style="padding:1.5rem;">
+                <?= CSRF::field() ?>
+                <input type="hidden" name="action" value="upload_contract">
+                <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                <label style="display:flex; align-items:center; gap:.75rem; padding:.9rem 1rem; border:1.5px dashed #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; margin-bottom:1rem; position:relative;">
+                    <input type="file" name="contract" required accept=".pdf" style="position:absolute; inset:0; opacity:0; cursor:pointer;" onchange="this.nextElementSibling.nextElementSibling.textContent='✓ ' + this.files[0].name;">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span style="font-size:.85rem; color:#475569;"><strong style="color:#044bff;">Scegli contratto</strong> (solo PDF)</span>
+                </label>
+                <button type="submit" class="btn btn-primary" style="background:#044bff; border-color:#044bff; padding:.7rem 1.4rem; font-weight:600;">Invia contratto al dipendente</button>
+            </form>
         </div>
     <?php endif; ?>
 
@@ -303,7 +308,7 @@ $rows = Database::fetchAll(
 );
 $statusColors = [
     'awaiting_prospects' => '#eab308', 'prospects_review' => '#0ea5e9',
-    'approved' => '#16a34a', 'contract_pending' => '#7c3aed',
+    'approved' => '#16a34a', 'contract_pending' => '#044bff',
     'contract_signed' => '#16a34a', 'rejected' => '#dc2626', 'cancelled' => '#64748b',
 ];
 ?>
