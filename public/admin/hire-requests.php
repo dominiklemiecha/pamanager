@@ -181,6 +181,10 @@ if ($id > 0 && $action !== 'new') {
 // === Form nuova richiesta ===
 if ($action === 'new') {
     $form = $form ?? [];
+    if (empty($form['employer_name'])) {
+        $__cc = class_exists('Tenant') ? Tenant::currentCompany() : null;
+        if ($__cc && !empty($__cc['name'])) $form['employer_name'] = $__cc['name'];
+    }
 ?>
 <div style="width:100%; margin:1.5rem 0;">
     <a href="hire-requests.php" class="btn btn-secondary" style="margin-bottom:1rem;">← Torna alla lista</a>
@@ -199,7 +203,8 @@ if ($action === 'new') {
             <h3 style="margin-top:0; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Datore di lavoro</h3>
             <div style="margin-bottom:1rem;">
                 <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Nome azienda/Datore di lavoro *</label>
-                <input type="text" name="employer_name" required value="<?= htmlspecialchars($form['employer_name'] ?? '') ?>" class="form-input" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                <input type="text" name="employer_name" required readonly value="<?= htmlspecialchars($form['employer_name'] ?? '') ?>" class="form-input" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#475569;">
+                <p style="font-size:.75rem; color:#64748b; margin:4px 0 0;">Impostato automaticamente dall'azienda corrente.</p>
             </div>
 
             <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Anagrafica risorsa</h3>
