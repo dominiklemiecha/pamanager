@@ -60,13 +60,15 @@ $__userInitials = mb_strtoupper($__userInitials ?: 'U');
 // Tenant data: per admin sempre la lista (anche con 1 sola azienda, cosi' compare
 // il menu "Gestisci aziende"). Per altri ruoli solo se canSwitch.
 $__tenants = [];
+$__otherActivity = 0;
+$__canLeaveTenant = false;
 if (class_exists('Tenant')) {
     $__u = Auth::getUser();
     $__role = $__u['role'] ?? '';
-    // admin / accountant / consulente_lavoro: mostra sempre il chip azienda
-    // (cosi' sanno in quale tenant sono e, se ne hanno piu' di una, possono switchare)
     if (in_array($__role, ['admin', 'accountant', 'consulente_lavoro'], true)) {
         $__tenants = Tenant::getAccessibleCompanies();
+        $__otherActivity = Tenant::otherCompaniesActivity();
+        $__canLeaveTenant = in_array($__role, ['accountant', 'consulente_lavoro'], true) && count($__tenants) > 1;
     }
 }
 $__currentTenant = (class_exists('Tenant')) ? Tenant::currentCompany() : null;
@@ -349,31 +351,43 @@ if (!empty($__currentTenant['name'])) {
                 $__currentActive = !empty($__currentTenant['is_active']);
             ?>
             <div class="tenant-switcher tenant-switcher-top" id="sidebar-tenant">
-                <button type="button" class="tenant-switcher-row" id="sidebar-tenant-row" aria-haspopup="true" aria-expanded="false">
-                    <span class="tenant-status-dot <?php echo $__currentActive ? 'is-active' : 'is-inactive'; ?>" title="<?php echo $__currentActive ? 'Attiva' : 'Non attiva'; ?>"></span>
+                <button type="button" class="tenant-switcher-row <?php echo $__otherActivity > 0 ? 'has-other-activity' : ''; ?>" id="sidebar-tenant-row" aria-haspopup="true" aria-expanded="false" title="<?php echo $__otherActivity > 0 ? $__otherActivity . ' richiest' . ($__otherActivity===1?'a':'e') . ' in attesa in altre aziende' : ($__currentActive ? 'Attiva' : 'Non attiva'); ?>">
+                    <span class="tenant-status-dot <?php echo $__currentActive ? 'is-active' : 'is-inactive'; ?> <?php echo $__otherActivity > 0 ? 'is-pulsing' : ''; ?>"></span>
                     <span class="tenant-label">Azienda:</span>
                     <span class="tenant-name"><?php echo htmlspecialchars($__currentTenant['name'] ?? 'Azienda'); ?></span>
+                    <?php if ($__otherActivity > 0): ?><span class="tenant-other-badge"><?php echo (int)$__otherActivity; ?></span><?php endif; ?>
                     <svg class="tenant-caret" viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                 </button>
                 <div class="tenant-menu">
-                    <form method="POST" action="<?php echo $baseUrl; ?>/auth/switch-tenant.php" style="display:contents;">
-                        <?php echo CSRF::field(); ?>
-                        <?php foreach ($__tenants as $__t):
-                            $__isActive = (int)$__t['id'] === (int)($__currentTenant['id'] ?? 0);
-                            $__tActive = !empty($__t['is_active']);
-                        ?>
-                            <button type="submit" name="id" value="<?php echo (int)$__t['id']; ?>" class="tenant-menu-item <?php echo $__isActive ? 'active' : ''; ?>" style="width:100%; border:0; cursor:pointer; text-align:left; background:transparent;">
-                                <span class="tenant-status-dot <?php echo $__tActive ? 'is-active' : 'is-inactive'; ?>" title="<?php echo $__tActive ? 'Attiva' : 'Non attiva'; ?>"></span>
-                                <div class="info">
-                                    <div class="n"><?php echo htmlspecialchars($__t['name']); ?></div>
-                                    <?php if (!$__tActive): ?><div class="s">Sospesa</div><?php endif; ?>
-                                </div>
-                                <?php if ($__isActive): ?>
-                                    <svg class="check" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                <?php endif; ?>
-                            </button>
-                        <?php endforeach; ?>
-                    </form>
+                    <?php foreach ($__tenants as $__t):
+                        $__isActive = (int)$__t['id'] === (int)($__currentTenant['id'] ?? 0);
+                        $__tActive = !empty($__t['is_active']);
+                    ?>
+                        <div class="tenant-menu-row" style="display:flex; align-items:stretch;">
+                            <form method="POST" action="<?php echo $baseUrl; ?>/auth/switch-tenant.php" style="flex:1; min-width:0;">
+                                <?php echo CSRF::field(); ?>
+                                <button type="submit" name="id" value="<?php echo (int)$__t['id']; ?>" class="tenant-menu-item <?php echo $__isActive ? 'active' : ''; ?>" style="width:100%; border:0; cursor:pointer; text-align:left; background:transparent;">
+                                    <span class="tenant-status-dot <?php echo $__tActive ? 'is-active' : 'is-inactive'; ?>" title="<?php echo $__tActive ? 'Attiva' : 'Non attiva'; ?>"></span>
+                                    <div class="info">
+                                        <div class="n"><?php echo htmlspecialchars($__t['name']); ?></div>
+                                        <?php if (!$__tActive): ?><div class="s">Sospesa</div><?php endif; ?>
+                                    </div>
+                                    <?php if ($__isActive): ?>
+                                        <svg class="check" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                    <?php endif; ?>
+                                </button>
+                            </form>
+                            <?php if ($__canLeaveTenant): ?>
+                                <form method="POST" action="<?php echo $baseUrl; ?>/auth/leave-tenant.php" style="display:flex;" onsubmit="return confirm('Rimuoverti dall\'azienda &quot;<?php echo htmlspecialchars(addslashes($__t['name']), ENT_QUOTES); ?>&quot;? Perderai l\'accesso ai dati. L\'admin potra reinvitarti in futuro.');">
+                                    <?php echo CSRF::field(); ?>
+                                    <input type="hidden" name="company_id" value="<?php echo (int)$__t['id']; ?>">
+                                    <button type="submit" class="tenant-leave-btn" title="Esci da questa azienda (fine mandato)" aria-label="Esci da <?php echo htmlspecialchars($__t['name']); ?>">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
                     <?php if ($isAdmin): ?>
                         <a href="<?php echo $baseUrl; ?>/admin/companies.php" class="tenant-menu-item" style="border-top:1px solid var(--border);">
                             <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;color:var(--muted);margin-right:var(--sp-2);"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
