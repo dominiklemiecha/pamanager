@@ -265,60 +265,115 @@ if ($id > 0 && $action !== 'new') {
         <?php if ($hr['status'] === 'prospects_review'):
             $__depts = Database::fetchAll("SELECT id, name FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY name", [(int)$hr['company_id']]);
         ?>
-            <div class="card" style="margin-bottom:1rem; border:2px solid #16a34a;">
-                <div class="card-body" style="padding:1.25rem;">
-                    <h3 style="margin-top:0; font-size:1rem; color:#16a34a;">Decisione finale</h3>
-                    <p style="color:#64748b; font-size:.85rem;">Approvando crei il dipendente in anagrafica con le credenziali e trasferisci i documenti al suo profilo.</p>
-
-                    <details style="margin-bottom:1rem;">
-                        <summary style="cursor:pointer; font-weight:600; color:#dc2626; padding:.5rem 0;">Rifiuta i prospetti</summary>
-                        <form method="POST" action="hire-requests.php" style="margin-top:.5rem; padding:.75rem; background:#fff5f5; border-radius:8px;">
-                            <?= CSRF::field() ?>
-                            <input type="hidden" name="action" value="reject">
-                            <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
-                            <textarea name="reason" required rows="2" placeholder="Motivo del rifiuto (visibile al consulente)..." style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:.5rem;"></textarea>
-                            <button type="submit" class="btn btn-sm" style="background:#dc2626; color:#fff;">Conferma rifiuto</button>
-                        </form>
-                    </details>
-
-                    <form method="POST" action="hire-requests.php">
-                        <?= CSRF::field() ?>
-                        <input type="hidden" name="action" value="approve">
-                        <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
-
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1rem; margin-bottom:1rem;">
-                            <div>
-                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Reparto *</label>
-                                <select name="department_id" required style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
-                                    <option value="">— Scegli —</option>
-                                    <?php foreach ($__depts as $d): ?>
-                                        <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <?php if (empty($__depts)): ?><p style="font-size:.7rem; color:#dc2626; margin-top:4px;">Nessun reparto attivo. <a href="departments.php">Crea un reparto</a> prima di approvare.</p><?php endif; ?>
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Posizione</label>
-                                <input type="text" name="position" value="<?= htmlspecialchars($hr['role_description']) ?>" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Livello</label>
-                                <input type="text" name="job_level" placeholder="es: 5° livello" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">RAL</label>
-                                <input type="number" step="0.01" name="ral_amount" placeholder="0.00" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Stipendio mensile</label>
-                                <input type="number" step="0.01" name="monthly_salary" placeholder="0.00" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary" style="background:#16a34a; border-color:#16a34a;">Approva e crea dipendente</button>
-                    </form>
+            <div class="card hr-decision" style="margin-bottom:1rem; overflow:hidden; border:1px solid #e2e8f0;">
+                <div style="padding:1rem 1.5rem; background:linear-gradient(90deg,#f0fdf4 0%, #fff 100%); border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:12px;">
+                    <div style="width:38px; height:38px; border-radius:50%; background:#dcfce7; display:flex; align-items:center; justify-content:center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">Pronto per l'approvazione</div>
+                        <div style="font-size:.82rem; color:#64748b;">Approvando crei il dipendente in anagrafica, generi le credenziali e trasferisci i documenti al suo profilo.</div>
+                    </div>
                 </div>
+
+                <form method="POST" action="hire-requests.php" id="approveForm" style="padding:1.5rem;">
+                    <?= CSRF::field() ?>
+                    <input type="hidden" name="action" value="approve">
+                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+
+                    <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Inquadramento</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:.85rem; margin-bottom:1.25rem;">
+                        <div class="hr-field">
+                            <label>Reparto <span style="color:#dc2626;">*</span></label>
+                            <select name="department_id" required>
+                                <option value="">— Scegli reparto —</option>
+                                <?php foreach ($__depts as $d): ?>
+                                    <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (empty($__depts)): ?><small style="color:#dc2626;">Nessun reparto attivo. <a href="departments.php">Crea un reparto</a> prima di approvare.</small><?php endif; ?>
+                        </div>
+                        <div class="hr-field">
+                            <label>Posizione</label>
+                            <input type="text" name="position" value="<?= htmlspecialchars($hr['role_description']) ?>">
+                        </div>
+                        <div class="hr-field">
+                            <label>Livello CCNL</label>
+                            <input type="text" name="job_level" placeholder="es: 5° livello">
+                        </div>
+                    </div>
+
+                    <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Retribuzione <span style="font-weight:500; text-transform:none; color:#94a3b8; letter-spacing:0;">(opzionale, modificabile dopo)</span></div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:.85rem; margin-bottom:1.5rem;">
+                        <div class="hr-field">
+                            <label>RAL annuale (€)</label>
+                            <input type="number" step="0.01" name="ral_amount" placeholder="0,00">
+                        </div>
+                        <div class="hr-field">
+                            <label>Stipendio mensile (€)</label>
+                            <input type="number" step="0.01" name="monthly_salary" placeholder="0,00">
+                        </div>
+                    </div>
+
+                    <div style="background:#f8fafc; border-radius:8px; padding:.85rem 1rem; margin-bottom:1.25rem; font-size:.82rem; color:#475569;">
+                        <div style="font-weight:600; color:#0f172a; margin-bottom:.25rem;">Cosa succede approvando</div>
+                        <ul style="margin:0; padding-left:1.2rem; line-height:1.55;">
+                            <li>Creo il dipendente con username <code style="background:#fff; padding:1px 5px; border-radius:3px;"><?= htmlspecialchars($hr['generated_username']) ?></code></li>
+                            <li>Invio email a <strong><?= htmlspecialchars($hr['employee_email']) ?></strong> con credenziali temporanee</li>
+                            <li>Trasferisco documento identita, codice fiscale<?= !empty($byCat['permit']) ? ', permesso soggiorno' : '' ?><?= !empty($byCat['c2']) ? ', modello C2' : '' ?> al profilo dipendente</li>
+                            <li><strong>I prospetti del consulente restano riservati</strong> (visibili solo a te e al consulente)</li>
+                        </ul>
+                    </div>
+
+                    <div style="display:flex; gap:.75rem; align-items:center;">
+                        <button type="submit" class="btn btn-primary" style="background:#16a34a; border-color:#16a34a; padding:.7rem 1.4rem; font-weight:600;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px; margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>
+                            Approva e crea dipendente
+                        </button>
+                        <button type="button" id="toggleReject" class="btn-back" style="color:#dc2626;">Rifiuta i prospetti</button>
+                    </div>
+                </form>
+
+                <form method="POST" action="hire-requests.php" id="rejectForm" style="display:none; padding:0 1.5rem 1.5rem; border-top:1px solid #e2e8f0; padding-top:1.25rem;">
+                    <?= CSRF::field() ?>
+                    <input type="hidden" name="action" value="reject">
+                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                    <div style="font-size:.82rem; color:#dc2626; font-weight:600; margin-bottom:.5rem;">Motivo del rifiuto (sara' visibile al consulente)</div>
+                    <textarea name="reason" required rows="3" placeholder="Es: prospetto contratto indeterminato non conforme alla richiesta..." style="width:100%; padding:.6rem; border:1px solid #fecaca; border-radius:8px; background:#fff5f5; margin-bottom:.75rem; font-family:inherit;"></textarea>
+                    <div style="display:flex; gap:.5rem;">
+                        <button type="submit" class="btn btn-sm" style="background:#dc2626; color:#fff; padding:.5rem 1rem; border-radius:6px; border:0;">Conferma rifiuto</button>
+                        <button type="button" id="cancelReject" class="btn-back">Annulla</button>
+                    </div>
+                </form>
             </div>
+
+            <style>
+                .hr-decision .hr-field label { display:block; font-size:.78rem; font-weight:600; color:#334155; margin-bottom:5px; }
+                .hr-decision .hr-field input,
+                .hr-decision .hr-field select {
+                    width:100%; padding:.55rem .7rem; border:1px solid #cbd5e1; border-radius:8px;
+                    font-size:.88rem; background:#fff; transition:border-color .15s, box-shadow .15s;
+                }
+                .hr-decision .hr-field input:focus,
+                .hr-decision .hr-field select:focus { outline:none; border-color:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.12); }
+                .hr-decision .hr-field small { display:block; margin-top:4px; font-size:.72rem; }
+            </style>
+            <script>
+                (function(){
+                    const tog = document.getElementById('toggleReject');
+                    const cancel = document.getElementById('cancelReject');
+                    const rej = document.getElementById('rejectForm');
+                    const app = document.getElementById('approveForm');
+                    tog && tog.addEventListener('click', () => { rej.style.display='block'; app.style.opacity='.4'; app.style.pointerEvents='none'; rej.scrollIntoView({behavior:'smooth', block:'center'}); });
+                    cancel && cancel.addEventListener('click', () => { rej.style.display='none'; app.style.opacity='1'; app.style.pointerEvents='auto'; });
+                })();
+            </script>
+        <?php elseif ($hr['status'] === 'approved' && $hr['employee_id']): ?>
+            <div class="alert alert-success" style="margin-bottom:1rem;">
+                Dipendente creato: <a href="employees.php?action=view&id=<?= (int)$hr['employee_id'] ?>"><strong>vedi profilo</strong></a>.
+                Ora il consulente puo' caricare il contratto.
+            </div>
+        <?php endif; ?>
         <?php elseif ($hr['status'] === 'approved' && $hr['employee_id']): ?>
             <div class="alert alert-success" style="margin-bottom:1rem;">
                 Dipendente creato: <a href="employees.php?action=view&id=<?= (int)$hr['employee_id'] ?>"><strong>vedi profilo</strong></a>.
