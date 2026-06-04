@@ -211,4 +211,59 @@ class Tenant
             }
         }
     }
+
+    /**
+     * Permette a uno user (accountant/consulente_lavoro) di rimuovere SE STESSO
+     * da un'azienda — utile a fine mandato se l'admin non lo ha tolto.
+     * Vincolo: non puoi rimuoverti dall'ultima azienda accessibile (eviti lock-out).
+     */
+    public static function leaveCompany(int $userId, int $companyId): array
+    {
+        $u = Database::fetchOne("SELECT id, role FROM users WHERE id = ?", [$userId]);
+        if (!$u) return ['success' => false, 'error' => 'Utente non trovato'];
+        if (!in_array($u['role'], ['accountant', 'consulente_lavoro'], true)) {
+            return ['success' => false, 'error' => 'Operazione non consentita per questo ruolo'];
+        }
+        $ids = self::getUserCompanyIds($userId);
+        if (!in_array($companyId, $ids, true)) {
+            return ['success' => false, 'error' => 'Non sei collegato a questa azienda'];
+        }
+        if (count($ids) <= 1) {
+            return ['success' => false, 'error' => 'Non puoi rimuoverti dall\'ultima azienda: contatta l\'admin per la disattivazione totale'];
+        }
+        Database::delete('user_companies', 'user_id = ? AND company_id = ?', [$userId, $companyId]);
+        if (class_exists('AuditLog')) {
+            try { AuditLog::log('user_left_company', 'user', $userId, null, ['company_id' => $companyId]); } catch (Throwable $e) {}
+        }
+        // Se l'azienda lasciata era quella corrente in sessione, sblocca
+        if (!empty($_SESSION[self::SESSION_KEY]) && (int)$_SESSION[self::SESSION_KEY] === $companyId) {
+            unset($_SESSION[self::SESSION_KEY]);
+        }
+        return ['success' => true];
+    }
+
+    /**
+     * Conta "attivita' da vedere" nelle aziende ACCESSIBILI diverse da quella
+     * corrente. Indicatore per il chip tenant-switcher: se > 0 lampeggia.
+     * Definizione attivita': leave_requests con status='pending' (in approvazione).
+     */
+    public static function otherCompaniesActivity(): int
+    {
+        $u = Auth::getUser();
+        if (!$u) return 0;
+        $accessible = self::accessibleCompanyIdsForCurrentUser();
+        $current = self::currentCompanyId();
+        $others = array_values(array_filter($accessible, fn($c) => (int)$c !== (int)$current));
+        if (empty($others)) return 0;
+        try {
+            $ph = implode(',', array_fill(0, count($others), '?'));
+            $row = Database::fetchOne(
+                "SELECT COUNT(*) AS n FROM leave_requests WHERE company_id IN ($ph) AND status = 'pending'",
+                array_map('intval', $others)
+            );
+            return (int)($row['n'] ?? 0);
+        } catch (Throwable $e) {
+            return 0;
+        }
+    }
 }

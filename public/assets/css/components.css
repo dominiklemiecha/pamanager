@@ -300,6 +300,34 @@ body:has(.tenant-switcher.open)::before {
     background: #dc2626;
     box-shadow: 0 0 0 2px rgba(220,38,38,0.18);
 }
+.tenant-status-dot.is-pulsing {
+    background: #16a34a;
+    animation: tenant-pulse-green 1.4s ease-in-out infinite;
+}
+@keyframes tenant-pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.55); }
+    50% { box-shadow: 0 0 0 6px rgba(22,163,74,0); }
+}
+.tenant-other-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    background: #16a34a; color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 1;
+    border-radius: 999px;
+    margin-left: 4px;
+}
+.tenant-switcher-row.has-other-activity { border-color: #16a34a !important; }
+.tenant-menu-row { position: relative; }
+.tenant-menu-row + .tenant-menu-row { border-top: 1px solid var(--border); }
+.tenant-leave-btn {
+    background: transparent; border: 0; cursor: pointer;
+    width: 32px; flex: 0 0 32px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); opacity: 0.55;
+    transition: opacity .15s, color .15s, background .15s;
+}
+.tenant-leave-btn:hover { background: #fee2e2; color: #dc2626; opacity: 1; }
+.tenant-leave-btn svg { width: 14px; height: 14px; }
 .tenant-switcher .tenant-status-dot { margin: 0 var(--sp-1) 0 var(--sp-2); }
 .tenant-menu-item .tenant-status-dot { margin-right: var(--sp-2); }
 html.sidebar-mini .tenant-switcher .tenant-status-dot { margin: 0; }
