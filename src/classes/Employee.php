@@ -370,7 +370,9 @@ class Employee
         }
 
         if (isset($data['is_active'])) {
-            $updateData['is_active'] = (bool) $data['is_active'];
+            // MySQL TINYINT(1) in strict mode rifiuta i valori boolean PHP false (li converte in '');
+            // forziamo int 0/1 per affidabilita.
+            $updateData['is_active'] = ((bool) $data['is_active']) ? 1 : 0;
         }
 
         if (empty($updateData)) {
