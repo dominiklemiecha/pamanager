@@ -139,6 +139,13 @@ if (!empty($__currentTenant['name'])) {
                         <span class="nav-sub"><?php echo $__sb['emp'] ?: 'Anagrafica'; ?></span>
                     </span>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/admin/hire-requests.php" class="nav-item <?php echo $currentPage === 'hire-requests' ? 'active' : ''; ?>" data-tooltip="Assunzioni">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Assunzioni</span>
+                        <span class="nav-sub">Nuove richieste</span>
+                    </span>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/admin/leave-requests.php" class="nav-item <?php echo $currentPage === 'leave-requests' ? 'active' : ''; ?>" data-tooltip="Ferie e Permessi">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                     <span class="nav-content">

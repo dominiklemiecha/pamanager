@@ -611,9 +611,9 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         Timbrature
                     </button>
                 <?php endif; ?>
-                <a href="?action=new" class="btn btn-lg" style="background: #0b3aa4; border: 1px solid #0b3aa4; color: white;">
+                <a href="hire-requests.php?action=new" class="btn btn-lg" style="background: #0b3aa4; border: 1px solid #0b3aa4; color: white;">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                    Nuovo dipendente
+                    Nuova assunzione
                 </a>
             </div>
         </div>
