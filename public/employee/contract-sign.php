@@ -322,7 +322,7 @@ if ($__isPending && empty($_GET['signed'])):
                 <h2 id="modalTitle" class="sign-modal__title">Contratto di assunzione da firmare</h2>
                 <div class="sign-modal__subtitle">Sfoglia il documento, poi firma in fondo per accedere al portale.</div>
             </div>
-            <a href="contract-sign.php?id=<?= $id ?>&action=pdf" target="_blank" style="font-size:.8rem; color:#044bff;">Apri PDF in nuova scheda</a>
+            <a href="contract-pdf.php?id=<?= $id ?>" target="_blank" style="font-size:.8rem; color:#044bff;">Apri PDF in nuova scheda</a>
         </div>
 
         <div class="sign-modal__warning">
@@ -331,7 +331,7 @@ if ($__isPending && empty($_GET['signed'])):
 
         <div class="sign-modal__body">
             <div class="sign-modal__pdf">
-                <iframe src="contract-sign.php?id=<?= $id ?>&action=pdf#view=FitH" title="Contratto"></iframe>
+                <iframe src="contract-pdf.php?id=<?= $id ?>#view=FitH" title="Contratto"></iframe>
             </div>
 
             <div class="sign-modal__sign">
@@ -446,9 +446,9 @@ include dirname(__DIR__) . '/includes/header-employee.php';
             <div class="card-body" style="padding:0;">
                 <div style="padding:.85rem 1.25rem; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between;">
                     <strong style="font-size:.95rem;">Documento contratto</strong>
-                    <a href="contract-sign.php?id=<?= $id ?>&action=pdf" target="_blank" style="font-size:.82rem;">Apri in nuova scheda</a>
+                    <a href="contract-pdf.php?id=<?= $id ?>" target="_blank" style="font-size:.82rem;">Apri in nuova scheda</a>
                 </div>
-                <iframe src="contract-sign.php?id=<?= $id ?>&action=pdf" style="width:100%; height:600px; border:0;"></iframe>
+                <iframe src="contract-pdf.php?id=<?= $id ?>" style="width:100%; height:600px; border:0;"></iframe>
             </div>
         </div>
 

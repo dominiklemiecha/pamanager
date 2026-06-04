@@ -46,6 +46,12 @@ Options -Indexes
     # Protezione clickjacking
     Header always set X-Frame-Options "DENY"
 
+    # Eccezione: il PDF del contratto deve poter essere embeddato in iframe same-origin
+    <Files "contract-pdf.php">
+        Header always unset X-Frame-Options
+        Header always set X-Frame-Options "SAMEORIGIN"
+    </Files>
+
     # Protezione XSS
     Header always set X-XSS-Protection "1; mode=block"
 
