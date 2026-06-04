@@ -270,28 +270,70 @@ if (!empty($__currentTenant['name'])) {
                     </span>
                 </a>
             <?php else: ?>
-                <div class="nav-section">Generale</div>
                 <a href="<?php echo $baseUrl; ?>/accountant/" class="nav-item <?php echo $currentPage === 'index' ? 'active' : ''; ?>" data-tooltip="Dashboard">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3v6h8V3h-8zM3 21h8V11H3v10zM3 9h8V3H3v6zm10 12h8V11h-8v10z"/></svg>
-                    <span class="nav-label">Dashboard</span>
+                    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Dashboard</span>
+                        <span class="nav-sub">Panoramica</span>
+                    </span>
                 </a>
-                <a href="<?php echo $baseUrl; ?>/accountant/documents.php" class="nav-item <?php echo $currentPage === 'documents' ? 'active' : ''; ?>" data-tooltip="Carica Documenti">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
-                    <span class="nav-label">Carica Documenti</span>
+                <a href="<?php echo $baseUrl; ?>/accountant/employees.php" class="nav-item <?php echo $currentPage === 'employees' ? 'active' : ''; ?>" data-tooltip="Anagrafica">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Anagrafica</span>
+                        <span class="nav-sub">Dipendenti</span>
+                    </span>
                 </a>
-                <a href="<?php echo $baseUrl; ?>/accountant/leave-requests.php" class="nav-item <?php echo $currentPage === 'leave-requests' ? 'active' : ''; ?>" data-tooltip="Ferie/Permessi">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-                    <span class="nav-label">Ferie/Permessi</span>
+                <a href="<?php echo $baseUrl; ?>/accountant/documents.php" class="nav-item <?php echo $currentPage === 'documents' ? 'active' : ''; ?>" data-tooltip="Buste paga/CU">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Buste paga/CU</span>
+                        <span class="nav-sub">Carica documenti</span>
+                    </span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/accountant/employee-documents.php" class="nav-item <?php echo $currentPage === 'employee-documents' ? 'active' : ''; ?>" data-tooltip="Documenti dipendente">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Documenti</span>
+                        <span class="nav-sub">Caricati dal dipendente</span>
+                    </span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/accountant/leave-requests.php" class="nav-item <?php echo $currentPage === 'leave-requests' ? 'active' : ''; ?>" data-tooltip="Ferie e Permessi">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Ferie/Permessi</span>
+                        <span class="nav-sub">Storico richieste</span>
+                    </span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/accountant/presenze-export.php" class="nav-item <?php echo $currentPage === 'presenze-export' ? 'active' : ''; ?>" data-tooltip="Presenze">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16V8m5 8V4m5 12v-6"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Presenze</span>
+                        <span class="nav-sub">Export mensile</span>
+                    </span>
                 </a>
                 <a href="<?php echo $baseUrl; ?>/accountant/chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>" data-tooltip="Chat">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-                    <span class="nav-label">Chat</span>
-                    <?php if ($unreadChats > 0): ?><span class="nav-badge"><?php echo $unreadChats; ?></span><?php endif; ?>
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Chat</span>
+                        <span class="nav-sub"><?php echo $unreadChats > 0 ? $unreadChats . ' non letti' : 'Messaggi'; ?></span>
+                    </span>
+                    <?php if ($unreadChats > 0): ?><span class="nav-pulse"></span><?php endif; ?>
                 </a>
                 <a href="<?php echo $baseUrl; ?>/accountant/calendar.php" class="nav-item <?php echo $currentPage === 'calendar' ? 'active' : ''; ?>" data-tooltip="Calendario">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <span class="nav-label">Calendario</span>
-                    <?php if ($pendingInvites > 0): ?><span class="nav-badge"><?php echo $pendingInvites; ?></span><?php endif; ?>
+                    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Calendario</span>
+                        <span class="nav-sub"><?php echo $pendingInvites > 0 ? $pendingInvites . ' ' . ($pendingInvites === 1 ? 'invito' : 'inviti') . ' da confermare' : 'Eventi e riunioni'; ?></span>
+                    </span>
+                    <?php if ($pendingInvites > 0): ?><span class="nav-pulse" title="<?php echo $pendingInvites; ?>"></span><?php endif; ?>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/accountant/profile.php" class="nav-item <?php echo $currentPage === 'profile' ? 'active' : ''; ?>" data-tooltip="Profilo">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Profilo</span>
+                        <span class="nav-sub">Le mie info</span>
+                    </span>
                 </a>
             <?php endif; ?>
         </nav>
