@@ -186,6 +186,69 @@ if ($action === 'new') {
         if ($__cc && !empty($__cc['name'])) $form['employer_name'] = $__cc['name'];
     }
 ?>
+<style>
+    /* Radio-pill: card che si evidenzia quando selezionato */
+    .pill-radio { transition: border-color .15s, background .15s, color .15s; }
+    .pill-radio:hover { border-color: #cbd5e1; background:#f8fafc; }
+    .pill-radio input[type="radio"], .pill-radio input[type="checkbox"] { accent-color: #044bff; }
+    .pill-radio:has(input:checked) { border-color: #044bff; background:#eff5ff; color:#044bff; font-weight:600; }
+
+    /* File drop card */
+    .file-drop {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .9rem 1rem;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: border-color .15s, background .15s, transform .1s;
+    }
+    .file-drop:hover { border-color: #044bff; background: #eff5ff; }
+    .file-drop.is-dragover { border-color: #044bff; background: #dde7ff; transform: scale(1.01); }
+    .file-drop.has-file { border-style: solid; border-color: #16a34a; background: #f0fdf4; }
+    .file-drop-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .file-drop-icon { color: #64748b; flex-shrink: 0; }
+    .file-drop.has-file .file-drop-icon { color: #16a34a; }
+    .file-drop-text { font-size: .85rem; color: #475569; line-height: 1.3; }
+    .file-drop-text strong { color: #044bff; font-weight: 600; }
+    .file-drop-text small { display: block; color: #94a3b8; font-size: .72rem; margin-top: 2px; }
+    .file-drop-name { font-size: .85rem; color: #16a34a; font-weight: 600; word-break: break-all; }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.file-drop').forEach(drop => {
+            const input = drop.querySelector('.file-drop-input');
+            const nameEl = drop.querySelector('.file-drop-name');
+            const textEl = drop.querySelector('.file-drop-text');
+            const updateName = () => {
+                if (input.files && input.files[0]) {
+                    nameEl.hidden = false;
+                    nameEl.textContent = '✓ ' + input.files[0].name;
+                    textEl.style.display = 'none';
+                    drop.classList.add('has-file');
+                } else {
+                    nameEl.hidden = true;
+                    textEl.style.display = '';
+                    drop.classList.remove('has-file');
+                }
+            };
+            input.addEventListener('change', updateName);
+            ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('is-dragover'); }));
+            ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('is-dragover'); }));
+            drop.addEventListener('drop', e => {
+                if (e.dataTransfer.files && e.dataTransfer.files.length) {
+                    input.files = e.dataTransfer.files;
+                    updateName();
+                }
+            });
+        });
+    });
+</script>
+<?php
+?>
 <div style="width:100%; margin:1.5rem 0;">
     <a href="hire-requests.php" class="btn btn-secondary" style="margin-bottom:1rem;">← Torna alla lista</a>
     <h1 style="font-size:1.5rem; margin:0 0 .25rem;">Nuova assunzione</h1>
@@ -255,24 +318,27 @@ if ($action === 'new') {
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Stato civile *</label>
-                    <select name="marital_status" required style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
-                        <option value="">— Scegli —</option>
-                        <?php foreach (['celibe_nubile'=>'Celibe/Nubile','coniugato'=>'Coniugato/a','divorziato'=>'Divorziato/a','vedovo'=>'Vedovo/a','unione_civile'=>'Unione civile','separato'=>'Separato/a'] as $v=>$lbl): ?>
-                            <option value="<?= $v ?>" <?= (($form['marital_status'] ?? '') === $v) ? 'selected' : '' ?>><?= $lbl ?></option>
-                        <?php endforeach; ?>
-                    </select>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Stato civile *</label>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.5rem;">
+                    <?php foreach (['celibe_nubile'=>'Celibe/Nubile','coniugato'=>'Coniugato/a','divorziato'=>'Divorziato/a','vedovo'=>'Vedovo/a','unione_civile'=>'Unione civile','separato'=>'Separato/a'] as $v=>$lbl): ?>
+                        <label class="pill-radio" style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
+                            <input type="radio" name="marital_status" value="<?= $v ?>" required <?= (($form['marital_status'] ?? '') === $v) ? 'checked' : '' ?>>
+                            <?= $lbl ?>
+                        </label>
+                    <?php endforeach; ?>
                 </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Livello di istruzione *</label>
-                    <select name="education_level" required style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
-                        <option value="">— Scegli —</option>
-                        <?php foreach (['nessuno'=>'Nessun titolo','licenza_elementare'=>'Licenza elementare','licenza_media'=>'Licenza media','diploma'=>'Diploma','laurea_triennale'=>'Laurea triennale','laurea_magistrale'=>'Laurea magistrale','dottorato'=>'Dottorato'] as $v=>$lbl): ?>
-                            <option value="<?= $v ?>" <?= (($form['education_level'] ?? '') === $v) ? 'selected' : '' ?>><?= $lbl ?></option>
-                        <?php endforeach; ?>
-                    </select>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Livello di istruzione *</label>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.5rem;">
+                    <?php foreach (['nessuno'=>'Nessun titolo','licenza_elementare'=>'Licenza elementare','licenza_media'=>'Licenza media','diploma'=>'Diploma','laurea_triennale'=>'Laurea triennale','laurea_magistrale'=>'Laurea magistrale','dottorato'=>'Dottorato'] as $v=>$lbl): ?>
+                        <label class="pill-radio" style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
+                            <input type="radio" name="education_level" value="<?= $v ?>" required <?= (($form['education_level'] ?? '') === $v) ? 'checked' : '' ?>>
+                            <?= $lbl ?>
+                        </label>
+                    <?php endforeach; ?>
                 </div>
             </div>
 
@@ -332,41 +398,39 @@ if ($action === 'new') {
                 </div>
             </div>
 
-            <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Account e contatti</h3>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Email account *</label>
-                    <input type="email" name="employee_email" required value="<?= htmlspecialchars($form['employee_email'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
-                    <p style="font-size:.75rem; color:#64748b; margin:4px 0 0;">L'username verra' generato automaticamente da nome.cognome.</p>
-                </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Email personale (per pubblicazione documenti)</label>
-                    <input type="email" name="personal_email" value="<?= htmlspecialchars($form['personal_email'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">IBAN per accredito stipendio</label>
-                    <input type="text" name="iban" maxlength="34" value="<?= htmlspecialchars($form['iban'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; text-transform:uppercase;">
-                </div>
+            <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Account</h3>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Email account *</label>
+                <input type="email" name="employee_email" required value="<?= htmlspecialchars($form['employee_email'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                <p style="font-size:.75rem; color:#64748b; margin:4px 0 0;">L'username verra' generato automaticamente da nome.cognome.</p>
             </div>
 
             <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Allegati</h3>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Documento di riconoscimento * (PDF/JPG/PNG)</label>
-                    <input type="file" name="id_doc" required accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="width:100%;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Codice fiscale * (PDF/immagine)</label>
-                    <input type="file" name="fiscal_code_doc" required accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="width:100%;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Permesso di soggiorno (se necessario)</label>
-                    <input type="file" name="permit" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="width:100%;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Modello storico C2 (per sgravi contributivi)</label>
-                    <input type="file" name="c2" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="width:100%;">
-                </div>
+                <?php
+                $__uploads = [
+                    ['name'=>'id_doc',          'label'=>'Documento di riconoscimento', 'required'=>true,  'hint'=>'PDF, JPG o PNG'],
+                    ['name'=>'fiscal_code_doc', 'label'=>'Codice fiscale',              'required'=>true,  'hint'=>'PDF o immagine del retro/fronte'],
+                    ['name'=>'permit',          'label'=>'Permesso di soggiorno',       'required'=>false, 'hint'=>'Se necessario'],
+                    ['name'=>'c2',              'label'=>'Modello storico C2',          'required'=>false, 'hint'=>'Per sgravi contributivi'],
+                ];
+                foreach ($__uploads as $u):
+                ?>
+                    <div class="hr-upload">
+                        <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;"><?= htmlspecialchars($u['label']) ?> <?= $u['required'] ? '<span style="color:#dc2626;">*</span>' : '<span style="color:#94a3b8; font-weight:500;">(opzionale)</span>' ?></label>
+                        <label class="file-drop" data-target="<?= $u['name'] ?>">
+                            <input type="file" name="<?= $u['name'] ?>" <?= $u['required'] ? 'required' : '' ?> accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" class="file-drop-input">
+                            <span class="file-drop-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </span>
+                            <span class="file-drop-text">
+                                <strong>Scegli file</strong> o trascina qui
+                                <small><?= htmlspecialchars($u['hint']) ?></small>
+                            </span>
+                            <span class="file-drop-name" hidden></span>
+                        </label>
+                    </div>
+                <?php endforeach; ?>
             </div>
 
             <div style="margin-bottom:1rem;">
