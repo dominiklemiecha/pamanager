@@ -670,7 +670,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 <div class="admin-page">
     <?php if ($action !== 'list'): ?>
         <div class="page-header" style="margin-bottom: 1.25rem;">
-            <a href="communications.php" class="btn btn-secondary">← Torna alla Lista</a>
+            <a href="communications.php" class="btn-back">Indietro</a>
         </div>
     <?php endif; ?>
 

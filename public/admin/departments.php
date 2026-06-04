@@ -334,7 +334,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 <div class="admin-page">
     <?php if ($showForm): ?>
         <div class="page-header" style="margin-bottom: 1.25rem;">
-            <a href="departments.php" class="btn btn-secondary">← Torna alla lista</a>
+            <a href="departments.php" class="btn-back">Indietro</a>
         </div>
     <?php endif; ?>
 

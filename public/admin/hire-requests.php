@@ -33,6 +33,19 @@ if ($action === 'file' && $id > 0) {
     exit;
 }
 
+// === POST: eliminazione richiesta ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    CSRF::verifyOrDie();
+    $delId = (int)($_POST['id'] ?? 0);
+    $res = HireRequest::delete($delId);
+    if ($res['success']) {
+        header('Location: hire-requests.php?deleted=1');
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $delId . '&del_err=' . urlencode($res['error'] ?? 'Errore'));
+    exit;
+}
+
 // === POST: creazione nuova richiesta ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create') {
     CSRF::verifyOrDie();
@@ -85,8 +98,16 @@ if ($id > 0 && $action !== 'new') {
         <div class="alert alert-success" style="margin-bottom:1rem;">Richiesta creata. In attesa che il consulente carichi i prospetti.</div>
     <?php endif; ?>
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
-        <a href="hire-requests.php" class="btn btn-secondary">← Torna alla lista</a>
+        <a href="hire-requests.php" class="btn-back">Indietro</a>
         <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) ?></h1>
+        <?php if (!in_array($hr['status'], ['contract_signed','cancelled'], true)): ?>
+            <form method="POST" action="hire-requests.php" style="display:inline-block;" onsubmit="return confirm('Eliminare definitivamente questa richiesta di assunzione? L\'operazione e\' irreversibile e rimuove anche tutti i file allegati e la visibilita\' lato consulente.');">
+                <?= CSRF::field() ?>
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                <button type="submit" class="btn-back" style="color:#dc2626;" title="Elimina richiesta">Elimina</button>
+            </form>
+        <?php endif; ?>
         <span style="background:<?= $statusColor ?>; color:#fff; padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:700;">
             <?= htmlspecialchars($statusLabel) ?>
         </span>
@@ -370,7 +391,7 @@ if ($action === 'new') {
 <?php
 ?>
 <div style="width:100%; margin:1.5rem 0;">
-    <a href="hire-requests.php" class="btn btn-secondary" style="margin-bottom:1rem;">← Torna alla lista</a>
+    <a href="hire-requests.php" class="btn-back" style="margin-bottom:1rem;">Indietro</a>
     <h1 style="font-size:1.5rem; margin:0 0 .25rem;">Nuova assunzione</h1>
     <p style="color:#64748b; margin:0 0 1.5rem;">Compila i dati anagrafici e carica i documenti. La richiesta sara' inoltrata al consulente del lavoro.</p>
 
@@ -576,6 +597,12 @@ $rows = HireRequest::listForCurrent();
 $statusFilter = $_GET['status'] ?? '';
 ?>
 <div style="width:100%; margin:1.5rem 0;">
+    <?php if (!empty($_GET['deleted'])): ?>
+        <div class="alert alert-success" style="margin-bottom:1rem;">Richiesta eliminata.</div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['del_err'])): ?>
+        <div class="alert alert-error" style="margin-bottom:1rem;">Impossibile eliminare: <?= htmlspecialchars($_GET['del_err']) ?></div>
+    <?php endif; ?>
     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
         <h1 style="margin:0; font-size:1.5rem; flex:1;">Richieste di assunzione</h1>
         <a href="hire-requests.php?action=new" class="btn btn-primary">

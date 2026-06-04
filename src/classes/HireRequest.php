@@ -321,6 +321,51 @@ class HireRequest
         return Database::fetchAll($sql, $args);
     }
 
+    /**
+     * Elimina una richiesta di assunzione: cancella files su disco, righe DB (cascade) e cartella.
+     * Permesso solo all'admin sull'azienda corrente.
+     */
+    public static function delete(int $hireRequestId): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') {
+            return ['success' => false, 'error' => 'Non autorizzato'];
+        }
+        $hr = self::getById($hireRequestId);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+
+        // Stati protetti: se contratto firmato non eliminiamo (impatto su employee creato)
+        if (in_array($hr['status'], ['contract_signed'], true)) {
+            return ['success' => false, 'error' => 'Non si puo eliminare una richiesta con contratto firmato'];
+        }
+
+        try {
+            // Cancella file su disco
+            $files = self::getFiles($hireRequestId);
+            foreach ($files as $f) {
+                $path = self::fileFsPath($f);
+                if (is_file($path)) @unlink($path);
+            }
+            // Cancella la cartella della richiesta (best effort)
+            $base = defined('UPLOAD_PATH') ? UPLOAD_PATH : (dirname(__DIR__, 2) . '/public/uploads');
+            $dir = $base . '/' . self::UPLOAD_BASE . '/' . $hireRequestId;
+            if (is_dir($dir)) {
+                $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+                foreach ($it as $f) { $f->isDir() ? @rmdir($f->getPathname()) : @unlink($f->getPathname()); }
+                @rmdir($dir);
+            }
+            // Cancella le righe: FK ON DELETE CASCADE su hire_request_files
+            Database::delete('hire_requests', 'id = ?', [$hireRequestId]);
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => 'Errore eliminazione: ' . $e->getMessage()];
+        }
+
+        if (class_exists('AuditLog')) {
+            try { AuditLog::log('hire_request_deleted', 'hire_request', $hireRequestId, $hr, null); } catch (Throwable $e) {}
+        }
+        return ['success' => true];
+    }
+
     public static function workDaysLabels(string $set): string
     {
         $m = ['mon'=>'Lun','tue'=>'Mar','wed'=>'Mer','thu'=>'Gio','fri'=>'Ven','sat'=>'Sab','sun'=>'Dom'];
