@@ -175,8 +175,9 @@ if ($id > 0 && $action !== 'new') {
     <div class="hr-progress" style="display:flex; align-items:center; gap:0; margin:0 0 1.5rem; padding:1rem 1.25rem; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
         <?php foreach ($__order as $i => $stepKey):
             [$lbl, $icon] = $__steps[$stepKey];
-            $done   = !$__isRejected && $__currentIdx !== false && $i < $__currentIdx;
-            $active = !$__isRejected && $__currentIdx !== false && $i === $__currentIdx;
+            $__isCompleted = $hr['status'] === 'contract_signed';
+            $done   = !$__isRejected && ($__isCompleted || ($__currentIdx !== false && $i < $__currentIdx));
+            $active = !$__isRejected && !$__isCompleted && $__currentIdx !== false && $i === $__currentIdx;
             $color  = $__isRejected ? '#cbd5e1' : ($done ? '#16a34a' : ($active ? '#044bff' : '#cbd5e1'));
             $bg     = $__isRejected ? '#f1f5f9' : ($done ? '#dcfce7' : ($active ? '#eff5ff' : '#f8fafc'));
         ?>
