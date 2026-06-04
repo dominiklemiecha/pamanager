@@ -243,27 +243,61 @@ class Tenant
     }
 
     /**
-     * Conta "attivita' da vedere" nelle aziende ACCESSIBILI diverse da quella
-     * corrente. Indicatore per il chip tenant-switcher: se > 0 lampeggia.
-     * Definizione attivita': leave_requests con status='pending' (in approvazione).
+     * Conta "attivita' da vedere" per OGNI azienda accessibile.
+     * Ritorna mappa [company_id => count].
+     * Definizione attivita':
+     *  - leave_requests con status='pending'
+     *  - chat_messages non letti destinati al viewer corrente (user)
+     */
+    public static function activityByCompany(): array
+    {
+        $u = Auth::getUser();
+        if (!$u) return [];
+        $accessible = self::accessibleCompanyIdsForCurrentUser();
+        if (empty($accessible)) return [];
+        $result = array_fill_keys(array_map('intval', $accessible), 0);
+        $ph = implode(',', array_fill(0, count($accessible), '?'));
+        $cids = array_map('intval', $accessible);
+        try {
+            $rows = Database::fetchAll(
+                "SELECT company_id, COUNT(*) AS n FROM leave_requests
+                 WHERE company_id IN ($ph) AND status = 'pending'
+                 GROUP BY company_id",
+                $cids
+            );
+            foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
+        } catch (Throwable $e) {}
+        try {
+            $uid = (int)$u['id'];
+            $rows = Database::fetchAll(
+                "SELECT cc.company_id AS company_id, COUNT(*) AS n
+                 FROM chat_messages cm
+                 JOIN chat_conversations cc ON cm.conversation_id = cc.id
+                 WHERE cc.company_id IN ($ph)
+                   AND ((cc.participant1_type = 'user' AND cc.participant1_id = ?)
+                        OR (cc.participant2_type = 'user' AND cc.participant2_id = ?))
+                   AND NOT (cm.sender_type = 'user' AND cm.sender_id = ?)
+                   AND cm.is_read = FALSE
+                 GROUP BY cc.company_id",
+                array_merge($cids, [$uid, $uid, $uid])
+            );
+            foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
+        } catch (Throwable $e) {}
+        return $result;
+    }
+
+    /**
+     * Somma attivita' nelle aziende ACCESSIBILI diverse da quella corrente.
+     * Indicatore per il chip tenant-switcher: se > 0 lampeggia.
      */
     public static function otherCompaniesActivity(): int
     {
-        $u = Auth::getUser();
-        if (!$u) return 0;
-        $accessible = self::accessibleCompanyIdsForCurrentUser();
+        $map = self::activityByCompany();
         $current = self::currentCompanyId();
-        $others = array_values(array_filter($accessible, fn($c) => (int)$c !== (int)$current));
-        if (empty($others)) return 0;
-        try {
-            $ph = implode(',', array_fill(0, count($others), '?'));
-            $row = Database::fetchOne(
-                "SELECT COUNT(*) AS n FROM leave_requests WHERE company_id IN ($ph) AND status = 'pending'",
-                array_map('intval', $others)
-            );
-            return (int)($row['n'] ?? 0);
-        } catch (Throwable $e) {
-            return 0;
+        $tot = 0;
+        foreach ($map as $cid => $n) {
+            if ((int)$cid !== (int)$current) $tot += (int)$n;
         }
+        return $tot;
     }
 }

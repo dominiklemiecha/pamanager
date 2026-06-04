@@ -60,6 +60,7 @@ $__userInitials = mb_strtoupper($__userInitials ?: 'U');
 // Tenant data: per admin sempre la lista (anche con 1 sola azienda, cosi' compare
 // il menu "Gestisci aziende"). Per altri ruoli solo se canSwitch.
 $__tenants = [];
+$__activityByCompany = [];
 $__otherActivity = 0;
 $__canLeaveTenant = false;
 if (class_exists('Tenant')) {
@@ -67,6 +68,7 @@ if (class_exists('Tenant')) {
     $__role = $__u['role'] ?? '';
     if (in_array($__role, ['admin', 'accountant', 'consulente_lavoro'], true)) {
         $__tenants = Tenant::getAccessibleCompanies();
+        $__activityByCompany = Tenant::activityByCompany();
         $__otherActivity = Tenant::otherCompaniesActivity();
         $__canLeaveTenant = in_array($__role, ['accountant', 'consulente_lavoro'], true) && count($__tenants) > 1;
     }
@@ -362,16 +364,21 @@ if (!empty($__currentTenant['name'])) {
                     <?php foreach ($__tenants as $__t):
                         $__isActive = (int)$__t['id'] === (int)($__currentTenant['id'] ?? 0);
                         $__tActive = !empty($__t['is_active']);
+                        $__tActivity = (int)($__activityByCompany[(int)$__t['id']] ?? 0);
+                        $__hasOtherAct = !$__isActive && $__tActivity > 0;
                     ?>
                         <div class="tenant-menu-row" style="display:flex; align-items:stretch;">
                             <form method="POST" action="<?php echo $baseUrl; ?>/auth/switch-tenant.php" style="flex:1; min-width:0;">
                                 <?php echo CSRF::field(); ?>
                                 <button type="submit" name="id" value="<?php echo (int)$__t['id']; ?>" class="tenant-menu-item <?php echo $__isActive ? 'active' : ''; ?>" style="width:100%; border:0; cursor:pointer; text-align:left; background:transparent;">
-                                    <span class="tenant-status-dot <?php echo $__tActive ? 'is-active' : 'is-inactive'; ?>" title="<?php echo $__tActive ? 'Attiva' : 'Non attiva'; ?>"></span>
+                                    <span class="tenant-status-dot <?php echo $__tActive ? 'is-active' : 'is-inactive'; ?> <?php echo $__hasOtherAct ? 'is-pulsing-red' : ''; ?>" title="<?php echo $__hasOtherAct ? $__tActivity . ' notifiche in attesa' : ($__tActive ? 'Attiva' : 'Non attiva'); ?>"></span>
                                     <div class="info">
                                         <div class="n"><?php echo htmlspecialchars($__t['name']); ?></div>
                                         <?php if (!$__tActive): ?><div class="s">Sospesa</div><?php endif; ?>
                                     </div>
+                                    <?php if ($__hasOtherAct): ?>
+                                        <span class="tenant-row-badge" title="<?php echo $__tActivity; ?> notifiche"><?php echo $__tActivity; ?></span>
+                                    <?php endif; ?>
                                     <?php if ($__isActive): ?>
                                         <svg class="check" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                                     <?php endif; ?>
