@@ -439,10 +439,26 @@ class HireRequest
             }
 
             $outDir = self::storageDir((int)$hr['id'], 'signed_contract');
-            if (!is_dir($outDir)) mkdir($outDir, 0775, true);
+            if (!is_dir($outDir)) {
+                if (!mkdir($outDir, 0775, true) && !is_dir($outDir)) {
+                    error_log('[buildSignedContractPdf] mkdir fallita: ' . $outDir);
+                    return null;
+                }
+            }
             $outName = 'contratto-firmato.pdf';
             $outPath = $outDir . '/' . $outName;
+
+            // TCPDF Output('F') usa file_put_contents internamente; controlliamo il risultato.
             $pdf->Output($outPath, 'F');
+            if (!is_file($outPath) || filesize($outPath) < 100) {
+                // Fallback: prendi il buffer e scrivi manualmente
+                $buf = $pdf->Output('', 'S');
+                $writeOk = (file_put_contents($outPath, $buf) !== false);
+                if (!$writeOk || !is_file($outPath)) {
+                    error_log('[buildSignedContractPdf] Output fallito su ' . $outPath . ' - dir writable=' . (is_writable($outDir) ? 'yes' : 'NO'));
+                    return null;
+                }
+            }
 
             // Salva riga signed_contract
             Database::insert('hire_request_files', [

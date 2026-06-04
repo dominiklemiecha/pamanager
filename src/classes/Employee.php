@@ -381,8 +381,9 @@ class Employee
             Database::update('employees', $updateData, 'id = ?', [$id]);
             self::logAction('employee_updated', $id, $employee, $updateData);
             return ['success' => true];
-        } catch (Exception $e) {
-            return ['success' => false, 'error' => 'Errore durante l\'aggiornamento'];
+        } catch (Throwable $e) {
+            error_log('[Employee::update] id=' . $id . ' fields=' . implode(',', array_keys($updateData)) . ' err=' . $e->getMessage());
+            return ['success' => false, 'error' => 'Errore aggiornamento: ' . $e->getMessage()];
         }
     }
 
