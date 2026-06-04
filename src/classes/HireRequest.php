@@ -350,11 +350,8 @@ class HireRequest
         }
         $hr = self::getById($hireRequestId);
         if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
-
-        // Stati protetti: se contratto firmato non eliminiamo (impatto su employee creato)
-        if (in_array($hr['status'], ['contract_signed'], true)) {
-            return ['success' => false, 'error' => 'Non si puo eliminare una richiesta con contratto firmato'];
-        }
+        // Nessuno stato e protetto: l'admin puo' sempre eliminare una richiesta
+        // (es. correzione errore di compilazione, rimozione storica, dipendente gia cancellato).
 
         try {
             // Cancella file su disco
