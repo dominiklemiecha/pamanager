@@ -33,7 +33,7 @@ if (($_GET['action'] ?? '') === 'signature') {
     exit;
 }
 
-// Download PDF inline
+// Download PDF inline (sovrascrive headers anti-framing per consentire l'iframe same-origin)
 if (($_GET['action'] ?? '') === 'pdf') {
     $contract = Database::fetchOne(
         "SELECT * FROM hire_request_files WHERE hire_request_id = ? AND category = 'contract' ORDER BY id DESC LIMIT 1",
@@ -42,6 +42,10 @@ if (($_GET['action'] ?? '') === 'pdf') {
     if (!$contract) { http_response_code(404); exit('Contratto non disponibile'); }
     $path = HireRequest::fileFsPath($contract);
     if (!is_file($path)) { http_response_code(404); exit('File non trovato'); }
+    header_remove('X-Frame-Options');
+    header_remove('Content-Security-Policy');
+    header('X-Frame-Options: SAMEORIGIN');
+    header("Content-Security-Policy: default-src 'self'; frame-ancestors 'self'");
     header('Content-Type: application/pdf');
     header('Content-Disposition: inline; filename="contratto.pdf"');
     header('Content-Length: ' . filesize($path));
@@ -72,6 +76,163 @@ $signed = Database::fetchOne(
 
 $pageTitle = 'Firma contratto';
 $__isPending = $hr['status'] === 'contract_pending';
+$__justSigned = !empty($_GET['signed']) && $hr['status'] === 'contract_signed';
+
+// === Schermata di benvenuto post-firma (fullscreen, con coriandoli) ===
+if ($__justSigned):
+    $__company = Database::fetchOne("SELECT name FROM companies WHERE id = ?", [(int)$hr['company_id']]);
+    $__companyName = $__company['name'] ?? 'Connecteed HR';
+?>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Benvenuto in <?= htmlspecialchars($__companyName) ?>!</title>
+    <link rel="stylesheet" href="<?= PUBLIC_URL ?>/assets/css/style.css">
+    <style>
+        html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body {
+            background: radial-gradient(circle at 30% 20%, #4fa1ff 0%, #044bff 45%, #003dd6 100%);
+            display:flex; align-items:center; justify-content:center;
+            color:#fff;
+        }
+        #confetti-canvas { position:fixed; inset:0; pointer-events:none; z-index:10; }
+        .welcome {
+            position:relative; z-index:5; text-align:center;
+            padding:2.5rem 1.5rem; max-width:640px;
+            animation: pop .6s cubic-bezier(.18,1.4,.34,1) both;
+        }
+        @keyframes pop {
+            0% { transform: scale(.6) translateY(20px); opacity:0; }
+            100% { transform: scale(1) translateY(0); opacity:1; }
+        }
+        .welcome__emoji { font-size:5rem; line-height:1; margin-bottom:1rem; animation: wave 1.6s ease-in-out infinite; transform-origin: 70% 70%; display:inline-block; }
+        @keyframes wave { 0%,60%,100%{ transform: rotate(0); } 10%,30% { transform: rotate(14deg); } 20%,40% { transform: rotate(-8deg); } }
+        .welcome__title { font-size:clamp(1.8rem, 5vw, 3rem); font-weight:800; margin:0 0 .75rem; letter-spacing:-.02em; line-height:1.1; }
+        .welcome__company { color:#fff; background:rgba(255,255,255,.18); padding:.05em .35em; border-radius:.25em; }
+        .welcome__sub { font-size:1.05rem; opacity:.92; margin:0 auto 2rem; max-width:480px; line-height:1.5; }
+        .welcome__btn {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:.85rem 1.6rem; background:#fff; color:#044bff;
+            border-radius:999px; font-weight:700; font-size:1rem;
+            text-decoration:none; cursor:pointer; border:0;
+            box-shadow:0 12px 30px -6px rgba(0,0,0,.35);
+            transition: transform .15s, box-shadow .15s;
+        }
+        .welcome__btn:hover { transform: translateY(-2px); box-shadow:0 18px 38px -8px rgba(0,0,0,.45); }
+        .welcome__btn svg { width:16px; height:16px; }
+        .welcome__footnote { margin-top:1.5rem; font-size:.78rem; opacity:.7; }
+    </style>
+</head>
+<body>
+    <canvas id="confetti-canvas"></canvas>
+    <div class="welcome">
+        <div class="welcome__emoji">🎉</div>
+        <h1 class="welcome__title">
+            Benvenuto nella famiglia<br>
+            <span class="welcome__company"><?= htmlspecialchars($__companyName) ?></span>!
+        </h1>
+        <p class="welcome__sub">
+            Il tuo contratto è stato firmato con successo.<br>
+            Siamo davvero felici di averti con noi. Ora puoi accedere al portale e iniziare il tuo viaggio.
+        </p>
+        <a href="<?= PUBLIC_URL ?>/employee/" class="welcome__btn">
+            Entra nel portale
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <div class="welcome__footnote">Firmato il <?= htmlspecialchars(date('d/m/Y H:i', strtotime($signed['uploaded_at'] ?? 'now'))) ?></div>
+    </div>
+
+    <script>
+    // Coriandoli DIY (no dipendenze esterne)
+    (function(){
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        const dpi = window.devicePixelRatio || 1;
+        function fit() {
+            canvas.width = innerWidth * dpi;
+            canvas.height = innerHeight * dpi;
+            canvas.style.width = innerWidth + 'px';
+            canvas.style.height = innerHeight + 'px';
+            ctx.setTransform(dpi, 0, 0, dpi, 0, 0);
+        }
+        fit();
+        window.addEventListener('resize', fit);
+
+        const colors = ['#ffffff','#81c8ff','#4fa1ff','#fde047','#f472b6','#34d399','#fbbf24'];
+        const particles = [];
+        function spawn(burstCount, originY) {
+            for (let i = 0; i < burstCount; i++) {
+                particles.push({
+                    x: Math.random() * innerWidth,
+                    y: originY ?? -20 - Math.random() * 80,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: 2 + Math.random() * 4,
+                    g: 0.12 + Math.random() * 0.08,
+                    size: 6 + Math.random() * 8,
+                    rot: Math.random() * Math.PI,
+                    vr: (Math.random() - 0.5) * 0.25,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    shape: Math.random() < 0.5 ? 'rect' : 'circle',
+                });
+            }
+        }
+        // Burst iniziali
+        spawn(180);
+        setTimeout(() => spawn(120), 350);
+        setTimeout(() => spawn(120), 800);
+        // Sparate dai bordi inferiori
+        setTimeout(() => {
+            for (let k = 0; k < 80; k++) {
+                particles.push({
+                    x: Math.random() < 0.5 ? -10 : innerWidth + 10,
+                    y: innerHeight - 50,
+                    vx: (Math.random() < 0.5 ? 1 : -1) * (6 + Math.random() * 4),
+                    vy: -8 - Math.random() * 6,
+                    g: 0.18,
+                    size: 6 + Math.random() * 8,
+                    rot: Math.random() * Math.PI,
+                    vr: (Math.random() - 0.5) * 0.3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    shape: Math.random() < 0.5 ? 'rect' : 'circle',
+                });
+            }
+        }, 300);
+
+        function draw() {
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.vy += p.g;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rot += p.vr;
+                p.vx *= 0.995;
+                if (p.y > innerHeight + 30) { particles.splice(i, 1); continue; }
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = p.color;
+                if (p.shape === 'rect') {
+                    ctx.fillRect(-p.size/2, -p.size/3, p.size, p.size * 0.6);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.size/2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+    })();
+    </script>
+</body>
+</html>
+<?php
+exit;
+endif;
 // Se in attesa firma: render full-screen modal senza header/footer normali per zero distrazioni
 if ($__isPending && empty($_GET['signed'])):
 ?>
