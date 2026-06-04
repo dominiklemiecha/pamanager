@@ -607,7 +607,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 <div class="admin-page">
     <?php if ($action !== 'list'): ?>
         <div class="page-header" style="margin-bottom: 1.25rem;">
-            <a href="<?= e($SELF) ?>" class="btn btn-secondary">← Torna alla lista</a>
+            <a href="<?= e($SELF) ?>" class="btn-back">Indietro</a>
         </div>
     <?php endif; ?>
 

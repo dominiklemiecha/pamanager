@@ -623,7 +623,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </div>
     <?php else: ?>
         <div class="page-top" style="margin-bottom: var(--sp-4);">
-            <a href="employees.php" class="btn btn-secondary">← Torna alla Lista</a>
+            <a href="employees.php" class="btn-back">Indietro</a>
         </div>
     <?php endif; ?>
 

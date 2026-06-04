@@ -51,7 +51,7 @@ if ($id > 0) {
 ?>
 <div style="width:100%; margin:1.5rem 0;">
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
-        <a href="hire-requests.php" class="btn btn-secondary">← Torna alla lista</a>
+        <a href="hire-requests.php" class="btn-back">Indietro</a>
         <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) ?></h1>
         <span style="background:<?= $statusColor ?>; color:#fff; padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:700;">
             <?= htmlspecialchars(HireRequest::statusLabel($hr['status'])) ?>
