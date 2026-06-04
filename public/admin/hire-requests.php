@@ -143,14 +143,18 @@ if ($id > 0 && $action !== 'new') {
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
         <a href="hire-requests.php" class="btn-back">Indietro</a>
         <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) ?></h1>
-        <?php if (!in_array($hr['status'], ['contract_signed','cancelled'], true)): ?>
-            <form method="POST" action="hire-requests.php" style="display:inline-block;" onsubmit="return confirm('Eliminare definitivamente questa richiesta di assunzione? L\'operazione e\' irreversibile e rimuove anche tutti i file allegati e la visibilita\' lato consulente.');">
-                <?= CSRF::field() ?>
-                <input type="hidden" name="action" value="delete">
-                <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
-                <button type="submit" class="btn-back" style="color:#dc2626;" title="Elimina richiesta">Elimina</button>
-            </form>
-        <?php endif; ?>
+        <?php
+            $__confirmMsg = 'Eliminare definitivamente questa richiesta di assunzione? L\'operazione e\' irreversibile e rimuove anche tutti i file allegati e la visibilita\' lato consulente.';
+            if ($hr['status'] === 'contract_signed') {
+                $__confirmMsg = 'ATTENZIONE: questa richiesta ha un contratto FIRMATO. Eliminando perderai i file di contratto, firma e hash legali (il dipendente eventualmente collegato resta in anagrafica). Procedere?';
+            }
+        ?>
+        <form method="POST" action="hire-requests.php" style="display:inline-block;" onsubmit="return confirm(<?= json_encode($__confirmMsg, JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_APOS) ?>);">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+            <button type="submit" class="btn-back" style="color:#dc2626;" title="Elimina richiesta">Elimina</button>
+        </form>
         <span style="background:<?= $statusColor ?>; color:#fff; padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:700;">
             <?= htmlspecialchars($statusLabel) ?>
         </span>
