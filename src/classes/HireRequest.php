@@ -366,6 +366,90 @@ class HireRequest
         return ['success' => true];
     }
 
+    /**
+     * Crea un nuovo PDF identico all'originale con la firma sovrapposta in fondo all'ultima pagina
+     * (sfondo PNG trasparente) + metadata legali. Ritorna il path del file generato o null.
+     */
+    private static function buildSignedContractPdf(string $contractFs, string $sigPngPath, array $hr, array $emp, string $ip, string $hash): ?string
+    {
+        if (!class_exists('setasign\\Fpdi\\Tcpdf\\Fpdi')) {
+            $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
+            if (is_file($autoload)) require_once $autoload;
+        }
+        if (!class_exists('setasign\\Fpdi\\Tcpdf\\Fpdi')) {
+            error_log('[HireRequest::buildSignedContractPdf] FPDI/TCPDF non disponibile');
+            return null;
+        }
+
+        try {
+            $pdf = new \setasign\Fpdi\Tcpdf\Fpdi();
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+            $pdf->SetAutoPageBreak(false, 0);
+            $pdf->SetMargins(0, 0, 0);
+
+            $pageCount = $pdf->setSourceFile($contractFs);
+            for ($p = 1; $p <= $pageCount; $p++) {
+                $tplId = $pdf->importPage($p);
+                $size = $pdf->getTemplateSize($tplId);
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($tplId);
+
+                // Solo sull'ultima pagina sovrapponi la firma
+                if ($p === $pageCount) {
+                    $pageW = $size['width'];
+                    $pageH = $size['height'];
+                    // Firma in basso a destra (~ 65mm di larghezza)
+                    $sigW = 65;
+                    $sigH = 22;
+                    $marginR = 12;
+                    $marginB = 14;
+                    $x = $pageW - $sigW - $marginR;
+                    $y = $pageH - $sigH - $marginB;
+                    $pdf->Image($sigPngPath, $x, $y, $sigW, $sigH, 'PNG', '', '', false, 300, '', false, false, 0);
+
+                    // Etichetta firma + metadata legali sotto la firma
+                    $pdf->SetTextColor(60, 60, 60);
+                    $pdf->SetFont('helvetica', 'B', 8);
+                    $pdf->SetXY($x, $y + $sigH + 0.5);
+                    $pdf->Cell($sigW, 4, 'Firmato digitalmente da:', 0, 1, 'L');
+                    $pdf->SetFont('helvetica', '', 8);
+                    $pdf->SetX($x);
+                    $pdf->Cell($sigW, 4, $emp['first_name'] . ' ' . $emp['last_name'], 0, 1, 'L');
+                    $pdf->SetFont('helvetica', '', 6.5);
+                    $pdf->SetX($x);
+                    $pdf->Cell($sigW, 3, date('d/m/Y H:i:s') . ' - IP ' . $ip, 0, 1, 'L');
+                    $pdf->SetX($x);
+                    $pdf->Cell($sigW, 3, 'SHA256: ' . substr($hash, 0, 32) . '...', 0, 1, 'L');
+                }
+            }
+
+            $outDir = self::storageDir((int)$hr['id'], 'signed_contract');
+            if (!is_dir($outDir)) mkdir($outDir, 0775, true);
+            $outName = 'contratto-firmato.pdf';
+            $outPath = $outDir . '/' . $outName;
+            $pdf->Output($outPath, 'F');
+
+            // Salva riga signed_contract
+            Database::insert('hire_request_files', [
+                'hire_request_id' => (int)$hr['id'],
+                'category' => 'signed_contract',
+                'file_path' => self::relPath((int)$hr['id'], 'signed_contract', $outName),
+                'original_name' => 'contratto-firmato.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size' => filesize($outPath) ?: 0,
+                'uploaded_by_employee_id' => (int)$emp['id'],
+                'signed_ip' => $ip,
+                'signature_hash' => $hash,
+            ]);
+
+            return $outPath;
+        } catch (Throwable $e) {
+            error_log('[HireRequest::buildSignedContractPdf] ' . $e->getMessage());
+            return null;
+        }
+    }
+
     public static function workDaysLabels(string $set): string
     {
         $m = ['mon'=>'Lun','tue'=>'Mar','wed'=>'Mer','thu'=>'Gio','fri'=>'Ven','sat'=>'Sab','sun'=>'Dom'];
@@ -691,7 +775,7 @@ class HireRequest
         $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         $ua = mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
 
-        // Salva firma
+        // Salva firma PNG (sfondo gia trasparente dal canvas toDataURL('image/png'))
         $dir = self::storageDir($hireRequestId, 'signature_image');
         if (!is_dir($dir)) mkdir($dir, 0775, true);
         $sigName = 'signature.png';
@@ -699,6 +783,9 @@ class HireRequest
         if (file_put_contents($sigPath, $png) === false) {
             return ['success' => false, 'error' => 'Impossibile salvare la firma'];
         }
+
+        // Genera contratto firmato (overlay firma + metadata legali in fondo)
+        $signedPath = self::buildSignedContractPdf($contractFs, $sigPath, $hr, $emp, $ip, $hash);
         Database::insert('hire_request_files', [
             'hire_request_id' => $hireRequestId,
             'category' => 'signature_image',
@@ -715,19 +802,26 @@ class HireRequest
         // Aggiorna richiesta
         Database::update('hire_requests', ['status' => 'contract_signed'], 'id = ?', [$hireRequestId]);
 
-        // Crea Document del dipendente (visibile dal profilo)
+        // Crea Document del dipendente (visibile dal profilo) - usa il PDF con firma overlay se generato
         try {
             $now = new DateTime();
-            Document::uploadFromPath($contractFs, [
+            $sourceForDoc = ($signedPath && is_file($signedPath)) ? $signedPath : $contractFs;
+            $docUploadedBy = !empty($hr['decided_by_user_id'])
+                ? (int)$hr['decided_by_user_id']
+                : (!empty($hr['created_by_user_id']) ? (int)$hr['created_by_user_id'] : 0);
+            Document::uploadFromPath($sourceForDoc, [
                 'employee_id'   => (int)$emp['id'],
                 'type'          => 'other',
                 'month'         => (int)$now->format('n'),
                 'year'          => (int)$now->format('Y'),
                 'title'         => 'Contratto di assunzione firmato',
-                'description'   => 'Firmato il ' . $now->format('d/m/Y H:i') . ' - IP: ' . $ip . ' - SHA256: ' . substr($hash, 0, 16) . '...',
+                'description'   => 'Firmato il ' . $now->format('d/m/Y H:i') . ' - IP: ' . $ip . ' - SHA256 originale: ' . substr($hash, 0, 16) . '...',
                 'original_name' => 'contratto-firmato.pdf',
+                'uploaded_by'   => $docUploadedBy,
             ]);
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+            error_log('[HireRequest::signContract] Document::uploadFromPath fallito: ' . $e->getMessage());
+        }
 
         // Notifica admin e consulente
         try {

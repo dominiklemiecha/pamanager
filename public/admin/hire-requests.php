@@ -26,6 +26,12 @@ if ($action === 'file' && $id > 0) {
     $path = HireRequest::fileFsPath($f);
     if (!is_file($path)) { http_response_code(404); exit('File non disponibile sul filesystem'); }
     $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $f['original_name']);
+    // Rimuovi i security headers restrittivi che impediscono il rendering inline del PDF
+    header_remove('X-Frame-Options');
+    header_remove('Content-Security-Policy');
+    header_remove('Cross-Origin-Embedder-Policy');
+    header_remove('Cross-Origin-Resource-Policy');
+    header('X-Frame-Options: SAMEORIGIN');
     header('Content-Type: ' . ($f['mime_type'] ?: 'application/octet-stream'));
     header('Content-Disposition: inline; filename="' . $safeName . '"');
     header('Content-Length: ' . filesize($path));

@@ -202,6 +202,21 @@ class Document
         }
 
         $user = Auth::getUser();
+        // uploaded_by accetta override esplicito (es. caricamento da contesto employee dove getUser() e null)
+        $uploadedById = (int)($data['uploaded_by'] ?? ($user['id'] ?? 0));
+        if ($uploadedById <= 0) {
+            // Fallback: primo admin attivo dell'azienda del dipendente
+            $__a = Database::fetchOne(
+                "SELECT u.id FROM users u JOIN employees e ON e.company_id = u.company_id OR u.company_id IS NULL
+                 WHERE e.id = ? AND u.role = 'admin' AND u.is_active = 1 ORDER BY u.id LIMIT 1",
+                [(int)$data['employee_id']]
+            );
+            $uploadedById = (int)($__a['id'] ?? 0);
+            if ($uploadedById <= 0) {
+                $__a2 = Database::fetchOne("SELECT id FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id LIMIT 1");
+                $uploadedById = (int)($__a2['id'] ?? 1);
+            }
+        }
 
         // Genera titolo automatico se non fornito o vuoto
         $title = !empty(trim($data['title'] ?? ''))
@@ -224,7 +239,7 @@ class Document
                 'mime_type' => $fileValidation['mime_type'],
                 'month' => (int) $data['month'],
                 'year' => (int) $data['year'],
-                'uploaded_by' => $user['id']
+                'uploaded_by' => $uploadedById
             ]);
 
             self::logAction('document_uploaded', $id, null, [
