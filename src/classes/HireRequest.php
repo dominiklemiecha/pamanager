@@ -142,8 +142,25 @@ class HireRequest
         if (Database::exists('employees', 'fiscal_code = ? AND company_id = ?', [$fc, $companyId])) {
             return ['success' => false, 'error' => 'Esiste gia un dipendente con questo codice fiscale'];
         }
-        if (Database::exists('hire_requests', "fiscal_code = ? AND company_id = ? AND status NOT IN ('rejected','cancelled')", [$fc, $companyId])) {
-            return ['success' => false, 'error' => 'Esiste gia una richiesta di assunzione in corso per questo codice fiscale'];
+        // Blocca solo se esiste una richiesta REALMENTE in corso (non firmata/rifiutata/annullata,
+        // e con l'employee_id ancora esistente — se il dipendente e stato eliminato dall'admin
+        // la richiesta non e piu vincolante).
+        $__dup = Database::fetchAll(
+            "SELECT hr.id, hr.employee_id
+             FROM hire_requests hr
+             WHERE hr.fiscal_code = ? AND hr.company_id = ?
+               AND hr.status NOT IN ('rejected','cancelled','contract_signed')",
+            [$fc, $companyId]
+        );
+        foreach ($__dup as $__row) {
+            $__empExists = !empty($__row['employee_id'])
+                ? (bool) Database::fetchColumn("SELECT 1 FROM employees WHERE id = ?", [(int)$__row['employee_id']])
+                : true; // nessun employee collegato => richiesta ancora "viva"
+            if ($__empExists) {
+                return ['success' => false, 'error' => 'Esiste gia una richiesta di assunzione in corso per questo codice fiscale'];
+            }
+            // Dipendente eliminato: cancella la richiesta orfana per sbloccare il riuso
+            Database::update('hire_requests', ['status' => 'cancelled'], 'id = ?', [(int)$__row['id']]);
         }
 
         $idDocFiles = self::normalizeMulti($files['id_doc'] ?? []);
