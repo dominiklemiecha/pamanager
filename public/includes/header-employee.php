@@ -19,6 +19,20 @@ if ($currentPage !== 'change-password') {
     } catch (Exception $__e) {}
 }
 
+// Forza la firma del contratto se ce n'e uno in attesa (blocca la navigazione)
+if (!in_array($currentPage, ['contract-sign','change-password','logout'], true)) {
+    try {
+        $__pending = Database::fetchOne(
+            "SELECT id FROM hire_requests WHERE employee_id = ? AND status = 'contract_pending' ORDER BY id DESC LIMIT 1",
+            [(int)$currentEmployee['id']]
+        );
+        if ($__pending) {
+            header('Location: ' . $baseUrl . '/employee/contract-sign.php?id=' . (int)$__pending['id']);
+            exit;
+        }
+    } catch (Throwable $__e) {}
+}
+
 $employeeDepartmentId = $currentEmployee['department_id'] ?? null;
 $unreadCommCount = Communication::countUnread($currentEmployee['id'], $employeeDepartmentId);
 $unreadDocsCount = Document::getUnreadCountForEmployee($currentEmployee['id'])

@@ -76,7 +76,13 @@ include dirname(__DIR__) . '/includes/header-employee.php';
 
 <div style="width:100%; max-width:1100px; margin:1.5rem auto; padding:0 1rem;">
     <h1 style="font-size:1.5rem; margin:0 0 .25rem;">Contratto di assunzione</h1>
-    <p style="color:#64748b; margin:0 0 1.5rem;">Leggi attentamente il contratto e firmalo qui sotto.</p>
+    <p style="color:#64748b; margin:0 0 1rem;">Leggi attentamente il contratto e firmalo qui sotto.</p>
+
+    <?php if ($hr['status'] === 'contract_pending'): ?>
+        <div style="padding:.85rem 1.1rem; background:#fffbeb; border:1px solid #fde68a; border-left:4px solid #eab308; border-radius:8px; margin-bottom:1.5rem; font-size:.88rem; color:#854d0e;">
+            <strong>Devi firmare il contratto per accedere al portale.</strong> Fino alla firma non puoi navigare verso altre sezioni.
+        </div>
+    <?php endif; ?>
 
     <?php if (!empty($_GET['signed']) || $hr['status'] === 'contract_signed'): ?>
         <div class="alert alert-success" style="margin-bottom:1rem;">
