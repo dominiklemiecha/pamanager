@@ -47,7 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'appro
     ];
     $res = HireRequest::approveProspects($reqId, $extra);
     if ($res['success']) {
-        header('Location: hire-requests.php?id=' . $reqId . '&approved=1');
+        $qs = 'approved=1';
+        if (!$res['email_sent']) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Email non inviata');
+        header('Location: hire-requests.php?id=' . $reqId . '&' . $qs);
         exit;
     }
     header('Location: hire-requests.php?id=' . $reqId . '&err=' . urlencode($res['error'] ?? 'Errore'));
@@ -238,7 +240,14 @@ if ($id > 0 && $action !== 'new') {
     </div>
 
     <?php if (!empty($_GET['approved'])): ?>
-        <div class="alert alert-success" style="margin-bottom:1rem;">Approvata! Dipendente creato. Email con credenziali inviata.</div>
+        <?php if (!empty($_GET['email_err'])): ?>
+            <div class="alert alert-warning" style="margin-bottom:1rem;">
+                Dipendente creato ma <strong>email non inviata</strong>: <?= htmlspecialchars($_GET['email_err']) ?>.
+                Verifica SMTP_HOST/SMTP_USER nelle variabili d'ambiente. Le credenziali sono comunque attive.
+            </div>
+        <?php else: ?>
+            <div class="alert alert-success" style="margin-bottom:1rem;">Approvata! Dipendente creato. Email con credenziali inviata.</div>
+        <?php endif; ?>
     <?php endif; ?>
     <?php if (!empty($_GET['rejected'])): ?>
         <div class="alert alert-warning" style="margin-bottom:1rem;">Richiesta rifiutata.</div>
