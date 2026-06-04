@@ -128,7 +128,7 @@ if ($id > 0) {
     <?php endif; ?>
 
     <?php if (!empty($_GET['contract_uploaded'])): ?>
-        <div class="alert alert-success" style="margin-bottom:1rem;">Contratto caricato. Il dipendente e' stato notificato e potra firmarlo dal portale.</div>
+        <div class="alert alert-success" style="margin-bottom:1rem;">Contratto caricato. Il dipendente e' stato notificato e potrà firmarlo dal portale.</div>
     <?php endif; ?>
 
     <?php if (in_array($hr['status'], ['approved','contract_pending'], true)): ?>
@@ -141,7 +141,7 @@ if ($id > 0) {
                     <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">
                         <?= $hr['status'] === 'approved' ? 'Carica il contratto da firmare' : 'Sostituisci contratto (in attesa firma)' ?>
                     </div>
-                    <div style="font-size:.82rem; color:#64748b;">Un solo PDF. Il dipendente ricevera notifica e potra firmare digitalmente.</div>
+                    <div style="font-size:.82rem; color:#64748b;">Un solo PDF. Il dipendente riceverà notifica e potrà firmare digitalmente.</div>
                 </div>
             </div>
             <form method="POST" action="hire-requests.php" enctype="multipart/form-data" style="padding:1.5rem;">
@@ -162,7 +162,7 @@ if ($id > 0) {
         <div class="card" style="margin-bottom:1rem; border:2px solid #044bff;">
             <div class="card-body" style="padding:1.25rem;">
                 <h3 style="margin-top:0; font-size:1rem; color:#044bff;">
-                    <?= $hr['status'] === 'awaiting_prospects' ? 'Carica i prospetti di assunzione' : 'Aggiungi altri prospetti (gia consegnati: ' . count($byCat['prospect'] ?? []) . ')' ?>
+                    <?= $hr['status'] === 'awaiting_prospects' ? 'Carica i prospetti di assunzione' : 'Aggiungi altri prospetti (già consegnati: ' . count($byCat['prospect'] ?? []) . ')' ?>
                 </h3>
                 <p style="color:#64748b; font-size:.85rem; margin-bottom:1rem;">Puoi caricare piu file. L'admin ricevera una notifica e potra approvare o rifiutare.</p>
                 <form method="POST" action="hire-requests.php" enctype="multipart/form-data">
@@ -235,7 +235,7 @@ if ($id > 0) {
     <?php if (!empty($byCat['prospect'])): ?>
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-body" style="padding:1.25rem;">
-                <h3 style="margin-top:0; font-size:1rem;">Prospetti gia inviati</h3>
+                <h3 style="margin-top:0; font-size:1rem;">Prospetti già inviati</h3>
                 <?php foreach ($byCat['prospect'] as $f): ?>
                     <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
                         <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank">

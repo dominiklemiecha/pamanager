@@ -542,8 +542,9 @@ class HireRequest
                         'type'          => 'other',
                         'month'         => $month,
                         'year'          => $year,
-                        'original_name' => $label . ' - ' . $f['original_name'],
-                        'notes'         => 'Da richiesta assunzione #' . $hireRequestId,
+                        'title'         => $label,
+                        'description'   => 'Caricato in fase di assunzione (richiesta #' . $hireRequestId . ')',
+                        'original_name' => $f['original_name'],
                     ]);
                 } catch (Throwable $e) {}
             }
@@ -719,8 +720,9 @@ class HireRequest
                 'type'          => 'other',
                 'month'         => (int)$now->format('n'),
                 'year'          => (int)$now->format('Y'),
-                'original_name' => 'Contratto di assunzione firmato.pdf',
-                'notes'         => 'Firmato il ' . $now->format('d/m/Y H:i') . ' - IP: ' . $ip . ' - SHA256: ' . substr($hash, 0, 16) . '...',
+                'title'         => 'Contratto di assunzione firmato',
+                'description'   => 'Firmato il ' . $now->format('d/m/Y H:i') . ' - IP: ' . $ip . ' - SHA256: ' . substr($hash, 0, 16) . '...',
+                'original_name' => 'contratto-firmato.pdf',
             ]);
         } catch (Throwable $e) {}
 
