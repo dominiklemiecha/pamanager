@@ -7,6 +7,32 @@
     'use strict';
 
     // ================================
+    // Alert: close button + auto-dismiss
+    // ================================
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.alert').forEach(alert => {
+            // Aggiungi bottone X se non presente
+            if (!alert.querySelector('.alert-close')) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'alert-close';
+                btn.setAttribute('aria-label', 'Chiudi');
+                btn.innerHTML = '&times;';
+                btn.addEventListener('click', () => dismissAlert(alert));
+                alert.appendChild(btn);
+            }
+            // Auto-dismiss dopo 3s per success/info (errori restano visibili)
+            if (alert.classList.contains('alert-success') || alert.classList.contains('alert-info')) {
+                setTimeout(() => dismissAlert(alert), 3000);
+            }
+        });
+        function dismissAlert(el) {
+            el.classList.add('is-dismissing');
+            setTimeout(() => el.remove(), 320);
+        }
+    });
+
+    // ================================
     // Configuration
     // ================================
     const config = {

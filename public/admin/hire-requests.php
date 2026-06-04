@@ -92,6 +92,42 @@ if ($id > 0 && $action !== 'new') {
         </span>
     </div>
 
+    <?php
+    $__steps = [
+        'awaiting_prospects' => ['Richiesta inviata',     '📋'],
+        'prospects_review'   => ['Prospetti caricati',    '📎'],
+        'approved'           => ['Approvata',             '✅'],
+        'contract_pending'   => ['Contratto da firmare',  '✍️'],
+        'contract_signed'    => ['Firmato',               '🎉'],
+    ];
+    $__order = array_keys($__steps);
+    $__currentIdx = array_search($hr['status'], $__order, true);
+    $__isRejected = in_array($hr['status'], ['rejected','cancelled'], true);
+    ?>
+    <div class="hr-progress" style="display:flex; align-items:center; gap:0; margin:0 0 1.5rem; padding:1rem 1.25rem; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+        <?php foreach ($__order as $i => $stepKey):
+            [$lbl, $icon] = $__steps[$stepKey];
+            $done   = !$__isRejected && $__currentIdx !== false && $i < $__currentIdx;
+            $active = !$__isRejected && $__currentIdx !== false && $i === $__currentIdx;
+            $color  = $__isRejected ? '#cbd5e1' : ($done ? '#16a34a' : ($active ? '#044bff' : '#cbd5e1'));
+            $bg     = $__isRejected ? '#f1f5f9' : ($done ? '#dcfce7' : ($active ? '#eff5ff' : '#f8fafc'));
+        ?>
+            <div style="flex:0 0 auto; display:flex; flex-direction:column; align-items:center; text-align:center; min-width:90px;">
+                <div style="width:36px; height:36px; border-radius:50%; background:<?= $bg ?>; border:2px solid <?= $color ?>; color:<?= $color ?>; display:flex; align-items:center; justify-content:center; font-size:1rem; font-weight:700; <?= $active ? 'box-shadow:0 0 0 4px rgba(4,75,255,.15); animation:pulseStep 1.4s infinite;' : '' ?>">
+                    <?= $done ? '✓' : ($i+1) ?>
+                </div>
+                <div style="margin-top:6px; font-size:.72rem; font-weight:600; color:<?= $color ?>; max-width:100px; line-height:1.2;"><?= htmlspecialchars($lbl) ?></div>
+            </div>
+            <?php if ($i < count($__order) - 1): ?>
+                <div style="flex:1; height:3px; background:<?= ($done ? '#16a34a' : '#e2e8f0') ?>; margin:0 4px; border-radius:2px; margin-bottom:24px;"></div>
+            <?php endif; ?>
+        <?php endforeach; ?>
+    </div>
+    <?php if ($__isRejected): ?>
+        <div class="alert alert-error" style="margin-bottom:1rem;">Stato: <strong><?= htmlspecialchars($statusLabel) ?></strong></div>
+    <?php endif; ?>
+    <style>@keyframes pulseStep { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }</style>
+
     <div class="card" style="margin-bottom:1rem;">
         <div class="card-body" style="padding:1.25rem;">
             <h3 style="margin-top:0; font-size:1rem;">Dati anagrafici</h3>
@@ -274,7 +310,6 @@ if ($action === 'new') {
             ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('is-dragover'); }));
             drop.addEventListener('drop', e => {
                 if (e.dataTransfer.files && e.dataTransfer.files.length) {
-                    // merge: somma file gia' selezionati + nuovi (DataTransfer)
                     const dt = new DataTransfer();
                     Array.from(input.files || []).forEach(f => dt.items.add(f));
                     Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
@@ -283,6 +318,53 @@ if ($action === 'new') {
                 }
             });
         });
+
+        // === Auto-compilazione da Codice Fiscale ===
+        const cfInput = document.querySelector('input[name="fiscal_code"]');
+        if (cfInput) {
+            const fill = (name, val) => {
+                const el = document.querySelector('[name="' + name + '"]');
+                if (el && !el.value) el.value = val;
+            };
+            const lookup = async () => {
+                const cf = cfInput.value.toUpperCase().replace(/\s/g,'');
+                if (cf.length !== 16) return;
+                try {
+                    const r = await fetch('<?= PUBLIC_URL ?>/api/lookup.php?action=cf&cf=' + encodeURIComponent(cf), {credentials:'same-origin'});
+                    const d = await r.json();
+                    if (d.error) return;
+                    fill('employee_birth_date', d.birth_date);
+                    fill('birth_state', d.birth_state || 'Italia');
+                    fill('birth_city', d.birth_city);
+                    if (d.birth_city) cfInput.dataset.cfOk = '1';
+                } catch (e) {}
+            };
+            cfInput.addEventListener('blur', lookup);
+            cfInput.addEventListener('input', () => { if (cfInput.value.length === 16) lookup(); });
+        }
+
+        // === Auto-compilazione indirizzo (Nominatim) ===
+        const addrInput = document.querySelector('input[name="residence_address"]');
+        if (addrInput) {
+            let timer;
+            const lookupAddr = async () => {
+                const q = addrInput.value.trim();
+                if (q.length < 6) return;
+                try {
+                    const r = await fetch('<?= PUBLIC_URL ?>/api/lookup.php?action=address&q=' + encodeURIComponent(q), {credentials:'same-origin'});
+                    const d = await r.json();
+                    if (d.error) return;
+                    const fill = (name, val) => {
+                        const el = document.querySelector('[name="' + name + '"]');
+                        if (el && !el.value && val) el.value = val;
+                    };
+                    fill('residence_cap', d.cap);
+                    fill('residence_city', d.city);
+                    fill('residence_province', d.province);
+                } catch (e) {}
+            };
+            addrInput.addEventListener('blur', () => { clearTimeout(timer); timer = setTimeout(lookupAddr, 200); });
+        }
     });
 </script>
 <?php
