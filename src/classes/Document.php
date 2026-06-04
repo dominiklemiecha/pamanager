@@ -533,9 +533,9 @@ class Document
                     $userName = $emp['first_name'] . ' ' . $emp['last_name'] . ' (' . $emp['fiscal_code'] . ')';
                 }
             } else {
-                $user = Auth::getUserById($userId);
+                $user = class_exists('User') ? User::getById($userId) : Database::fetchOne("SELECT name, role FROM users WHERE id = ?", [$userId]);
                 if ($user) {
-                    $userName = $user['name'] . ' (' . $user['role'] . ')';
+                    $userName = ($user['name'] ?? 'Utente') . ' (' . ($user['role'] ?? '-') . ')';
                 }
             }
 
