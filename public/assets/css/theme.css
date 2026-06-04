@@ -1067,7 +1067,7 @@ input.form-control:focus {
     font-size: 0.9rem;
     margin-bottom: 1rem;
 }
-.alert-success { background: var(--success-soft); color: #166b30; border-color: var(--success-border); }
+.alert-success { background: #f0fdf4; color: #166534; border-color: #16a34a !important; }
 .alert-error,
 .alert-danger  { background: var(--danger-soft); color: #991b1b; border-color: var(--danger-border); }
 .alert-warning { background: var(--warning-soft); color: #92400e; border-color: #fde68a; }

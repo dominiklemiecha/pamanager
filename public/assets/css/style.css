@@ -476,10 +476,21 @@ input.uppercase { text-transform: uppercase; }
     border-left: 4px solid;
 }
 
-.alert-success { background: #f0fff4; border-color: var(--success-color); color: #276749; }
-.alert-error { background: #fff5f5; border-color: var(--danger-color); color: #c53030; }
-.alert-warning { background: #fffff0; border-color: var(--warning-color); color: #975a16; }
-.alert-info { background: #ebf8ff; border-color: var(--info-color); color: #2b6cb0; }
+.alert-success { background: #f0fdf4; border-color: #16a34a !important; color: #166534; position: relative; }
+.alert-error { background: #fff5f5; border-color: var(--danger-color); color: #c53030; position: relative; }
+.alert-warning { background: #fffff0; border-color: var(--warning-color); color: #975a16; position: relative; }
+.alert-info { background: #ebf8ff; border-color: var(--info-color); color: #2b6cb0; position: relative; }
+
+/* Close button + auto-dismiss visivo */
+.alert .alert-close {
+    position: absolute; top: 8px; right: 10px;
+    background: transparent; border: 0; cursor: pointer;
+    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    color: inherit; opacity: 0.6; border-radius: 4px;
+    font-size: 18px; line-height: 1; padding: 0;
+}
+.alert .alert-close:hover { opacity: 1; background: rgba(0,0,0,0.05); }
+.alert.is-dismissing { opacity: 0; transform: translateY(-6px); transition: opacity .3s, transform .3s; }
 
 .badge {
     display: inline-flex;

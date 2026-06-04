@@ -229,6 +229,13 @@ if (!empty($__currentTenant['name'])) {
                         <span class="nav-sub">Dipendenti</span>
                     </span>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/hire-requests.php" class="nav-item <?php echo $currentPage === 'hire-requests' ? 'active' : ''; ?>" data-tooltip="Assunzioni">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Assunzioni</span>
+                        <span class="nav-sub">Richieste in corso</span>
+                    </span>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/consulente-lavoro/documents.php" class="nav-item <?php echo $currentPage === 'documents' ? 'active' : ''; ?>" data-tooltip="Buste paga/CUD">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <span class="nav-content">
