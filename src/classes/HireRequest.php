@@ -391,10 +391,221 @@ class HireRequest
         return implode(', ', $out);
     }
 
-    // === Fase 2 / 3 (saranno completate prossimo step) ===
-    // - addProspect(hireRequestId, files, displayNames) -> consulente carica prospetti -> stato prospects_review
-    // - approveProspects(hireRequestId) -> admin approva -> crea employee + sposta files al profilo, stato approved
-    // - rejectProspects(hireRequestId, reason) -> stato rejected
-    // - addContract(hireRequestId, file) -> consulente carica contratto -> stato contract_pending
-    // - signContract(hireRequestId, signatureImageDataUrl, ip, ua) -> dipendente firma -> stato contract_signed
+    // ====== FASE 2 ======
+
+    /**
+     * Consulente carica prospetti di assunzione (multipli).
+     * @param int $hireRequestId
+     * @param array $files array di $_FILES (es. $_FILES['prospects'])
+     * @param array $displayNames array di stringhe, uno per file, opzionali
+     * @return array success/error
+     */
+    public static function addProspects(int $hireRequestId, array $files, array $displayNames = []): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'consulente_lavoro') {
+            return ['success' => false, 'error' => 'Solo il consulente puo caricare i prospetti'];
+        }
+        $hr = self::getById($hireRequestId);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if (!in_array($hr['status'], ['awaiting_prospects', 'prospects_review'], true)) {
+            return ['success' => false, 'error' => 'Non puoi caricare prospetti in questo stato'];
+        }
+        $list = self::normalizeMulti($files);
+        if (empty($list)) return ['success' => false, 'error' => 'Nessun file caricato'];
+
+        try {
+            foreach ($list as $i => $f) {
+                $name = $displayNames[$i] ?? null;
+                self::saveUploadedFile($hireRequestId, $f, 'prospect', $name);
+            }
+            if ($hr['status'] !== 'prospects_review') {
+                Database::update('hire_requests', ['status' => 'prospects_review'], 'id = ?', [$hireRequestId]);
+            }
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => 'Errore upload: ' . $e->getMessage()];
+        }
+
+        // Notifica admin/i dell'azienda
+        try {
+            $admins = Database::fetchAll(
+                "SELECT id FROM users WHERE role = 'admin' AND is_active = 1
+                 AND (company_id = ? OR company_id IS NULL)",
+                [(int)$hr['company_id']]
+            );
+            foreach ($admins as $a) {
+                Notification::create([
+                    'recipient_type' => 'admin',
+                    'recipient_id'   => (int)$a['id'],
+                    'type'           => 'hire_prospects_uploaded',
+                    'title'          => 'Prospetti assunzione da approvare',
+                    'message'        => 'Il consulente ha caricato i prospetti per ' . $hr['employee_first_name'] . ' ' . $hr['employee_last_name'],
+                    'link'           => '/admin/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return ['success' => true];
+    }
+
+    /**
+     * Admin approva i prospetti: crea l'employee, trasferisce i documenti al profilo, sblocca fase contratto.
+     * @param int $hireRequestId
+     * @param array $extra ['department_id' (opt), 'position' (opt), 'monthly_salary' (opt), 'ral_amount' (opt), 'job_level' (opt)]
+     */
+    public static function approveProspects(int $hireRequestId, array $extra = []): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') {
+            return ['success' => false, 'error' => 'Solo admin puo approvare'];
+        }
+        $hr = self::getById($hireRequestId);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if ($hr['status'] !== 'prospects_review') {
+            return ['success' => false, 'error' => 'La richiesta non e in stato di approvazione'];
+        }
+
+        // Setta tenant corrente sul company_id della richiesta (per Employee::create)
+        $_SESSION['tenant_company_id'] = (int)$hr['company_id'];
+
+        // Map work_days SET (es. "mon,tue,wed,thu,fri")
+        $workDays = $hr['work_days'];
+        $weeklyHours = (float)$hr['weekly_hours'];
+        $daysCount = count(array_filter(explode(',', $workDays)));
+        $hoursPerDay = $daysCount > 0 ? round($weeklyHours / $daysCount, 2) : null;
+
+        $payload = [
+            'username'      => $hr['generated_username'],
+            'first_name'    => $hr['employee_first_name'],
+            'last_name'     => $hr['employee_last_name'],
+            'fiscal_code'   => $hr['fiscal_code'],
+            'email'         => $hr['employee_email'],
+            'birth_date'    => $hr['employee_birth_date'],
+            'address'       => trim($hr['residence_address'] . ', ' . $hr['residence_cap'] . ' ' . $hr['residence_city'] . ' (' . $hr['residence_province'] . ')'),
+            'iban'          => $hr['iban'] ?? null,
+            'hire_date'     => $hr['start_date'],
+            'position'      => $extra['position'] ?? $hr['role_description'],
+            'department_id' => $extra['department_id'] ?? null,
+            'job_level'     => $extra['job_level'] ?? null,
+            'ral_amount'    => $extra['ral_amount'] ?? null,
+            'monthly_salary'=> $extra['monthly_salary'] ?? null,
+        ];
+
+        // department_id puo' essere obbligatorio per Employee::create. Se manca, prendi il primo attivo dell'azienda
+        if (empty($payload['department_id'])) {
+            $dept = Database::fetchOne(
+                "SELECT id FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY id LIMIT 1",
+                [(int)$hr['company_id']]
+            );
+            if ($dept) $payload['department_id'] = (int)$dept['id'];
+        }
+        if (empty($payload['department_id'])) {
+            return ['success' => false, 'error' => 'Devi prima creare almeno un reparto nell\'azienda'];
+        }
+
+        $created = Employee::create($payload);
+        if (!$created['success']) {
+            return ['success' => false, 'error' => 'Errore creazione dipendente: ' . ($created['error'] ?? 'sconosciuto')];
+        }
+        $empId = (int)($created['id'] ?? 0);
+        if ($empId <= 0) return ['success' => false, 'error' => 'Creazione dipendente fallita'];
+
+        // Aggiorna working_days e hours_per_day (non gestiti da Employee::create direttamente)
+        try {
+            Database::update('employees', [
+                'working_days'  => $workDays,
+                'hours_per_day' => $hoursPerDay,
+            ], 'id = ?', [$empId]);
+        } catch (Throwable $e) {}
+
+        // Trasferisci gli allegati admin (id_doc, fiscal_code_doc, permit, c2) come documenti del dipendente
+        $now = new DateTime();
+        $month = (int)$now->format('n');
+        $year  = (int)$now->format('Y');
+        $labelMap = [
+            'id_doc'          => 'Documento di riconoscimento',
+            'fiscal_code_doc' => 'Codice fiscale',
+            'permit'          => 'Permesso di soggiorno',
+            'c2'              => 'Modello C2',
+        ];
+        foreach ($labelMap as $cat => $label) {
+            $rows = self::getFiles($hireRequestId, $cat);
+            foreach ($rows as $f) {
+                $src = self::fileFsPath($f);
+                if (!is_file($src)) continue;
+                try {
+                    Document::uploadFromPath($src, [
+                        'employee_id'   => $empId,
+                        'type'          => 'other',
+                        'month'         => $month,
+                        'year'          => $year,
+                        'original_name' => $label . ' - ' . $f['original_name'],
+                        'notes'         => 'Da richiesta assunzione #' . $hireRequestId,
+                    ]);
+                } catch (Throwable $e) {}
+            }
+        }
+
+        // Aggiorna richiesta
+        Database::update('hire_requests', [
+            'status'             => 'approved',
+            'employee_id'        => $empId,
+            'decided_at'         => date('Y-m-d H:i:s'),
+            'decided_by_user_id' => (int)$u['id'],
+        ], 'id = ?', [$hireRequestId]);
+
+        // Notifica consulente
+        try {
+            if (!empty($hr['assigned_consulente_user_id'])) {
+                Notification::create([
+                    'recipient_type' => 'consulente_lavoro',
+                    'recipient_id'   => (int)$hr['assigned_consulente_user_id'],
+                    'type'           => 'hire_approved',
+                    'title'          => 'Assunzione approvata',
+                    'message'        => 'Carica il contratto per ' . $hr['employee_first_name'] . ' ' . $hr['employee_last_name'],
+                    'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return ['success' => true, 'employee_id' => $empId];
+    }
+
+    public static function rejectProspects(int $hireRequestId, string $reason): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') {
+            return ['success' => false, 'error' => 'Solo admin puo rifiutare'];
+        }
+        $hr = self::getById($hireRequestId);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if ($hr['status'] !== 'prospects_review') {
+            return ['success' => false, 'error' => 'Stato non valido per rifiuto'];
+        }
+        $reason = trim($reason);
+        if ($reason === '') return ['success' => false, 'error' => 'Motivazione obbligatoria'];
+
+        Database::update('hire_requests', [
+            'status'             => 'rejected',
+            'rejection_reason'   => $reason,
+            'decided_at'         => date('Y-m-d H:i:s'),
+            'decided_by_user_id' => (int)$u['id'],
+        ], 'id = ?', [$hireRequestId]);
+
+        // Notifica consulente
+        try {
+            if (!empty($hr['assigned_consulente_user_id'])) {
+                Notification::create([
+                    'recipient_type' => 'consulente_lavoro',
+                    'recipient_id'   => (int)$hr['assigned_consulente_user_id'],
+                    'type'           => 'hire_rejected',
+                    'title'          => 'Prospetti respinti',
+                    'message'        => 'Motivo: ' . mb_substr($reason, 0, 200),
+                    'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return ['success' => true];
+    }
 }

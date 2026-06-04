@@ -33,6 +33,41 @@ if ($action === 'file' && $id > 0) {
     exit;
 }
 
+// === POST: approva prospetti / crea employee ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'approve') {
+    CSRF::verifyOrDie();
+    $reqId = (int)($_POST['id'] ?? 0);
+    $toFloat = static function($v) { if ($v === '' || $v === null) return null; return (float)str_replace(',', '.', (string)$v); };
+    $extra = [
+        'department_id'  => !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null,
+        'position'       => trim($_POST['position'] ?? ''),
+        'job_level'      => trim($_POST['job_level'] ?? ''),
+        'monthly_salary' => $toFloat($_POST['monthly_salary'] ?? null),
+        'ral_amount'     => $toFloat($_POST['ral_amount'] ?? null),
+    ];
+    $res = HireRequest::approveProspects($reqId, $extra);
+    if ($res['success']) {
+        header('Location: hire-requests.php?id=' . $reqId . '&approved=1');
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $reqId . '&err=' . urlencode($res['error'] ?? 'Errore'));
+    exit;
+}
+
+// === POST: rifiuto prospetti ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reject') {
+    CSRF::verifyOrDie();
+    $reqId = (int)($_POST['id'] ?? 0);
+    $reason = trim($_POST['reason'] ?? '');
+    $res = HireRequest::rejectProspects($reqId, $reason);
+    if ($res['success']) {
+        header('Location: hire-requests.php?id=' . $reqId . '&rejected=1');
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $reqId . '&err=' . urlencode($res['error'] ?? 'Errore'));
+    exit;
+}
+
 // === POST: eliminazione richiesta ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
     CSRF::verifyOrDie();
@@ -202,6 +237,16 @@ if ($id > 0 && $action !== 'new') {
         </div>
     </div>
 
+    <?php if (!empty($_GET['approved'])): ?>
+        <div class="alert alert-success" style="margin-bottom:1rem;">Approvata! Dipendente creato. Email con credenziali inviata.</div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['rejected'])): ?>
+        <div class="alert alert-warning" style="margin-bottom:1rem;">Richiesta rifiutata.</div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['err'])): ?>
+        <div class="alert alert-error" style="margin-bottom:1rem;"><?= htmlspecialchars($_GET['err']) ?></div>
+    <?php endif; ?>
+
     <?php if (!empty($byCat['prospect'])): ?>
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-body" style="padding:1.25rem;">
@@ -209,18 +254,77 @@ if ($id > 0 && $action !== 'new') {
                 <?php foreach ($byCat['prospect'] as $f): ?>
                     <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9;">
                         <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank">
-                            <?= htmlspecialchars($f['display_name'] ?: $f['original_name']) ?>
+                            <strong><?= htmlspecialchars($f['display_name'] ?: $f['original_name']) ?></strong>
                         </a>
-                        <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars($f['uploaded_at']) ?></span>
+                        <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
                     </div>
                 <?php endforeach; ?>
-                <?php if ($hr['status'] === 'prospects_review'): ?>
-                    <div style="margin-top:1rem; padding:.75rem; background:#fffbeb; border-radius:8px; font-size:.85rem;">
-                        I prospetti sono pronti per la tua decisione. (Approvazione/rifiuto disponibili nella fase 2.)
-                    </div>
-                <?php endif; ?>
             </div>
         </div>
+
+        <?php if ($hr['status'] === 'prospects_review'):
+            $__depts = Database::fetchAll("SELECT id, name FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY name", [(int)$hr['company_id']]);
+        ?>
+            <div class="card" style="margin-bottom:1rem; border:2px solid #16a34a;">
+                <div class="card-body" style="padding:1.25rem;">
+                    <h3 style="margin-top:0; font-size:1rem; color:#16a34a;">Decisione finale</h3>
+                    <p style="color:#64748b; font-size:.85rem;">Approvando crei il dipendente in anagrafica con le credenziali e trasferisci i documenti al suo profilo.</p>
+
+                    <details style="margin-bottom:1rem;">
+                        <summary style="cursor:pointer; font-weight:600; color:#dc2626; padding:.5rem 0;">Rifiuta i prospetti</summary>
+                        <form method="POST" action="hire-requests.php" style="margin-top:.5rem; padding:.75rem; background:#fff5f5; border-radius:8px;">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="reject">
+                            <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                            <textarea name="reason" required rows="2" placeholder="Motivo del rifiuto (visibile al consulente)..." style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:.5rem;"></textarea>
+                            <button type="submit" class="btn btn-sm" style="background:#dc2626; color:#fff;">Conferma rifiuto</button>
+                        </form>
+                    </details>
+
+                    <form method="POST" action="hire-requests.php">
+                        <?= CSRF::field() ?>
+                        <input type="hidden" name="action" value="approve">
+                        <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1rem; margin-bottom:1rem;">
+                            <div>
+                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Reparto *</label>
+                                <select name="department_id" required style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
+                                    <option value="">— Scegli —</option>
+                                    <?php foreach ($__depts as $d): ?>
+                                        <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if (empty($__depts)): ?><p style="font-size:.7rem; color:#dc2626; margin-top:4px;">Nessun reparto attivo. <a href="departments.php">Crea un reparto</a> prima di approvare.</p><?php endif; ?>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Posizione</label>
+                                <input type="text" name="position" value="<?= htmlspecialchars($hr['role_description']) ?>" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Livello</label>
+                                <input type="text" name="job_level" placeholder="es: 5° livello" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">RAL</label>
+                                <input type="number" step="0.01" name="ral_amount" placeholder="0.00" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:4px;">Stipendio mensile</label>
+                                <input type="number" step="0.01" name="monthly_salary" placeholder="0.00" style="width:100%; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px;">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="background:#16a34a; border-color:#16a34a;">Approva e crea dipendente</button>
+                    </form>
+                </div>
+            </div>
+        <?php elseif ($hr['status'] === 'approved' && $hr['employee_id']): ?>
+            <div class="alert alert-success" style="margin-bottom:1rem;">
+                Dipendente creato: <a href="employees.php?action=view&id=<?= (int)$hr['employee_id'] ?>"><strong>vedi profilo</strong></a>.
+                Ora il consulente puo' caricare il contratto.
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($hr['rejection_reason']): ?>
