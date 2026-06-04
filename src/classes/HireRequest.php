@@ -574,6 +574,187 @@ class HireRequest
         return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError];
     }
 
+    /**
+     * Consulente carica il contratto (un solo PDF). Stato -> contract_pending.
+     */
+    public static function addContract(int $hireRequestId, array $file): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'consulente_lavoro') {
+            return ['success' => false, 'error' => 'Solo il consulente puo caricare il contratto'];
+        }
+        $hr = self::getById($hireRequestId);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if ($hr['status'] !== 'approved' && $hr['status'] !== 'contract_pending') {
+            return ['success' => false, 'error' => 'Stato non valido per caricare contratto'];
+        }
+        if (empty($file['tmp_name']) || empty($file['name'])) {
+            return ['success' => false, 'error' => 'File contratto obbligatorio'];
+        }
+        if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'error' => 'Errore upload contratto'];
+        }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if ($ext !== 'pdf') return ['success' => false, 'error' => 'Il contratto deve essere un PDF'];
+
+        try {
+            // Se gia esiste un contratto precedente, sostituisci
+            $existing = self::getFiles($hireRequestId, 'contract');
+            foreach ($existing as $e) {
+                $p = self::fileFsPath($e);
+                if (is_file($p)) @unlink($p);
+                Database::delete('hire_request_files', 'id = ?', [(int)$e['id']]);
+            }
+            self::saveUploadedFile($hireRequestId, $file, 'contract');
+            Database::update('hire_requests', ['status' => 'contract_pending'], 'id = ?', [$hireRequestId]);
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => 'Errore upload: ' . $e->getMessage()];
+        }
+
+        // Notifica dipendente
+        try {
+            if (!empty($hr['employee_id'])) {
+                Notification::create([
+                    'recipient_type' => 'employee',
+                    'recipient_id'   => (int)$hr['employee_id'],
+                    'type'           => 'contract_to_sign',
+                    'title'          => 'Contratto da firmare',
+                    'message'        => 'Il tuo contratto e\' pronto. Aprilo e firmalo dal portale.',
+                    'link'           => '/employee/contract-sign.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+        // Notifica admin
+        try {
+            $admins = Database::fetchAll(
+                "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 AND (company_id = ? OR company_id IS NULL)",
+                [(int)$hr['company_id']]
+            );
+            foreach ($admins as $a) {
+                Notification::create([
+                    'recipient_type' => 'admin',
+                    'recipient_id'   => (int)$a['id'],
+                    'type'           => 'contract_uploaded',
+                    'title'          => 'Contratto caricato',
+                    'message'        => 'Il consulente ha caricato il contratto per ' . $hr['employee_first_name'] . ' ' . $hr['employee_last_name'] . '. In attesa firma dipendente.',
+                    'link'           => '/admin/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return ['success' => true];
+    }
+
+    /**
+     * Dipendente firma il contratto: salva immagine firma (PNG da canvas),
+     * registra IP/UA/timestamp/hash SHA256 del contratto, status -> contract_signed.
+     * Trasferisce il contratto come Document del dipendente (visibile dal profilo).
+     */
+    public static function signContract(int $hireRequestId, string $signatureDataUrl): array
+    {
+        $emp = Auth::getEmployee();
+        if (!$emp) return ['success' => false, 'error' => 'Solo il dipendente puo firmare'];
+        $hr = Database::fetchOne("SELECT * FROM hire_requests WHERE id = ?", [$hireRequestId]);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if ((int)$hr['employee_id'] !== (int)$emp['id']) {
+            return ['success' => false, 'error' => 'Questo contratto non e tuo'];
+        }
+        if ($hr['status'] !== 'contract_pending') {
+            return ['success' => false, 'error' => 'Stato non valido per firmare'];
+        }
+
+        if (!preg_match('#^data:image/png;base64,(.+)$#', $signatureDataUrl, $m)) {
+            return ['success' => false, 'error' => 'Firma non valida (atteso PNG base64)'];
+        }
+        $png = base64_decode($m[1], true);
+        if ($png === false || strlen($png) < 200) {
+            return ['success' => false, 'error' => 'Firma troppo breve o corrotta'];
+        }
+        if (strlen($png) > 2 * 1024 * 1024) {
+            return ['success' => false, 'error' => 'Firma troppo grande'];
+        }
+
+        // Trova il contratto
+        $contractRow = Database::fetchOne(
+            "SELECT * FROM hire_request_files WHERE hire_request_id = ? AND category = 'contract' ORDER BY id DESC LIMIT 1",
+            [$hireRequestId]
+        );
+        if (!$contractRow) return ['success' => false, 'error' => 'Contratto non disponibile'];
+        $contractFs = self::fileFsPath($contractRow);
+        if (!is_file($contractFs)) return ['success' => false, 'error' => 'File contratto non trovato sul filesystem'];
+
+        $hash = hash_file('sha256', $contractFs);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $ua = mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+
+        // Salva firma
+        $dir = self::storageDir($hireRequestId, 'signature_image');
+        if (!is_dir($dir)) mkdir($dir, 0775, true);
+        $sigName = 'signature.png';
+        $sigPath = $dir . '/' . $sigName;
+        if (file_put_contents($sigPath, $png) === false) {
+            return ['success' => false, 'error' => 'Impossibile salvare la firma'];
+        }
+        Database::insert('hire_request_files', [
+            'hire_request_id' => $hireRequestId,
+            'category' => 'signature_image',
+            'file_path' => self::relPath($hireRequestId, 'signature_image', $sigName),
+            'original_name' => 'firma.png',
+            'mime_type' => 'image/png',
+            'file_size' => strlen($png),
+            'uploaded_by_employee_id' => (int)$emp['id'],
+            'signed_ip' => $ip,
+            'signed_user_agent' => $ua,
+            'signature_hash' => $hash,
+        ]);
+
+        // Aggiorna richiesta
+        Database::update('hire_requests', ['status' => 'contract_signed'], 'id = ?', [$hireRequestId]);
+
+        // Crea Document del dipendente (visibile dal profilo)
+        try {
+            $now = new DateTime();
+            Document::uploadFromPath($contractFs, [
+                'employee_id'   => (int)$emp['id'],
+                'type'          => 'other',
+                'month'         => (int)$now->format('n'),
+                'year'          => (int)$now->format('Y'),
+                'original_name' => 'Contratto di assunzione firmato.pdf',
+                'notes'         => 'Firmato il ' . $now->format('d/m/Y H:i') . ' - IP: ' . $ip . ' - SHA256: ' . substr($hash, 0, 16) . '...',
+            ]);
+        } catch (Throwable $e) {}
+
+        // Notifica admin e consulente
+        try {
+            $admins = Database::fetchAll(
+                "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 AND (company_id = ? OR company_id IS NULL)",
+                [(int)$hr['company_id']]
+            );
+            foreach ($admins as $a) {
+                Notification::create([
+                    'recipient_type' => 'admin',
+                    'recipient_id'   => (int)$a['id'],
+                    'type'           => 'contract_signed',
+                    'title'          => 'Contratto firmato',
+                    'message'        => $emp['first_name'] . ' ' . $emp['last_name'] . ' ha firmato il contratto.',
+                    'link'           => '/admin/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+            if (!empty($hr['assigned_consulente_user_id'])) {
+                Notification::create([
+                    'recipient_type' => 'consulente_lavoro',
+                    'recipient_id'   => (int)$hr['assigned_consulente_user_id'],
+                    'type'           => 'contract_signed',
+                    'title'          => 'Contratto firmato',
+                    'message'        => $emp['first_name'] . ' ' . $emp['last_name'] . ' ha firmato il contratto.',
+                    'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return ['success' => true];
+    }
+
     public static function rejectProspects(int $hireRequestId, string $reason): array
     {
         $u = Auth::getUser();
