@@ -53,9 +53,6 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
     <a href="<?= $__cfgBaseUrl ?>/password-resets.php"
        class="cd-tab <?= $__cfgPage === 'password-resets' ? 'active' : '' ?>">
         Reset Password
-        <?php if (!empty($pendingResets) && (int)$pendingResets > 0): ?>
-            <span class="cd-tab-badge"><?= (int)$pendingResets ?></span>
-        <?php endif; ?>
     </a>
     <a href="<?= $__cfgBaseUrl ?>/work-schedule.php"
        class="cd-tab <?= $__cfgPage === 'work-schedule' ? 'active' : '' ?>">
