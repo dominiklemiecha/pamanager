@@ -374,12 +374,6 @@ if ($id > 0 && $action !== 'new') {
                 Ora il consulente puo' caricare il contratto.
             </div>
         <?php endif; ?>
-        <?php elseif ($hr['status'] === 'approved' && $hr['employee_id']): ?>
-            <div class="alert alert-success" style="margin-bottom:1rem;">
-                Dipendente creato: <a href="employees.php?action=view&id=<?= (int)$hr['employee_id'] ?>"><strong>vedi profilo</strong></a>.
-                Ora il consulente puo' caricare il contratto.
-            </div>
-        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($hr['rejection_reason']): ?>
