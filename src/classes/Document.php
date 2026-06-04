@@ -589,9 +589,11 @@ class Document
     private static function isFpdiAvailable(): bool
     {
         if (self::$fpdiAvailable === null) {
-            self::$fpdiAvailable = class_exists('setasign\\Fpdi\\Fpdi') ||
-                                   class_exists('FPDI') ||
-                                   class_exists('setasign\\Fpdi\\TcpdfFpdi');
+            // Preferisci la variante TCPDF (TCPDF e' installato). Le altre due richiederebbero
+            // FPDF che NON e installato — non chiamarle con autoload o crashano.
+            self::$fpdiAvailable = class_exists('setasign\\Fpdi\\Tcpdf\\Fpdi', true)
+                || class_exists('setasign\\Fpdi\\TcpdfFpdi', false)
+                || (class_exists('FPDF', false) && class_exists('setasign\\Fpdi\\Fpdi', false));
         }
         return self::$fpdiAvailable;
     }
@@ -604,12 +606,16 @@ class Document
         // Tenta diversi namespace FPDI
         $fpdiClass = null;
 
-        if (class_exists('setasign\\Fpdi\\Fpdi')) {
-            $fpdiClass = 'setasign\\Fpdi\\Fpdi';
-        } elseif (class_exists('FPDI')) {
-            $fpdiClass = 'FPDI';
-        } elseif (class_exists('setasign\\Fpdi\\TcpdfFpdi')) {
+        // Preferenza: variante TCPDF (TCPDF installato). Le varianti FPDF richiederebbero
+        // ext FPDF non installato — controlli senza autoload per evitare crash.
+        if (class_exists('setasign\\Fpdi\\Tcpdf\\Fpdi', true)) {
+            $fpdiClass = 'setasign\\Fpdi\\Tcpdf\\Fpdi';
+        } elseif (class_exists('setasign\\Fpdi\\TcpdfFpdi', false)) {
             $fpdiClass = 'setasign\\Fpdi\\TcpdfFpdi';
+        } elseif (class_exists('FPDF', false) && class_exists('setasign\\Fpdi\\Fpdi', false)) {
+            $fpdiClass = 'setasign\\Fpdi\\Fpdi';
+        } elseif (class_exists('FPDI', false)) {
+            $fpdiClass = 'FPDI';
         }
 
         if (!$fpdiClass) {

@@ -45,6 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $success = true;
             $mustChange = false;
+            // Se c'e un contratto da firmare, redirect immediato (no scelta utente)
+            try {
+                $__pending = Database::fetchOne(
+                    "SELECT id FROM hire_requests WHERE employee_id = ? AND status = 'contract_pending' ORDER BY id DESC LIMIT 1",
+                    [(int)$employee['id']]
+                );
+                if ($__pending) {
+                    header('Location: ' . PUBLIC_URL . '/employee/contract-sign.php?id=' . (int)$__pending['id']);
+                    exit;
+                }
+            } catch (Throwable $e) {}
         } else {
             if (!empty($result['errors'])) {
                 $errors = $result['errors'];
