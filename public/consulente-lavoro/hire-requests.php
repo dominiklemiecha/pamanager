@@ -11,6 +11,22 @@ Auth::requireUser('consulente_lavoro');
 
 $user = Auth::getUser();
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$message = '';
+$error = '';
+
+// === POST: caricamento prospetti ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload_prospects') {
+    CSRF::verifyOrDie();
+    $reqId = (int)($_POST['id'] ?? 0);
+    $displayNames = $_POST['display_names'] ?? [];
+    $res = HireRequest::addProspects($reqId, $_FILES['prospects'] ?? [], $displayNames);
+    if ($res['success']) {
+        header('Location: hire-requests.php?id=' . $reqId . '&uploaded=1');
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $reqId . '&err=' . urlencode($res['error'] ?? 'Errore'));
+    exit;
+}
 
 // === Download file ===
 if (($_GET['action'] ?? '') === 'file' && $id > 0) {
@@ -91,9 +107,52 @@ if ($id > 0) {
     </div>
     <style>@keyframes pulseStep { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }</style>
 
-    <?php if ($hr['status'] === 'awaiting_prospects'): ?>
-        <div class="alert alert-info" style="margin-bottom:1rem;">
-            <strong>Azione richiesta:</strong> carica i prospetti di assunzione. (Funzionalita' in arrivo nella fase 2.)
+    <?php if (!empty($_GET['uploaded'])): ?>
+        <div class="alert alert-success" style="margin-bottom:1rem;">Prospetti caricati. L'admin e' stato notificato.</div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['err'])): ?>
+        <div class="alert alert-error" style="margin-bottom:1rem;"><?= htmlspecialchars($_GET['err']) ?></div>
+    <?php endif; ?>
+
+    <?php if (in_array($hr['status'], ['awaiting_prospects','prospects_review'], true)): ?>
+        <div class="card" style="margin-bottom:1rem; border:2px solid #044bff;">
+            <div class="card-body" style="padding:1.25rem;">
+                <h3 style="margin-top:0; font-size:1rem; color:#044bff;">
+                    <?= $hr['status'] === 'awaiting_prospects' ? 'Carica i prospetti di assunzione' : 'Aggiungi altri prospetti (gia consegnati: ' . count($byCat['prospect'] ?? []) . ')' ?>
+                </h3>
+                <p style="color:#64748b; font-size:.85rem; margin-bottom:1rem;">Puoi caricare piu file. L'admin ricevera una notifica e potra approvare o rifiutare.</p>
+                <form method="POST" action="hire-requests.php" enctype="multipart/form-data">
+                    <?= CSRF::field() ?>
+                    <input type="hidden" name="action" value="upload_prospects">
+                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                    <div id="prospects-list"></div>
+                    <label class="file-drop" style="display:flex; align-items:center; gap:.75rem; padding:.9rem 1rem; border:1.5px dashed #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; margin-bottom:1rem;">
+                        <input type="file" name="prospects[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp" style="position:absolute; opacity:0; pointer-events:none;" id="prospects-input">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span style="font-size:.85rem; color:#475569;"><strong style="color:#044bff;">Scegli file</strong> o trascina qui — uno o piu' PDF</span>
+                    </label>
+                    <button type="submit" class="btn btn-primary">Invia prospetti all'admin</button>
+                </form>
+                <script>
+                (function(){
+                    const inp = document.getElementById('prospects-input');
+                    const list = document.getElementById('prospects-list');
+                    inp.style.position = 'absolute'; inp.style.opacity = '0'; inp.style.inset = '0'; inp.style.cursor = 'pointer';
+                    inp.parentElement.style.position = 'relative';
+                    inp.addEventListener('change', () => {
+                        const files = Array.from(inp.files || []);
+                        list.innerHTML = '';
+                        files.forEach((f, i) => {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; padding:.5rem; background:#f8fafc; border-radius:6px;';
+                            row.innerHTML = '<span style="flex:0 0 auto; color:#16a34a;">✓</span><span style="flex:1; font-size:.85rem; color:#475569;">' + f.name.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</span>' +
+                                '<input type="text" name="display_names[' + i + ']" placeholder="Nome custom (es: Prospetto Indeterminato)" style="flex:0 0 280px; padding:.35rem .55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:.82rem;">';
+                            list.appendChild(row);
+                        });
+                    });
+                })();
+                </script>
+            </div>
         </div>
     <?php endif; ?>
 
@@ -128,6 +187,22 @@ if ($id > 0) {
             <?php if ($hr['notes']): ?><div style="margin-top:.75rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Note admin</div><div><?= nl2br(htmlspecialchars($hr['notes'])) ?></div></div><?php endif; ?>
         </div>
     </div>
+
+    <?php if (!empty($byCat['prospect'])): ?>
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-body" style="padding:1.25rem;">
+                <h3 style="margin-top:0; font-size:1rem;">Prospetti gia inviati</h3>
+                <?php foreach ($byCat['prospect'] as $f): ?>
+                    <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
+                        <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank">
+                            <strong><?= htmlspecialchars($f['display_name'] ?: $f['original_name']) ?></strong>
+                        </a>
+                        <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <div class="card" style="margin-bottom:1rem;">
         <div class="card-body" style="padding:1.25rem;">
