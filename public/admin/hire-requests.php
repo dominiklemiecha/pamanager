@@ -80,7 +80,7 @@ if ($id > 0 && $action !== 'new') {
     ];
     $statusColor = $statusColors[$hr['status']] ?? '#64748b';
 ?>
-<div style="max-width:1000px; margin:1.5rem auto;">
+<div style="width:100%; margin:1.5rem 0;">
     <?php if (!empty($_GET['created'])): ?>
         <div class="alert alert-success" style="margin-bottom:1rem;">Richiesta creata. In attesa che il consulente carichi i prospetti.</div>
     <?php endif; ?>
@@ -182,7 +182,7 @@ if ($id > 0 && $action !== 'new') {
 if ($action === 'new') {
     $form = $form ?? [];
 ?>
-<div style="max-width:900px; margin:1.5rem auto;">
+<div style="width:100%; margin:1.5rem 0;">
     <a href="hire-requests.php" class="btn btn-secondary" style="margin-bottom:1rem;">← Torna alla lista</a>
     <h1 style="font-size:1.5rem; margin:0 0 .25rem;">Nuova assunzione</h1>
     <p style="color:#64748b; margin:0 0 1.5rem;">Compila i dati anagrafici e carica i documenti. La richiesta sara' inoltrata al consulente del lavoro.</p>
@@ -386,7 +386,7 @@ if ($action === 'new') {
 $rows = HireRequest::listForCurrent();
 $statusFilter = $_GET['status'] ?? '';
 ?>
-<div style="max-width:1100px; margin:1.5rem auto;">
+<div style="width:100%; margin:1.5rem 0;">
     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
         <h1 style="margin:0; font-size:1.5rem; flex:1;">Richieste di assunzione</h1>
         <a href="hire-requests.php?action=new" class="btn btn-primary">
