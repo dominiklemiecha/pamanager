@@ -193,6 +193,33 @@ if ($action === 'new') {
     .pill-radio input[type="radio"], .pill-radio input[type="checkbox"] { accent-color: #044bff; }
     .pill-radio:has(input:checked) { border-color: #044bff; background:#eff5ff; color:#044bff; font-weight:600; }
 
+    /* Forza radio e checkbox a rendering quadrato custom identico (no piu' radio tondi) */
+    .pill-radio input[type="radio"], .pill-radio input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px; height: 16px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 3px;
+        background: #fff;
+        margin: 0;
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+    }
+    .pill-radio input:checked {
+        border-color: #044bff;
+        background: #044bff;
+    }
+    .pill-radio input:checked::after {
+        content: '';
+        position: absolute;
+        left: 4px; top: 1px;
+        width: 4px; height: 8px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
     /* File drop card */
     .file-drop {
         position: relative;
@@ -347,7 +374,7 @@ if ($action === 'new') {
                 <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Tipologia (seleziona almeno una) *</label>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:.5rem;">
                     <?php foreach (['contract_indeterminato'=>'Tempo indeterminato','contract_determinato'=>'Tempo determinato','contract_apprendistato'=>'Apprendistato','contract_tirocinio'=>'Tirocinio/Stage','contract_agevolata'=>'Agevolata da discutere'] as $k=>$lbl): ?>
-                        <label style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
+                        <label class="pill-radio" style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
                             <input type="checkbox" name="<?= $k ?>" value="1" <?= !empty($form[$k]) ? 'checked' : '' ?>>
                             <?= $lbl ?>
                         </label>
@@ -379,7 +406,7 @@ if ($action === 'new') {
                 <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Giorni di lavoro *</label>
                 <div style="display:flex; flex-wrap:wrap; gap:.5rem;">
                     <?php foreach (['mon'=>'Lun','tue'=>'Mar','wed'=>'Mer','thu'=>'Gio','fri'=>'Ven','sat'=>'Sab','sun'=>'Dom'] as $k=>$lbl): ?>
-                        <label style="display:flex; gap:4px; align-items:center; padding:.4rem .7rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
+                        <label class="pill-radio" style="display:flex; gap:4px; align-items:center; padding:.4rem .7rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
                             <input type="checkbox" name="work_days[]" value="<?= $k ?>" <?= in_array($k, (array)($form['work_days'] ?? ['mon','tue','wed','thu','fri']), true) ? 'checked' : '' ?>>
                             <?= $lbl ?>
                         </label>
