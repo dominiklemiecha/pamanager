@@ -253,13 +253,21 @@ if ($id > 0) {
         </div>
     <?php endif; ?>
 
-    <?php if (!empty($byCat['contract']) || !empty($byCat['signature_image'])): ?>
+    <?php if (!empty($byCat['contract']) || !empty($byCat['signature_image']) || !empty($byCat['signed_contract'])): ?>
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-body" style="padding:1.25rem;">
                 <h3 style="margin-top:0; font-size:1rem;">Contratto</h3>
+                <?php foreach ($byCat['signed_contract'] ?? [] as $f): ?>
+                    <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
+                        <span style="display:inline-block; background:#16a34a; color:#fff; padding:1px 8px; border-radius:999px; font-size:.7rem; margin-right:6px;">FIRMATO</span>
+                        <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank"><strong>Contratto firmato</strong></a>
+                        <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
+                    </div>
+                <?php endforeach; ?>
                 <?php foreach ($byCat['contract'] ?? [] as $f): ?>
                     <div style="padding:.5rem 0; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
-                        <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank"><strong><?= htmlspecialchars($f['original_name']) ?></strong></a>
+                        <span style="display:inline-block; background:#94a3b8; color:#fff; padding:1px 8px; border-radius:999px; font-size:.7rem; margin-right:6px;">ORIGINALE</span>
+                        <a href="?action=file&id=<?= $hr['id'] ?>&file_id=<?= $f['id'] ?>" target="_blank"><?= htmlspecialchars($f['original_name']) ?></a>
                         <span style="color:#94a3b8; font-size:.78rem; margin-left:.5rem;"><?= htmlspecialchars(date('d/m/Y H:i', strtotime($f['uploaded_at']))) ?></span>
                     </div>
                 <?php endforeach; ?>

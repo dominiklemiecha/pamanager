@@ -637,21 +637,9 @@ class Document
                 $pdf->SetFont('Helvetica', '', 6);
                 $pdf->SetTextColor(128, 128, 128);
 
-                // Posiziona in basso
+                // Posiziona in basso (solo riga di tracciamento, no watermark "COPIA PERSONALE")
                 $pdf->SetXY(5, $size['height'] - 5);
                 $pdf->Cell(0, 3, $text, 0, 0, 'L');
-
-                // Watermark diagonale trasparente (se supportato)
-                $pdf->SetTextColor(200, 200, 200);
-                $pdf->SetFont('Helvetica', 'B', 40);
-
-                // Ruota e posiziona al centro
-                if (method_exists($pdf, 'Rotate')) {
-                    $pdf->Rotate(45, $size['width'] / 2, $size['height'] / 2);
-                    $pdf->SetXY($size['width'] / 4, $size['height'] / 2);
-                    $pdf->Cell(0, 0, 'COPIA PERSONALE', 0, 0, 'C');
-                    $pdf->Rotate(0);
-                }
             }
 
             $pdf->Output($outputPath, 'F');
