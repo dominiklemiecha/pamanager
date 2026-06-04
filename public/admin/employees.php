@@ -342,10 +342,12 @@ $renderVisChip = function(string $field) use ($visibilityConfig) {
     <?php
 };
 $search = $_GET['search'] ?? '';
-$showInactive = isset($_GET['show_inactive']);
+// Admin vede SEMPRE tutti i dipendenti (attivi + cessati) per poter riattivare/gestire storico.
+// Filtro opzionale ?only_active per nascondere i cessati.
+$onlyActive = isset($_GET['only_active']);
 
 if ($action === 'list') {
-    $employees = Employee::getAll(!$showInactive, $search);
+    $employees = Employee::getAll($onlyActive, $search);
     // Conteggi per i chip filtro (scoped per azienda corrente)
     $__empCid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
     try {
