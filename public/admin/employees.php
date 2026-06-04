@@ -732,6 +732,20 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                                         <a href="?action=edit&id=<?= $emp['id'] ?>" class="icon-btn-sm" title="Modifica">
                                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                                         </a>
+                                        <form method="POST" class="inline-form" onsubmit="return confirm(<?= $emp['is_active']
+                                            ? "'Disattivare il dipendente \\'" . addslashes(e($emp['username'])) . "\\'? Non sara piu visibile a consulente/commercialista e non comparira negli export presenze.'"
+                                            : "'Riattivare il dipendente \\'" . addslashes(e($emp['username'])) . "\\'?'" ?>)">
+                                            <?= CSRF::field() ?>
+                                            <input type="hidden" name="action" value="toggle_active">
+                                            <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                                            <button type="submit" class="icon-btn-sm" title="<?= $emp['is_active'] ? 'Disattiva (cessato)' : 'Riattiva' ?>" style="<?= $emp['is_active'] ? 'color:#dc2626;' : 'color:#16a34a;' ?>">
+                                                <?php if ($emp['is_active']): ?>
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                                                <?php else: ?>
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                                                <?php endif; ?>
+                                            </button>
+                                        </form>
                                         <form method="POST" class="inline-form" onsubmit="return confirm('Eliminare definitivamente <?= e($emp['username']) ?>? I documenti associati verranno rimossi. Operazione IRREVERSIBILE.')">
                                             <?= CSRF::field() ?>
                                             <input type="hidden" name="action" value="delete">
