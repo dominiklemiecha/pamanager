@@ -31,6 +31,28 @@ $pendingInvites = class_exists('CalendarEvent')
     ? CalendarEvent::countPendingInvitations($isAdmin ? 'admin' : ($isConsulente ? 'consulente_lavoro' : 'accountant'), (int)$currentUser['id'])
     : 0;
 
+// Conteggio richieste di assunzione che richiedono azione del viewer
+$pendingHires = 0;
+if (class_exists('HireRequest')) {
+    try {
+        if ($isAdmin) {
+            // admin: stato 'prospects_review' (consulente ha caricato, admin deve approvare)
+            $pendingHires = (int) Database::fetchColumn(
+                "SELECT COUNT(*) FROM hire_requests WHERE company_id = ? AND status = 'prospects_review'",
+                [$__cid]
+            );
+        } elseif ($isConsulente) {
+            // consulente: stato 'awaiting_prospects' (admin ha inviato, consulente deve caricare prospetti)
+            $pendingHires = (int) Database::fetchColumn(
+                "SELECT COUNT(*) FROM hire_requests
+                 WHERE company_id = ? AND status = 'awaiting_prospects'
+                   AND (assigned_consulente_user_id = ? OR assigned_consulente_user_id IS NULL)",
+                [$__cid, (int)$currentUser['id']]
+            );
+        }
+    } catch (Throwable $e) {}
+}
+
 // Sublabel data per sidebar (admin)
 $__sb = ['emp' => '', 'comm' => '', 'pres' => '', 'dept' => ''];
 if ($isAdmin) {
@@ -143,8 +165,9 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                     <span class="nav-content">
                         <span class="nav-title">Assunzioni</span>
-                        <span class="nav-sub">Nuove richieste</span>
+                        <span class="nav-sub"><?php echo $pendingHires > 0 ? $pendingHires . ' da approvare' : 'Nuove richieste'; ?></span>
                     </span>
+                    <?php if ($pendingHires > 0): ?><span class="nav-pulse" title="<?php echo $pendingHires; ?> prospetti da approvare"></span><?php endif; ?>
                 </a>
                 <a href="<?php echo $baseUrl; ?>/admin/leave-requests.php" class="nav-item <?php echo $currentPage === 'leave-requests' ? 'active' : ''; ?>" data-tooltip="Ferie e Permessi">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -233,8 +256,9 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                     <span class="nav-content">
                         <span class="nav-title">Assunzioni</span>
-                        <span class="nav-sub">Richieste in corso</span>
+                        <span class="nav-sub"><?php echo $pendingHires > 0 ? $pendingHires . ' da gestire' : 'Richieste in corso'; ?></span>
                     </span>
+                    <?php if ($pendingHires > 0): ?><span class="nav-pulse" title="<?php echo $pendingHires; ?> richieste da gestire"></span><?php endif; ?>
                 </a>
                 <a href="<?php echo $baseUrl; ?>/consulente-lavoro/documents.php" class="nav-item <?php echo $currentPage === 'documents' ? 'active' : ''; ?>" data-tooltip="Buste paga/CUD">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
