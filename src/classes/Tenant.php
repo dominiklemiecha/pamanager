@@ -270,22 +270,23 @@ class Tenant
         // Hire requests in stati che richiedono azione del viewer
         try {
             $urole = $u['role'] ?? '';
-            $hireStatus = null;
+            $hireStatuses = [];
             $extraSql = '';
             $extraArgs = [];
             if ($urole === 'admin') {
-                $hireStatus = 'prospects_review';
+                $hireStatuses = ['prospects_review'];
             } elseif ($urole === 'consulente_lavoro') {
-                $hireStatus = 'awaiting_prospects';
+                $hireStatuses = ['awaiting_prospects', 'approved']; // carica prospetti / carica contratto
                 $extraSql = ' AND (assigned_consulente_user_id = ? OR assigned_consulente_user_id IS NULL)';
                 $extraArgs[] = (int)$u['id'];
             }
-            if ($hireStatus !== null) {
+            if (!empty($hireStatuses)) {
+                $sph = implode(',', array_fill(0, count($hireStatuses), '?'));
                 $rows = Database::fetchAll(
                     "SELECT company_id, COUNT(*) AS n FROM hire_requests
-                     WHERE company_id IN ($ph) AND status = ?" . $extraSql . "
+                     WHERE company_id IN ($ph) AND status IN ($sph)" . $extraSql . "
                      GROUP BY company_id",
-                    array_merge($cids, [$hireStatus], $extraArgs)
+                    array_merge($cids, $hireStatuses, $extraArgs)
                 );
                 foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
             }

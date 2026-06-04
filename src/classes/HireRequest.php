@@ -510,6 +510,9 @@ class HireRequest
         $empId = (int)($created['id'] ?? 0);
         if ($empId <= 0) return ['success' => false, 'error' => 'Creazione dipendente fallita'];
 
+        $emailSent = !empty($created['email_sent']);
+        $emailError = $created['email_error'] ?? null;
+
         // Aggiorna working_days e hours_per_day (non gestiti da Employee::create direttamente)
         try {
             Database::update('employees', [
@@ -568,7 +571,7 @@ class HireRequest
             }
         } catch (Throwable $e) {}
 
-        return ['success' => true, 'employee_id' => $empId];
+        return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError];
     }
 
     public static function rejectProspects(int $hireRequestId, string $reason): array

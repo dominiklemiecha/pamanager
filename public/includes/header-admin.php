@@ -42,10 +42,10 @@ if (class_exists('HireRequest')) {
                 [$__cid]
             );
         } elseif ($isConsulente) {
-            // consulente: stato 'awaiting_prospects' (admin ha inviato, consulente deve caricare prospetti)
+            // consulente: 'awaiting_prospects' (carica prospetti) + 'approved' (carica contratto = "Da contrattualizzare")
             $pendingHires = (int) Database::fetchColumn(
                 "SELECT COUNT(*) FROM hire_requests
-                 WHERE company_id = ? AND status = 'awaiting_prospects'
+                 WHERE company_id = ? AND status IN ('awaiting_prospects','approved')
                    AND (assigned_consulente_user_id = ? OR assigned_consulente_user_id IS NULL)",
                 [$__cid, (int)$currentUser['id']]
             );

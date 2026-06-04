@@ -7,6 +7,19 @@
     'use strict';
 
     // ================================
+    // Scroll-to-top quando arrivi da un redirect con flash params
+    // (created, approved, uploaded, rejected, deleted, err, email_err, etc.)
+    // ================================
+    (function() {
+        const flashKeys = ['created','approved','rejected','uploaded','deleted','err','email_err','del_err','left','tenant'];
+        const params = new URLSearchParams(window.location.search);
+        if (flashKeys.some(k => params.has(k))) {
+            // Scroll immediato senza animazione: in cima
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
+    })();
+
+    // ================================
     // Alert: close button + auto-dismiss
     // ================================
     document.addEventListener('DOMContentLoaded', () => {
