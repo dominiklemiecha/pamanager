@@ -1,6 +1,6 @@
 <?php
 /**
- * Dashboard Commercialista
+ * Dashboard Consulente del lavoro
  * PAManager - Comune
  */
 
@@ -12,362 +12,286 @@ Auth::requireUser('accountant');
 
 $user = Auth::getUser();
 
-// Statistiche
+$__cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+
 $employeeCount = Employee::count(true);
-$documentCount = Database::count('documents', 'uploaded_by = ?', [$user['id']]);
+$documentCount = Database::count('documents', 'uploaded_by = ? AND company_id = ?', [$user['id'], $__cid]);
 $thisMonthDocs = Database::count(
     'documents',
-    'uploaded_by = ? AND MONTH(created_at) = ? AND YEAR(created_at) = ?',
-    [$user['id'], date('n'), date('Y')]
+    'uploaded_by = ? AND company_id = ? AND MONTH(created_at) = ? AND YEAR(created_at) = ?',
+    [$user['id'], $__cid, date('n'), date('Y')]
+);
+$pendingLeave = (int) Database::fetchColumn(
+    "SELECT COUNT(*) FROM leave_requests lr
+     JOIN employees e ON lr.employee_id = e.id
+     WHERE e.company_id = ? AND lr.status = 'pending'",
+    [$__cid]
+);
+$approvedLeaveYear = (int) Database::fetchColumn(
+    "SELECT COUNT(*) FROM leave_requests lr
+     JOIN employees e ON lr.employee_id = e.id
+     WHERE e.company_id = ? AND lr.status = 'approved' AND YEAR(lr.start_date) = ?",
+    [$__cid, (int)date('Y')]
 );
 
-// Ultimi documenti caricati dall'utente
 $recentDocuments = Database::fetchAll(
     "SELECT d.*, e.first_name, e.last_name, e.fiscal_code
      FROM documents d
      JOIN employees e ON d.employee_id = e.id
-     WHERE d.uploaded_by = ?
+     WHERE d.uploaded_by = ? AND d.company_id = ?
      ORDER BY d.created_at DESC
-     LIMIT 10",
-    [$user['id']]
+     LIMIT 8",
+    [$user['id'], $__cid]
 );
 
-$pageTitle = 'Dashboard - Commercialista';
+$pageTitle = 'Dashboard';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
 
+<?php
+$__hour = (int) date('H');
+$__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 'Buonasera');
+?>
+<div class="cl-banner">
+    <div>
+        <h2><?= htmlspecialchars($__greeting) ?>, <?= e($user['name']) ?> 👋</h2>
+        <p><?= htmlspecialchars(ucfirst(getItalianDate())) ?> · Area Consulente del Lavoro</p>
+    </div>
+    <div class="cl-banner-actions">
+        <a href="employees.php" class="cl-banner-btn cl-banner-btn-ghost">Anagrafica</a>
+        <a href="documents.php" class="cl-banner-btn cl-banner-btn-primary">Carica documenti</a>
+    </div>
+</div>
 <style>
-/* Dashboard Commercialista */
-.acc-dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.acc-welcome {
-    background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
-    border-radius: 12px;
-    padding: 1.5rem;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.acc-welcome-info h1 {
-    font-size: 1.25rem;
-    margin: 0 0 0.25rem;
-    color: white;
-}
-
-.acc-welcome-info p {
-    margin: 0;
-    opacity: 0.85;
-    font-size: 0.85rem;
-}
-
-.acc-welcome .btn {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.25rem;
-    font-size: 0.85rem;
-}
-
-.acc-welcome .btn:hover {
-    background: rgba(255,255,255,0.25);
-}
-
-.acc-welcome .btn svg {
-    width: 18px;
-    height: 18px;
-}
-
-/* Stats */
-.acc-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-}
-
-.acc-stat {
+.cl-banner {
     background: white;
-    border-radius: 10px;
-    padding: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    border-left: 4px solid;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
 }
-
-.acc-stat.primary { border-left-color: #3182ce; }
-.acc-stat.success { border-left-color: #38a169; }
-.acc-stat.warning { border-left-color: #d69e2e; }
-
-.acc-stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.cl-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    margin: 0 0 4px;
+    font-size: 20px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.02em;
 }
-
-.acc-stat.primary .acc-stat-icon { background: #ebf8ff; color: #3182ce; }
-.acc-stat.success .acc-stat-icon { background: #f0fff4; color: #38a169; }
-.acc-stat.warning .acc-stat-icon { background: #fffff0; color: #d69e2e; }
-
-.acc-stat-icon svg {
-    width: 24px;
-    height: 24px;
+.cl-banner p { margin: 0; font-size: 13px; color: #6e7191; }
+.cl-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cl-banner-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    transition: all .12s ease;
+    border: 1px solid transparent;
 }
-
-.acc-stat-info {
-    flex: 1;
-}
-
-.acc-stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #1a202c;
-    line-height: 1;
-}
-
-.acc-stat-label {
-    font-size: 0.75rem;
-    color: #718096;
-    margin-top: 0.2rem;
-}
-
-/* Recent Docs */
-.acc-section {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    overflow: hidden;
-}
-
-.acc-section-header {
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid #edf2f7;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #f7fafc;
-}
-
-.acc-section-header h2 {
-    font-size: 0.95rem;
-    margin: 0;
-    color: #2d3748;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.acc-section-header h2 svg {
-    width: 18px;
-    height: 18px;
-    color: #718096;
-}
-
-/* Docs List */
-.acc-docs-list {
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.acc-doc-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.85rem 1.25rem;
-    border-bottom: 1px solid #f7fafc;
-    transition: background 0.2s;
-}
-
-.acc-doc-item:last-child { border-bottom: none; }
-.acc-doc-item:hover { background: #f7fafc; }
-
-.acc-doc-type {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.acc-doc-type svg {
-    width: 18px;
-    height: 18px;
-}
-
-.acc-doc-type.payslip { background: #c6f6d5; color: #276749; }
-.acc-doc-type.cud { background: #fefcbf; color: #975a16; }
-.acc-doc-type.other { background: #e2e8f0; color: #4a5568; }
-
-.acc-doc-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.acc-doc-title {
-    font-weight: 500;
-    color: #2d3748;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.acc-doc-meta {
-    font-size: 0.7rem;
-    color: #a0aec0;
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.acc-doc-employee {
-    font-size: 0.8rem;
-    color: #4a5568;
-    min-width: 120px;
-}
-
-.acc-doc-date {
-    font-size: 0.75rem;
-    color: #a0aec0;
-    white-space: nowrap;
-}
-
-.acc-empty {
-    padding: 2.5rem;
-    text-align: center;
-    color: #a0aec0;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .acc-stats {
-        grid-template-columns: 1fr;
-    }
-
-    .acc-welcome {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .acc-doc-item {
-        flex-wrap: wrap;
-    }
-
-    .acc-doc-employee {
-        width: 100%;
-        order: -1;
-        margin-bottom: 0.25rem;
-    }
+.cl-banner-btn-primary { background: #0b3aa4; color: white; border-color: #0b3aa4; }
+.cl-banner-btn-primary:hover { background: #082b7b; color: white; text-decoration: none; }
+.cl-banner-btn-ghost { background: white; color: #475569; border-color: #e6e8f0; }
+.cl-banner-btn-ghost:hover { border-color: #0b3aa4; color: #0b3aa4; text-decoration: none; }
+@media (max-width: 600px) {
+    .cl-banner { flex-direction: column; align-items: stretch; }
+    .cl-banner-btn { flex: 1; justify-content: center; }
 }
 </style>
 
-<div class="acc-dashboard">
-    <!-- Welcome Header -->
-    <div class="acc-welcome">
-        <div class="acc-welcome-info">
-            <h1>Benvenuto, <?= e($user['name']) ?></h1>
-            <p><?= getItalianDate() ?></p>
+<div class="dashboard">
+
+    <div class="cl-kpis">
+        <a href="employees.php" class="cl-kpi">
+            <div class="cl-kpi-ic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Dipendenti</div>
+                <div class="cl-kpi-v"><?= (int)$employeeCount ?></div>
+                <div class="cl-kpi-s">attivi in anagrafica</div>
+            </div>
+        </a>
+
+        <a href="documents.php" class="cl-kpi">
+            <div class="cl-kpi-ic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Documenti caricati</div>
+                <div class="cl-kpi-v"><?= (int)$documentCount ?></div>
+                <div class="cl-kpi-s">totale storico</div>
+            </div>
+        </a>
+
+        <div class="cl-kpi">
+            <div class="cl-kpi-ic" style="background: rgba(17,186,186,0.10); color: #0c8a8a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h2M14 14h2M8 18h2"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Questo mese</div>
+                <div class="cl-kpi-v"><?= (int)$thisMonthDocs ?></div>
+                <div class="cl-kpi-s">documenti caricati a <?= mb_strtolower(getMonthName((int)date('n'))) ?></div>
+            </div>
         </div>
-        <a href="documents.php" class="btn">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
-            </svg>
-            Carica Documenti
+
+        <a href="leave-requests.php" class="cl-kpi">
+            <div class="cl-kpi-ic" style="background: rgba(17,186,186,0.10); color: #0c8a8a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div class="cl-kpi-info">
+                <div class="cl-kpi-l">Ferie/permessi</div>
+                <div class="cl-kpi-v"><?= $approvedLeaveYear ?></div>
+                <div class="cl-kpi-s">approvate quest'anno</div>
+            </div>
         </a>
     </div>
 
-    <!-- Stats -->
-    <div class="acc-stats">
-        <div class="acc-stat primary">
-            <div class="acc-stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                </svg>
+    <?php if ($pendingLeave > 0): ?>
+    <div class="cl-pending-alert">
+        <div class="cl-pending-ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="cl-pending-body">
+            <div class="cl-pending-title">
+                <?= $pendingLeave ?> richiest<?= $pendingLeave === 1 ? 'a' : 'e' ?> di ferie/permessi in attesa di approvazione
             </div>
-            <div class="acc-stat-info">
-                <div class="acc-stat-value"><?= $employeeCount ?></div>
-                <div class="acc-stat-label">Dipendenti Attivi</div>
+            <div class="cl-pending-sub">
+                Queste richieste non sono incluse negli export. Contatta l'amministratore per farle approvare o rifiutare.
             </div>
         </div>
-
-        <div class="acc-stat success">
-            <div class="acc-stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/>
-                </svg>
-            </div>
-            <div class="acc-stat-info">
-                <div class="acc-stat-value"><?= $documentCount ?></div>
-                <div class="acc-stat-label">Documenti Totali</div>
-            </div>
-        </div>
-
-        <div class="acc-stat warning">
-            <div class="acc-stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/>
-                </svg>
-            </div>
-            <div class="acc-stat-info">
-                <div class="acc-stat-value"><?= $thisMonthDocs ?></div>
-                <div class="acc-stat-label">Questo Mese</div>
-            </div>
-        </div>
+        <a href="chat.php" class="cl-pending-cta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Contatta admin
+        </a>
     </div>
+    <style>
+    .cl-pending-alert {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(180deg, #fffbf3, #fff);
+        border: 1px solid #f4d68a;
+        border-left: 4px solid #d97706;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+    }
+    .cl-pending-ic {
+        width: 40px; height: 40px; border-radius: 10px;
+        background: rgba(217,119,6,0.12); color: #b45309;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .cl-pending-ic svg { width: 20px; height: 20px; }
+    .cl-pending-body { flex: 1; min-width: 0; }
+    .cl-pending-title { font-weight: 700; color: #78350f; font-size: 14px; }
+    .cl-pending-sub { font-size: 12.5px; color: #92400e; margin-top: 2px; line-height: 1.4; }
+    .cl-pending-cta {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #b45309; color: white;
+        padding: 8px 14px; border-radius: 8px;
+        font-size: 12.5px; font-weight: 600;
+        text-decoration: none; flex-shrink: 0;
+        transition: background .12s ease;
+    }
+    .cl-pending-cta:hover { background: #92400e; color: white; text-decoration: none; }
+    @media (max-width: 600px) {
+        .cl-pending-alert { flex-direction: column; align-items: stretch; text-align: left; }
+        .cl-pending-cta { justify-content: center; }
+    }
+    </style>
+    <?php endif; ?>
+    <style>
+    .cl-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+    .cl-kpi {
+        background: white;
+        border: 1px solid #e6e8f0;
+        border-radius: 14px;
+        padding: 18px;
+        display: flex; align-items: center; gap: 14px;
+        text-decoration: none;
+        transition: all .12s ease;
+        cursor: default;
+    }
+    a.cl-kpi { cursor: pointer; }
+    a.cl-kpi:hover {
+        border-color: #0b3aa4;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(11,58,164,0.08);
+        text-decoration: none;
+    }
+    .cl-kpi.is-warn { border-color: rgba(255,187,85,0.45); background: linear-gradient(180deg, #fffbf3, white); }
+    .cl-kpi-ic {
+        width: 44px; height: 44px;
+        border-radius: 11px;
+        background: rgba(11,58,164,0.10); color: #0b3aa4;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .cl-kpi-ic svg { width: 22px; height: 22px; }
+    .cl-kpi-info { flex: 1; min-width: 0; }
+    .cl-kpi-l {
+        font-size: 10px; font-weight: 700; color: #6e7191;
+        text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .cl-kpi-v {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 28px; font-weight: 700;
+        color: #1e1e2f; line-height: 1.05;
+        letter-spacing: -0.02em;
+        margin: 2px 0;
+    }
+    .cl-kpi-s {
+        font-size: 11px; color: #94a3b8;
+        line-height: 1.4;
+    }
+    @media (max-width: 1000px) { .cl-kpis { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .cl-kpis { grid-template-columns: 1fr; } }
+    </style>
 
-    <!-- Recent Documents -->
-    <div class="acc-section">
-        <div class="acc-section-header">
-            <h2>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/>
-                </svg>
-                Ultimi Documenti
-            </h2>
+    <section class="dashboard-card dashboard-card-full" style="margin-top:1rem;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h3>Ultimi documenti caricati</h3>
             <a href="documents.php" class="btn btn-sm btn-secondary">Vedi tutti</a>
         </div>
 
         <?php if (empty($recentDocuments)): ?>
-            <div class="acc-empty">Nessun documento caricato</div>
+            <p style="padding:2rem;text-align:center;color:var(--muted);">Nessun documento caricato.</p>
         <?php else: ?>
-            <div class="acc-docs-list">
-                <?php foreach ($recentDocuments as $doc): ?>
-                    <div class="acc-doc-item">
-                        <div class="acc-doc-type <?= e($doc['type']) ?>">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                            </svg>
-                        </div>
-                        <div class="acc-doc-info">
-                            <div class="acc-doc-title"><?= e($doc['title']) ?></div>
-                            <div class="acc-doc-meta">
-                                <span><?= getMonthName($doc['month']) ?> <?= $doc['year'] ?></span>
-                                <span><?= e(Document::TYPES[$doc['type']] ?? $doc['type']) ?></span>
-                            </div>
-                        </div>
-                        <div class="acc-doc-employee"><?= e($doc['last_name'] . ' ' . $doc['first_name']) ?></div>
-                        <div class="acc-doc-date"><?= formatDateTime($doc['created_at']) ?></div>
-                    </div>
-                <?php endforeach; ?>
+            <div class="table-responsive">
+                <table class="data-table data-table-hover responsive">
+                    <thead>
+                        <tr>
+                            <th>Dipendente</th>
+                            <th>Tipo</th>
+                            <th>Titolo</th>
+                            <th>Periodo</th>
+                            <th>Caricato</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($recentDocuments as $doc): ?>
+                        <tr>
+                            <td data-label="Dipendente"><?= e($doc['last_name'] . ' ' . $doc['first_name']) ?></td>
+                            <td data-label="Tipo">
+                                <span class="badge badge-info"><?= e(Document::TYPES[$doc['type']] ?? $doc['type']) ?></span>
+                            </td>
+                            <td data-label="Titolo"><?= e($doc['title']) ?></td>
+                            <td data-label="Periodo"><?= e(getMonthName($doc['month'])) ?> <?= (int)$doc['year'] ?></td>
+                            <td data-label="Caricato"><?= e(formatDateTime($doc['created_at'])) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         <?php endif; ?>
-    </div>
+    </section>
 </div>
 
 <?php include dirname(__DIR__) . '/includes/footer-admin.php'; ?>

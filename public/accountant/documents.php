@@ -1,6 +1,6 @@
 <?php
 /**
- * Caricamento Documenti - Commercialista
+ * Caricamento Documenti - Consulente del lavoro
  * PAManager - Comune
  */
 
@@ -13,6 +13,151 @@ Auth::requireUser('accountant');
 $user = Auth::getUser();
 $message = '';
 $error = '';
+
+/**
+ * Caricamento massivo buste paga.
+ * - bulk_analyze: riceve N file PDF, per ciascuno estrae CF + mensilita',
+ *   prova il match con i dipendenti dell'azienda corrente, e ritorna JSON
+ *   con le righe candidate (file salvati in storage/payslip_staging/{sess}/).
+ * - bulk_commit: riceve gli ID staging + dipendente/mese/anno scelti
+ *   (eventualmente corretti a mano) e crea i Document via Document::upload.
+ */
+function payslipStagingDir(): string {
+    $dir = ROOT_PATH . '/storage/payslip_staging/' . substr(session_id() ?: 'anon', 0, 32);
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk_analyze' || ($_POST['action'] ?? '') === 'bulk_commit')) {
+    CSRF::verifyOrDie();
+    header('Content-Type: application/json');
+
+    if (($_POST['action'] ?? '') === 'bulk_analyze') {
+        $rows = [];
+        $files = $_FILES['files'] ?? null;
+        if (!$files || !is_array($files['name'])) {
+            echo json_encode(['success' => false, 'error' => 'Nessun file ricevuto']);
+            exit;
+        }
+        // Carica dipendenti dell'azienda corrente (per match CF)
+        $emps = Employee::getAll(true);
+        $byCf = [];
+        foreach ($emps as $e) {
+            if (!empty($e['fiscal_code'])) $byCf[strtoupper(trim($e['fiscal_code']))] = $e;
+        }
+        $staging = payslipStagingDir();
+
+        $n = count($files['name']);
+        for ($i = 0; $i < $n; $i++) {
+            if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+            $origName = (string) $files['name'][$i];
+            if (strtolower(pathinfo($origName, PATHINFO_EXTENSION)) !== 'pdf') {
+                $rows[] = ['filename' => $origName, 'status' => 'error', 'error' => 'Non e un PDF'];
+                continue;
+            }
+            $stageId = bin2hex(random_bytes(8));
+            $stagePath = $staging . '/' . $stageId . '.pdf';
+            if (!@move_uploaded_file($files['tmp_name'][$i], $stagePath)) {
+                $rows[] = ['filename' => $origName, 'status' => 'error', 'error' => 'Salvataggio fallito'];
+                continue;
+            }
+            try {
+                $parsed = PayslipParser::parse($stagePath);
+            } catch (Throwable $e) {
+                $rows[] = ['filename' => $origName, 'staging_id' => $stageId, 'status' => 'error', 'error' => 'Parser: ' . $e->getMessage()];
+                continue;
+            }
+            $cf = $parsed['cf'];
+            $emp = $cf && isset($byCf[strtoupper($cf)]) ? $byCf[strtoupper($cf)] : null;
+            // Saldi (ferie/permesso) letti dal PDF: residuo / proiezione se presenti
+            $bal = $parsed['balances'] ?? ['ferie' => null, 'permesso' => null];
+            $ferieRes = $bal['ferie']['residuo'] ?? null;
+            $permRes  = $bal['permesso']['residuo'] ?? null;
+            $rows[] = [
+                'filename'      => $origName,
+                'staging_id'    => $stageId,
+                'cf'            => $cf,
+                'employee_id'   => $emp ? (int)$emp['id'] : null,
+                'employee_name' => $emp ? trim($emp['first_name'] . ' ' . $emp['last_name']) : null,
+                'month'         => $parsed['period']['month'] ?? null,
+                'year'          => $parsed['period']['year'] ?? null,
+                'ferie_residuo' => $ferieRes,
+                'perm_residuo'  => $permRes,
+                'status'        => $emp && $parsed['period'] ? 'ready' : ($cf ? 'partial' : 'unmatched'),
+            ];
+        }
+        echo json_encode(['success' => true, 'rows' => $rows]);
+        exit;
+    }
+
+    if (($_POST['action'] ?? '') === 'bulk_commit') {
+        $rowsRaw = $_POST['rows'] ?? '[]';
+        $rowsIn = is_string($rowsRaw) ? json_decode($rowsRaw, true) : (is_array($rowsRaw) ? $rowsRaw : []);
+        if (!is_array($rowsIn)) $rowsIn = [];
+        $staging = payslipStagingDir();
+        $created = 0; $errors = [];
+        foreach ($rowsIn as $r) {
+            $stageId = preg_replace('/[^a-f0-9]/', '', (string)($r['staging_id'] ?? ''));
+            $empId   = (int)($r['employee_id'] ?? 0);
+            $month   = (int)($r['month'] ?? 0);
+            $year    = (int)($r['year'] ?? 0);
+            $name    = (string)($r['filename'] ?? 'busta.pdf');
+            $stagePath = $staging . '/' . $stageId . '.pdf';
+            if ($stageId === '' || !is_file($stagePath) || $empId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
+                $errors[] = ['filename' => $name, 'error' => 'Dati riga incompleti'];
+                continue;
+            }
+            // Inietta nel formato atteso da Document::upload ($_FILES-like)
+            $fakeFile = [
+                'name'     => $name,
+                'type'     => 'application/pdf',
+                'tmp_name' => $stagePath,
+                'error'    => UPLOAD_ERR_OK,
+                'size'     => @filesize($stagePath) ?: 0,
+            ];
+            // Document::upload usa move_uploaded_file; lo bypasso copiando via apposita variante.
+            $res = Document::uploadFromPath($stagePath, [
+                'employee_id' => $empId,
+                'type'        => 'payslip',
+                'title'       => "Busta paga " . sprintf('%02d/%d', $month, $year),
+                'description' => '',
+                'month'       => $month,
+                'year'        => $year,
+                'original_name' => $name,
+            ]);
+            if (!empty($res['success'])) {
+                @unlink($stagePath);
+                $created++;
+            } else {
+                $errors[] = ['filename' => $name, 'error' => $res['error'] ?? 'Errore upload'];
+            }
+
+            // Aggiornamento saldi opt-in: se la riga ha apply_balance=true, scrive snapshot
+            if (!empty($r['apply_balance'])) {
+                // balance_set_at = OGGI: il residuo letto dal PDF e' il valore che
+                // l'utente deve vedere ADESSO. Niente rateo retroattivo (altrimenti
+                // il sistema sommerebbe i mesi tra il PDF e oggi).
+                // Year viene riallineato all'anno corrente per coerenza con accrual.
+                $setAt = date('Y-m-d');
+                $balYear = (int) date('Y');
+                $user = Auth::getUser();
+                $uid = $user['id'] ?? 0;
+                try {
+                    if (isset($r['ferie_residuo']) && $r['ferie_residuo'] !== '' && $r['ferie_residuo'] !== null) {
+                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $balYear, 'ferie', (float)$r['ferie_residuo'], $setAt, $uid);
+                    }
+                    if (isset($r['perm_residuo']) && $r['perm_residuo'] !== '' && $r['perm_residuo'] !== null) {
+                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $balYear, 'permesso', (float)$r['perm_residuo'], $setAt, $uid);
+                    }
+                } catch (Throwable $e) {
+                    $errors[] = ['filename' => $name, 'error' => 'Saldo non aggiornato: ' . $e->getMessage()];
+                }
+            }
+        }
+        echo json_encode(['success' => true, 'created' => $created, 'errors' => $errors]);
+        exit;
+    }
+}
 
 // Gestione upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -95,7 +240,7 @@ if ($filterEmployee) {
     $documents = array_filter($documents, fn($d) => $d['employee_id'] === $filterEmployee);
 }
 
-$pageTitle = 'Carica Documenti - Commercialista';
+$pageTitle = 'Carica Documenti - Consulente del lavoro';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
 
@@ -116,24 +261,23 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 
 .upload-header {
-    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
-    padding: 1rem 1.25rem;
-    color: white;
+    background: linear-gradient(180deg, #fafbff, white);
+    padding: 16px 20px;
+    color: #1e1e2f;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 10px;
+    border-bottom: 1px solid #e6e8f0;
 }
 
 .upload-header h2 {
     margin: 0;
-    font-size: 1rem;
-    color: white;
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.01em;
 }
 
-.upload-header svg {
-    width: 20px;
-    height: 20px;
-}
+.upload-header svg { color: #0b3aa4; }
 
 .upload-form {
     padding: 1.25rem;
@@ -177,8 +321,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 .upload-grid select:focus,
 .upload-grid textarea:focus {
     outline: none;
-    border-color: #38a169;
-    box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.1);
+    border-color: #0b3aa4;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 
 .upload-grid small {
@@ -218,12 +362,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .autocomplete-input:focus {
     outline: none;
-    border-color: #38a169;
-    box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.1);
+    border-color: #0b3aa4;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
 .autocomplete-input.has-value {
-    background: #f0fff4;
-    border-color: #38a169;
+    background: #eef3fb;
+    border-color: #0b3aa4;
 }
 .autocomplete-dropdown {
     position: absolute;
@@ -254,7 +398,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .autocomplete-item:hover,
 .autocomplete-item.active {
-    background: #f0fff4;
+    background: #eef3fb;
 }
 .autocomplete-item .name {
     font-weight: 600;
@@ -404,7 +548,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     height: 20px;
 }
 
-.doc-icon.payslip { background: #c6f6d5; color: #276749; }
+.doc-icon.payslip { background: #eef3fb; color: #082b7b; }
 .doc-icon.cud { background: #fefcbf; color: #975a16; }
 .doc-icon.other { background: #e2e8f0; color: #4a5568; }
 
@@ -543,6 +687,31 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 </style>
 
+<div class="cl-banner">
+    <div>
+        <h2>Buste paga e CU</h2>
+        <p>Carica i documenti per i dipendenti. <strong><?= count($documents) ?></strong> caricat<?= count($documents) === 1 ? 'o' : 'i' ?> nel filtro corrente.</p>
+    </div>
+</div>
+<style>
+.cl-banner {
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-left: 4px solid #0b3aa4;
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+}
+.cl-banner h2 {
+    font-family: 'Host Grotesk', sans-serif;
+    margin: 0 0 4px;
+    font-size: 19px; font-weight: 700;
+    color: #0b3aa4; letter-spacing: -0.02em;
+}
+.cl-banner p { margin: 0; font-size: 13px; color: #6e7191; }
+</style>
+
 <div class="docs-page">
     <?php if ($message): ?>
         <div class="alert alert-success"><?= e($message) ?></div>
@@ -555,11 +724,34 @@ include dirname(__DIR__) . '/includes/header-admin.php';
     <!-- Upload Section -->
     <div class="upload-section">
         <div class="upload-header">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            <h2>Carica Nuovo Documento</h2>
+            <h2>Carica nuovo documento</h2>
         </div>
+        <div style="padding:18px 20px; display:flex; gap:12px; flex-wrap:wrap;">
+            <button type="button" id="manualOpenBtn" style="flex:1; min-width:220px; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:14px 18px; background:#fff; color:#0b3aa4; border:1px solid #0b3aa4; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition:all .12s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Carica manualmente
+            </button>
+            <button type="button" id="bulkOpenBtn" style="flex:1; min-width:220px; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:14px 18px; background:#0b3aa4; color:#fff; border:1px solid #0b3aa4; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px; transition:all .12s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                Caricamento massivo buste paga
+            </button>
+        </div>
+    </div>
+
+    <!-- Modale: Carica manualmente -->
+    <div id="manualOverlay" style="position:fixed; inset:0; background:rgba(16,24,40,.55); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#fff; border-radius:14px; width:100%; max-width:680px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 48px rgba(16,24,40,.24); overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e4e7ec;">
+                <div>
+                    <h3 style="margin:0; font-size:16px; font-weight:700; color:#101828;">Carica documento</h3>
+                    <p style="margin:4px 0 0; font-size:12px; color:#667085;">Carica un singolo file per un dipendente specifico.</p>
+                </div>
+                <button type="button" id="manualCloseBtn" style="border:0; background:#f2f4f7; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:20px; color:#475467;">&times;</button>
+            </div>
+            <div style="padding:20px; overflow:auto;">
         <form method="POST" enctype="multipart/form-data" class="upload-form">
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="upload">
@@ -623,7 +815,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             </div>
 
             <div class="upload-actions">
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
                     </svg>
@@ -631,113 +823,223 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 </button>
             </div>
         </form>
+            </div>
+        </div>
     </div>
+    <!-- /Modale manuale -->
 
-    <!-- Filters -->
-    <div class="filters-section">
-        <form method="GET" class="filters-row">
-            <div class="filter-item">
-                <label>Dipendente</label>
-                <select name="employee_id">
-                    <option value="">Tutti</option>
-                    <?php foreach ($employees as $emp): ?>
-                        <option value="<?= $emp['id'] ?>" <?= $filterEmployee == $emp['id'] ? 'selected' : '' ?>>
-                            <?= e($emp['last_name'] . ' ' . $emp['first_name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="filter-item">
-                <label>Tipo Documento</label>
-                <select name="type">
-                    <option value="">Tutti</option>
-                    <?php foreach (Document::TYPES as $key => $label): ?>
-                        <option value="<?= $key ?>" <?= $filterType === $key ? 'selected' : '' ?>>
-                            <?= e($label) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="filter-item">
-                <label>Periodo</label>
-                <input type="month" name="filter_period"
-                       value="<?= $filterPeriod ? e($filterPeriod) : '' ?>"
-                       min="<?= date('Y') - 5 ?>-01"
-                       max="<?= date('Y') ?>-12"
-                       placeholder="Seleziona periodo">
-            </div>
-
-            <div class="filter-buttons">
-                <button type="submit" class="btn btn-primary">Filtra</button>
-                <?php if ($filterEmployee || $filterPeriod || $filterType): ?>
-                    <a href="documents.php" class="btn btn-secondary">Reset</a>
-                <?php endif; ?>
-            </div>
+    <!-- Filtri tab type + dipendente/periodo -->
+    <div class="cd-filters">
+        <div class="cd-tabs">
+            <?php
+            $__qsBase = function ($override) use ($filterEmployee, $filterPeriod, $filterType) {
+                $params = array_filter([
+                    'employee_id' => $filterEmployee,
+                    'filter_period' => $filterPeriod,
+                    'type' => $filterType,
+                ]);
+                $params = array_merge($params, $override);
+                $params = array_filter($params, fn($v) => $v !== null && $v !== '');
+                return $params ? '?' . http_build_query($params) : 'documents.php';
+            };
+            ?>
+            <a href="<?= e($__qsBase(['type' => null])) ?>" class="cd-tab <?= !$filterType ? 'active' : '' ?>">Tutti</a>
+            <?php foreach (Document::TYPES as $key => $label): ?>
+                <a href="<?= e($__qsBase(['type' => $key])) ?>" class="cd-tab <?= $filterType === $key ? 'active' : '' ?>"><?= e($label) ?></a>
+            <?php endforeach; ?>
+        </div>
+        <form method="GET" class="cd-filter-row">
+            <?php if ($filterType): ?><input type="hidden" name="type" value="<?= e($filterType) ?>"><?php endif; ?>
+            <select name="employee_id" onchange="this.form.submit()">
+                <option value="">Tutti i dipendenti</option>
+                <?php foreach ($employees as $emp): ?>
+                    <option value="<?= $emp['id'] ?>" <?= $filterEmployee == $emp['id'] ? 'selected' : '' ?>>
+                        <?= e($emp['last_name'] . ' ' . $emp['first_name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <input type="month" name="filter_period" value="<?= $filterPeriod ? e($filterPeriod) : '' ?>"
+                   min="<?= date('Y') - 5 ?>-01" max="<?= date('Y') ?>-12" onchange="this.form.submit()">
+            <?php if ($filterEmployee || $filterPeriod || $filterType): ?>
+                <a href="documents.php" class="cd-reset">Reset</a>
+            <?php endif; ?>
         </form>
     </div>
 
-    <!-- Documents List -->
-    <div class="docs-list-section">
-        <div class="docs-list-header">
-            <h2>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                </svg>
-                Documenti Caricati
-            </h2>
-            <span class="docs-count"><?= count($documents) ?> documenti</span>
+    <!-- Lista documenti -->
+    <?php if (empty($documents)): ?>
+        <div class="cd-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="42" height="42"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>Nessun documento trovato.</p>
         </div>
-
-        <?php if (empty($documents)): ?>
-            <div class="docs-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                </svg>
-                <p>Nessun documento trovato</p>
-            </div>
-        <?php else: ?>
-            <div class="docs-grid">
-                <?php foreach ($documents as $doc): ?>
-                    <div class="doc-card">
-                        <div class="doc-icon <?= e($doc['type']) ?>">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-                            </svg>
+    <?php else: ?>
+        <div class="cd-list">
+            <?php foreach ($documents as $doc):
+                $tLbl = Document::TYPES[$doc['type']] ?? $doc['type'];
+                $initials = strtoupper(substr($doc['first_name'], 0, 1) . substr($doc['last_name'], 0, 1));
+            ?>
+                <div class="cd-row">
+                    <div class="cd-row-ic <?= e($doc['type']) ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div class="cd-row-main">
+                        <div class="cd-row-title">
+                            <span class="cd-row-tlb"><?= e($doc['title']) ?></span>
+                            <span class="cd-type-pill cd-type-<?= e($doc['type']) ?>"><?= e($tLbl) ?></span>
                         </div>
-                        <div class="doc-main">
-                            <div class="doc-title"><?= e($doc['title']) ?></div>
-                            <div class="doc-meta">
-                                <span><?= getMonthName($doc['month']) ?> <?= $doc['year'] ?></span>
-                                <span><?= e(Document::TYPES[$doc['type']] ?? $doc['type']) ?></span>
-                            </div>
-                        </div>
-                        <div class="doc-employee">
-                            <?= e($doc['last_name'] . ' ' . $doc['first_name']) ?>
-                            <small><?= e($doc['fiscal_code']) ?></small>
-                        </div>
-                        <div class="doc-size"><?= formatFileSize($doc['file_size']) ?></div>
-                        <div class="doc-date"><?= formatDate($doc['created_at']) ?></div>
-                        <div class="doc-actions">
-                            <a href="<?= PUBLIC_URL ?>/api/download.php?id=<?= $doc['id'] ?>" class="btn btn-sm btn-info" title="Scarica">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                                </svg>
-                            </a>
-                            <form method="POST" class="inline-form" onsubmit="return confirm('Eliminare?')">
-                                <?= CSRF::field() ?>
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="document_id" value="<?= $doc['id'] ?>">
-                                <button type="submit" class="btn btn-sm btn-danger">Elimina</button>
-                            </form>
+                        <div class="cd-row-meta">
+                            <span class="cd-emp">
+                                <span class="cd-emp-av"><?= e($initials) ?></span>
+                                <?= e($doc['last_name'] . ' ' . $doc['first_name']) ?>
+                            </span>
+                            <span class="sep">·</span>
+                            <span><?= getMonthName($doc['month']) ?> <?= (int)$doc['year'] ?></span>
+                            <span class="sep">·</span>
+                            <span><?= formatFileSize($doc['file_size']) ?></span>
+                            <span class="sep">·</span>
+                            <span>Caricato <?= formatDate($doc['created_at']) ?></span>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
+                    <div class="cd-row-actions">
+                        <a href="<?= PUBLIC_URL ?>/api/download.php?id=<?= $doc['id'] ?>" class="cd-ibtn primary" title="Scarica">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </a>
+                        <form method="POST" class="inline-form" onsubmit="return confirm('Eliminare definitivamente questo documento?')">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="document_id" value="<?= $doc['id'] ?>">
+                            <button type="submit" class="cd-ibtn danger" title="Elimina">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 </div>
+
+<style>
+.cd-filters {
+    background: white; border: 1px solid #e6e8f0; border-radius: 12px;
+    padding: 10px; margin-bottom: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.cd-tabs {
+    display: flex; gap: 2px; background: #f1f5f9; border-radius: 10px;
+    padding: 4px; flex-wrap: wrap;
+}
+.cd-tab {
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    color: #6e7191; text-decoration: none;
+    white-space: nowrap; transition: all .12s ease;
+}
+.cd-tab:hover { color: #0b3aa4; }
+.cd-tab.active { background: white; color: #0b3aa4; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+.cd-filter-row {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.cd-filter-row select, .cd-filter-row input[type=month] {
+    padding: 8px 12px; border: 1px solid #e6e8f0; border-radius: 8px;
+    font-family: inherit; font-size: 13px; background: white; min-width: 180px;
+    color: #1e1e2f;
+}
+.cd-filter-row select:focus, .cd-filter-row input:focus {
+    outline: none; border-color: #0b3aa4; box-shadow: 0 0 0 3px rgba(11,58,164,0.10);
+}
+.cd-reset {
+    padding: 8px 14px; color: #f75c6c;
+    font-size: 12px; font-weight: 600; text-decoration: none;
+    border-radius: 8px;
+}
+.cd-reset:hover { background: rgba(247,92,108,0.08); }
+
+.cd-empty {
+    background: white; border: 1px solid #e6e8f0; border-radius: 14px;
+    padding: 48px 18px; text-align: center; color: #94a3b8;
+}
+.cd-empty svg { color: #cbd5e0; margin-bottom: 10px; }
+.cd-empty p { margin: 0; font-size: 13px; }
+
+.cd-list { display: flex; flex-direction: column; gap: 8px; }
+.cd-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid #e6e8f0;
+    border-radius: 12px;
+    transition: all .12s ease;
+}
+.cd-row:hover { border-color: #0b3aa4; box-shadow: 0 4px 12px rgba(11,58,164,0.06); }
+.cd-row-ic {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.cd-row-ic.payslip  { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.cd-row-ic.cud      { background: rgba(255,187,85,0.16); color: #b07023; }
+.cd-row-ic.other    { background: rgba(100,116,139,0.10); color: #475569; }
+.cd-row-ic svg { width: 18px; height: 18px; }
+.cd-row-main { flex: 1; min-width: 0; }
+.cd-row-title {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.cd-row-tlb {
+    font-family: 'Host Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700; color: #1e1e2f;
+    letter-spacing: -0.01em;
+    overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
+}
+.cd-type-pill {
+    padding: 2px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cd-type-payslip { background: rgba(11,58,164,0.10); color: #0b3aa4; }
+.cd-type-cud     { background: rgba(255,187,85,0.14); color: #b07023; }
+.cd-type-other   { background: #f1f5f9; color: #475569; }
+.cd-row-meta {
+    font-size: 12px; color: #6e7191;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.cd-row-meta .sep { color: #cbd5e0; }
+.cd-emp {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600; color: #1e1e2f;
+}
+.cd-emp-av {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #0b3aa4, #082b7b);
+    color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700;
+}
+.cd-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.cd-row-actions form { margin: 0; }
+.cd-ibtn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid #e6e8f0; background: white;
+    color: #475569; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .12s ease; text-decoration: none;
+}
+.cd-ibtn:hover { border-color: #0b3aa4; color: #0b3aa4; }
+.cd-ibtn svg { width: 14px; height: 14px; }
+.cd-ibtn.primary { background: rgba(11,58,164,0.08); color: #0b3aa4; border-color: rgba(11,58,164,0.20); }
+.cd-ibtn.primary:hover { background: #0b3aa4; color: white; }
+.cd-ibtn.danger { background: rgba(247,92,108,0.08); color: #cc2d39; border-color: rgba(247,92,108,0.20); }
+.cd-ibtn.danger:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
+
+@media (max-width: 700px) {
+    .cd-filter-row select, .cd-filter-row input[type=month] { width: 100%; min-width: 0; }
+    .cd-row { flex-wrap: wrap; }
+    .cd-row-main { flex-basis: 100%; }
+    .cd-row-actions { width: 100%; justify-content: flex-end; }
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -864,12 +1166,299 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!hidden.value) {
                 e.preventDefault();
                 input.focus();
-                input.style.borderColor = '#e53e3e';
+                input.style.borderColor = '#f75c6c';
                 setTimeout(() => input.style.borderColor = '', 2000);
             }
         });
     }
 });
+</script>
+
+<!-- ===== Caricamento massivo buste paga ===== -->
+<div id="bulkOverlay" style="position:fixed; inset:0; background:rgba(16,24,40,.55); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:14px; width:100%; max-width:920px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 48px rgba(16,24,40,.24); overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e4e7ec;">
+            <div>
+                <h3 style="margin:0; font-size:16px; font-weight:700; color:#101828;">Caricamento massivo buste paga</h3>
+                <p style="margin:4px 0 0; font-size:12px; color:#667085;">Trascina PDF: il sistema legge codice fiscale e mensilità e li assegna ai dipendenti.</p>
+            </div>
+            <button type="button" id="bulkCloseBtn" style="border:0; background:#f2f4f7; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:20px; color:#475467;">&times;</button>
+        </div>
+
+        <label style="display:flex; align-items:flex-start; gap:10px; margin:14px 20px 0; padding:12px 14px; background:#eef3fb; border:1px solid #c7d6f0; border-radius:10px; cursor:pointer;">
+            <input type="checkbox" id="bulkUpdateBalances" style="margin-top:2px; accent-color:#0b3aa4;">
+            <span style="font-size:13px; color:#0b3aa4; font-weight:600; line-height:1.4;">Aggiorna anche saldi ferie/permessi leggendoli dal PDF
+                <span style="display:block; font-weight:400; color:#475467; font-size:12px; margin-top:2px;">In anteprima vedrai i residui rilevati e potrai scegliere riga per riga se applicarli al saldo del dipendente. Se la lettura non riesce, la riga resta caricabile solo come file.</span>
+            </span>
+        </label>
+
+        <div id="bulkDrop" style="margin:20px; padding:36px; border:2px dashed #d0d5dd; border-radius:12px; background:#fafbfc; text-align:center; cursor:pointer;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0b3aa4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-size:14px; font-weight:600; color:#101828;">Trascina qui i PDF oppure <span style="color:#0b3aa4;">scegli file</span></div>
+            <div style="font-size:12px; color:#667085; margin-top:4px;">Puoi selezionare più PDF contemporaneamente.</div>
+            <input type="file" id="bulkInput" accept="application/pdf" multiple hidden>
+        </div>
+
+        <div id="bulkProgress" style="padding:0 20px;" hidden>
+            <div style="font-size:13px; color:#475467; margin:8px 0 12px;">Analisi in corso...</div>
+        </div>
+
+        <div id="bulkTableWrap" style="flex:1; overflow:auto; padding:0 20px;" hidden>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:#f9fafb; text-align:left; color:#475467;">
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">File</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">CF</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Dipendente</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Mese</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec;">Anno</th>
+                        <th class="bulk-col-bal" style="padding:10px; border-bottom:1px solid #e4e7ec; display:none;">Ferie res.</th>
+                        <th class="bulk-col-bal" style="padding:10px; border-bottom:1px solid #e4e7ec; display:none;">Perm. res.</th>
+                        <th class="bulk-col-bal" style="padding:10px; border-bottom:1px solid #e4e7ec; text-align:center; display:none;">Aggiorna saldo</th>
+                        <th style="padding:10px; border-bottom:1px solid #e4e7ec; text-align:center;">Stato</th>
+                    </tr>
+                </thead>
+                <tbody id="bulkRows"></tbody>
+            </table>
+        </div>
+
+        <div id="bulkActions" style="padding:14px 20px; border-top:1px solid #e4e7ec; display:flex; justify-content:space-between; align-items:center; gap:10px;" hidden>
+            <div id="bulkSummary" style="font-size:12px; color:#475467;"></div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" id="bulkResetBtn" style="padding:9px 16px; border:1px solid #d0d5dd; background:#fff; border-radius:8px; font-weight:600; cursor:pointer; color:#475467;">Annulla</button>
+                <button type="button" id="bulkCommitBtn" style="padding:9px 18px; border:0; background:#0b3aa4; color:#fff; border-radius:8px; font-weight:700; cursor:pointer;">Conferma e carica</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modale "Carica manualmente"
+(function(){
+    const overlay = document.getElementById('manualOverlay');
+    const openBtn = document.getElementById('manualOpenBtn');
+    const closeBtn = document.getElementById('manualCloseBtn');
+    if (!overlay || !openBtn) return;
+    const open = () => overlay.style.display='flex';
+    const close = () => overlay.style.display='none';
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.style.display==='flex') close(); });
+    // Auto-apri se il server ha segnalato un errore di validazione sul form manuale
+    <?php if (!empty($error)): ?>open();<?php endif; ?>
+})();
+
+(function(){
+    const openBtn = document.getElementById('bulkOpenBtn');
+    const closeBtn = document.getElementById('bulkCloseBtn');
+    const overlay = document.getElementById('bulkOverlay');
+    const drop = document.getElementById('bulkDrop');
+    const input = document.getElementById('bulkInput');
+    const progress = document.getElementById('bulkProgress');
+    const tableWrap = document.getElementById('bulkTableWrap');
+    const rowsEl = document.getElementById('bulkRows');
+    const actions = document.getElementById('bulkActions');
+    const summary = document.getElementById('bulkSummary');
+    const resetBtn = document.getElementById('bulkResetBtn');
+    const commitBtn = document.getElementById('bulkCommitBtn');
+
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const empData = JSON.parse(document.getElementById('employees_data')?.textContent || '[]');
+    const monthNames = ['','Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+    function openModal(){ overlay.style.display='flex'; resetUI(); }
+    function closeModal(){ overlay.style.display='none'; }
+    function resetUI(){ rowsEl.innerHTML=''; tableWrap.hidden=true; actions.hidden=true; progress.hidden=true; input.value=''; }
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    resetBtn.addEventListener('click', closeModal);
+    // Toggle visibility colonne saldi
+    const updBalCb = document.getElementById('bulkUpdateBalances');
+    function syncBalCols(){
+        const show = updBalCb && updBalCb.checked;
+        document.querySelectorAll('.bulk-col-bal').forEach(el => el.style.display = show ? '' : 'none');
+    }
+    updBalCb?.addEventListener('change', syncBalCols);
+
+    drop.addEventListener('click', () => input.click());
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.background='#eef3fb'; });
+    drop.addEventListener('dragleave', () => drop.style.background='#fafbfc');
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.style.background='#fafbfc'; handleFiles(e.dataTransfer.files); });
+    input.addEventListener('change', () => handleFiles(input.files));
+
+    async function handleFiles(files){
+        if (!files || !files.length) return;
+        progress.hidden = false; tableWrap.hidden = true; actions.hidden = true;
+        const fd = new FormData();
+        fd.append('action', 'bulk_analyze');
+        fd.append('csrf_token', CSRF_TOKEN);
+        for (const f of files) fd.append('files[]', f);
+        try {
+            const r = await fetch('documents.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+            const j = await r.json();
+            if (!j.success) throw new Error(j.error || 'Errore analisi');
+            renderRows(j.rows || []);
+        } catch (err) {
+            progress.hidden = true;
+            alert('Errore: ' + err.message);
+        }
+    }
+
+    function renderRows(rows){
+        progress.hidden = true;
+        if (!rows.length) { tableWrap.hidden = true; actions.hidden = true; return; }
+        rowsEl.innerHTML = '';
+        rows.forEach((r,i) => rowsEl.appendChild(rowEl(r,i)));
+        tableWrap.hidden = false; actions.hidden = false;
+        syncBalCols();
+        updateSummary();
+    }
+
+    function rowEl(r, idx){
+        const tr = document.createElement('tr');
+        tr.dataset.stagingId = r.staging_id || '';
+        tr.dataset.filename = r.filename || '';
+        tr.style.borderBottom = '1px solid #f2f4f7';
+
+        const tdFile = td(r.filename || '—'); tdFile.style.fontWeight = '600';
+        const tdCf = td(r.cf || '—'); tdCf.style.color = r.cf ? '#101828' : '#dc2626';
+
+        // Select dipendente
+        const tdEmp = document.createElement('td'); tdEmp.style.padding = '8px';
+        const sel = document.createElement('select');
+        sel.style.cssText = 'width:100%; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; font-size:12px;';
+        sel.dataset.role = 'emp';
+        const opt0 = new Option('— scegli —', '');
+        sel.appendChild(opt0);
+        empData.forEach(e => {
+            const o = new Option(e.name + (e.fiscal_code ? ' · '+e.fiscal_code : ''), e.id);
+            if (r.employee_id && e.id == r.employee_id) o.selected = true;
+            sel.appendChild(o);
+        });
+        sel.addEventListener('change', updateSummary);
+        tdEmp.appendChild(sel);
+
+        // Mese
+        const tdM = document.createElement('td'); tdM.style.padding = '8px';
+        const selM = document.createElement('select');
+        selM.style.cssText = 'width:100%; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; font-size:12px;';
+        selM.dataset.role = 'm';
+        for (let m=1; m<=12; m++) {
+            const o = new Option(monthNames[m], m);
+            if (r.month == m) o.selected = true;
+            selM.appendChild(o);
+        }
+        if (!r.month) selM.value = '';
+        selM.addEventListener('change', updateSummary);
+        tdM.appendChild(selM);
+
+        // Anno
+        const tdY = document.createElement('td'); tdY.style.padding = '8px';
+        const inpY = document.createElement('input'); inpY.type = 'number'; inpY.min = '2000'; inpY.max = '2100';
+        inpY.style.cssText = 'width:84px; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; font-size:12px;';
+        inpY.dataset.role = 'y'; inpY.value = r.year || '';
+        inpY.addEventListener('input', updateSummary);
+        tdY.appendChild(inpY);
+
+        // Saldi rilevati (colonne nascoste se checkbox globale off)
+        const tdFR = document.createElement('td'); tdFR.className = 'bulk-col-bal'; tdFR.style.cssText = 'padding:8px; display:none; font-family:Space Grotesk,monospace; font-size:12px;';
+        if (r.ferie_residuo !== null && r.ferie_residuo !== undefined) {
+            tdFR.textContent = Number(r.ferie_residuo).toLocaleString('it-IT', {minimumFractionDigits:0, maximumFractionDigits:2}) + ' gg';
+            tdFR.dataset.role = 'fr'; tdFR.dataset.val = r.ferie_residuo;
+        } else { tdFR.innerHTML = '<span style="color:#cbd5e0;">—</span>'; }
+        const tdPR = document.createElement('td'); tdPR.className = 'bulk-col-bal'; tdPR.style.cssText = 'padding:8px; display:none; font-family:Space Grotesk,monospace; font-size:12px;';
+        if (r.perm_residuo !== null && r.perm_residuo !== undefined) {
+            tdPR.textContent = Number(r.perm_residuo).toLocaleString('it-IT', {minimumFractionDigits:0, maximumFractionDigits:2}) + ' h';
+            tdPR.dataset.role = 'pr'; tdPR.dataset.val = r.perm_residuo;
+        } else { tdPR.innerHTML = '<span style="color:#cbd5e0;">—</span>'; }
+        const tdApp = document.createElement('td'); tdApp.className = 'bulk-col-bal'; tdApp.style.cssText = 'padding:8px; text-align:center; display:none;';
+        const cbApp = document.createElement('input'); cbApp.type = 'checkbox'; cbApp.dataset.role = 'apply';
+        cbApp.style.cssText = 'width:16px; height:16px; accent-color:#0b3aa4; cursor:pointer;';
+        cbApp.checked = (r.ferie_residuo !== null || r.perm_residuo !== null);
+        cbApp.disabled = (r.ferie_residuo === null && r.perm_residuo === null);
+        tdApp.appendChild(cbApp);
+
+        // Stato (badge popolato da updateSummary dopo che il tr e' nel DOM)
+        const tdS = document.createElement('td'); tdS.style.padding='8px'; tdS.style.textAlign='center';
+        tdS.dataset.role = 'st';
+
+        tr.appendChild(tdFile); tr.appendChild(tdCf); tr.appendChild(tdEmp); tr.appendChild(tdM); tr.appendChild(tdY);
+        tr.appendChild(tdFR); tr.appendChild(tdPR); tr.appendChild(tdApp);
+        tr.appendChild(tdS);
+        return tr;
+    }
+
+    function td(txt){ const t = document.createElement('td'); t.style.padding='10px 8px'; t.textContent = txt; return t; }
+
+    function setRowStatus(td, r){
+        const tr = td.closest('tr');
+        if (!tr) return;
+        const emp = tr.querySelector('select[data-role=emp]')?.value || '';
+        const m = tr.querySelector('select[data-role=m]')?.value || '';
+        const y = tr.querySelector('input[data-role=y]')?.value || '';
+        let label = '⚠ Da completare', color = '#b45309', bg = '#fef3c7';
+        if (emp && m && y) { label = '✓ Pronto'; color='#15803d'; bg='#dcfce7'; }
+        td.innerHTML = `<span style="display:inline-block; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:700; color:${color}; background:${bg};">${label}</span>`;
+    }
+
+    function updateSummary(){
+        let ready=0, total=0;
+        document.querySelectorAll('#bulkRows tr').forEach(tr => {
+            total++;
+            const emp = tr.querySelector('select[data-role=emp]').value;
+            const m = tr.querySelector('select[data-role=m]').value;
+            const y = tr.querySelector('input[data-role=y]').value;
+            if (emp && m && y) ready++;
+            const stTd = tr.querySelector('td[data-role=st]');
+            if (stTd) setRowStatus(stTd, {});
+        });
+        summary.textContent = `${ready} di ${total} pronte al caricamento`;
+        commitBtn.disabled = ready === 0;
+        commitBtn.style.opacity = ready === 0 ? '0.5' : '1';
+    }
+
+    commitBtn.addEventListener('click', async () => {
+        const updBal = document.getElementById('bulkUpdateBalances')?.checked;
+        const rows = [];
+        document.querySelectorAll('#bulkRows tr').forEach(tr => {
+            const emp = tr.querySelector('select[data-role=emp]').value;
+            const m = tr.querySelector('select[data-role=m]').value;
+            const y = tr.querySelector('input[data-role=y]').value;
+            if (!emp || !m || !y) return;
+            const item = { staging_id: tr.dataset.stagingId, filename: tr.dataset.filename, employee_id: parseInt(emp), month: parseInt(m), year: parseInt(y) };
+            if (updBal) {
+                const applyCb = tr.querySelector('input[data-role=apply]');
+                if (applyCb && applyCb.checked) {
+                    item.apply_balance = 1;
+                    const fr = tr.querySelector('td[data-role=fr]')?.dataset.val;
+                    const pr = tr.querySelector('td[data-role=pr]')?.dataset.val;
+                    if (fr !== undefined) item.ferie_residuo = parseFloat(fr);
+                    if (pr !== undefined) item.perm_residuo = parseFloat(pr);
+                }
+            }
+            rows.push(item);
+        });
+        if (!rows.length) return;
+        commitBtn.disabled = true; commitBtn.textContent = 'Caricamento...';
+        const fd = new FormData();
+        fd.append('action', 'bulk_commit');
+        fd.append('csrf_token', CSRF_TOKEN);
+        fd.append('rows', JSON.stringify(rows));
+        try {
+            const r = await fetch('documents.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+            const j = await r.json();
+            const errLines = (j.errors||[]).map(e => `• ${e.filename}: ${e.error}`).join('\n');
+            alert(`Caricate ${j.created} buste paga.` + (errLines ? '\n\nErrori:\n'+errLines : ''));
+            window.location.href = 'documents.php?message=uploaded';
+        } catch (err) {
+            alert('Errore: '+err.message);
+            commitBtn.disabled = false; commitBtn.textContent = 'Conferma e carica';
+        }
+    });
+})();
 </script>
 
 <?php include dirname(__DIR__) . '/includes/footer-admin.php'; ?>
