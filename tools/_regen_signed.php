@@ -6,6 +6,14 @@ $hrId = (int)($argv[1] ?? 3);
 $hr = Database::fetchOne("SELECT * FROM hire_requests WHERE id = ?", [$hrId]);
 if (!$hr) die("HR $hrId non trovata\n");
 
+// Dati reali dipendente: prima employee_id collegato, poi fallback ai campi della richiesta
+$emp = !empty($hr['employee_id']) ? Database::fetchOne("SELECT first_name, last_name, fiscal_code FROM employees WHERE id = ?", [(int)$hr['employee_id']]) : null;
+$signerName = $emp
+    ? trim(($emp['first_name'] ?? '') . ' ' . ($emp['last_name'] ?? ''))
+    : trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? ''));
+$signerFc = $emp['fiscal_code'] ?? $hr['fiscal_code'];
+echo "Firmatario: $signerName ($signerFc)\n";
+
 $contract = Database::fetchOne("SELECT * FROM hire_request_files WHERE hire_request_id = ? AND category = 'contract' ORDER BY id DESC LIMIT 1", [$hrId]);
 $sigRow = Database::fetchOne("SELECT * FROM hire_request_files WHERE hire_request_id = ? AND category = 'signature_image' ORDER BY id DESC LIMIT 1", [$hrId]);
 if (!$contract || !$sigRow) die("File mancanti\n");
@@ -42,7 +50,10 @@ try {
             $pdf->Cell($sigW, 4, 'Firmato digitalmente da:', 0, 1, 'L');
             $pdf->SetFont('helvetica', '', 8);
             $pdf->SetX($x);
-            $pdf->Cell($sigW, 4, "Test Dipendente", 0, 1, 'L');
+            $pdf->Cell($sigW, 4, $signerName, 0, 1, 'L');
+            $pdf->SetFont('helvetica', '', 6.5);
+            $pdf->SetX($x);
+            $pdf->Cell($sigW, 3, 'CF: ' . $signerFc, 0, 1, 'L');
         }
     }
     $outDir = $base . '/hire-requests/' . $hrId . '/signed_contract';
