@@ -269,19 +269,22 @@ class Tenant
         } catch (Throwable $e) {}
         try {
             $uid = (int)$u['id'];
-            $rows = Database::fetchAll(
-                "SELECT cc.company_id AS company_id, COUNT(*) AS n
-                 FROM chat_messages cm
-                 JOIN chat_conversations cc ON cm.conversation_id = cc.id
-                 WHERE cc.company_id IN ($ph)
-                   AND ((cc.participant1_type = 'user' AND cc.participant1_id = ?)
-                        OR (cc.participant2_type = 'user' AND cc.participant2_id = ?))
-                   AND NOT (cm.sender_type = 'user' AND cm.sender_id = ?)
-                   AND cm.is_read = FALSE
-                 GROUP BY cc.company_id",
-                array_merge($cids, [$uid, $uid, $uid])
-            );
-            foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
+            $urole = $u['role'] ?? '';
+            if ($urole !== '' && $urole !== 'employee') {
+                $rows = Database::fetchAll(
+                    "SELECT cc.company_id AS company_id, COUNT(*) AS n
+                     FROM chat_messages cm
+                     JOIN chat_conversations cc ON cm.conversation_id = cc.id
+                     WHERE cc.company_id IN ($ph)
+                       AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
+                            OR (cc.participant2_type = ? AND cc.participant2_id = ?))
+                       AND NOT (cm.sender_type = ? AND cm.sender_id = ?)
+                       AND cm.is_read = FALSE
+                     GROUP BY cc.company_id",
+                    array_merge($cids, [$urole, $uid, $urole, $uid, $urole, $uid])
+                );
+                foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
+            }
         } catch (Throwable $e) {}
         return $result;
     }
