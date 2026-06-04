@@ -537,7 +537,7 @@ class HireRequest
                 $src = self::fileFsPath($f);
                 if (!is_file($src)) continue;
                 try {
-                    Document::uploadFromPath($src, [
+                    $created = Document::uploadFromPath($src, [
                         'employee_id'   => $empId,
                         'type'          => 'other',
                         'month'         => $month,
@@ -546,6 +546,9 @@ class HireRequest
                         'description'   => 'Caricato in fase di assunzione (richiesta #' . $hireRequestId . ')',
                         'original_name' => $f['original_name'],
                     ]);
+                    if (!empty($created['id'])) {
+                        Database::update('documents', ['notify_employee' => 0], 'id = ?', [(int)$created['id']]);
+                    }
                 } catch (Throwable $e) {}
             }
         }

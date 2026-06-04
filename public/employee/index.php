@@ -852,7 +852,8 @@ include dirname(__DIR__) . '/includes/widget-availability-heatmap.php';
                 $tCls = $d['type'] === 'cud' ? 'cud' : ($d['type'] === 'other' ? 'other' : '');
                 $tLbl = ['payslip' => 'Busta paga', 'cud' => 'CU', 'other' => 'Documento'][$d['type']] ?? 'Documento';
                 $period = isset($monthNames[(int)$d['month']]) ? $monthNames[(int)$d['month']] . ' ' . $d['year'] : '';
-                $isNew = !empty($d['is_unread_for_employee']) || (!empty($d['created_at']) && (time() - strtotime($d['created_at'])) < 86400 * 3);
+                $isNew = (isset($d['notify_employee']) ? (int)$d['notify_employee'] === 1 : true)
+                    && (!empty($d['is_unread_for_employee']) || (!empty($d['created_at']) && (time() - strtotime($d['created_at'])) < 86400 * 3));
             ?>
                 <div class="eh-doc">
                     <div class="eh-doc-ic <?= $tCls ?>">

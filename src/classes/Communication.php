@@ -52,6 +52,14 @@ class Communication
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
         $params = $employeeId !== null ? [$employeeId, $cid] : [$cid];
 
+        // Filtra: dipendente vede solo le comunicazioni pubblicate dopo la sua assunzione
+        if ($employeeId !== null) {
+            $sql .= " AND c.publish_date >= (
+                SELECT COALESCE(hire_date, DATE(created_at)) FROM employees WHERE id = ?
+            )";
+            $params[] = $employeeId;
+        }
+
         // Filtra per reparto: mostra comunicazioni globali O del reparto specifico
         if ($departmentId !== null) {
             $sql .= " AND (c.is_global = TRUE OR c.department_id = ?)";
@@ -104,24 +112,27 @@ class Communication
      */
     public static function countUnread(int $employeeId, ?int $departmentId = null): int
     {
-        // Deriva la company del dipendente: il count non deve mai attraversare le tenant.
-        $empCompanyId = (int) (Database::fetchColumn(
-            "SELECT company_id FROM employees WHERE id = ?",
+        // Deriva company + data inizio rapporto del dipendente per filtrare comunicazioni precedenti.
+        $emp = Database::fetchOne(
+            "SELECT company_id, COALESCE(hire_date, DATE(created_at)) AS since FROM employees WHERE id = ?",
             [$employeeId]
-        ) ?? 0);
+        );
+        $empCompanyId = (int) ($emp['company_id'] ?? 0);
         if ($empCompanyId <= 0) return 0;
+        $since = $emp['since'] ?? date('Y-m-d');
 
         $sql = "SELECT COUNT(*)
                 FROM communications c
                 WHERE c.company_id = ?
                   AND c.is_published = TRUE
                   AND c.publish_date <= CURDATE()
+                  AND c.publish_date >= ?
                   AND (c.expire_date IS NULL OR c.expire_date >= CURDATE())
                   AND NOT EXISTS (
                       SELECT 1 FROM communication_reads cr
                       WHERE cr.communication_id = c.id AND cr.employee_id = ?
                   )";
-        $params = [$empCompanyId, $employeeId];
+        $params = [$empCompanyId, $since, $employeeId];
 
         // Filtra per reparto se specificato
         if ($departmentId !== null) {
