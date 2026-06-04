@@ -611,8 +611,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         Timbrature
                     </button>
                 <?php endif; ?>
-                <a href="hire-requests.php?action=new" class="btn btn-lg" style="background: #0b3aa4; border: 1px solid #0b3aa4; color: white;">
+                <a href="?action=new" class="btn btn-lg" style="background: white; border: 1px solid #0b3aa4; color: #0b3aa4;" title="Crea il dipendente direttamente senza passare per il flusso assunzione (utile per migrazione/casi rapidi)">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Crea diretto
+                </a>
+                <a href="hire-requests.php?action=new" class="btn btn-lg" style="background: #0b3aa4; border: 1px solid #0b3aa4; color: white;" title="Avvia il flusso completo di assunzione con coinvolgimento del consulente">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                     Nuova assunzione
                 </a>
             </div>
