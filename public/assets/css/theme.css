@@ -1599,6 +1599,10 @@ body.login-page {
     align-items: center;
     padding: 4px 0; margin: 0;
     outline: none; position: relative; min-height: 38px;
+    /* Crea uno stacking context isolato: gli z-index interni (avatar, chip "+N"
+       a 999, hover avatar a 9999) restano contenuti nel widget e non possono
+       sovrapporsi a header (z 100) / menu (z 50-99) durante lo scroll. */
+    isolation: isolate;
 }
 .heatmap-stack-avatar.is-hidden { display: none !important; }
 
