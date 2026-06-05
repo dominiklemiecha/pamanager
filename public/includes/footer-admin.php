@@ -82,6 +82,8 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
     if (sidebar && mobileBtn) {
         mobileBtn.addEventListener('click', () => sidebar.classList.toggle('open'));
         if (overlay) overlay.addEventListener('click', () => sidebar.classList.remove('open'));
+        const closeBtn = document.getElementById('sidebarClose');
+        if (closeBtn) closeBtn.addEventListener('click', () => sidebar.classList.remove('open'));
     }
     // Tenant switcher
     const tenant = document.getElementById('sidebar-tenant');
