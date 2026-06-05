@@ -80,10 +80,15 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
     const overlay = document.getElementById('appOverlay');
     const mobileBtn = document.getElementById('mobileMenuBtn');
     if (sidebar && mobileBtn) {
-        mobileBtn.addEventListener('click', () => sidebar.classList.toggle('open'));
-        if (overlay) overlay.addEventListener('click', () => sidebar.classList.remove('open'));
+        const syncBodyLock = () => {
+            const open = sidebar.classList.contains('open');
+            document.body.classList.toggle('sidebar-open', open);
+            document.documentElement.classList.toggle('sidebar-open', open);
+        };
+        mobileBtn.addEventListener('click', () => { sidebar.classList.toggle('open'); syncBodyLock(); });
+        if (overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('open'); syncBodyLock(); });
         const closeBtn = document.getElementById('sidebarClose');
-        if (closeBtn) closeBtn.addEventListener('click', () => sidebar.classList.remove('open'));
+        if (closeBtn) closeBtn.addEventListener('click', () => { sidebar.classList.remove('open'); syncBodyLock(); });
     }
     // Tenant switcher
     const tenant = document.getElementById('sidebar-tenant');
