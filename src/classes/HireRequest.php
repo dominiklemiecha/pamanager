@@ -788,6 +788,16 @@ class HireRequest
             }
         } catch (Throwable $e) {}
 
+        // Aggiorna il task Wrike: prospetti caricati, in attesa approvazione azienda
+        if (class_exists('Wrike')) {
+            try {
+                $__cons = !empty($hr['assigned_consulente_user_id']) ? (int)$hr['assigned_consulente_user_id'] : (int)$u['id'];
+                Wrike::hireStep($__cons, $hireRequestId,
+                    '📎 <b>Prospetti caricati</b> dal consulente: in attesa di approvazione da parte dell\'azienda.',
+                    false, 'prospects_review');
+            } catch (Throwable $e) {}
+        }
+
         return ['success' => true];
     }
 
@@ -1225,6 +1235,11 @@ class HireRequest
                     'message'        => 'Motivo: ' . mb_substr($reason, 0, 200),
                     'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
                 ]);
+                if (class_exists('Wrike')) {
+                    Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
+                        '⛔ <b>Prospetti respinti</b> dall\'azienda. Motivo: ' . htmlspecialchars(mb_substr($reason, 0, 300)),
+                        false, 'rejected');
+                }
             }
         } catch (Throwable $e) {}
 

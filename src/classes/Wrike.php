@@ -268,6 +268,8 @@ class Wrike
             case 'approved':           return '🟢 Da contrattualizzare';
             case 'contract_pending':   return '✍️ Contratto da firmare';
             case 'contract_signed':    return '✅ Firmato';
+            case 'rejected':           return '⛔ Prospetti rifiutati';
+            case 'cancelled':          return '✖️ Annullata';
             default:                   return 'Assunzione';
         }
     }
