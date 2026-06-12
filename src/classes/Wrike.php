@@ -295,6 +295,95 @@ class Wrike
     }
 
     /**
+     * Approvazione assunzione: riporta sul task il riepilogo COMPLETO dei dati
+     * inseriti dall'azienda e carica i documenti come allegati del task Wrike.
+     * @param array $hr     riga hire_requests completa (dati gia' salvati)
+     * @param array $docs   righe hire_request_files dei documenti da allegare
+     */
+    public static function hireApproved(int $consulenteUserId, int $hireRequestId, array $hr, array $docs): void
+    {
+        try {
+            $i = self::getForUser($consulenteUserId);
+            if (!$i || empty($i['is_active']) || empty($i['config']['on_hire'])) return;
+            $taskId = $i['config']['hire_tasks'][(string)$hireRequestId] ?? null;
+            if (!$taskId) return;
+
+            // 1) Commento con il riepilogo completo dei dati di assunzione
+            $row = static function (string $label, $val): string {
+                $val = trim((string)$val);
+                return $val === '' ? '' : '<li><b>' . htmlspecialchars($label) . ':</b> ' . htmlspecialchars($val) . '</li>';
+            };
+            $contratti = class_exists('HireRequest') ? HireRequest::contractTypesLabels($hr) : '';
+            $giorni = class_exists('HireRequest') ? HireRequest::workDaysLabels($hr['work_days'] ?? '') : '';
+            $residenza = class_exists('HireRequest') ? HireRequest::composeAddress($hr) : '';
+            $html = '✅ <b>Prospetti approvati dall\'azienda — dati completi per il contratto:</b><ul>'
+                  . $row('Nome', trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? '')))
+                  . $row('Codice fiscale', $hr['fiscal_code'] ?? '')
+                  . $row('Data di nascita', $hr['employee_birth_date'] ?? '')
+                  . $row('Nato a', trim(($hr['birth_city'] ?? '') . ' ' . (!empty($hr['birth_state']) ? '(' . $hr['birth_state'] . ')' : '')))
+                  . $row('Residenza', $residenza)
+                  . $row('Stato civile', !empty($hr['marital_status']) ? ucfirst(str_replace('_', ' ', $hr['marital_status'])) : '')
+                  . $row('Istruzione', !empty($hr['education_level']) ? ucfirst(str_replace('_', ' ', $hr['education_level'])) : '')
+                  . $row('Email', $hr['employee_email'] ?? '')
+                  . $row('Tipologia contratto', $contratti)
+                  . $row('Inizio', $hr['start_date'] ?? '')
+                  . $row('Fine', $hr['end_date'] ?? '')
+                  . $row('Ore settimanali', $hr['weekly_hours'] ?? '')
+                  . $row('Giorni', $giorni)
+                  . $row('Mansioni', $hr['role_description'] ?? '')
+                  . $row('Sede di lavoro', $hr['workplace'] ?? '')
+                  . $row('IBAN', $hr['iban'] ?? '')
+                  . '</ul>Carica ora il contratto da firmare.';
+            self::addComment($consulenteUserId, $taskId, $html);
+
+            // 2) Carica i documenti come allegati del task
+            foreach ($docs as $d) {
+                $fs = class_exists('HireRequest') ? HireRequest::fileFsPath($d) : null;
+                if ($fs && is_file($fs)) {
+                    self::uploadAttachment($i, $taskId, $fs, $d['original_name'] ?? 'documento', $d['mime_type'] ?? null);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('[Wrike::hireApproved] ' . $e->getMessage());
+        }
+    }
+
+    /** Carica un file come allegato di un task (body binario + X-File-Name). */
+    private static function uploadAttachment(array $integration, string $taskId, string $filePath, string $fileName, ?string $mime): bool
+    {
+        if (!function_exists('curl_init')) return false;
+        $data = @file_get_contents($filePath);
+        if ($data === false) return false;
+        // Wrike: max 50MB per allegato via API
+        if (strlen($data) > 50 * 1024 * 1024) return false;
+        $url = rtrim(self::hostOf($integration), '/') . '/api/v4/tasks/' . rawurlencode($taskId) . '/attachments';
+        $safeName = preg_replace('/[^\x20-\x7E]/', '_', $fileName); // header ASCII-safe
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $data,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $integration['token'],
+                'X-Requested-With: XMLHttpRequest',
+                'X-File-Name: ' . $safeName,
+                'Content-Type: application/octet-stream',
+            ],
+        ]);
+        $body = curl_exec($ch);
+        $http = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $errno = curl_errno($ch);
+        curl_close($ch);
+        if ($errno !== 0 || $http >= 400) {
+            error_log('[Wrike::uploadAttachment] HTTP ' . $http . ' su ' . $fileName);
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Attivita' per messaggio chat. Dedupe: UNA attivita' per conversazione finche'
      * il task resta aperto su Wrike (se completato/cancellato se ne crea uno nuovo).
      */
