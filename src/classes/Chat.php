@@ -410,6 +410,16 @@ class Chat
             'link' => $chatUrl
         ]);
 
+        // Integrazione Wrike del consulente (best-effort): una attivita' per
+        // conversazione finche' il task resta aperto sulla sua board.
+        if ($recipientType === 'consulente_lavoro' && class_exists('Wrike')) {
+            try {
+                Wrike::taskForChatMessage((int)$recipientId, (int)$conversation['id'], $senderName, $preview, $chatUrl);
+            } catch (Throwable $e) {
+                error_log('[Chat] Wrike task fallito: ' . $e->getMessage());
+            }
+        }
+
         // Push notification (browser)
         try {
             error_log('[Chat] Invio push a ' . $recipientType . ' #' . $recipientId);

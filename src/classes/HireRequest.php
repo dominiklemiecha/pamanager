@@ -385,6 +385,18 @@ class HireRequest
         if (!class_exists('Notification')) return [false, 'Sistema notifiche non disponibile'];
         $who = trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? ''));
         if ($who === '') $who = 'una nuova risorsa (richiesta #' . $id . ')';
+
+        // Integrazione Wrike (best-effort, mai bloccante): se il consulente ha
+        // collegato il suo account, crea un'attivita' sulla sua board.
+        if (class_exists('Wrike')) {
+            try {
+                $fullRow = Database::fetchOne("SELECT * FROM hire_requests WHERE id = ?", [$id]) ?: $hr;
+                Wrike::taskForHireRequest($consulenteId, $id, $fullRow, $isResend);
+            } catch (Throwable $e) {
+                error_log('[HireRequest] Wrike task fallito: ' . $e->getMessage());
+            }
+        }
+
         try {
             $res = Notification::create([
                 'recipient_type' => 'consulente_lavoro',
