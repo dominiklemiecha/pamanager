@@ -1662,6 +1662,12 @@ body.login-page {
 .hm-count {
     font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 7px;
     font-variant-numeric: tabular-nums;
+    display: inline-flex; align-items: center; gap: 5px;
+}
+/* Pallino stato: di default eredita il colore del testo (verde disp., ambra occ., blu appr.) */
+.hm-count::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--abs-dot, currentColor); flex: none;
 }
 .hm-count-present { color: #16a34a; background: #dcfce7; }
 .hm-count-busy    { color: #d97706; background: #fef3c7; }
@@ -1674,16 +1680,9 @@ body.login-page {
 /* Chip assenti con causale esplicita ("2 perm."): niente suffisso generico */
 .hm-count-typed::after   { content: none; }
 /* Chip uniformi (rosso tenue) + pallino colorato che identifica la causale */
-.hm-count-typed {
-    color: #991b1b; background: #fee2e2;
-    display: inline-flex; align-items: center; gap: 5px;
-}
-.hm-count-typed::before {
-    content: ''; width: 7px; height: 7px; border-radius: 50%;
-    background: var(--abs-dot, #dc2626); flex: none;
-}
+.hm-count-typed { color: #991b1b; background: #fee2e2; }
 .hm-abs-permesso { --abs-dot: #dc2626; } /* rosso */
-.hm-abs-malattia { --abs-dot: #7c2d12; } /* marrone-rosso */
+.hm-abs-malattia { --abs-dot: #ff3b30; } /* rosso acceso */
 .hm-abs-ferie    { --abs-dot: #fb7185; } /* rosa */
 .hm-abs-l104     { --abs-dot: #9f1239; } /* rosa scuro */
 .hm-abs-congedo  { --abs-dot: #be123c; } /* lampone */
