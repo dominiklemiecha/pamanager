@@ -1029,7 +1029,7 @@ class HireRequest
         if (class_exists('Wrike') && !empty($hr['assigned_consulente_user_id'])) {
             try {
                 Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
-                    '📄 <b>Contratto caricato</b>: in attesa della firma del dipendente.');
+                    '📄 <b>Contratto caricato</b>: in attesa della firma del dipendente.', false, 'contract_pending');
             } catch (Throwable $e) {}
         }
 
@@ -1185,7 +1185,7 @@ class HireRequest
                 if (class_exists('Wrike')) {
                     Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
                         '🎉 <b>Contratto firmato</b> da ' . htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) . ' il ' . date('d/m/Y H:i') . '. Pratica completata.',
-                        true /* completa il task */);
+                        true /* completa il task */, 'contract_signed');
                 }
             }
         } catch (Throwable $e) {}
