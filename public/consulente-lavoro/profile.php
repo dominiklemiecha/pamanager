@@ -100,11 +100,11 @@ if ($user['role'] === 'consulente_lavoro' && class_exists('Wrike')) {
     }
 }
 
-/** Logo Wrike (marchio "W" verde su sfondo trasparente). */
+/** Logo Wrike ufficiale (due chevron verdi #08cf65, da worldvectorlogo). */
 function wrikeLogoSvg(int $size = 24): string {
-    return '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
-         . '<path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="#08CF65"/>'
-         . '<path d="M14 17l5.2 14h3.2l3.1-9 3.1 9h3.2L37 17h-3.4l-3 9.2L27.4 17h-2.8l-3.2 9.2L18.4 17H14z" fill="#fff"/>'
+    return '<svg width="' . $size . '" height="' . $size . '" viewBox="-2.37 .48 605.11 378.12" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+         . '<path d="m141.07 138.77c29.02 0 42.7 5.34 63.71 26.39l112.75 112.9c3.34 3.34 4.01 4.68 4.67 6.68.34.67.34 1.67.34 2.34s0 1.67-.34 2.34c-.66 2-1.33 3.34-4.67 6.68l-77.05 77.49c-3.34 3.34-4.67 4.01-6.68 4.68-.66.33-1.66.33-2.33.33s-1.67 0-2.34-.33c-2-.67-3.33-1.34-6.67-4.68l-218.5-218.79c-6.33-6.35-4-16.03 6.68-16.03z" fill="#08cf65"/>'
+         . '<path d="m459.3.81c-29.02 0-42.7 5.34-63.71 26.39l-112.75 112.9c-3.34 3.34-4.01 4.68-4.67 6.68-.34.67-.34 1.67-.34 2.34s0 1.67.34 2.34c.66 2 1.33 3.34 4.67 6.68l77.05 77.16c3.34 3.34 4.67 4.01 6.68 4.68.66.33 1.66.33 2.33.33s1.67 0 2.34-.33c2-.67 3.33-1.34 6.67-4.68l218.49-218.79c6.34-6.35 4.01-16.03-6.67-16.03h-130.43z" fill="#08cf65"/>'
          . '</svg>';
 }
 
