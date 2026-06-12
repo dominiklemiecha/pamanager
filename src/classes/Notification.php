@@ -32,7 +32,8 @@ class Notification
                 'title' => $data['title'],
                 'message' => $data['message'] ?? '',
                 'link' => $data['link'] ?? null,
-                'is_read' => false
+                // int 0/1, NON boolean: PDO in strict mode converte false in '' e MySQL la rifiuta
+                'is_read' => 0
             ]);
 
             // Invia notifica push se la classe esiste
@@ -99,7 +100,7 @@ class Notification
     public static function markAsRead(int $id): bool
     {
         try {
-            Database::update('notifications', ['is_read' => true], 'id = ?', [$id]);
+            Database::update('notifications', ['is_read' => 1], 'id = ?', [$id]);
             return true;
         } catch (Exception $e) {
             return false;

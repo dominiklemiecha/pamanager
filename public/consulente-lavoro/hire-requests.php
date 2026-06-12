@@ -67,7 +67,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 
 if ($id > 0) {
     $hr = HireRequest::getById($id);
-    if (!$hr) {
+    // Le bozze esistono solo lato admin: per il consulente non sono visibili
+    if (!$hr || $hr['status'] === 'draft') {
         echo '<div class="alert alert-error">Richiesta non trovata o non assegnata a te.</div>';
         include dirname(__DIR__) . '/includes/footer-admin.php';
         exit;
@@ -75,6 +76,11 @@ if ($id > 0) {
     $files = HireRequest::getFiles($id);
     $byCat = [];
     foreach ($files as $f) $byCat[$f['category']][] = $f;
+    // Display helper: campi facoltativi nella richiesta di simulazione
+    $hv = static function ($v, string $fallback = '—'): string {
+        $v = trim((string)($v ?? ''));
+        return $v === '' ? $fallback : htmlspecialchars($v);
+    };
 
     $statusColors = [
         'awaiting_prospects' => '#eab308', 'prospects_review' => '#0ea5e9',
@@ -86,7 +92,7 @@ if ($id > 0) {
 <div style="width:100%; margin:1.5rem 0;">
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
         <a href="hire-requests.php" class="btn-back">Indietro</a>
-        <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) ?></h1>
+        <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= $hv(trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? '')), 'Richiesta #' . (int)$hr['id']) ?></h1>
         <span style="background:<?= $statusColor ?>; color:#fff; padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:700;">
             <?= htmlspecialchars(HireRequest::statusLabel($hr['status'])) ?>
         </span>
@@ -210,14 +216,14 @@ if ($id > 0) {
         <div class="card-body" style="padding:1.25rem;">
             <h3 style="margin-top:0; font-size:1rem;">Dati anagrafici</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; font-size:.88rem;">
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Datore di lavoro</div><div><?= htmlspecialchars($hr['employer_name']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Codice fiscale</div><div><?= htmlspecialchars($hr['fiscal_code']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Data di nascita</div><div><?= htmlspecialchars($hr['employee_birth_date']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Nato a</div><div><?= htmlspecialchars($hr['birth_city'] . ' (' . $hr['birth_state'] . ')') ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Residenza</div><div><?= htmlspecialchars($hr['residence_address'] . ', ' . $hr['residence_cap'] . ' ' . $hr['residence_city'] . ' (' . $hr['residence_province'] . ')') ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Stato civile</div><div><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $hr['marital_status']))) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Istruzione</div><div><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $hr['education_level']))) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Email</div><div><?= htmlspecialchars($hr['employee_email']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Datore di lavoro</div><div><?= $hv($hr['employer_name']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Codice fiscale</div><div><?= $hv($hr['fiscal_code']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Data di nascita</div><div><?= $hv($hr['employee_birth_date']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Nato a</div><div><?= $hv(trim(($hr['birth_city'] ?? '') . ' ' . (!empty($hr['birth_state']) ? '(' . $hr['birth_state'] . ')' : ''))) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Residenza</div><div><?= $hv(HireRequest::composeAddress($hr)) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Stato civile</div><div><?= $hv(!empty($hr['marital_status']) ? ucfirst(str_replace('_', ' ', $hr['marital_status'])) : null) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Istruzione</div><div><?= $hv(!empty($hr['education_level']) ? ucfirst(str_replace('_', ' ', $hr['education_level'])) : null) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Email</div><div><?= $hv($hr['employee_email']) ?></div></div>
             </div>
         </div>
     </div>
@@ -226,14 +232,14 @@ if ($id > 0) {
         <div class="card-body" style="padding:1.25rem;">
             <h3 style="margin-top:0; font-size:1rem;">Contratto richiesto</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; font-size:.88rem;">
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Tipologia</div><div><?= htmlspecialchars(HireRequest::contractTypesLabels($hr)) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Inizio</div><div><?= htmlspecialchars($hr['start_date']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Fine</div><div><?= htmlspecialchars($hr['end_date'] ?: '— (indeterminato)') ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Ore settimanali</div><div><?= htmlspecialchars($hr['weekly_hours']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Giorni</div><div><?= htmlspecialchars(HireRequest::workDaysLabels($hr['work_days'])) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Sede</div><div><?= htmlspecialchars($hr['workplace']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Tipologia</div><div><?= $hv(HireRequest::contractTypesLabels($hr)) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Inizio</div><div><?= $hv($hr['start_date']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Fine</div><div><?= $hv($hr['end_date'], '— (indeterminato)') ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Ore settimanali</div><div><?= $hv($hr['weekly_hours']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Giorni</div><div><?= $hv(HireRequest::workDaysLabels($hr['work_days'])) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Sede</div><div><?= $hv($hr['workplace']) ?></div></div>
             </div>
-            <div style="margin-top:1rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Mansioni</div><div><?= nl2br(htmlspecialchars($hr['role_description'])) ?></div></div>
+            <div style="margin-top:1rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Mansioni</div><div><?= nl2br($hv($hr['role_description'])) ?></div></div>
             <?php if ($hr['notes']): ?><div style="margin-top:.75rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Note admin</div><div><?= nl2br(htmlspecialchars($hr['notes'])) ?></div></div><?php endif; ?>
         </div>
     </div>
@@ -316,6 +322,7 @@ $rows = Database::fetchAll(
      FROM hire_requests hr
      LEFT JOIN users u ON u.id = hr.created_by_user_id
      WHERE hr.company_id = ?
+       AND hr.status <> 'draft'
        AND (hr.assigned_consulente_user_id = ? OR hr.assigned_consulente_user_id IS NULL)
      ORDER BY hr.created_at DESC",
     [$cid, (int)$user['id']]
@@ -378,10 +385,11 @@ foreach ($rows as $__r) {
                 <tbody>
                     <?php foreach ($rows as $r):
                         $col = $statusColors[$r['status']] ?? '#64748b';
+                        $__nome = trim(($r['employee_first_name'] ?? '') . ' ' . ($r['employee_last_name'] ?? ''));
                     ?>
                         <tr style="border-top:1px solid #f1f5f9; font-size:.88rem;">
-                            <td style="padding:.75rem;"><strong><?= htmlspecialchars($r['employee_first_name'] . ' ' . $r['employee_last_name']) ?></strong></td>
-                            <td style="padding:.75rem; font-family:monospace;"><?= htmlspecialchars($r['fiscal_code']) ?></td>
+                            <td style="padding:.75rem;"><strong><?= $__nome !== '' ? htmlspecialchars($__nome) : '<span style="color:#94a3b8;">Richiesta #' . (int)$r['id'] . '</span>' ?></strong></td>
+                            <td style="padding:.75rem; font-family:monospace;"><?= !empty($r['fiscal_code']) ? htmlspecialchars($r['fiscal_code']) : '—' ?></td>
                             <td style="padding:.75rem;">
                                 <span style="background:<?= $col ?>; color:#fff; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700;">
                                     <?= htmlspecialchars(HireRequest::statusLabel($r['status'])) ?>

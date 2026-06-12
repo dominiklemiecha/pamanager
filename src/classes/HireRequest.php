@@ -17,6 +17,7 @@ class HireRequest
     public static function statuses(): array
     {
         return [
+            'draft'              => 'Bozza',
             'awaiting_prospects' => 'In attesa prospetti',
             'prospects_review'   => 'Prospetti da approvare',
             'approved'           => 'Da contrattualizzare',
@@ -26,6 +27,9 @@ class HireRequest
             'cancelled'          => 'Annullata',
         ];
     }
+
+    /** Stati in cui l'admin puo' ancora modificare la richiesta. */
+    public const EDITABLE_STATUSES = ['draft', 'awaiting_prospects', 'prospects_review'];
 
     public static function statusLabel(string $s): string
     {
@@ -101,46 +105,48 @@ class HireRequest
     }
 
     /**
-     * Crea una nuova richiesta di assunzione (stato awaiting_prospects).
-     * @param array $data tutti i campi del form
-     * @param array $files array di file caricati (id_doc obbligatorio, fiscal_code_doc obbligatorio, permit/c2 opt)
-     * @return array ['success'=>bool, 'error'=>?string, 'id'=>?int]
+     * Valida i campi richiesti per l'INVIO al consulente (richiesta di simulazione
+     * costo/netto): obbligatori SOLO durata contratto (tipologia + data inizio,
+     * fine se determinato), orario settimanale e mansioni. Il resto e' facoltativo
+     * ma validato nel formato se presente.
+     * @return ?string messaggio errore, null se ok
      */
-    public static function create(array $data, array $files): array
+    public static function validateForSend(array $data): ?string
     {
-        $required = ['employer_name','employee_first_name','employee_last_name','employee_birth_date',
-                     'birth_state','birth_city','fiscal_code','residence_address','residence_cap',
-                     'residence_city','residence_province','marital_status','education_level',
-                     'start_date','role_description','weekly_hours','workplace','employee_email'];
-        foreach ($required as $f) {
-            if (empty(trim((string)($data[$f] ?? '')))) {
-                return ['success' => false, 'error' => "Campo obbligatorio mancante: $f"];
-            }
-        }
-        $fc = strtoupper(trim((string)$data['fiscal_code']));
-        if (!preg_match('/^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/', $fc)) {
-            return ['success' => false, 'error' => 'Codice fiscale non valido'];
-        }
-        if (!filter_var($data['employee_email'], FILTER_VALIDATE_EMAIL)) {
-            return ['success' => false, 'error' => 'Email non valida'];
-        }
         $contractFlags = ['contract_indeterminato','contract_determinato','contract_apprendistato','contract_tirocinio','contract_agevolata'];
         $anyContract = false;
         foreach ($contractFlags as $cf) if (!empty($data[$cf])) { $anyContract = true; break; }
-        if (!$anyContract) return ['success' => false, 'error' => 'Seleziona almeno una tipologia di contratto'];
+        if (!$anyContract) return 'Seleziona almeno una tipologia di contratto';
+        if (empty(trim((string)($data['start_date'] ?? '')))) return 'Data inizio contratto obbligatoria';
+        if (!empty($data['contract_determinato']) && empty(trim((string)($data['end_date'] ?? '')))) {
+            return 'Data fine obbligatoria per il tempo determinato';
+        }
+        $wh = (float) str_replace(',', '.', (string)($data['weekly_hours'] ?? ''));
+        if ($wh <= 0) return 'Ore settimanali obbligatorie';
+        if (empty(trim((string)($data['role_description'] ?? '')))) return 'Mansioni obbligatorie';
+        return self::validateOptionalFormats($data);
+    }
 
-        $workDaysIn = $data['work_days'] ?? [];
-        $allowedDays = ['mon','tue','wed','thu','fri','sat','sun'];
-        $workDays = array_values(array_intersect($workDaysIn, $allowedDays));
-        if (empty($workDays)) return ['success' => false, 'error' => 'Seleziona almeno un giorno di lavoro'];
+    /** Valida il FORMATO dei campi facoltativi quando compilati (bozza inclusa). */
+    public static function validateOptionalFormats(array $data): ?string
+    {
+        $fc = strtoupper(trim((string)($data['fiscal_code'] ?? '')));
+        if ($fc !== '' && !preg_match('/^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/', $fc)) {
+            return 'Codice fiscale non valido';
+        }
+        $em = trim((string)($data['employee_email'] ?? ''));
+        if ($em !== '' && !filter_var($em, FILTER_VALIDATE_EMAIL)) return 'Email non valida';
+        $pe = trim((string)($data['personal_email'] ?? ''));
+        if ($pe !== '' && !filter_var($pe, FILTER_VALIDATE_EMAIL)) return 'Email personale non valida';
+        return null;
+    }
 
-        $u = Auth::getUser();
-        if (!$u) return ['success' => false, 'error' => 'Non autorizzato'];
-        $companyId = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
-        if ($companyId <= 0) return ['success' => false, 'error' => 'Azienda non valida'];
-
+    /** Controllo duplicati CF (dipendenti esistenti + richieste vive). $excludeId per gli update. */
+    private static function checkFiscalCodeDuplicate(string $fc, int $companyId, int $excludeId = 0): ?string
+    {
+        if ($fc === '') return null;
         if (Database::exists('employees', 'fiscal_code = ? AND company_id = ?', [$fc, $companyId])) {
-            return ['success' => false, 'error' => 'Esiste gia un dipendente con questo codice fiscale'];
+            return 'Esiste gia un dipendente con questo codice fiscale';
         }
         // Blocca solo se esiste una richiesta REALMENTE in corso (non firmata/rifiutata/annullata,
         // e con l'employee_id ancora esistente — se il dipendente e stato eliminato dall'admin
@@ -148,76 +154,127 @@ class HireRequest
         $__dup = Database::fetchAll(
             "SELECT hr.id, hr.employee_id
              FROM hire_requests hr
-             WHERE hr.fiscal_code = ? AND hr.company_id = ?
+             WHERE hr.fiscal_code = ? AND hr.company_id = ? AND hr.id <> ?
                AND hr.status NOT IN ('rejected','cancelled','contract_signed')",
-            [$fc, $companyId]
+            [$fc, $companyId, $excludeId]
         );
         foreach ($__dup as $__row) {
             $__empExists = !empty($__row['employee_id'])
                 ? (bool) Database::fetchColumn("SELECT 1 FROM employees WHERE id = ?", [(int)$__row['employee_id']])
                 : true; // nessun employee collegato => richiesta ancora "viva"
             if ($__empExists) {
-                return ['success' => false, 'error' => 'Esiste gia una richiesta di assunzione in corso per questo codice fiscale'];
+                return 'Esiste gia una richiesta di assunzione in corso per questo codice fiscale';
             }
             // Dipendente eliminato: cancella la richiesta orfana per sbloccare il riuso
             Database::update('hire_requests', ['status' => 'cancelled'], 'id = ?', [(int)$__row['id']]);
         }
+        return null;
+    }
 
-        $idDocFiles = self::normalizeMulti($files['id_doc'] ?? []);
-        $fcDocFiles = self::normalizeMulti($files['fiscal_code_doc'] ?? []);
-        $permitFiles = self::normalizeMulti($files['permit'] ?? []);
-        $c2Files = self::normalizeMulti($files['c2'] ?? []);
-        if (empty($idDocFiles)) return ['success' => false, 'error' => 'Documento di riconoscimento obbligatorio'];
-        if (empty($fcDocFiles)) return ['success' => false, 'error' => 'Codice fiscale (PDF/immagine) obbligatorio'];
+    /** Normalizza i campi del form in payload DB (stringhe vuote -> NULL). */
+    private static function buildPayload(array $data): array
+    {
+        $str = static function ($v) {
+            $v = trim((string)($v ?? ''));
+            return $v === '' ? null : $v;
+        };
+        $fc = strtoupper(trim((string)($data['fiscal_code'] ?? '')));
+        $workDaysIn = (array)($data['work_days'] ?? []);
+        $allowedDays = ['mon','tue','wed','thu','fri','sat','sun'];
+        $workDays = array_values(array_intersect($workDaysIn, $allowedDays));
+        $wh = (float) str_replace(',', '.', (string)($data['weekly_hours'] ?? ''));
+        $enum = static function ($v, array $allowed) {
+            $v = trim((string)($v ?? ''));
+            return in_array($v, $allowed, true) ? $v : null;
+        };
+        return [
+            'employee_first_name' => $str($data['employee_first_name'] ?? null),
+            'employee_last_name'  => $str($data['employee_last_name'] ?? null),
+            'employee_birth_date' => $str($data['employee_birth_date'] ?? null),
+            'birth_state'         => $str($data['birth_state'] ?? null),
+            'birth_city'          => $str($data['birth_city'] ?? null),
+            'fiscal_code'         => $fc === '' ? null : $fc,
+            'residence_address'   => $str($data['residence_address'] ?? null),
+            'residence_cap'       => $str($data['residence_cap'] ?? null),
+            'residence_city'      => $str($data['residence_city'] ?? null),
+            'residence_province'  => $str($data['residence_province'] ?? null),
+            'marital_status'      => $enum($data['marital_status'] ?? null, ['celibe_nubile','coniugato','divorziato','vedovo','unione_civile','separato']),
+            'education_level'     => $enum($data['education_level'] ?? null, ['nessuno','licenza_elementare','licenza_media','diploma','laurea_triennale','laurea_magistrale','dottorato']),
+            'contract_indeterminato' => !empty($data['contract_indeterminato']) ? 1 : 0,
+            'contract_determinato'   => !empty($data['contract_determinato']) ? 1 : 0,
+            'contract_apprendistato' => !empty($data['contract_apprendistato']) ? 1 : 0,
+            'contract_tirocinio'     => !empty($data['contract_tirocinio']) ? 1 : 0,
+            'contract_agevolata'     => !empty($data['contract_agevolata']) ? 1 : 0,
+            'start_date'          => $str($data['start_date'] ?? null),
+            'end_date'            => $str($data['end_date'] ?? null),
+            'role_description'    => $str($data['role_description'] ?? null),
+            'weekly_hours'        => $wh > 0 ? $wh : null,
+            'work_days'           => !empty($workDays) ? implode(',', $workDays) : null,
+            'workplace'           => $str($data['workplace'] ?? null),
+            'cost_center'         => $str($data['cost_center'] ?? null),
+            'iban'                => !empty($data['iban']) ? strtoupper(preg_replace('/\s+/', '', $data['iban'])) : null,
+            'employee_email'      => $str($data['employee_email'] ?? null),
+            'personal_email'      => $str($data['personal_email'] ?? null),
+            'notes'               => $str($data['notes'] ?? null),
+        ];
+    }
 
-        $username = self::generateUsername($data['employee_first_name'], $data['employee_last_name'], $companyId);
+    /** Salva gli allegati admin (tutti facoltativi) su una richiesta. */
+    private static function saveAdminFiles(int $id, array $files): void
+    {
+        foreach (['id_doc','fiscal_code_doc','permit','c2'] as $cat) {
+            foreach (self::normalizeMulti($files[$cat] ?? []) as $f) {
+                self::saveUploadedFile($id, $f, $cat);
+            }
+        }
+    }
+
+    /**
+     * Crea una nuova richiesta di simulazione/assunzione.
+     * @param bool $asDraft true = salvataggio parziale (bozza, nessun campo obbligatorio),
+     *                      false = valida e invia subito al consulente
+     * @return array ['success','error','id','notified','notify_error']
+     */
+    public static function create(array $data, array $files, bool $asDraft = false): array
+    {
+        $u = Auth::getUser();
+        if (!$u) return ['success' => false, 'error' => 'Non autorizzato'];
+        $companyId = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        if ($companyId <= 0) return ['success' => false, 'error' => 'Azienda non valida'];
+
+        $err = $asDraft ? self::validateOptionalFormats($data) : self::validateForSend($data);
+        if ($err !== null) return ['success' => false, 'error' => $err];
+
+        $payload = self::buildPayload($data);
+        if ($payload['fiscal_code'] !== null) {
+            $dupErr = self::checkFiscalCodeDuplicate($payload['fiscal_code'], $companyId);
+            if ($dupErr !== null) return ['success' => false, 'error' => $dupErr];
+        }
+
         $consulenteId = self::findConsulenteForCompany($companyId);
+        // L'invio richiede un consulente del lavoro collegato all'azienda
+        if (!$asDraft && !$consulenteId) {
+            return ['success' => false, 'error' => 'Nessun consulente del lavoro collegato all\'azienda: impossibile inviare. Salva come bozza e contatta l\'amministratore di sistema.'];
+        }
+
+        $username = ($payload['employee_first_name'] && $payload['employee_last_name'])
+            ? self::generateUsername($payload['employee_first_name'], $payload['employee_last_name'], $companyId)
+            : null;
 
         try {
             Database::beginTransaction();
-            $id = Database::insert('hire_requests', [
+            $id = Database::insert('hire_requests', array_merge($payload, [
                 'company_id' => $companyId,
-                'status' => 'awaiting_prospects',
+                'status' => $asDraft ? 'draft' : 'awaiting_prospects',
                 'created_by_user_id' => (int)$u['id'],
                 'assigned_consulente_user_id' => $consulenteId,
-                'employer_name' => trim($data['employer_name']),
-                'employee_first_name' => trim($data['employee_first_name']),
-                'employee_last_name' => trim($data['employee_last_name']),
-                'employee_birth_date' => $data['employee_birth_date'],
-                'birth_state' => trim($data['birth_state']),
-                'birth_city' => trim($data['birth_city']),
-                'fiscal_code' => $fc,
-                'residence_address' => trim($data['residence_address']),
-                'residence_cap' => trim($data['residence_cap']),
-                'residence_city' => trim($data['residence_city']),
-                'residence_province' => trim($data['residence_province']),
-                'marital_status' => $data['marital_status'],
-                'education_level' => $data['education_level'],
-                'contract_indeterminato' => !empty($data['contract_indeterminato']) ? 1 : 0,
-                'contract_determinato' => !empty($data['contract_determinato']) ? 1 : 0,
-                'contract_apprendistato' => !empty($data['contract_apprendistato']) ? 1 : 0,
-                'contract_tirocinio' => !empty($data['contract_tirocinio']) ? 1 : 0,
-                'contract_agevolata' => !empty($data['contract_agevolata']) ? 1 : 0,
-                'start_date' => $data['start_date'],
-                'end_date' => !empty($data['end_date']) ? $data['end_date'] : null,
-                'role_description' => trim($data['role_description']),
-                'weekly_hours' => (float) str_replace(',', '.', (string)$data['weekly_hours']),
-                'work_days' => implode(',', $workDays),
-                'workplace' => trim($data['workplace']),
-                'cost_center' => !empty($data['cost_center']) ? trim($data['cost_center']) : null,
-                'iban' => !empty($data['iban']) ? strtoupper(preg_replace('/\s+/', '', $data['iban'])) : null,
-                'employee_email' => trim($data['employee_email']),
-                'personal_email' => !empty($data['personal_email']) ? trim($data['personal_email']) : null,
+                'employer_name' => trim((string)($data['employer_name'] ?? '')),
                 'generated_username' => $username,
-                'notes' => !empty($data['notes']) ? trim($data['notes']) : null,
-            ]);
+                'last_sent_at' => $asDraft ? null : date('Y-m-d H:i:s'),
+                'send_count' => $asDraft ? 0 : 1,
+            ]));
 
-            // Allegati iniziali (multipli per categoria)
-            foreach ($idDocFiles as $f) self::saveUploadedFile($id, $f, 'id_doc');
-            foreach ($fcDocFiles as $f) self::saveUploadedFile($id, $f, 'fiscal_code_doc');
-            foreach ($permitFiles as $f) self::saveUploadedFile($id, $f, 'permit');
-            foreach ($c2Files as $f) self::saveUploadedFile($id, $f, 'c2');
-
+            self::saveAdminFiles($id, $files);
             Database::commit();
         } catch (Throwable $e) {
             Database::rollBack();
@@ -225,21 +282,126 @@ class HireRequest
             return ['success' => false, 'error' => 'Errore creazione richiesta: ' . $e->getMessage()];
         }
 
-        // Notifica consulente
-        if ($consulenteId && class_exists('Notification')) {
-            try {
-                Notification::create([
-                    'recipient_type' => 'consulente_lavoro',
-                    'recipient_id'   => $consulenteId,
-                    'type'           => 'hire_request_new',
-                    'title'          => 'Nuova richiesta di assunzione',
-                    'message'        => 'L\'admin ha avviato l\'assunzione di ' . $data['employee_first_name'] . ' ' . $data['employee_last_name'] . '. Carica i prospetti.',
-                    'link'           => '/consulente-lavoro/hire-requests.php?id=' . $id,
-                ]);
-            } catch (Throwable $e) {}
+        $notified = null;
+        $notifyError = null;
+        if (!$asDraft) {
+            [$notified, $notifyError] = self::notifyConsulente($consulenteId, $id, $payload, false);
+        }
+
+        return ['success' => true, 'id' => $id, 'notified' => $notified, 'notify_error' => $notifyError];
+    }
+
+    /**
+     * Aggiorna una richiesta esistente (bozza o gia' inviata ma non ancora approvata).
+     * Se la richiesta era gia' stata inviata, viene marcata updated_after_send
+     * per proporre il re-invio al consulente.
+     */
+    public static function update(int $id, array $data, array $files): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') return ['success' => false, 'error' => 'Non autorizzato'];
+        $hr = self::getById($id);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if (!in_array($hr['status'], self::EDITABLE_STATUSES, true)) {
+            return ['success' => false, 'error' => 'La richiesta non e piu modificabile in questo stato (' . self::statusLabel($hr['status']) . ')'];
+        }
+
+        $isDraft = $hr['status'] === 'draft';
+        // Bozza: solo formati. Gia' inviata: deve restare valida per l'invio.
+        $err = $isDraft ? self::validateOptionalFormats($data) : self::validateForSend($data);
+        if ($err !== null) return ['success' => false, 'error' => $err];
+
+        $payload = self::buildPayload($data);
+        if ($payload['fiscal_code'] !== null) {
+            $dupErr = self::checkFiscalCodeDuplicate($payload['fiscal_code'], (int)$hr['company_id'], $id);
+            if ($dupErr !== null) return ['success' => false, 'error' => $dupErr];
+        }
+
+        // Genera username se mancante e ora i nomi ci sono
+        if (empty($hr['generated_username']) && $payload['employee_first_name'] && $payload['employee_last_name']) {
+            $payload['generated_username'] = self::generateUsername($payload['employee_first_name'], $payload['employee_last_name'], (int)$hr['company_id']);
+        }
+        if (!$isDraft) $payload['updated_after_send'] = 1;
+
+        try {
+            Database::beginTransaction();
+            Database::update('hire_requests', $payload, 'id = ?', [$id]);
+            self::saveAdminFiles($id, $files);
+            Database::commit();
+        } catch (Throwable $e) {
+            Database::rollBack();
+            error_log('[HireRequest::update] ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Errore salvataggio: ' . $e->getMessage()];
         }
 
         return ['success' => true, 'id' => $id];
+    }
+
+    /**
+     * Invia (o re-invia dopo modifiche) la richiesta al consulente del lavoro.
+     * Bozza -> awaiting_prospects. Gia' inviata -> nuova notifica "aggiornata".
+     * @return array ['success','error','notified','notify_error']
+     */
+    public static function send(int $id): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') return ['success' => false, 'error' => 'Non autorizzato'];
+        $hr = self::getById($id);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if (!in_array($hr['status'], self::EDITABLE_STATUSES, true)) {
+            return ['success' => false, 'error' => 'Stato non valido per l\'invio (' . self::statusLabel($hr['status']) . ')'];
+        }
+
+        $err = self::validateForSend($hr);
+        if ($err !== null) return ['success' => false, 'error' => 'Completa la richiesta prima di inviare: ' . $err];
+
+        $consulenteId = !empty($hr['assigned_consulente_user_id'])
+            ? (int)$hr['assigned_consulente_user_id']
+            : self::findConsulenteForCompany((int)$hr['company_id']);
+        if (!$consulenteId) {
+            return ['success' => false, 'error' => 'Nessun consulente del lavoro collegato all\'azienda: impossibile inviare.'];
+        }
+
+        $isResend = $hr['status'] !== 'draft';
+        Database::update('hire_requests', [
+            'status' => $isResend ? $hr['status'] : 'awaiting_prospects',
+            'assigned_consulente_user_id' => $consulenteId,
+            'last_sent_at' => date('Y-m-d H:i:s'),
+            'send_count' => (int)$hr['send_count'] + 1,
+            'updated_after_send' => 0,
+        ], 'id = ?', [$id]);
+
+        [$notified, $notifyError] = self::notifyConsulente($consulenteId, $id, $hr, $isResend);
+        return ['success' => true, 'notified' => $notified, 'notify_error' => $notifyError];
+    }
+
+    /**
+     * Notifica il consulente di nuovo invio/re-invio.
+     * @return array [bool $notified, ?string $error]
+     */
+    private static function notifyConsulente(?int $consulenteId, int $id, array $hr, bool $isResend): array
+    {
+        if (!$consulenteId) return [false, 'Nessun consulente assegnato'];
+        if (!class_exists('Notification')) return [false, 'Sistema notifiche non disponibile'];
+        $who = trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? ''));
+        if ($who === '') $who = 'una nuova risorsa (richiesta #' . $id . ')';
+        try {
+            $res = Notification::create([
+                'recipient_type' => 'consulente_lavoro',
+                'recipient_id'   => $consulenteId,
+                'type'           => $isResend ? 'hire_request_updated' : 'hire_request_new',
+                'title'          => $isResend ? 'Richiesta di assunzione aggiornata' : 'Nuova richiesta di assunzione',
+                'message'        => $isResend
+                    ? 'L\'admin ha modificato la richiesta per ' . $who . '. Controlla i dati aggiornati.'
+                    : 'L\'admin ha avviato l\'assunzione di ' . $who . '. Carica i prospetti.',
+                'link'           => '/consulente-lavoro/hire-requests.php?id=' . $id,
+            ]);
+            if (empty($res['success'])) return [false, $res['error'] ?? 'Notifica non creata'];
+            return [true, null];
+        } catch (Throwable $e) {
+            error_log('[HireRequest::notifyConsulente] ' . $e->getMessage());
+            return [false, $e->getMessage()];
+        }
     }
 
     /**
@@ -480,8 +642,21 @@ class HireRequest
         }
     }
 
-    public static function workDaysLabels(string $set): string
+    /** Compone l'indirizzo completo dai campi residenza (tutti facoltativi). */
+    public static function composeAddress(array $hr): ?string
     {
+        $parts = [];
+        if (!empty($hr['residence_address'])) $parts[] = $hr['residence_address'];
+        $loc = trim(($hr['residence_cap'] ?? '') . ' ' . ($hr['residence_city'] ?? ''));
+        if (!empty($hr['residence_province'])) $loc = trim($loc . ' (' . $hr['residence_province'] . ')');
+        if ($loc !== '') $parts[] = $loc;
+        $out = implode(', ', $parts);
+        return $out !== '' ? $out : null;
+    }
+
+    public static function workDaysLabels(?string $set): string
+    {
+        if ($set === null || trim($set) === '') return '';
         $m = ['mon'=>'Lun','tue'=>'Mar','wed'=>'Mer','thu'=>'Gio','fri'=>'Ven','sat'=>'Sab','sun'=>'Dom'];
         $out = [];
         foreach (explode(',', $set) as $d) {
@@ -579,11 +754,33 @@ class HireRequest
             return ['success' => false, 'error' => 'La richiesta non e in stato di approvazione'];
         }
 
+        // La richiesta di simulazione ha pochi campi obbligatori, ma per CREARE il
+        // dipendente servono i dati completi: blocca con elenco di cosa manca.
+        $__needed = [
+            'employee_first_name' => 'Nome',
+            'employee_last_name'  => 'Cognome',
+            'fiscal_code'         => 'Codice fiscale',
+            'employee_email'      => 'Email account',
+            'employee_birth_date' => 'Data di nascita',
+        ];
+        $__missing = [];
+        foreach ($__needed as $k => $lbl) {
+            if (empty(trim((string)($hr[$k] ?? '')))) $__missing[] = $lbl;
+        }
+        if (!empty($__missing)) {
+            return ['success' => false, 'error' => 'Dati incompleti per creare il dipendente: ' . implode(', ', $__missing) . '. Modifica la richiesta e completa i campi prima di approvare.'];
+        }
+        if (empty($hr['generated_username'])) {
+            $__un = self::generateUsername($hr['employee_first_name'], $hr['employee_last_name'], (int)$hr['company_id']);
+            Database::update('hire_requests', ['generated_username' => $__un], 'id = ?', [$hireRequestId]);
+            $hr['generated_username'] = $__un;
+        }
+
         // Setta tenant corrente sul company_id della richiesta (per Employee::create)
         $_SESSION['tenant_company_id'] = (int)$hr['company_id'];
 
         // Map work_days SET (es. "mon,tue,wed,thu,fri")
-        $workDays = $hr['work_days'];
+        $workDays = (string)($hr['work_days'] ?? '');
         $weeklyHours = (float)$hr['weekly_hours'];
         $daysCount = count(array_filter(explode(',', $workDays)));
         $hoursPerDay = $daysCount > 0 ? round($weeklyHours / $daysCount, 2) : null;
@@ -595,7 +792,7 @@ class HireRequest
             'fiscal_code'   => $hr['fiscal_code'],
             'email'         => $hr['employee_email'],
             'birth_date'    => $hr['employee_birth_date'],
-            'address'       => trim($hr['residence_address'] . ', ' . $hr['residence_cap'] . ' ' . $hr['residence_city'] . ' (' . $hr['residence_province'] . ')'),
+            'address'       => self::composeAddress($hr),
             'iban'          => $hr['iban'] ?? null,
             'hire_date'     => $hr['start_date'],
             'position'      => $extra['position'] ?? $hr['role_description'],

@@ -206,7 +206,7 @@ class Department
      */
     public static function deactivate(int $id): array
     {
-        return self::update($id, ['is_active' => false]);
+        return self::update($id, ['is_active' => 0]);
     }
 
     /**
@@ -214,7 +214,7 @@ class Department
      */
     public static function activate(int $id): array
     {
-        return self::update($id, ['is_active' => true]);
+        return self::update($id, ['is_active' => 1]);
     }
 
     /**

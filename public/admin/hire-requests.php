@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     exit;
 }
 
-// === POST: creazione nuova richiesta ===
+// === POST: creazione nuova richiesta (bozza o invio diretto) ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create') {
     CSRF::verifyOrDie();
     $data = $_POST;
@@ -99,9 +99,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         'permit'          => $_FILES['permit']          ?? [],
         'c2'              => $_FILES['c2']              ?? [],
     ];
-    $res = HireRequest::create($data, $files);
+    $asDraft = ($_POST['submit_mode'] ?? 'send') === 'draft';
+    $res = HireRequest::create($data, $files, $asDraft);
     if ($res['success']) {
-        header('Location: hire-requests.php?id=' . $res['id'] . '&created=1');
+        if ($asDraft) {
+            header('Location: hire-requests.php?id=' . $res['id'] . '&saved=1');
+        } else {
+            $qs = 'created=1&notified=' . (!empty($res['notified']) ? '1' : '0');
+            if (empty($res['notified']) && !empty($res['notify_error'])) $qs .= '&notify_err=' . urlencode($res['notify_error']);
+            header('Location: hire-requests.php?id=' . $res['id'] . '&' . $qs);
+        }
         exit;
     } else {
         $error = $res['error'] ?? 'Errore creazione richiesta';
@@ -110,11 +117,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     }
 }
 
+// === POST: aggiornamento richiesta esistente (bozza o gia' inviata) ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update') {
+    CSRF::verifyOrDie();
+    $updId = (int)($_POST['id'] ?? 0);
+    $data = $_POST;
+    $files = [
+        'id_doc'          => $_FILES['id_doc']          ?? [],
+        'fiscal_code_doc' => $_FILES['fiscal_code_doc'] ?? [],
+        'permit'          => $_FILES['permit']          ?? [],
+        'c2'              => $_FILES['c2']              ?? [],
+    ];
+    $res = HireRequest::update($updId, $data, $files);
+    if ($res['success']) {
+        // "Salva e invia": dopo il salvataggio invia/re-invia al consulente
+        if (($_POST['submit_mode'] ?? '') === 'send') {
+            $sendRes = HireRequest::send($updId);
+            if ($sendRes['success']) {
+                $qs = 'sent=1&notified=' . (!empty($sendRes['notified']) ? '1' : '0');
+                if (empty($sendRes['notified']) && !empty($sendRes['notify_error'])) $qs .= '&notify_err=' . urlencode($sendRes['notify_error']);
+                header('Location: hire-requests.php?id=' . $updId . '&' . $qs);
+            } else {
+                header('Location: hire-requests.php?id=' . $updId . '&err=' . urlencode($sendRes['error'] ?? 'Errore invio'));
+            }
+            exit;
+        }
+        header('Location: hire-requests.php?id=' . $updId . '&saved=1');
+        exit;
+    } else {
+        $error = $res['error'] ?? 'Errore salvataggio';
+        $action = 'edit';
+        $id = $updId;
+        $form = $data;
+    }
+}
+
+// === POST: invio/re-invio al consulente dal dettaglio ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send') {
+    CSRF::verifyOrDie();
+    $sendId = (int)($_POST['id'] ?? 0);
+    $res = HireRequest::send($sendId);
+    if ($res['success']) {
+        $qs = 'sent=1&notified=' . (!empty($res['notified']) ? '1' : '0');
+        if (empty($res['notified']) && !empty($res['notify_error'])) $qs .= '&notify_err=' . urlencode($res['notify_error']);
+        header('Location: hire-requests.php?id=' . $sendId . '&' . $qs);
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $sendId . '&err=' . urlencode($res['error'] ?? 'Errore invio'));
+    exit;
+}
+
 $pageTitle = 'Richieste di assunzione';
 include dirname(__DIR__) . '/includes/header-admin.php';
 
 // === Dettaglio richiesta ===
-if ($id > 0 && $action !== 'new') {
+if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
     $hr = HireRequest::getById($id);
     if (!$hr) {
         echo '<div class="alert alert-error">Richiesta non trovata.</div>';
@@ -126,6 +183,7 @@ if ($id > 0 && $action !== 'new') {
     foreach ($files as $f) $byCat[$f['category']][] = $f;
     $statusLabel = HireRequest::statusLabel($hr['status']);
     $statusColors = [
+        'draft'              => '#64748b',
         'awaiting_prospects' => '#eab308',
         'prospects_review'   => '#0ea5e9',
         'approved'           => '#16a34a',
@@ -135,14 +193,44 @@ if ($id > 0 && $action !== 'new') {
         'cancelled'          => '#64748b',
     ];
     $statusColor = $statusColors[$hr['status']] ?? '#64748b';
+    // Display helper: campi ora NULLabili (richiesta simulazione a campi minimi)
+    $hv = static function ($v, string $fallback = '—'): string {
+        $v = trim((string)($v ?? ''));
+        return $v === '' ? $fallback : htmlspecialchars($v);
+    };
+    $isEditable = in_array($hr['status'], HireRequest::EDITABLE_STATUSES, true);
+    $isDraft = $hr['status'] === 'draft';
+    $hasConsulente = HireRequest::findConsulenteForCompany((int)$hr['company_id']) !== null;
 ?>
 <div style="width:100%; margin:1.5rem 0;">
     <?php if (!empty($_GET['created'])): ?>
-        <div class="alert alert-success" style="margin-bottom:1rem;">Richiesta creata. In attesa che il consulente carichi i prospetti.</div>
+        <?php if (isset($_GET['notified']) && $_GET['notified'] === '0'): ?>
+            <div class="alert alert-error" style="margin-bottom:1rem;">
+                <strong>Invio non andato a buon fine:</strong> la richiesta e' stata salvata ma il consulente NON ha ricevuto la notifica<?= !empty($_GET['notify_err']) ? ' (' . htmlspecialchars($_GET['notify_err']) . ')' : '' ?>.
+                Riprova con "Invia di nuovo al consulente" oppure contattalo direttamente.
+            </div>
+        <?php else: ?>
+            <div class="alert alert-success" style="margin-bottom:1rem;">Richiesta inviata al consulente. In attesa che carichi i prospetti.</div>
+        <?php endif; ?>
     <?php endif; ?>
-    <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem;">
+    <?php if (!empty($_GET['saved'])): ?>
+        <div class="alert alert-success" style="margin-bottom:1rem;"><?= $isDraft ? 'Bozza salvata. Puoi completarla e inviarla al consulente quando vuoi.' : 'Modifiche salvate.' ?></div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['sent'])): ?>
+        <?php if (isset($_GET['notified']) && $_GET['notified'] === '0'): ?>
+            <div class="alert alert-error" style="margin-bottom:1rem;">
+                <strong>Invio non andato a buon fine:</strong> il consulente NON ha ricevuto la notifica<?= !empty($_GET['notify_err']) ? ' (' . htmlspecialchars($_GET['notify_err']) . ')' : '' ?>. Riprova piu' tardi.
+            </div>
+        <?php else: ?>
+            <div class="alert alert-success" style="margin-bottom:1rem;">Richiesta inviata al consulente.</div>
+        <?php endif; ?>
+    <?php endif; ?>
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
         <a href="hire-requests.php" class="btn-back">Indietro</a>
-        <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) ?></h1>
+        <h1 style="margin:0; flex:1; font-size:1.5rem;"><?= $hv(trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? '')), 'Richiesta #' . (int)$hr['id']) ?></h1>
+        <?php if ($isEditable): ?>
+            <a href="hire-requests.php?action=edit&id=<?= (int)$hr['id'] ?>" class="btn btn-sm btn-secondary">Modifica</a>
+        <?php endif; ?>
         <?php
             $__confirmMsg = 'Eliminare definitivamente questa richiesta di assunzione? L\'operazione e\' irreversibile e rimuove anche tutti i file allegati e la visibilita\' lato consulente.';
             if ($hr['status'] === 'contract_signed') {
@@ -197,20 +285,55 @@ if ($id > 0 && $action !== 'new') {
     <?php endif; ?>
     <style>@keyframes pulseStep { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }</style>
 
+    <?php if ($isDraft): ?>
+        <div class="card" style="margin-bottom:1rem; border:1px dashed #94a3b8; background:#f8fafc;">
+            <div class="card-body" style="padding:1rem 1.25rem; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:240px;">
+                    <div style="font-weight:700; color:#334155;">Bozza non ancora inviata</div>
+                    <div style="font-size:.82rem; color:#64748b;">Il consulente non vede questa richiesta. Completa i campi obbligatori (tipologia e durata contratto, ore settimanali, mansioni) e invia.</div>
+                    <?php if (!$hasConsulente): ?>
+                        <div style="font-size:.82rem; color:#dc2626; font-weight:600; margin-top:4px;">Nessun consulente del lavoro collegato all'azienda: l'invio non e' disponibile.</div>
+                    <?php endif; ?>
+                </div>
+                <form method="POST" action="hire-requests.php" style="display:inline-block;">
+                    <?= CSRF::field() ?>
+                    <input type="hidden" name="action" value="send">
+                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                    <button type="submit" class="btn btn-primary" <?= $hasConsulente ? '' : 'disabled style="opacity:.5; cursor:not-allowed;"' ?>>Invia al consulente</button>
+                </form>
+            </div>
+        </div>
+    <?php elseif (!empty($hr['updated_after_send']) && $isEditable): ?>
+        <div class="card" style="margin-bottom:1rem; border:1px solid #fde68a; background:#fffbeb;">
+            <div class="card-body" style="padding:1rem 1.25rem; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:240px;">
+                    <div style="font-weight:700; color:#92400e;">Modificata dopo l'ultimo invio</div>
+                    <div style="font-size:.82rem; color:#a16207;">Hai modificato la richiesta dopo averla inviata<?= !empty($hr['last_sent_at']) ? ' (ultimo invio: ' . htmlspecialchars(date('d/m/Y H:i', strtotime($hr['last_sent_at']))) . ')' : '' ?>. Invia di nuovo per notificare il consulente delle modifiche.</div>
+                </div>
+                <form method="POST" action="hire-requests.php" style="display:inline-block;">
+                    <?= CSRF::field() ?>
+                    <input type="hidden" name="action" value="send">
+                    <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                    <button type="submit" class="btn btn-primary">Invia di nuovo al consulente</button>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="card" style="margin-bottom:1rem;">
         <div class="card-body" style="padding:1.25rem;">
             <h3 style="margin-top:0; font-size:1rem;">Dati anagrafici</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem .75rem 1rem; font-size:.88rem;">
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Datore di lavoro</div><div><?= htmlspecialchars($hr['employer_name']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Codice fiscale</div><div><?= htmlspecialchars($hr['fiscal_code']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Data di nascita</div><div><?= htmlspecialchars($hr['employee_birth_date']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Nato a</div><div><?= htmlspecialchars($hr['birth_city'] . ' (' . $hr['birth_state'] . ')') ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Residenza</div><div><?= htmlspecialchars($hr['residence_address'] . ', ' . $hr['residence_cap'] . ' ' . $hr['residence_city'] . ' (' . $hr['residence_province'] . ')') ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Stato civile</div><div><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $hr['marital_status']))) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Istruzione</div><div><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $hr['education_level']))) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Email account</div><div><?= htmlspecialchars($hr['employee_email']) ?></div></div>
-                <?php if ($hr['personal_email']): ?><div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Email personale</div><div><?= htmlspecialchars($hr['personal_email']) ?></div></div><?php endif; ?>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Username (generato)</div><div><code><?= htmlspecialchars((string)$hr['generated_username']) ?></code></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Datore di lavoro</div><div><?= $hv($hr['employer_name']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Codice fiscale</div><div><?= $hv($hr['fiscal_code']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Data di nascita</div><div><?= $hv($hr['employee_birth_date']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Nato a</div><div><?= $hv(trim(($hr['birth_city'] ?? '') . ' ' . (!empty($hr['birth_state']) ? '(' . $hr['birth_state'] . ')' : ''))) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Residenza</div><div><?= $hv(HireRequest::composeAddress($hr)) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Stato civile</div><div><?= $hv(!empty($hr['marital_status']) ? ucfirst(str_replace('_', ' ', $hr['marital_status'])) : null) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Istruzione</div><div><?= $hv(!empty($hr['education_level']) ? ucfirst(str_replace('_', ' ', $hr['education_level'])) : null) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Email account</div><div><?= $hv($hr['employee_email']) ?></div></div>
+                <?php if ($hr['personal_email']): ?><div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Email personale</div><div><?= $hv($hr['personal_email']) ?></div></div><?php endif; ?>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Username (generato)</div><div><code><?= $hv($hr['generated_username']) ?></code></div></div>
             </div>
         </div>
     </div>
@@ -219,16 +342,16 @@ if ($id > 0 && $action !== 'new') {
         <div class="card-body" style="padding:1.25rem;">
             <h3 style="margin-top:0; font-size:1rem;">Contratto</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; font-size:.88rem;">
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Tipologia</div><div><?= htmlspecialchars(HireRequest::contractTypesLabels($hr)) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Inizio</div><div><?= htmlspecialchars($hr['start_date']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Fine</div><div><?= htmlspecialchars($hr['end_date'] ?: '— (indeterminato)') ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Ore settimanali</div><div><?= htmlspecialchars($hr['weekly_hours']) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Giorni</div><div><?= htmlspecialchars(HireRequest::workDaysLabels($hr['work_days'])) ?></div></div>
-                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Sede di lavoro</div><div><?= htmlspecialchars($hr['workplace']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Tipologia</div><div><?= $hv(HireRequest::contractTypesLabels($hr)) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Inizio</div><div><?= $hv($hr['start_date']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Fine</div><div><?= $hv($hr['end_date'], '— (indeterminato)') ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Ore settimanali</div><div><?= $hv($hr['weekly_hours']) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Giorni</div><div><?= $hv(HireRequest::workDaysLabels($hr['work_days'])) ?></div></div>
+                <div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Sede di lavoro</div><div><?= $hv($hr['workplace']) ?></div></div>
                 <?php if ($hr['cost_center']): ?><div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Centro di costo</div><div><?= htmlspecialchars($hr['cost_center']) ?></div></div><?php endif; ?>
                 <?php if ($hr['iban']): ?><div><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">IBAN</div><div><?= htmlspecialchars($hr['iban']) ?></div></div><?php endif; ?>
             </div>
-            <div style="margin-top:1rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Mansioni</div><div><?= nl2br(htmlspecialchars($hr['role_description'])) ?></div></div>
+            <div style="margin-top:1rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Mansioni</div><div><?= nl2br($hv($hr['role_description'])) ?></div></div>
             <?php if ($hr['notes']): ?><div style="margin-top:.75rem;"><div style="color:#64748b; font-size:.72rem; text-transform:uppercase;">Note</div><div><?= nl2br(htmlspecialchars($hr['notes'])) ?></div></div><?php endif; ?>
         </div>
     </div>
@@ -439,13 +562,34 @@ if ($id > 0 && $action !== 'new') {
     exit;
 }
 
-// === Form nuova richiesta ===
-if ($action === 'new') {
+// === Form nuova richiesta / modifica ===
+if ($action === 'new' || $action === 'edit') {
+    $editHr = null;
+    if ($action === 'edit') {
+        $editHr = HireRequest::getById($id);
+        if (!$editHr) {
+            echo '<div class="alert alert-error">Richiesta non trovata.</div>';
+            include dirname(__DIR__) . '/includes/footer-admin.php';
+            exit;
+        }
+        if (!in_array($editHr['status'], HireRequest::EDITABLE_STATUSES, true)) {
+            echo '<div class="alert alert-error">La richiesta non e\' piu\' modificabile (stato: ' . htmlspecialchars(HireRequest::statusLabel($editHr['status'])) . ').</div>';
+            include dirname(__DIR__) . '/includes/footer-admin.php';
+            exit;
+        }
+        if (empty($form)) {
+            $form = $editHr;
+            $form['work_days'] = !empty($editHr['work_days']) ? explode(',', $editHr['work_days']) : [];
+        }
+    }
     $form = $form ?? [];
     if (empty($form['employer_name'])) {
         $__cc = class_exists('Tenant') ? Tenant::currentCompany() : null;
         if ($__cc && !empty($__cc['name'])) $form['employer_name'] = $__cc['name'];
     }
+    $isEdit = $editHr !== null;
+    $editIsDraft = $isEdit && $editHr['status'] === 'draft';
+    $hasConsulente = HireRequest::findConsulenteForCompany(class_exists('Tenant') ? Tenant::currentCompanyId() : 1) !== null;
 ?>
 <style>
     /* Radio-pill: card che si evidenzia quando selezionato */
@@ -595,9 +739,15 @@ if ($action === 'new') {
 <?php
 ?>
 <div style="width:100%; margin:1.5rem 0;">
-    <a href="hire-requests.php" class="btn-back" style="margin-bottom:1rem;">Indietro</a>
-    <h1 style="font-size:1.5rem; margin:0 0 .25rem;">Nuova assunzione</h1>
-    <p style="color:#64748b; margin:0 0 1.5rem;">Compila i dati anagrafici e carica i documenti. La richiesta sara' inoltrata al consulente del lavoro.</p>
+    <a href="<?= $isEdit ? 'hire-requests.php?id=' . (int)$editHr['id'] : 'hire-requests.php' ?>" class="btn-back" style="margin-bottom:1rem;">Indietro</a>
+    <h1 style="font-size:1.5rem; margin:0 0 .25rem;"><?= $isEdit ? 'Modifica richiesta di assunzione' : 'Nuova richiesta di assunzione' ?></h1>
+    <p style="color:#64748b; margin:0 0 .75rem;">Richiesta di simulazione costo/netto per il consulente del lavoro. Sono obbligatori (<span style="color:#dc2626;">*</span>) solo i campi necessari alla simulazione: <strong>tipologia e durata del contratto, orario settimanale, mansioni</strong>. Tutto il resto puo' essere completato in seguito — puoi salvare in bozza in qualsiasi momento.</p>
+
+    <?php if (!$hasConsulente): ?>
+        <div class="alert alert-warning" style="margin-bottom:1rem;">
+            <strong>Nessun consulente del lavoro collegato all'azienda.</strong> Puoi salvare la richiesta come bozza, ma l'invio non e' disponibile finche' un consulente non viene collegato.
+        </div>
+    <?php endif; ?>
 
     <?php if ($error): ?>
         <div class="alert alert-error" style="margin-bottom:1rem;"><?= htmlspecialchars($error) ?></div>
@@ -605,7 +755,8 @@ if ($action === 'new') {
 
     <form method="POST" action="hire-requests.php" enctype="multipart/form-data" class="card">
         <?= CSRF::field() ?>
-        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="action" value="<?= $isEdit ? 'update' : 'create' ?>">
+        <?php if ($isEdit): ?><input type="hidden" name="id" value="<?= (int)$editHr['id'] ?>"><?php endif; ?>
 
         <div class="card-body" style="padding:1.5rem;">
             <h3 style="margin-top:0; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Datore di lavoro</h3>
@@ -618,57 +769,57 @@ if ($action === 'new') {
             <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Anagrafica risorsa</h3>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Nome *</label>
-                    <input type="text" name="employee_first_name" required value="<?= htmlspecialchars($form['employee_first_name'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Nome</label>
+                    <input type="text" name="employee_first_name" value="<?= htmlspecialchars($form['employee_first_name'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Cognome *</label>
-                    <input type="text" name="employee_last_name" required value="<?= htmlspecialchars($form['employee_last_name'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Cognome</label>
+                    <input type="text" name="employee_last_name" value="<?= htmlspecialchars($form['employee_last_name'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Data di nascita *</label>
-                    <input type="date" name="employee_birth_date" required value="<?= htmlspecialchars($form['employee_birth_date'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Data di nascita</label>
+                    <input type="date" name="employee_birth_date" value="<?= htmlspecialchars($form['employee_birth_date'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Codice fiscale *</label>
-                    <input type="text" name="fiscal_code" required maxlength="16" pattern="[A-Za-z0-9]{16}" value="<?= htmlspecialchars($form['fiscal_code'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; text-transform:uppercase;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Codice fiscale</label>
+                    <input type="text" name="fiscal_code" maxlength="16" pattern="[A-Za-z0-9]{16}" value="<?= htmlspecialchars($form['fiscal_code'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; text-transform:uppercase;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Stato di nascita *</label>
-                    <input type="text" name="birth_state" required value="<?= htmlspecialchars($form['birth_state'] ?? 'Italia') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Stato di nascita</label>
+                    <input type="text" name="birth_state" value="<?= htmlspecialchars($form['birth_state'] ?? 'Italia') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Comune di nascita *</label>
-                    <input type="text" name="birth_city" required value="<?= htmlspecialchars($form['birth_city'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Comune di nascita</label>
+                    <input type="text" name="birth_city" value="<?= htmlspecialchars($form['birth_city'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
             </div>
 
             <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Residenza</h3>
             <div style="display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Indirizzo *</label>
-                    <input type="text" name="residence_address" required value="<?= htmlspecialchars($form['residence_address'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Indirizzo</label>
+                    <input type="text" name="residence_address" value="<?= htmlspecialchars($form['residence_address'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">CAP *</label>
-                    <input type="text" name="residence_cap" required maxlength="10" value="<?= htmlspecialchars($form['residence_cap'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">CAP</label>
+                    <input type="text" name="residence_cap" maxlength="10" value="<?= htmlspecialchars($form['residence_cap'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Comune *</label>
-                    <input type="text" name="residence_city" required value="<?= htmlspecialchars($form['residence_city'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Comune</label>
+                    <input type="text" name="residence_city" value="<?= htmlspecialchars($form['residence_city'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Provincia *</label>
-                    <input type="text" name="residence_province" required maxlength="80" value="<?= htmlspecialchars($form['residence_province'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Provincia</label>
+                    <input type="text" name="residence_province" maxlength="80" value="<?= htmlspecialchars($form['residence_province'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
             </div>
 
             <div style="margin-bottom:1rem;">
-                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Stato civile *</label>
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Stato civile</label>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.5rem;">
                     <?php foreach (['celibe_nubile'=>'Celibe/Nubile','coniugato'=>'Coniugato/a','divorziato'=>'Divorziato/a','vedovo'=>'Vedovo/a','unione_civile'=>'Unione civile','separato'=>'Separato/a'] as $v=>$lbl): ?>
                         <label class="pill-radio" style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
-                            <input type="radio" name="marital_status" value="<?= $v ?>" required <?= (($form['marital_status'] ?? '') === $v) ? 'checked' : '' ?>>
+                            <input type="radio" name="marital_status" value="<?= $v ?>" <?= (($form['marital_status'] ?? '') === $v) ? 'checked' : '' ?>>
                             <?= $lbl ?>
                         </label>
                     <?php endforeach; ?>
@@ -676,11 +827,11 @@ if ($action === 'new') {
             </div>
 
             <div style="margin-bottom:1rem;">
-                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Livello di istruzione *</label>
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Livello di istruzione</label>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.5rem;">
                     <?php foreach (['nessuno'=>'Nessun titolo','licenza_elementare'=>'Licenza elementare','licenza_media'=>'Licenza media','diploma'=>'Diploma','laurea_triennale'=>'Laurea triennale','laurea_magistrale'=>'Laurea magistrale','dottorato'=>'Dottorato'] as $v=>$lbl): ?>
                         <label class="pill-radio" style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
-                            <input type="radio" name="education_level" value="<?= $v ?>" required <?= (($form['education_level'] ?? '') === $v) ? 'checked' : '' ?>>
+                            <input type="radio" name="education_level" value="<?= $v ?>" <?= (($form['education_level'] ?? '') === $v) ? 'checked' : '' ?>>
                             <?= $lbl ?>
                         </label>
                     <?php endforeach; ?>
@@ -706,7 +857,7 @@ if ($action === 'new') {
                     <input type="date" name="start_date" required value="<?= htmlspecialchars($form['start_date'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Data fine (se determinato)</label>
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Data fine (obbligatoria se determinato)</label>
                     <input type="date" name="end_date" value="<?= htmlspecialchars($form['end_date'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
@@ -734,8 +885,8 @@ if ($action === 'new') {
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Sede di lavoro *</label>
-                    <input type="text" name="workplace" required value="<?= htmlspecialchars($form['workplace'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Sede di lavoro</label>
+                    <input type="text" name="workplace" value="<?= htmlspecialchars($form['workplace'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
                     <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Centro di costo</label>
@@ -745,8 +896,8 @@ if ($action === 'new') {
 
             <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Account</h3>
             <div style="margin-bottom:1rem;">
-                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Email account *</label>
-                <input type="email" name="employee_email" required value="<?= htmlspecialchars($form['employee_email'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Email account</label>
+                <input type="email" name="employee_email" value="<?= htmlspecialchars($form['employee_email'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
                 <p style="font-size:.75rem; color:#64748b; margin:4px 0 0;">L'username verra' generato automaticamente da nome.cognome.</p>
             </div>
 
@@ -754,8 +905,8 @@ if ($action === 'new') {
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <?php
                 $__uploads = [
-                    ['name'=>'id_doc',          'label'=>'Documento di riconoscimento', 'required'=>true,  'hint'=>'PDF, JPG o PNG'],
-                    ['name'=>'fiscal_code_doc', 'label'=>'Codice fiscale',              'required'=>true,  'hint'=>'PDF o immagine del retro/fronte'],
+                    ['name'=>'id_doc',          'label'=>'Documento di riconoscimento', 'required'=>false,  'hint'=>'PDF, JPG o PNG'],
+                    ['name'=>'fiscal_code_doc', 'label'=>'Codice fiscale',              'required'=>false,  'hint'=>'PDF o immagine del retro/fronte'],
                     ['name'=>'permit',          'label'=>'Permesso di soggiorno',       'required'=>false, 'hint'=>'Se necessario'],
                     ['name'=>'c2',              'label'=>'Modello storico C2',          'required'=>false, 'hint'=>'Per sgravi contributivi'],
                 ];
@@ -783,9 +934,18 @@ if ($action === 'new') {
                 <textarea name="notes" rows="3" placeholder="RAL, livello di inquadramento, domande specifiche..." style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;"><?= htmlspecialchars($form['notes'] ?? '') ?></textarea>
             </div>
 
-            <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.5rem;">
-                <a href="hire-requests.php" class="btn btn-secondary">Annulla</a>
-                <button type="submit" class="btn btn-primary">Invia al consulente</button>
+            <div style="display:flex; gap:.75rem; justify-content:flex-end; align-items:center; margin-top:1.5rem; flex-wrap:wrap;">
+                <a href="<?= $isEdit ? 'hire-requests.php?id=' . (int)$editHr['id'] : 'hire-requests.php' ?>" class="btn btn-secondary">Annulla</a>
+                <?php if (!$isEdit): ?>
+                    <button type="submit" name="submit_mode" value="draft" formnovalidate class="btn btn-secondary" style="border:1px solid #cbd5e1;">Salva bozza</button>
+                    <button type="submit" name="submit_mode" value="send" class="btn btn-primary" <?= $hasConsulente ? '' : 'disabled style="opacity:.5; cursor:not-allowed;" title="Nessun consulente del lavoro collegato all\'azienda"' ?>>Invia al consulente</button>
+                <?php elseif ($editIsDraft): ?>
+                    <button type="submit" name="submit_mode" value="save" formnovalidate class="btn btn-secondary" style="border:1px solid #cbd5e1;">Salva bozza</button>
+                    <button type="submit" name="submit_mode" value="send" class="btn btn-primary" <?= $hasConsulente ? '' : 'disabled style="opacity:.5; cursor:not-allowed;" title="Nessun consulente del lavoro collegato all\'azienda"' ?>>Salva e invia al consulente</button>
+                <?php else: ?>
+                    <button type="submit" name="submit_mode" value="save" class="btn btn-secondary" style="border:1px solid #cbd5e1;">Salva modifiche</button>
+                    <button type="submit" name="submit_mode" value="send" class="btn btn-primary">Salva e invia di nuovo</button>
+                <?php endif; ?>
             </div>
         </div>
     </form>
@@ -812,7 +972,9 @@ $statusFilter = $_GET['status'] ?? '';
     $__pendingApprove = 0;
     $__inProgress = 0;
     $__signed = 0;
+    $__drafts = 0;
     foreach ($rows as $__r) {
+        if ($__r['status'] === 'draft') $__drafts++;
         if ($__r['status'] === 'prospects_review') $__pendingApprove++;
         if (in_array($__r['status'], ['awaiting_prospects','prospects_review','approved','contract_pending'], true)) $__inProgress++;
         if ($__r['status'] === 'contract_signed') $__signed++;
@@ -828,6 +990,9 @@ $statusFilter = $_GET['status'] ?? '';
                 <p style="margin-top:6px;"><strong style="color:#044bff;"><?= $__inProgress ?> richiest<?= $__inProgress === 1 ? 'a' : 'e' ?> in corso.</strong> Niente da approvare adesso.</p>
             <?php else: ?>
                 <p style="margin-top:6px;"><strong style="color:#0c8a8a;">Tutto in ordine, nessuna richiesta in corso.</strong></p>
+            <?php endif; ?>
+            <?php if ($__drafts > 0): ?>
+                <p style="margin-top:2px;"><strong><?= $__drafts ?> bozz<?= $__drafts === 1 ? 'a' : 'e' ?></strong> da completare e inviare.</p>
             <?php endif; ?>
         </div>
         <a href="hire-requests.php?action=new" class="btn btn-lg lp-hero-btn">
@@ -857,6 +1022,7 @@ $statusFilter = $_GET['status'] ?? '';
                 <tbody>
                     <?php
                     $statusColors = [
+                        'draft'              => '#64748b',
                         'awaiting_prospects' => '#eab308',
                         'prospects_review'   => '#0ea5e9',
                         'approved'           => '#16a34a',
@@ -867,10 +1033,11 @@ $statusFilter = $_GET['status'] ?? '';
                     ];
                     foreach ($rows as $r):
                         $col = $statusColors[$r['status']] ?? '#64748b';
+                        $__nome = trim(($r['employee_first_name'] ?? '') . ' ' . ($r['employee_last_name'] ?? ''));
                     ?>
                         <tr style="border-top:1px solid #f1f5f9; font-size:.88rem;">
-                            <td style="padding:.75rem;"><strong><?= htmlspecialchars($r['employee_first_name'] . ' ' . $r['employee_last_name']) ?></strong></td>
-                            <td style="padding:.75rem; font-family:monospace;"><?= htmlspecialchars($r['fiscal_code']) ?></td>
+                            <td style="padding:.75rem;"><strong><?= $__nome !== '' ? htmlspecialchars($__nome) : '<span style="color:#94a3b8;">Richiesta #' . (int)$r['id'] . '</span>' ?></strong></td>
+                            <td style="padding:.75rem; font-family:monospace;"><?= !empty($r['fiscal_code']) ? htmlspecialchars($r['fiscal_code']) : '—' ?></td>
                             <td style="padding:.75rem;">
                                 <span style="background:<?= $col ?>; color:#fff; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700;">
                                     <?= htmlspecialchars(HireRequest::statusLabel($r['status'])) ?>
