@@ -975,8 +975,12 @@ class HireRequest
                     'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
                 ]);
                 if (class_exists('Wrike')) {
-                    Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
-                        '✅ <b>Prospetti approvati</b> dall\'azienda: ora carica il contratto per <b>' . htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) . '</b> dal gestionale.');
+                    // Riporta su Wrike il riepilogo completo + carica i documenti come allegati del task
+                    $__docs = [];
+                    foreach (['id_doc','fiscal_code_doc','permit','c2'] as $__cat) {
+                        foreach (self::getFiles($hireRequestId, $__cat) as $__f) $__docs[] = $__f;
+                    }
+                    Wrike::hireApproved((int)$hr['assigned_consulente_user_id'], $hireRequestId, $hr, $__docs);
                 }
             }
         } catch (Throwable $e) {}
