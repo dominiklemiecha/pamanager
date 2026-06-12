@@ -1671,8 +1671,15 @@ body.login-page {
 .hm-count-busy::after    { content: ' occ.';  font-weight: 600; }
 .hm-count-pending::after { content: ' appr.'; font-weight: 600; }
 .hm-count-absent::after  { content: ' ass.';  font-weight: 600; }
-/* Chip assenti con causale esplicita ("2 permesso"): niente suffisso generico */
+/* Chip assenti con causale esplicita ("2 perm."): niente suffisso generico */
 .hm-count-typed::after   { content: none; }
+/* Sfumature di rosso per causale (differenziazione visiva) */
+.hm-abs-permesso { color: #dc2626; background: #fee2e2; } /* rosso classico */
+.hm-abs-malattia { color: #7f1d1d; background: #fecaca; } /* rosso scuro */
+.hm-abs-ferie    { color: #e11d48; background: #ffe4e6; } /* rosa-rosso */
+.hm-abs-l104     { color: #9f1239; background: #fecdd3; } /* rosa scuro */
+.hm-abs-congedo  { color: #be123c; background: #fecdd3; } /* rosso lampone */
+.hm-abs-altro    { color: #dc2626; background: #fee2e2; }
 
 /* Giorno non lavorativo */
 .heatmap-day-row.is-nonworking {

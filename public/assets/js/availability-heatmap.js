@@ -151,7 +151,7 @@
                     if (c.dataset.leaveLabel !== undefined) {
                         const lv = c.dataset.leaveLabel;
                         const n = absentByLeave[lv] || 0;
-                        c.textContent = n + ' ' + lv;
+                        c.textContent = n + ' ' + (c.dataset.abbr || lv);
                         c.style.display = n === 0 ? 'none' : '';
                         return;
                     }
