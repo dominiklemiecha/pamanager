@@ -333,6 +333,7 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                             <div class="heatmap-stack-avatar is-<?= $av['state'] ?>" tabindex="0"
                                  data-state="<?= $av['state'] ?>"
                                  data-name="<?= htmlspecialchars(mb_strtolower($av['name'])) ?>"
+                                 <?= $av['leaveLabel'] !== null ? 'data-leave="' . htmlspecialchars(mb_strtolower($av['leaveLabel'])) . '"' : '' ?>
                                  style="--avatar-i: <?= $idx ?>">
                                 <div class="heatmap-stack-photo">
                                     <?php if ($av['photo']): ?>
@@ -357,7 +358,7 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                         <?php if ($countBusy > 0): ?><span class="hm-count hm-count-busy" title="Occupati"><?= $countBusy ?></span><?php endif; ?>
                         <?php if ($countPending > 0): ?><span class="hm-count hm-count-pending" title="In approvazione"><?= $countPending ?></span><?php endif; ?>
                         <?php foreach ($absentByType as $__lbl => $__n): ?>
-                            <span class="hm-count hm-count-absent hm-count-typed" title="Assenti &middot; <?= htmlspecialchars($__lbl) ?>"><?= $__n ?> <?= htmlspecialchars(mb_strtolower($__lbl)) ?></span>
+                            <span class="hm-count hm-count-absent hm-count-typed" data-leave-label="<?= htmlspecialchars(mb_strtolower($__lbl)) ?>" title="Assenti &middot; <?= htmlspecialchars($__lbl) ?>"><?= $__n ?> <?= htmlspecialchars(mb_strtolower($__lbl)) ?></span>
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>

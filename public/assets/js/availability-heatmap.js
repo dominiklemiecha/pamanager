@@ -136,11 +136,25 @@
                 const counters = row.querySelectorAll('.hm-count');
                 if (!counters.length) return;
                 const visible = { present: 0, busy: 0, pending: 0, absent: 0 };
+                const absentByLeave = {};
                 row.querySelectorAll('.heatmap-stack-avatar:not(.is-hidden)').forEach((av) => {
                     const s = av.dataset.state;
                     if (s in visible) visible[s]++;
+                    if (s === 'absent') {
+                        const lv = av.dataset.leave || 'assenza';
+                        absentByLeave[lv] = (absentByLeave[lv] || 0) + 1;
+                    }
                 });
                 counters.forEach((c) => {
+                    // Chip assenti per causale ("2 permesso"): conta per data-leave,
+                    // NON per stato — altrimenti ogni chip mostrerebbe il totale assenti.
+                    if (c.dataset.leaveLabel !== undefined) {
+                        const lv = c.dataset.leaveLabel;
+                        const n = absentByLeave[lv] || 0;
+                        c.textContent = n + ' ' + lv;
+                        c.style.display = n === 0 ? 'none' : '';
+                        return;
+                    }
                     const klass = Array.from(c.classList).find(cl => cl.startsWith('hm-count-'));
                     if (!klass) return;
                     const stateKey = klass.replace('hm-count-', '');
