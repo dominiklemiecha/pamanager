@@ -613,6 +613,47 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
                     const app = document.getElementById('approveForm');
                     tog && tog.addEventListener('click', () => { rej.style.display='block'; app.style.opacity='.4'; app.style.pointerEvents='none'; rej.scrollIntoView({behavior:'smooth', block:'center'}); });
                     cancel && cancel.addEventListener('click', () => { rej.style.display='none'; app.style.opacity='1'; app.style.pointerEvents='auto'; });
+
+                    // === Autocompilazione da Codice Fiscale (come nel form Nuova assunzione) ===
+                    const form = app;
+                    const cfInput = form.querySelector('input[name="fiscal_code"]');
+                    if (cfInput) {
+                        const fill = (name, val) => { const el = form.querySelector('[name="' + name + '"]'); if (el && !el.value && val) el.value = val; };
+                        const lookup = async () => {
+                            const cf = cfInput.value.toUpperCase().replace(/\s/g,'');
+                            if (cf.length !== 16) return;
+                            try {
+                                const r = await fetch('<?= PUBLIC_URL ?>/api/lookup.php?action=cf&cf=' + encodeURIComponent(cf), {credentials:'same-origin'});
+                                const d = await r.json();
+                                if (d.error) return;
+                                fill('employee_birth_date', d.birth_date);
+                                fill('birth_state', d.birth_state || 'Italia');
+                                fill('birth_city', d.birth_city);
+                            } catch (e) {}
+                        };
+                        cfInput.addEventListener('blur', lookup);
+                        cfInput.addEventListener('input', () => { if (cfInput.value.length === 16) lookup(); });
+                    }
+
+                    // === Autocompilazione indirizzo (Nominatim) ===
+                    const addrInput = form.querySelector('input[name="residence_address"]');
+                    if (addrInput) {
+                        let timer;
+                        const lookupAddr = async () => {
+                            const q = addrInput.value.trim();
+                            if (q.length < 6) return;
+                            try {
+                                const r = await fetch('<?= PUBLIC_URL ?>/api/lookup.php?action=address&q=' + encodeURIComponent(q), {credentials:'same-origin'});
+                                const d = await r.json();
+                                if (d.error) return;
+                                const fill = (name, val) => { const el = form.querySelector('[name="' + name + '"]'); if (el && !el.value && val) el.value = val; };
+                                fill('residence_cap', d.cap);
+                                fill('residence_city', d.city);
+                                fill('residence_province', d.province);
+                            } catch (e) {}
+                        };
+                        addrInput.addEventListener('blur', () => { clearTimeout(timer); timer = setTimeout(lookupAddr, 200); });
+                    }
                 })();
             </script>
         <?php elseif ($hr['status'] === 'approved' && $hr['employee_id']): ?>
