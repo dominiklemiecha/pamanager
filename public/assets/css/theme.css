@@ -1573,7 +1573,7 @@ body.login-page {
     min-height: 120px;
 }
 .heatmap-day-row.is-today {
-    outline: 2px solid #044bff; outline-offset: -2px;
+    outline: 2px solid var(--accent); outline-offset: -2px;
     background: #fff;
 }
 
@@ -1587,9 +1587,9 @@ body.login-page {
 }
 .heatmap-day-num { font-size: 1rem; color: #101828; font-weight: 700; }
 .heatmap-day-row.is-today .heatmap-day-name,
-.heatmap-day-row.is-today .heatmap-day-num { color: #044bff; }
+.heatmap-day-row.is-today .heatmap-day-num { color: var(--accent); }
 .heatmap-day-badge {
-    font-size: 0.6rem; font-weight: 700; color: #fff; background: #044bff;
+    font-size: 0.6rem; font-weight: 700; color: #fff; background: var(--accent);
     padding: 2px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em;
     margin-left: auto;
 }
@@ -1731,12 +1731,12 @@ body.login-page {
         padding-bottom: 10px;
         scroll-snap-type: x mandatory;
         scrollbar-width: thin;
-        scrollbar-color: #4fa1ff #f2f4f7;
+        scrollbar-color: var(--accent) #f2f4f7;
     }
     .heatmap-days::-webkit-scrollbar { height: 8px; -webkit-appearance: none; }
     .heatmap-days::-webkit-scrollbar-track { background: #f2f4f7; border-radius: 999px; }
-    .heatmap-days::-webkit-scrollbar-thumb { background: #4fa1ff; border-radius: 999px; }
-    .heatmap-days::-webkit-scrollbar-thumb:hover { background: #2877ff; }
+    .heatmap-days::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 999px; }
+    .heatmap-days::-webkit-scrollbar-thumb:hover { background: var(--accent-dark); }
     .heatmap-day-row {
         min-width: 200px; max-width: 220px; flex: 0 0 auto;
         scroll-snap-align: start;
