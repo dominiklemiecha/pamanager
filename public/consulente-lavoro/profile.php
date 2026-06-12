@@ -206,7 +206,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 </div>
 <style>
     #wrikeTile:hover { border-color:#08CF65; box-shadow:0 4px 12px rgba(8,207,101,.12); }
-    #wrikeModal { border:0; border-radius:16px; padding:0; max-width:560px; width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    #wrikeModal { border:0; border-radius:16px; padding:0; width:92vw; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,.25); position:fixed; inset:0; margin:auto; }
     #wrikeModal::backdrop { background:rgba(15,23,42,.5); backdrop-filter:blur(2px); }
     #wrikeModal .wm-head { display:flex; align-items:center; gap:12px; padding:18px 20px; border-bottom:1px solid #eef0f4; }
     #wrikeModal .wm-body { padding:20px; max-height:70vh; overflow-y:auto; }
