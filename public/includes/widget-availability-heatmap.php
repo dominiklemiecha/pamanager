@@ -173,6 +173,18 @@ $availabilityLabels = [
     'in_meeting' => 'In riunione',
 ];
 
+// Chip contatore assenti: abbreviazione + classe colore (sfumature di rosso) per causale
+$__absChipMeta = function (string $label): array {
+    switch (mb_strtolower($label)) {
+        case 'permesso':          return ['perm.',  'hm-abs-permesso'];
+        case 'malattia':          return ['mal.',   'hm-abs-malattia'];
+        case 'ferie':             return ['ferie',  'hm-abs-ferie'];
+        case 'permesso l.104':    return ['l.104',  'hm-abs-l104'];
+        case 'congedo parentale': return ['cong.',  'hm-abs-congedo'];
+        default:                  return ['ass.',   'hm-abs-altro'];
+    }
+};
+
 // Helper iniziali colorate (hash deterministico)
 $initialsColor = function(string $first, string $last): string {
     $palette = ['#3182ce','#805ad5','#d53f8c','#dd6b20','#38a169','#319795','#d69e2e','#2b6cb0'];
@@ -357,8 +369,8 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                         <span class="hm-count hm-count-present" title="Disponibili"><?= $countPresent ?></span>
                         <?php if ($countBusy > 0): ?><span class="hm-count hm-count-busy" title="Occupati"><?= $countBusy ?></span><?php endif; ?>
                         <?php if ($countPending > 0): ?><span class="hm-count hm-count-pending" title="In approvazione"><?= $countPending ?></span><?php endif; ?>
-                        <?php foreach ($absentByType as $__lbl => $__n): ?>
-                            <span class="hm-count hm-count-absent hm-count-typed" data-leave-label="<?= htmlspecialchars(mb_strtolower($__lbl)) ?>" title="Assenti &middot; <?= htmlspecialchars($__lbl) ?>"><?= $__n ?> <?= htmlspecialchars(mb_strtolower($__lbl)) ?></span>
+                        <?php foreach ($absentByType as $__lbl => $__n): [$__abbr, $__absCls] = $__absChipMeta($__lbl); ?>
+                            <span class="hm-count hm-count-absent hm-count-typed <?= $__absCls ?>" data-leave-label="<?= htmlspecialchars(mb_strtolower($__lbl)) ?>" data-abbr="<?= htmlspecialchars($__abbr) ?>" title="Assenti &middot; <?= htmlspecialchars($__lbl) ?>"><?= $__n ?> <?= $__abbr ?></span>
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
