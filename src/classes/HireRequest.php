@@ -933,6 +933,18 @@ class HireRequest
             ], 'id = ?', [$empId]);
         } catch (Throwable $e) {}
 
+        // Wrike PRIMA del trasferimento: i documenti vengono SPOSTATI (rename) al profilo
+        // dipendente qui sotto, quindi vanno caricati su Wrike finche' i file esistono ancora.
+        if (class_exists('Wrike') && !empty($hr['assigned_consulente_user_id'])) {
+            try {
+                $__docs = [];
+                foreach (['id_doc','fiscal_code_doc','permit','c2'] as $__cat) {
+                    foreach (self::getFiles($hireRequestId, $__cat) as $__f) $__docs[] = $__f;
+                }
+                Wrike::hireApproved((int)$hr['assigned_consulente_user_id'], $hireRequestId, $hr, $__docs);
+            } catch (Throwable $e) {}
+        }
+
         // Trasferisci gli allegati admin (id_doc, fiscal_code_doc, permit, c2) come documenti del dipendente
         $now = new DateTime();
         $month = (int)$now->format('n');
@@ -984,14 +996,6 @@ class HireRequest
                     'message'        => 'Carica il contratto per ' . $hr['employee_first_name'] . ' ' . $hr['employee_last_name'],
                     'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
                 ]);
-                if (class_exists('Wrike')) {
-                    // Riporta su Wrike il riepilogo completo + carica i documenti come allegati del task
-                    $__docs = [];
-                    foreach (['id_doc','fiscal_code_doc','permit','c2'] as $__cat) {
-                        foreach (self::getFiles($hireRequestId, $__cat) as $__f) $__docs[] = $__f;
-                    }
-                    Wrike::hireApproved((int)$hr['assigned_consulente_user_id'], $hireRequestId, $hr, $__docs);
-                }
             }
         } catch (Throwable $e) {}
 
