@@ -127,6 +127,48 @@ class HireRequest
         return self::validateOptionalFormats($data);
     }
 
+    /**
+     * Validazione COMPLETA per l'assunzione vera (al momento dell'approvazione admin):
+     * tutti i campi anagrafici/contratto sono obbligatori. Ritorna messaggio o null.
+     */
+    public static function validateComplete(array $data): ?string
+    {
+        $req = [
+            'employee_first_name' => 'Nome',
+            'employee_last_name'  => 'Cognome',
+            'fiscal_code'         => 'Codice fiscale',
+            'employee_birth_date' => 'Data di nascita',
+            'birth_state'         => 'Stato di nascita',
+            'birth_city'          => 'Comune di nascita',
+            'residence_address'   => 'Indirizzo di residenza',
+            'residence_cap'       => 'CAP',
+            'residence_city'      => 'Comune di residenza',
+            'residence_province'  => 'Provincia',
+            'marital_status'      => 'Stato civile',
+            'education_level'     => 'Livello di istruzione',
+            'role_description'    => 'Mansioni',
+            'workplace'           => 'Sede di lavoro',
+            'employee_email'      => 'Email account',
+        ];
+        $missing = [];
+        foreach ($req as $k => $lbl) {
+            if (empty(trim((string)($data[$k] ?? '')))) $missing[] = $lbl;
+        }
+        // Contratto: tipologia + date + ore + giorni
+        $contractFlags = ['contract_indeterminato','contract_determinato','contract_apprendistato','contract_tirocinio','contract_agevolata'];
+        $anyContract = false;
+        foreach ($contractFlags as $cf) if (!empty($data[$cf])) { $anyContract = true; break; }
+        if (!$anyContract) $missing[] = 'Tipologia contratto';
+        if (empty(trim((string)($data['start_date'] ?? '')))) $missing[] = 'Data inizio';
+        if (!empty($data['contract_determinato']) && empty(trim((string)($data['end_date'] ?? '')))) $missing[] = 'Data fine (determinato)';
+        if ((float) str_replace(',', '.', (string)($data['weekly_hours'] ?? '')) <= 0) $missing[] = 'Ore settimanali';
+        $wd = array_intersect((array)($data['work_days'] ?? []), ['mon','tue','wed','thu','fri','sat','sun']);
+        if (empty($wd)) $missing[] = 'Giorni di lavoro';
+
+        if (!empty($missing)) return 'Campi obbligatori mancanti: ' . implode(', ', $missing);
+        return self::validateOptionalFormats($data); // formato CF/email
+    }
+
     /** Valida il FORMATO dei campi facoltativi quando compilati (bozza inclusa). */
     public static function validateOptionalFormats(array $data): ?string
     {
@@ -750,11 +792,14 @@ class HireRequest
     }
 
     /**
-     * Admin approva i prospetti: crea l'employee, trasferisce i documenti al profilo, sblocca fase contratto.
+     * Admin approva i prospetti: completa i dati anagrafici/contratto e gli allegati
+     * (modulo assunzione completo), crea l'employee, trasferisce i documenti, sblocca fase contratto.
      * @param int $hireRequestId
-     * @param array $extra ['department_id' (opt), 'position' (opt), 'monthly_salary' (opt), 'ral_amount' (opt), 'job_level' (opt)]
+     * @param array $extra ['department_id', 'position', 'monthly_salary', 'ral_amount', 'job_level']
+     * @param array $data  campi completi del modulo assunzione (anagrafica + contratto)
+     * @param array $files allegati ($_FILES) da aggiungere alla richiesta in fase di approvazione
      */
-    public static function approveProspects(int $hireRequestId, array $extra = []): array
+    public static function approveProspects(int $hireRequestId, array $extra = [], array $data = [], array $files = []): array
     {
         $u = Auth::getUser();
         if (!$u || ($u['role'] ?? '') !== 'admin') {
@@ -766,8 +811,42 @@ class HireRequest
             return ['success' => false, 'error' => 'La richiesta non e in stato di approvazione'];
         }
 
-        // La richiesta di simulazione ha pochi campi obbligatori, ma per CREARE il
-        // dipendente servono i dati completi: blocca con elenco di cosa manca.
+        // Modulo assunzione completo: salva i dati anagrafici/contratto inviati dal form
+        // di approvazione (tutti obbligatori) prima di creare il dipendente.
+        if (!empty($data)) {
+            $err = self::validateComplete($data);
+            if ($err !== null) return ['success' => false, 'error' => $err];
+            $payload = self::buildPayload($data);
+            if ($payload['fiscal_code'] !== null) {
+                $dupErr = self::checkFiscalCodeDuplicate($payload['fiscal_code'], (int)$hr['company_id'], $hireRequestId);
+                if ($dupErr !== null) return ['success' => false, 'error' => $dupErr];
+            }
+            if (empty($hr['generated_username']) && $payload['employee_first_name'] && $payload['employee_last_name']) {
+                $payload['generated_username'] = self::generateUsername($payload['employee_first_name'], $payload['employee_last_name'], (int)$hr['company_id']);
+            }
+            try {
+                Database::beginTransaction();
+                Database::update('hire_requests', $payload, 'id = ?', [$hireRequestId]);
+                if (!empty($files)) self::saveAdminFiles($hireRequestId, $files);
+                Database::commit();
+            } catch (Throwable $e) {
+                Database::rollBack();
+                return ['success' => false, 'error' => 'Errore salvataggio dati: ' . $e->getMessage()];
+            }
+            $hr = self::getById($hireRequestId); // ricarica con i dati aggiornati
+        }
+
+        // Allegati obbligatori per l'assunzione: documento riconoscimento + codice fiscale
+        $docReq = ['id_doc' => 'Documento di riconoscimento', 'fiscal_code_doc' => 'Codice fiscale (documento)'];
+        $docMissing = [];
+        foreach ($docReq as $cat => $lbl) {
+            if (empty(self::getFiles($hireRequestId, $cat))) $docMissing[] = $lbl;
+        }
+        if (!empty($docMissing)) {
+            return ['success' => false, 'error' => 'Allegati obbligatori mancanti: ' . implode(', ', $docMissing) . '. Caricali prima di approvare.'];
+        }
+
+        // Safety net: i campi minimi per Employee::create devono esserci
         $__needed = [
             'employee_first_name' => 'Nome',
             'employee_last_name'  => 'Cognome',
@@ -780,7 +859,7 @@ class HireRequest
             if (empty(trim((string)($hr[$k] ?? '')))) $__missing[] = $lbl;
         }
         if (!empty($__missing)) {
-            return ['success' => false, 'error' => 'Dati incompleti per creare il dipendente: ' . implode(', ', $__missing) . '. Modifica la richiesta e completa i campi prima di approvare.'];
+            return ['success' => false, 'error' => 'Dati incompleti per creare il dipendente: ' . implode(', ', $__missing) . '.'];
         }
         if (empty($hr['generated_username'])) {
             $__un = self::generateUsername($hr['employee_first_name'], $hr['employee_last_name'], (int)$hr['company_id']);

@@ -51,7 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'appro
         'monthly_salary' => $toFloat($_POST['monthly_salary'] ?? null),
         'ral_amount'     => $toFloat($_POST['ral_amount'] ?? null),
     ];
-    $res = HireRequest::approveProspects($reqId, $extra);
+    $files = [
+        'id_doc'          => $_FILES['id_doc']          ?? [],
+        'fiscal_code_doc' => $_FILES['fiscal_code_doc'] ?? [],
+        'permit'          => $_FILES['permit']          ?? [],
+        'c2'              => $_FILES['c2']              ?? [],
+    ];
+    $res = HireRequest::approveProspects($reqId, $extra, $_POST, $files);
     if ($res['success']) {
         $qs = 'approved=1';
         if (!$res['email_sent']) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Email non inviata');
@@ -419,10 +425,108 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
                     </div>
                 </div>
 
-                <form method="POST" action="hire-requests.php" id="approveForm" style="padding:1.5rem;">
+                <?php
+                    $__wd = !empty($hr['work_days']) ? explode(',', $hr['work_days']) : ['mon','tue','wed','thu','fri'];
+                    $__hasIdDoc = !empty($byCat['id_doc']);
+                    $__hasFcDoc = !empty($byCat['fiscal_code_doc']);
+                ?>
+                <form method="POST" action="hire-requests.php" id="approveForm" enctype="multipart/form-data" style="padding:1.5rem;">
                     <?= CSRF::field() ?>
                     <input type="hidden" name="action" value="approve">
                     <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:.75rem 1rem; margin-bottom:1.25rem; font-size:.82rem; color:#1e40af;">
+                        Completa <strong>tutti i campi</strong> dell'assunzione e allega i documenti obbligatori: serviranno per creare il dipendente e per la stesura del contratto. I dati gia presenti dalla richiesta sono precompilati.
+                    </div>
+
+                    <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Anagrafica</div>
+                    <div class="hr-field" style="margin-bottom:.85rem;">
+                        <label>Codice fiscale <span style="color:#dc2626;">*</span></label>
+                        <input type="text" name="fiscal_code" id="appr_cf" maxlength="16" required value="<?= htmlspecialchars((string)($hr['fiscal_code'] ?? '')) ?>" style="text-transform:uppercase;">
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:.85rem; margin-bottom:1.25rem;">
+                        <div class="hr-field"><label>Nome <span style="color:#dc2626;">*</span></label><input type="text" name="employee_first_name" required value="<?= htmlspecialchars((string)($hr['employee_first_name'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Cognome <span style="color:#dc2626;">*</span></label><input type="text" name="employee_last_name" required value="<?= htmlspecialchars((string)($hr['employee_last_name'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Data di nascita <span style="color:#dc2626;">*</span></label><input type="date" name="employee_birth_date" required value="<?= htmlspecialchars((string)($hr['employee_birth_date'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Stato di nascita <span style="color:#dc2626;">*</span></label><input type="text" name="birth_state" required value="<?= htmlspecialchars((string)($hr['birth_state'] ?? 'Italia')) ?>"></div>
+                        <div class="hr-field"><label>Comune di nascita <span style="color:#dc2626;">*</span></label><input type="text" name="birth_city" required value="<?= htmlspecialchars((string)($hr['birth_city'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Email account <span style="color:#dc2626;">*</span></label><input type="email" name="employee_email" required value="<?= htmlspecialchars((string)($hr['employee_email'] ?? '')) ?>"></div>
+                    </div>
+
+                    <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Residenza</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:.85rem; margin-bottom:1.25rem;">
+                        <div class="hr-field" style="grid-column:1/-1;"><label>Indirizzo <span style="color:#dc2626;">*</span></label><input type="text" name="residence_address" required value="<?= htmlspecialchars((string)($hr['residence_address'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>CAP <span style="color:#dc2626;">*</span></label><input type="text" name="residence_cap" maxlength="10" required value="<?= htmlspecialchars((string)($hr['residence_cap'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Comune <span style="color:#dc2626;">*</span></label><input type="text" name="residence_city" required value="<?= htmlspecialchars((string)($hr['residence_city'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Provincia <span style="color:#dc2626;">*</span></label><input type="text" name="residence_province" maxlength="80" required value="<?= htmlspecialchars((string)($hr['residence_province'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Stato civile <span style="color:#dc2626;">*</span></label>
+                            <select name="marital_status" required>
+                                <option value="">— Scegli —</option>
+                                <?php foreach (['celibe_nubile'=>'Celibe/Nubile','coniugato'=>'Coniugato/a','divorziato'=>'Divorziato/a','vedovo'=>'Vedovo/a','unione_civile'=>'Unione civile','separato'=>'Separato/a'] as $v=>$lbl): ?>
+                                    <option value="<?= $v ?>" <?= (($hr['marital_status'] ?? '') === $v) ? 'selected' : '' ?>><?= $lbl ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="hr-field"><label>Livello di istruzione <span style="color:#dc2626;">*</span></label>
+                            <select name="education_level" required>
+                                <option value="">— Scegli —</option>
+                                <?php foreach (['nessuno'=>'Nessun titolo','licenza_elementare'=>'Licenza elementare','licenza_media'=>'Licenza media','diploma'=>'Diploma','laurea_triennale'=>'Laurea triennale','laurea_magistrale'=>'Laurea magistrale','dottorato'=>'Dottorato'] as $v=>$lbl): ?>
+                                    <option value="<?= $v ?>" <?= (($hr['education_level'] ?? '') === $v) ? 'selected' : '' ?>><?= $lbl ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Contratto</div>
+                    <div class="hr-field" style="margin-bottom:.85rem;">
+                        <label>Tipologia <span style="color:#dc2626;">*</span></label>
+                        <div style="display:flex; flex-wrap:wrap; gap:1rem; padding-top:4px;">
+                            <?php foreach (['contract_indeterminato'=>'Indeterminato','contract_determinato'=>'Determinato','contract_apprendistato'=>'Apprendistato','contract_tirocinio'=>'Tirocinio/Stage','contract_agevolata'=>'Agevolata'] as $k=>$lbl): ?>
+                                <label style="display:flex; gap:5px; align-items:center; font-weight:500; font-size:.85rem;"><input type="checkbox" name="<?= $k ?>" value="1" <?= !empty($hr[$k]) ? 'checked' : '' ?> style="width:auto;"> <?= $lbl ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.85rem; margin-bottom:.85rem;">
+                        <div class="hr-field"><label>Data inizio <span style="color:#dc2626;">*</span></label><input type="date" name="start_date" required value="<?= htmlspecialchars((string)($hr['start_date'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Data fine (se determinato)</label><input type="date" name="end_date" value="<?= htmlspecialchars((string)($hr['end_date'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Ore settimanali <span style="color:#dc2626;">*</span></label><input type="number" step="0.5" min="1" max="60" name="weekly_hours" required value="<?= htmlspecialchars((string)($hr['weekly_hours'] ?? '40')) ?>"></div>
+                    </div>
+                    <div class="hr-field" style="margin-bottom:.85rem;">
+                        <label>Giorni di lavoro <span style="color:#dc2626;">*</span></label>
+                        <div style="display:flex; flex-wrap:wrap; gap:.75rem; padding-top:4px;">
+                            <?php foreach (['mon'=>'Lun','tue'=>'Mar','wed'=>'Mer','thu'=>'Gio','fri'=>'Ven','sat'=>'Sab','sun'=>'Dom'] as $k=>$lbl): ?>
+                                <label style="display:flex; gap:5px; align-items:center; font-weight:500; font-size:.85rem;"><input type="checkbox" name="work_days[]" value="<?= $k ?>" <?= in_array($k, $__wd, true) ? 'checked' : '' ?> style="width:auto;"> <?= $lbl ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <div class="hr-field" style="margin-bottom:.85rem;"><label>Mansioni <span style="color:#dc2626;">*</span></label><textarea name="role_description" required rows="2" style="width:100%; padding:.55rem .7rem; border:1px solid #cbd5e1; border-radius:8px; font-size:.88rem; font-family:inherit;"><?= htmlspecialchars((string)($hr['role_description'] ?? '')) ?></textarea></div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.85rem; margin-bottom:1.25rem;">
+                        <div class="hr-field"><label>Sede di lavoro <span style="color:#dc2626;">*</span></label><input type="text" name="workplace" required value="<?= htmlspecialchars((string)($hr['workplace'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>Centro di costo</label><input type="text" name="cost_center" value="<?= htmlspecialchars((string)($hr['cost_center'] ?? '')) ?>"></div>
+                        <div class="hr-field"><label>IBAN</label><input type="text" name="iban" value="<?= htmlspecialchars((string)($hr['iban'] ?? '')) ?>"></div>
+                    </div>
+
+                    <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Documenti allegati</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.85rem; margin-bottom:1.25rem;">
+                        <div class="hr-field">
+                            <label>Documento di riconoscimento <?= $__hasIdDoc ? '<span style="color:#16a34a;">✓ caricato</span>' : '<span style="color:#dc2626;">*</span>' ?></label>
+                            <input type="file" name="id_doc[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" <?= $__hasIdDoc ? '' : 'required' ?>>
+                            <?php if ($__hasIdDoc): ?><small style="color:#64748b;">Gia presente: <?= count($byCat['id_doc']) ?> file. Carica solo per aggiungere/sostituire.</small><?php endif; ?>
+                        </div>
+                        <div class="hr-field">
+                            <label>Codice fiscale (documento) <?= $__hasFcDoc ? '<span style="color:#16a34a;">✓ caricato</span>' : '<span style="color:#dc2626;">*</span>' ?></label>
+                            <input type="file" name="fiscal_code_doc[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" <?= $__hasFcDoc ? '' : 'required' ?>>
+                            <?php if ($__hasFcDoc): ?><small style="color:#64748b;">Gia presente: <?= count($byCat['fiscal_code_doc']) ?> file.</small><?php endif; ?>
+                        </div>
+                        <div class="hr-field">
+                            <label>Permesso di soggiorno <span style="color:#94a3b8; font-weight:500;">(se necessario)</span></label>
+                            <input type="file" name="permit[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
+                        </div>
+                        <div class="hr-field">
+                            <label>Modello C2 <span style="color:#94a3b8; font-weight:500;">(opzionale)</span></label>
+                            <input type="file" name="c2[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
+                        </div>
+                    </div>
 
                     <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; font-weight:700; margin-bottom:.65rem;">Inquadramento</div>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:.85rem; margin-bottom:1.25rem;">
@@ -461,9 +565,9 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
                     <div style="background:#f8fafc; border-radius:8px; padding:.85rem 1rem; margin-bottom:1.25rem; font-size:.82rem; color:#475569;">
                         <div style="font-weight:600; color:#0f172a; margin-bottom:.25rem;">Cosa succede approvando</div>
                         <ul style="margin:0; padding-left:1.2rem; line-height:1.55;">
-                            <li>Creo il dipendente con username <code style="background:#fff; padding:1px 5px; border-radius:3px;"><?= htmlspecialchars($hr['generated_username']) ?></code></li>
-                            <li>Invio email a <strong><?= htmlspecialchars($hr['employee_email']) ?></strong> con credenziali temporanee</li>
-                            <li>Trasferisco documento identita, codice fiscale<?= !empty($byCat['permit']) ? ', permesso soggiorno' : '' ?><?= !empty($byCat['c2']) ? ', modello C2' : '' ?> al profilo dipendente</li>
+                            <li>Creo il dipendente <?= !empty($hr['generated_username']) ? 'con username <code style="background:#fff; padding:1px 5px; border-radius:3px;">' . htmlspecialchars($hr['generated_username']) . '</code>' : '(username generato da nome.cognome)' ?></li>
+                            <li>Invio l'email con le credenziali temporanee all'indirizzo account indicato sopra</li>
+                            <li>Trasferisco i documenti allegati al profilo del dipendente</li>
                             <li><strong>I prospetti del consulente restano riservati</strong> (visibili solo a te e al consulente)</li>
                         </ul>
                     </div>
