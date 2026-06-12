@@ -66,6 +66,7 @@ class Wrike
                     $found = [
                         'host' => $host,
                         'account_name' => trim(($c['firstName'] ?? '') . ' ' . ($c['lastName'] ?? '')),
+                        'me_id' => $c['id'] ?? null,
                     ];
                     break;
                 }
@@ -81,6 +82,7 @@ class Wrike
         $config = $existing['config'] ?? [];
         $config['host'] = $found['host'];
         $config['account_name'] = $found['account_name'];
+        $config['me_id'] = $found['me_id'];
         // Default: assunzioni ON, chat OFF (la chat puo' essere rumorosa)
         if (!isset($config['on_hire'])) $config['on_hire'] = 1;
         if (!isset($config['on_chat'])) $config['on_chat'] = 0;
@@ -179,11 +181,17 @@ class Wrike
             }
             if (!$folderId) throw new RuntimeException('Nessuna cartella Wrike disponibile');
 
-            $res = self::api($i['token'], $host, 'POST', '/folders/' . rawurlencode($folderId) . '/tasks', [
+            $params = [
                 'title' => mb_substr($title, 0, 250),
                 'description' => $descriptionHtml,
                 'importance' => $importance,
-            ]);
+            ];
+            // Auto-assegnazione: il task compare in "My to-dos"/Assegnati a me.
+            // (la Inbox di Wrike NON si puo' alimentare via API: mostra solo azioni di altri utenti)
+            $meId = self::meId($i);
+            if ($meId) $params['responsibles'] = json_encode([$meId]);
+
+            $res = self::api($i['token'], $host, 'POST', '/folders/' . rawurlencode($folderId) . '/tasks', $params);
             $taskId = $res['data'][0]['id'] ?? null;
             if ($taskId) {
                 try {
@@ -278,6 +286,29 @@ class Wrike
     private static function hostOf(array $integration): string
     {
         return $integration['config']['host'] ?? self::HOSTS[0];
+    }
+
+    /**
+     * Contact ID Wrike dell'utente collegato (per l'auto-assegnazione).
+     * Le integrazioni create prima di questo campo lo recuperano e salvano al volo.
+     */
+    private static function meId(array $integration): ?string
+    {
+        if (!empty($integration['config']['me_id'])) return $integration['config']['me_id'];
+        try {
+            $res = self::api($integration['token'], self::hostOf($integration), 'GET', '/contacts', ['me' => 'true']);
+            $meId = $res['data'][0]['id'] ?? null;
+            if ($meId) {
+                $config = $integration['config'];
+                $config['me_id'] = $meId;
+                Database::update('user_integrations',
+                    ['config' => json_encode($config, JSON_UNESCAPED_UNICODE)],
+                    'id = ?', [(int)$integration['id']]);
+            }
+            return $meId;
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 
     private static function markError(int $userId, string $err): void
