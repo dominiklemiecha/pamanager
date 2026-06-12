@@ -231,7 +231,7 @@ class Wrike
             // Re-invio: commenta il task esistente invece di crearne un altro
             $existingTaskId = $i['config']['hire_tasks'][(string)$hireRequestId] ?? null;
             if ($existingTaskId) {
-                $comment = '<b>' . htmlspecialchars($company ?: 'L\'azienda') . '</b> ha aggiornato la richiesta per <b>' . htmlspecialchars($who) . '</b>. '
+                $comment = self::mention($i) . '<b>' . htmlspecialchars($company ?: 'L\'azienda') . '</b> ha aggiornato la richiesta per <b>' . htmlspecialchars($who) . '</b>. '
                          . 'Ore settimanali: ' . htmlspecialchars((string)($hr['weekly_hours'] ?? '—'))
                          . ' — Inizio: ' . htmlspecialchars((string)($hr['start_date'] ?? '—')) . '. '
                          . '<a href="' . htmlspecialchars($link) . '">Vedi i dati aggiornati</a>';
@@ -239,7 +239,10 @@ class Wrike
                 // task eliminato su Wrike: prosegui e ricreane uno
             }
 
-            $title = ($isResend ? 'Richiesta assunzione AGGIORNATA — ' : 'Nuova richiesta assunzione — ') . $who . ($company ? ' (' . $company . ')' : '');
+            // Titolo "base" (nome + azienda): salvato per ricostruire il titolo a ogni step
+            $baseTitle = $who . ($company ? ' (' . $company . ')' : '');
+            $status = $hr['status'] ?? 'awaiting_prospects';
+            $title = self::hirePrefix($status) . ' — ' . $baseTitle;
             $desc = '<b>' . htmlspecialchars($company) . '</b> ha ' . ($isResend ? 'aggiornato la' : 'inviato una') . ' richiesta di simulazione/assunzione per <b>' . htmlspecialchars($who) . '</b>.<br>'
                   . 'Mansioni: ' . htmlspecialchars((string)($hr['role_description'] ?? '—')) . '<br>'
                   . 'Ore settimanali: ' . htmlspecialchars((string)($hr['weekly_hours'] ?? '—'))
@@ -249,25 +252,64 @@ class Wrike
             $taskId = self::createTask($consulenteUserId, $title, $desc, 'High');
             if ($taskId) {
                 self::storeConfigKey($consulenteUserId, 'hire_tasks', (string)$hireRequestId, $taskId);
+                self::storeConfigKey($consulenteUserId, 'hire_titles', (string)$hireRequestId, $baseTitle);
             }
         } catch (Throwable $e) {
             error_log('[Wrike::taskForHireRequest] ' . $e->getMessage());
         }
     }
 
+    /** Prefisso di stato per il titolo del task, per riflettere la fase corrente. */
+    private static function hirePrefix(string $status): string
+    {
+        switch ($status) {
+            case 'awaiting_prospects': return '🟡 Prospetti da caricare';
+            case 'prospects_review':   return '🔵 Prospetti da approvare';
+            case 'approved':           return '🟢 Da contrattualizzare';
+            case 'contract_pending':   return '✍️ Contratto da firmare';
+            case 'contract_signed':    return '✅ Firmato';
+            default:                   return 'Assunzione';
+        }
+    }
+
+    /** Aggiorna il titolo del task in base allo stato (prefisso + nome base salvato). */
+    private static function updateTaskTitle(array $integration, int $userId, int $hireRequestId, string $taskId, string $status): void
+    {
+        $base = $integration['config']['hire_titles'][(string)$hireRequestId] ?? null;
+        if (!$base) return;
+        $title = self::hirePrefix($status) . ' — ' . $base;
+        try {
+            self::api($integration['token'], self::hostOf($integration), 'PUT', '/tasks/' . rawurlencode($taskId), ['title' => mb_substr($title, 0, 250)]);
+        } catch (Throwable $e) {
+            self::markError($userId, $e->getMessage());
+        }
+    }
+
     /**
-     * Aggiornamento di step sul task della richiesta: commento + eventuale
-     * completamento automatico (es. contratto firmato). No-op se il consulente
-     * non ha Wrike o il task non esiste.
+     * Menzione HTML di un utente Wrike per generare la notifica in Inbox.
+     * Il task viene auto-assegnato al consulente, quindi me_id e' il destinatario.
      */
-    public static function hireStep(int $consulenteUserId, int $hireRequestId, string $commentHtml, bool $complete = false): void
+    private static function mention(array $integration): string
+    {
+        $meId = $integration['config']['me_id'] ?? null;
+        if (!$meId) return '';
+        return '<a class="stream-user-id avatar" rel="' . htmlspecialchars($meId) . '">@' . htmlspecialchars($integration['config']['account_name'] ?? 'tu') . '</a> ';
+    }
+
+    /**
+     * Aggiornamento di step sul task della richiesta: aggiorna il titolo con lo stato,
+     * aggiunge un commento (con @menzione per notificare in Inbox) ed eventualmente
+     * completa il task. No-op se il consulente non ha Wrike o il task non esiste.
+     */
+    public static function hireStep(int $consulenteUserId, int $hireRequestId, string $commentHtml, bool $complete = false, ?string $newStatus = null): void
     {
         try {
             $i = self::getForUser($consulenteUserId);
             if (!$i || empty($i['is_active']) || empty($i['config']['on_hire'])) return;
             $taskId = $i['config']['hire_tasks'][(string)$hireRequestId] ?? null;
             if (!$taskId) return;
-            self::addComment($consulenteUserId, $taskId, $commentHtml);
+            if ($newStatus) self::updateTaskTitle($i, $consulenteUserId, $hireRequestId, $taskId, $newStatus);
+            self::addComment($consulenteUserId, $taskId, self::mention($i) . $commentHtml);
             if ($complete) {
                 try {
                     self::api($i['token'], self::hostOf($i), 'PUT', '/tasks/' . rawurlencode($taskId), ['status' => 'Completed']);
@@ -308,7 +350,11 @@ class Wrike
             $taskId = $i['config']['hire_tasks'][(string)$hireRequestId] ?? null;
             if (!$taskId) return;
 
-            // 1) Commento con il riepilogo completo dei dati di assunzione
+            // Titolo -> "Da contrattualizzare"
+            self::updateTaskTitle($i, $consulenteUserId, $hireRequestId, $taskId, 'approved');
+
+            // 1) Commento con il riepilogo completo dei dati di assunzione (con @menzione)
+            $mention = self::mention($i);
             $row = static function (string $label, $val): string {
                 $val = trim((string)$val);
                 return $val === '' ? '' : '<li><b>' . htmlspecialchars($label) . ':</b> ' . htmlspecialchars($val) . '</li>';
@@ -316,7 +362,7 @@ class Wrike
             $contratti = class_exists('HireRequest') ? HireRequest::contractTypesLabels($hr) : '';
             $giorni = class_exists('HireRequest') ? HireRequest::workDaysLabels($hr['work_days'] ?? '') : '';
             $residenza = class_exists('HireRequest') ? HireRequest::composeAddress($hr) : '';
-            $html = '✅ <b>Prospetti approvati dall\'azienda — dati completi per il contratto:</b><ul>'
+            $html = $mention . '✅ <b>Prospetti approvati dall\'azienda — dati completi per il contratto:</b><ul>'
                   . $row('Nome', trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? '')))
                   . $row('Codice fiscale', $hr['fiscal_code'] ?? '')
                   . $row('Data di nascita', $hr['employee_birth_date'] ?? '')
