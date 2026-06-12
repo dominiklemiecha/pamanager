@@ -209,7 +209,12 @@ class Wrike
 
     // ===================== Trigger applicativi =====================
 
-    /** Attivita' per nuova richiesta di assunzione (o re-invio dopo modifiche). */
+    /**
+     * Attivita' per richiesta di assunzione. Un SOLO task per richiesta:
+     * il primo invio lo crea (mapping in config.hire_tasks), il re-invio dopo
+     * modifiche aggiunge un commento sul task esistente (nuovo task solo se
+     * quello vecchio e' stato eliminato su Wrike).
+     */
     public static function taskForHireRequest(int $consulenteUserId, int $hireRequestId, array $hr, bool $isResend): void
     {
         try {
@@ -219,20 +224,73 @@ class Wrike
             $who = trim(($hr['employee_first_name'] ?? '') . ' ' . ($hr['employee_last_name'] ?? ''));
             if ($who === '') $who = 'richiesta #' . $hireRequestId;
             $company = $hr['employer_name'] ?? '';
-            $title = ($isResend ? 'Richiesta assunzione AGGIORNATA — ' : 'Nuova richiesta assunzione — ') . $who . ($company ? ' (' . $company . ')' : '');
-
             $link = function_exists('buildPublicUrl')
                 ? buildPublicUrl('/consulente-lavoro/hire-requests.php?id=' . $hireRequestId)
                 : '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId;
+
+            // Re-invio: commenta il task esistente invece di crearne un altro
+            $existingTaskId = $i['config']['hire_tasks'][(string)$hireRequestId] ?? null;
+            if ($existingTaskId) {
+                $comment = '<b>' . htmlspecialchars($company ?: 'L\'azienda') . '</b> ha aggiornato la richiesta per <b>' . htmlspecialchars($who) . '</b>. '
+                         . 'Ore settimanali: ' . htmlspecialchars((string)($hr['weekly_hours'] ?? '—'))
+                         . ' — Inizio: ' . htmlspecialchars((string)($hr['start_date'] ?? '—')) . '. '
+                         . '<a href="' . htmlspecialchars($link) . '">Vedi i dati aggiornati</a>';
+                if (self::addComment($consulenteUserId, $existingTaskId, $comment)) return;
+                // task eliminato su Wrike: prosegui e ricreane uno
+            }
+
+            $title = ($isResend ? 'Richiesta assunzione AGGIORNATA — ' : 'Nuova richiesta assunzione — ') . $who . ($company ? ' (' . $company . ')' : '');
             $desc = '<b>' . htmlspecialchars($company) . '</b> ha ' . ($isResend ? 'aggiornato la' : 'inviato una') . ' richiesta di simulazione/assunzione per <b>' . htmlspecialchars($who) . '</b>.<br>'
                   . 'Mansioni: ' . htmlspecialchars((string)($hr['role_description'] ?? '—')) . '<br>'
                   . 'Ore settimanali: ' . htmlspecialchars((string)($hr['weekly_hours'] ?? '—'))
                   . ' — Inizio: ' . htmlspecialchars((string)($hr['start_date'] ?? '—')) . '<br><br>'
                   . '<a href="' . htmlspecialchars($link) . '">Apri la richiesta sul gestionale</a>';
 
-            self::createTask($consulenteUserId, $title, $desc, 'High');
+            $taskId = self::createTask($consulenteUserId, $title, $desc, 'High');
+            if ($taskId) {
+                self::storeConfigKey($consulenteUserId, 'hire_tasks', (string)$hireRequestId, $taskId);
+            }
         } catch (Throwable $e) {
             error_log('[Wrike::taskForHireRequest] ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Aggiornamento di step sul task della richiesta: commento + eventuale
+     * completamento automatico (es. contratto firmato). No-op se il consulente
+     * non ha Wrike o il task non esiste.
+     */
+    public static function hireStep(int $consulenteUserId, int $hireRequestId, string $commentHtml, bool $complete = false): void
+    {
+        try {
+            $i = self::getForUser($consulenteUserId);
+            if (!$i || empty($i['is_active']) || empty($i['config']['on_hire'])) return;
+            $taskId = $i['config']['hire_tasks'][(string)$hireRequestId] ?? null;
+            if (!$taskId) return;
+            self::addComment($consulenteUserId, $taskId, $commentHtml);
+            if ($complete) {
+                try {
+                    self::api($i['token'], self::hostOf($i), 'PUT', '/tasks/' . rawurlencode($taskId), ['status' => 'Completed']);
+                } catch (Throwable $e) {
+                    self::markError($consulenteUserId, $e->getMessage());
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('[Wrike::hireStep] ' . $e->getMessage());
+        }
+    }
+
+    /** Aggiunge un commento a un task. Ritorna false se il task non esiste piu'. */
+    public static function addComment(int $userId, string $taskId, string $html): bool
+    {
+        $i = self::getForUser($userId);
+        if (!$i || empty($i['token']) || empty($i['is_active'])) return false;
+        try {
+            self::api($i['token'], self::hostOf($i), 'POST', '/tasks/' . rawurlencode($taskId) . '/comments', ['plainText' => 'false', 'text' => $html]);
+            return true;
+        } catch (Throwable $e) {
+            self::markError($userId, $e->getMessage());
+            return false;
         }
     }
 
@@ -267,14 +325,7 @@ class Wrike
             $taskId = self::createTask($consulenteUserId, $title, $desc, 'Normal');
             if ($taskId) {
                 // Salva il mapping conversazione -> task per il dedupe
-                $fresh = self::getForUser($consulenteUserId);
-                if ($fresh) {
-                    $config = $fresh['config'];
-                    $config['chat_tasks'][(string)$conversationId] = $taskId;
-                    Database::update('user_integrations',
-                        ['config' => json_encode($config, JSON_UNESCAPED_UNICODE)],
-                        'id = ?', [(int)$fresh['id']]);
-                }
+                self::storeConfigKey($consulenteUserId, 'chat_tasks', (string)$conversationId, $taskId);
             }
         } catch (Throwable $e) {
             error_log('[Wrike::taskForChatMessage] ' . $e->getMessage());
@@ -309,6 +360,20 @@ class Wrike
         } catch (Throwable $e) {
             return null;
         }
+    }
+
+    /** Salva config[$mapKey][$key] = $value rileggendo la riga fresca (no lost update). */
+    private static function storeConfigKey(int $userId, string $mapKey, string $key, string $value): void
+    {
+        try {
+            $fresh = self::getForUser($userId);
+            if (!$fresh) return;
+            $config = $fresh['config'];
+            $config[$mapKey][$key] = $value;
+            Database::update('user_integrations',
+                ['config' => json_encode($config, JSON_UNESCAPED_UNICODE)],
+                'id = ?', [(int)$fresh['id']]);
+        } catch (Throwable $e) {}
     }
 
     private static function markError(int $userId, string $err): void
