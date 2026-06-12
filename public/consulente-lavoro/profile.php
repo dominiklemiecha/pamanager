@@ -100,11 +100,18 @@ if ($user['role'] === 'consulente_lavoro' && class_exists('Wrike')) {
     }
 }
 
-/** Logo Wrike ufficiale (due chevron verdi #08cf65, da worldvectorlogo). */
-function wrikeLogoSvg(int $size = 24): string {
-    return '<svg width="' . $size . '" height="' . $size . '" viewBox="-2.37 .48 605.11 378.12" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
-         . '<path d="m141.07 138.77c29.02 0 42.7 5.34 63.71 26.39l112.75 112.9c3.34 3.34 4.01 4.68 4.67 6.68.34.67.34 1.67.34 2.34s0 1.67-.34 2.34c-.66 2-1.33 3.34-4.67 6.68l-77.05 77.49c-3.34 3.34-4.67 4.01-6.68 4.68-.66.33-1.66.33-2.33.33s-1.67 0-2.34-.33c-2-.67-3.33-1.34-6.67-4.68l-218.5-218.79c-6.33-6.35-4-16.03 6.68-16.03z" fill="#08cf65"/>'
-         . '<path d="m459.3.81c-29.02 0-42.7 5.34-63.71 26.39l-112.75 112.9c-3.34 3.34-4.01 4.68-4.67 6.68-.34.67-.34 1.67-.34 2.34s0 1.67.34 2.34c.66 2 1.33 3.34 4.67 6.68l77.05 77.16c3.34 3.34 4.67 4.01 6.68 4.68.66.33 1.66.33 2.33.33s1.67 0 2.34-.33c2-.67 3.33-1.34 6.67-4.68l218.49-218.79c6.34-6.35 4.01-16.03-6.67-16.03h-130.43z" fill="#08cf65"/>'
+/** Blu "Midnight" della sidebar Wrike. */
+const WRIKE_NAVY = '#15243d';
+
+/**
+ * Logo Wrike ufficiale completo (simbolo + wordmark) reso in bianco,
+ * pensato per stare su sfondo navy WRIKE_NAVY.
+ */
+function wrikeLogoSvg(int $width = 96): string {
+    $h = (int) round($width / 5); // aspect ratio originale 100x20
+    return '<svg width="' . $width . '" height="' . $h . '" viewBox="0 0 100 20" fill="#ffffff" role="img" aria-label="Logo di Wrike" xmlns="http://www.w3.org/2000/svg">'
+         . '<path d="M20.78 1.404C21.885.298 22.587 0 24.113 0h6.878c.561 0 .684.509.35.842l-11.49 11.491c-.176.176-.246.21-.352.246-.035.018-.087.018-.122.018s-.088 0-.123-.018c-.106-.035-.176-.07-.351-.246L14.85 8.281c-.175-.176-.21-.246-.245-.351-.018-.035-.018-.088-.018-.123s0-.088.018-.123c.035-.105.07-.175.245-.35l5.93-5.93zM10.745 8.649C9.64 7.544 8.92 7.263 7.395 7.263H.534c-.562 0-.685.509-.351.842l11.49 11.492c.176.175.246.21.352.245a.299.299 0 00.123.018c.035 0 .087 0 .122-.018.105-.035.176-.07.351-.245l4.053-4.07c.175-.176.21-.246.245-.351a.3.3 0 00.018-.123c0-.035 0-.088-.018-.123-.035-.105-.07-.175-.245-.351l-5.93-5.93z"/>'
+         . '<path d="M71.064 4.72a1.965 1.965 0 100-3.93 1.965 1.965 0 000 3.93zm1.579 1.578h-3.158v11.035h3.158V6.298zm-9.877 11.035V12.37c0-3 2.649-2.948 4.035-2.72V6.263c-2.21-.193-3.526.421-4.123 1.614h-.07l.017-1.561h-3.07v11.018h3.21zm-22.685 0h2.474l3.79-7.087 3.666 7.087h2.509l5.632-11.035h-3.737l-3.456 7.035-3.281-7.035h-2.684l-3.456 7.07-3.281-7.07H34.52l5.561 11.035zm36.053 0h2l3.298-4.158 2.79 4.158h3.72l-4.387-6.386 3.842-4.649h-3.701l-4.386 5.544h-.07L79.275.79h-3.14v16.544zm18.228-2.368c1.351 0 2.158-.72 2.544-1.298l2.421 1.667c-.982 1.28-2.509 2.28-5.035 2.28-3.386 0-5.912-2.544-5.912-5.754 0-3.228 2.579-5.755 5.912-5.755 3.403 0 5.702 2.562 5.702 5.755v.877h-8.58c.246 1.316 1.37 2.228 2.948 2.228zm2.58-4.421c-.352-1.158-1.37-1.965-2.825-1.965-1.492 0-2.492.807-2.843 1.965h5.667z"/>'
          . '</svg>';
 }
 
@@ -181,8 +188,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             style="display:flex; align-items:center; gap:14px; width:300px; text-align:left; cursor:pointer;
                    background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px 18px;
                    transition:border-color .15s, box-shadow .15s; box-shadow:0 1px 2px rgba(16,24,40,.04);">
-        <span style="flex:none; width:44px; height:44px; border-radius:10px; background:#08CF6510; display:flex; align-items:center; justify-content:center;">
-            <?= wrikeLogoSvg(26) ?>
+        <span style="flex:none; height:44px; padding:0 14px; border-radius:10px; background:<?= WRIKE_NAVY ?>; display:flex; align-items:center; justify-content:center;">
+            <?= wrikeLogoSvg(80) ?>
         </span>
         <span style="flex:1; min-width:0;">
             <span style="display:block; font-weight:700; font-size:.95rem; color:#0f172a;">Integrazione Wrike</span>
@@ -210,7 +217,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 </style>
 <dialog id="wrikeModal">
     <div class="wm-head">
-        <span style="flex:none; width:38px; height:38px; border-radius:9px; background:#08CF6510; display:flex; align-items:center; justify-content:center;"><?= wrikeLogoSvg(22) ?></span>
+        <span style="flex:none; height:40px; padding:0 14px; border-radius:9px; background:<?= WRIKE_NAVY ?>; display:flex; align-items:center; justify-content:center;"><?= wrikeLogoSvg(78) ?></span>
         <div>
             <div style="font-weight:700; font-size:1.02rem;">Integrazione Wrike</div>
             <div style="font-size:.78rem; color:#94a3b8;">
