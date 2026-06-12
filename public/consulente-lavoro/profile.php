@@ -100,6 +100,14 @@ if ($user['role'] === 'consulente_lavoro' && class_exists('Wrike')) {
     }
 }
 
+/** Logo Wrike (marchio "W" verde su sfondo trasparente). */
+function wrikeLogoSvg(int $size = 24): string {
+    return '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+         . '<path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="#08CF65"/>'
+         . '<path d="M14 17l5.2 14h3.2l3.1-9 3.1 9h3.2L37 17h-3.4l-3 9.2L27.4 17h-2.8l-3.2 9.2L18.4 17H14z" fill="#fff"/>'
+         . '</svg>';
+}
+
 $pageTitle = 'Il mio profilo';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
@@ -164,60 +172,94 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 </div>
 
 <?php if ($user['role'] === 'consulente_lavoro'): ?>
-<div class="card" style="margin-top: var(--sp-4);">
-    <div class="card-h" style="display:flex; align-items:center; gap:10px;">
-        <h3 style="margin:0;">Integrazione Wrike</h3>
-        <?php if ($wrike && !empty($wrike['token'])): ?>
-            <span style="background:#dcfce7; color:#15803d; padding:2px 10px; border-radius:999px; font-size:.72rem; font-weight:700;">Collegato</span>
+<?php $wrikeConnected = $wrike && !empty($wrike['token']); ?>
+
+<h2 style="font-size:1rem; font-weight:700; color:#334155; margin:var(--sp-4) 0 .6rem;">Integrazioni</h2>
+<div style="display:flex; flex-wrap:wrap; gap:var(--sp-3);">
+    <!-- Tile integrazione: logo + nome, apre il modal -->
+    <button type="button" id="wrikeTile" onclick="document.getElementById('wrikeModal').showModal()"
+            style="display:flex; align-items:center; gap:14px; width:300px; text-align:left; cursor:pointer;
+                   background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px 18px;
+                   transition:border-color .15s, box-shadow .15s; box-shadow:0 1px 2px rgba(16,24,40,.04);">
+        <span style="flex:none; width:44px; height:44px; border-radius:10px; background:#08CF6510; display:flex; align-items:center; justify-content:center;">
+            <?= wrikeLogoSvg(26) ?>
+        </span>
+        <span style="flex:1; min-width:0;">
+            <span style="display:block; font-weight:700; font-size:.95rem; color:#0f172a;">Integrazione Wrike</span>
+            <span style="display:block; font-size:.78rem; color:#64748b;">Crea attività dalle assunzioni e chat</span>
+        </span>
+        <?php if ($wrikeConnected): ?>
+            <span style="flex:none; display:inline-flex; align-items:center; gap:5px; background:#dcfce7; color:#15803d; padding:3px 9px; border-radius:999px; font-size:.7rem; font-weight:700;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#16a34a;"></span>Collegato
+            </span>
         <?php else: ?>
-            <span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:.72rem; font-weight:700;">Non collegato</span>
+            <span style="flex:none; background:#f1f5f9; color:#64748b; padding:3px 9px; border-radius:999px; font-size:.7rem; font-weight:700;">Configura</span>
         <?php endif; ?>
+    </button>
+</div>
+<style>
+    #wrikeTile:hover { border-color:#08CF65; box-shadow:0 4px 12px rgba(8,207,101,.12); }
+    #wrikeModal { border:0; border-radius:16px; padding:0; max-width:560px; width:92vw; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    #wrikeModal::backdrop { background:rgba(15,23,42,.5); backdrop-filter:blur(2px); }
+    #wrikeModal .wm-head { display:flex; align-items:center; gap:12px; padding:18px 20px; border-bottom:1px solid #eef0f4; }
+    #wrikeModal .wm-body { padding:20px; max-height:70vh; overflow-y:auto; }
+    #wrikeModal .wm-close { margin-left:auto; background:none; border:0; cursor:pointer; color:#94a3b8; font-size:1.5rem; line-height:1; padding:4px; }
+    #wrikeModal .wm-close:hover { color:#475569; }
+    #wrikeModal ol { margin:0; padding-left:1.2rem; font-size:.85rem; color:#475569; line-height:1.7; }
+    #wrikeModal .form-control { width:100%; }
+</style>
+<dialog id="wrikeModal">
+    <div class="wm-head">
+        <span style="flex:none; width:38px; height:38px; border-radius:9px; background:#08CF6510; display:flex; align-items:center; justify-content:center;"><?= wrikeLogoSvg(22) ?></span>
+        <div>
+            <div style="font-weight:700; font-size:1.02rem;">Integrazione Wrike</div>
+            <div style="font-size:.78rem; color:#94a3b8;">
+                <?= $wrikeConnected ? 'Collegato come ' . htmlspecialchars($wrike['config']['account_name'] ?? '—') : 'Non ancora collegato' ?>
+            </div>
+        </div>
+        <button type="button" class="wm-close" onclick="document.getElementById('wrikeModal').close()" aria-label="Chiudi">&times;</button>
     </div>
-    <div class="card-b">
-        <?php if (!$wrike || empty($wrike['token'])): ?>
+    <div class="wm-body">
+        <?php if (!$wrikeConnected): ?>
             <p style="font-size:.88rem; color:#475569; margin:0 0 1rem;">
-                Collega il tuo account Wrike: quando un'azienda ti invia una <strong>richiesta di assunzione</strong>
-                (e, se vuoi, quando ricevi <strong>messaggi in chat</strong>) verra' creata automaticamente
-                un'attivita' sulla tua board Wrike.
+                Quando un'azienda ti invia una <strong>richiesta di assunzione</strong> (e, se vuoi, quando ricevi
+                <strong>messaggi in chat</strong>) viene creata automaticamente un'attività sulla tua board Wrike,
+                che si aggiorna a ogni passaggio fino alla firma del contratto.
             </p>
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1rem;">
                 <div style="font-weight:700; font-size:.85rem; margin-bottom:.5rem;">Dove trovo il token? (2 minuti, una volta sola)</div>
-                <ol style="margin:0; padding-left:1.2rem; font-size:.85rem; color:#475569; line-height:1.7;">
+                <ol>
                     <li>Accedi a <a href="https://www.wrike.com" target="_blank" rel="noopener">wrike.com</a> (va bene anche l'account <strong>Free</strong>)</li>
                     <li>Clicca sulla <strong>tua foto/iniziali in alto a destra</strong> &rarr; <strong>Apps &amp; Integrations</strong></li>
                     <li>Nel menu a sinistra scegli <strong>API</strong> (sezione "My apps")</li>
-                    <li>Crea una nuova app con <strong>+ App</strong> (il nome &egrave; libero, es. "Connecteed HR") oppure apri quella esistente</li>
-                    <li>Scorri in fondo alla pagina fino alla sezione <strong>"Permanent access token"</strong> e clicca <strong>Get token</strong> (ti verr&agrave; chiesta la password Wrike)</li>
-                    <li><strong>Copia il token</strong> appena mostrato (&egrave; una stringa molto lunga, tipo <code>eyJ0dCI6...</code>) e incollalo qui sotto. <u>Attenzione</u>: Wrike lo mostra una volta sola — se lo perdi, genera un nuovo token</li>
+                    <li>Crea una nuova app con <strong>+ App</strong> (nome libero, es. "Connecteed HR") oppure apri quella esistente</li>
+                    <li>Scorri in fondo fino a <strong>"Permanent access token"</strong> e clicca <strong>Get token</strong> (ti verrà chiesta la password Wrike)</li>
+                    <li><strong>Copia il token</strong> mostrato (stringa lunga tipo <code>eyJ0dCI6...</code>) e incollalo qui sotto. <u>Attenzione</u>: Wrike lo mostra una volta sola</li>
                 </ol>
                 <div style="font-size:.78rem; color:#94a3b8; margin-top:.5rem;">
-                    Nota: <strong>NON</strong> servono "Client ID" e "Secret key" (quelli sono per OAuth): serve solo il <strong>Permanent access token</strong>.
+                    Nota: <strong>NON</strong> servono "Client ID" e "Secret key" (sono per OAuth): serve solo il <strong>Permanent access token</strong>.
                 </div>
             </div>
-            <form method="POST" action="profile.php" style="display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap;">
+            <form method="POST" action="profile.php">
                 <?= CSRF::field() ?>
                 <input type="hidden" name="action" value="wrike_connect">
-                <div style="flex:1; min-width:280px;">
+                <div class="form-group" style="margin-bottom: var(--sp-3);">
                     <label class="form-label" for="wrike_token">Permanent access token</label>
                     <input type="password" id="wrike_token" name="wrike_token" class="form-control" required
                            placeholder="Incolla qui il token copiato da Wrike" autocomplete="off">
                 </div>
-                <button type="submit" class="btn btn-primary">Collega Wrike</button>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Collega Wrike</button>
             </form>
         <?php else: ?>
-            <p style="font-size:.88rem; margin:0 0 .35rem;">
-                Collegato come <strong><?= htmlspecialchars($wrike['config']['account_name'] ?? '—') ?></strong>
-                <span style="color:#94a3b8; font-size:.78rem;">(<?= htmlspecialchars(parse_url($wrike['config']['host'] ?? '', PHP_URL_HOST) ?: 'wrike.com') ?>)</span>
-            </p>
             <?php if (!empty($wrike['last_error'])): ?>
-                <div class="alert alert-danger" style="margin:.5rem 0; font-size:.82rem;">
-                    Ultimo errore Wrike: <?= htmlspecialchars($wrike['last_error']) ?> — se il token &egrave; stato revocato, scollega e ricollega con un token nuovo.
+                <div class="alert alert-danger" style="margin:0 0 1rem; font-size:.82rem;">
+                    Ultimo errore Wrike: <?= htmlspecialchars($wrike['last_error']) ?> — se il token è stato revocato, scollega e ricollega con un token nuovo.
                 </div>
             <?php endif; ?>
-            <form method="POST" action="profile.php" style="margin-top:.75rem;">
+            <form method="POST" action="profile.php">
                 <?= CSRF::field() ?>
                 <input type="hidden" name="action" value="wrike_settings">
-                <div class="form-group" style="margin-bottom: var(--sp-3); max-width:420px;">
+                <div class="form-group" style="margin-bottom: var(--sp-3);">
                     <label class="form-label" for="wrike_folder">Cartella/progetto Wrike di destinazione</label>
                     <select id="wrike_folder" name="wrike_folder" class="form-control">
                         <option value="">(Radice account)</option>
@@ -228,28 +270,32 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:.5rem; margin-bottom: var(--sp-3); font-size:.88rem;">
+                <div style="display:flex; flex-direction:column; gap:.6rem; margin-bottom: var(--sp-3); font-size:.88rem;">
                     <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
                         <input type="checkbox" name="wrike_on_hire" value="1" <?= !empty($wrike['config']['on_hire']) ? 'checked' : '' ?>>
-                        Crea attivit&agrave; per le <strong>richieste di assunzione</strong> (nuove e aggiornate)
+                        Attività per le <strong>richieste di assunzione</strong>
                     </label>
                     <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
                         <input type="checkbox" name="wrike_on_chat" value="1" <?= !empty($wrike['config']['on_chat']) ? 'checked' : '' ?>>
-                        Crea attivit&agrave; per i <strong>messaggi chat</strong> (una per conversazione, finch&eacute; il task resta aperto)
+                        Attività per i <strong>messaggi chat</strong> (una per conversazione)
                     </label>
                 </div>
-                <div style="display:flex; gap:.6rem;">
-                    <button type="submit" class="btn btn-primary">Salva impostazioni</button>
-                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Salva impostazioni</button>
             </form>
-            <form method="POST" action="profile.php" style="margin-top:.75rem;" onsubmit="return confirm('Scollegare Wrike? Il token salvato verra' eliminato.');">
+            <form method="POST" action="profile.php" style="margin-top:.75rem;" onsubmit="return confirm('Scollegare Wrike? Il token salvato verrà eliminato.');">
                 <?= CSRF::field() ?>
                 <input type="hidden" name="action" value="wrike_disconnect">
-                <button type="submit" class="btn" style="background:#fee2e2; color:#991b1b; border:0;">Scollega Wrike</button>
+                <button type="submit" class="btn" style="width:100%; background:#fee2e2; color:#991b1b; border:0;">Scollega Wrike</button>
             </form>
         <?php endif; ?>
     </div>
-</div>
+</dialog>
+<?php if (($wrikeConnected && !empty($wrike['last_error'])) || (isset($_GET['message']) && strpos($_GET['message'], 'wrike') === 0 && $error)): ?>
+    <script>document.getElementById('wrikeModal').showModal();</script>
+<?php endif; ?>
+<?php if ($error && in_array($_POST['action'] ?? '', ['wrike_connect','wrike_settings'], true)): ?>
+    <script>document.getElementById('wrikeModal').showModal();</script>
+<?php endif; ?>
 <?php endif; ?>
 
 <div class="card" style="margin-top: var(--sp-4); border-color: var(--danger-200, #fecaca);">
