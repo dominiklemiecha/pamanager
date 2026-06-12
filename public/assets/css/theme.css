@@ -1671,6 +1671,8 @@ body.login-page {
 .hm-count-busy::after    { content: ' occ.';  font-weight: 600; }
 .hm-count-pending::after { content: ' appr.'; font-weight: 600; }
 .hm-count-absent::after  { content: ' ass.';  font-weight: 600; }
+/* Chip assenti con causale esplicita ("2 permesso"): niente suffisso generico */
+.hm-count-typed::after   { content: none; }
 
 /* Giorno non lavorativo */
 .heatmap-day-row.is-nonworking {

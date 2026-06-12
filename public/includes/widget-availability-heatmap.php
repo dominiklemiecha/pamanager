@@ -272,12 +272,13 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 }
 
                 $rowAvatars[] = [
-                    'state'    => $state,
-                    'name'     => $fullName,
-                    'initials' => $initials,
-                    'color'    => $color,
-                    'photo'    => $photoUrl,
-                    'tooltip'  => $tooltip,
+                    'state'      => $state,
+                    'name'       => $fullName,
+                    'initials'   => $initials,
+                    'color'      => $color,
+                    'photo'      => $photoUrl,
+                    'tooltip'    => $tooltip,
+                    'leaveLabel' => $hit ? $label : null,
                 ];
             }
 
@@ -303,13 +304,18 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
             $__CAP = 8;
             $__moreCount = max(0, count($rowAvatars) - $__CAP);
 
-            $countPresent = 0; $countBusy = 0; $countPending = 0; $countAbsent = 0;
+            $countPresent = 0; $countBusy = 0; $countPending = 0;
+            $absentByType = []; // label causale (gia' mascherata L.104) => conteggio
             foreach ($rowAvatars as $a) {
                 if ($a['state'] === 'present') $countPresent++;
                 elseif ($a['state'] === 'busy') $countBusy++;
                 elseif ($a['state'] === 'pending') $countPending++;
-                else $countAbsent++;
+                else {
+                    $__lbl = $a['leaveLabel'] ?? 'Assenza';
+                    $absentByType[$__lbl] = ($absentByType[$__lbl] ?? 0) + 1;
+                }
             }
+            arsort($absentByType);
         ?>
             <?php
                 $__isWk = $dayIsWorking[$i] ?? true;
@@ -350,7 +356,9 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                         <span class="hm-count hm-count-present" title="Disponibili"><?= $countPresent ?></span>
                         <?php if ($countBusy > 0): ?><span class="hm-count hm-count-busy" title="Occupati"><?= $countBusy ?></span><?php endif; ?>
                         <?php if ($countPending > 0): ?><span class="hm-count hm-count-pending" title="In approvazione"><?= $countPending ?></span><?php endif; ?>
-                        <?php if ($countAbsent > 0): ?><span class="hm-count hm-count-absent" title="Assenti"><?= $countAbsent ?></span><?php endif; ?>
+                        <?php foreach ($absentByType as $__lbl => $__n): ?>
+                            <span class="hm-count hm-count-absent hm-count-typed" title="Assenti &middot; <?= htmlspecialchars($__lbl) ?>"><?= $__n ?> <?= htmlspecialchars(mb_strtolower($__lbl)) ?></span>
+                        <?php endforeach; ?>
                     </div>
                 <?php else: ?>
                     <div class="heatmap-stack heatmap-stack-off">
