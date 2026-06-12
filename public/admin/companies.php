@@ -12,7 +12,10 @@ setSecurityHeaders();
 Auth::requireUser('admin');
 
 $user = Auth::getUser();
-$isGlobalAdmin = ($user['role'] === 'admin' && array_key_exists('company_id', $user) && $user['company_id'] === null);
+// SICUREZZA: usa il check centralizzato (NULL + zero user_companies). Il vecchio check
+// "company_id === null" trattava come globale anche gli admin tenant scopati via
+// user_companies, mostrando loro TUTTE le aziende del sistema (leak cross-tenant).
+$isGlobalAdmin = Tenant::isCurrentUserTrueGlobalAdmin();
 $accessibleCids = Tenant::accessibleCompanyIdsForCurrentUser();
 
 $message = $error = null;

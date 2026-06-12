@@ -76,9 +76,10 @@ class Tenant
         if (!in_array($user['role'] ?? '', self::SWITCH_ROLES, true)) return false;
 
         $accessible = self::accessibleCompanyIds($user);
-        $isGlobalAdmin = $user['role'] === 'admin' && empty($user['company_id']);
-
-        if (!$isGlobalAdmin && !in_array($companyId, $accessible, true)) {
+        // SICUREZZA: solo l'admin globale "vero" (NULL + zero user_companies) bypassa
+        // il check. Un admin NULL con user_companies e' scopato: senza questo controllo
+        // poteva switchare in QUALUNQUE tenant.
+        if (!self::isTrueGlobalAdmin($user) && !in_array($companyId, $accessible, true)) {
             return false;
         }
 
@@ -120,6 +121,16 @@ class Tenant
         if (!array_key_exists('company_id', $user) || $user['company_id'] !== null) return false;
         $n = Database::fetchOne("SELECT COUNT(*) AS n FROM user_companies WHERE user_id = ?", [(int)$user['id']]);
         return (int)($n['n'] ?? 0) === 0;
+    }
+
+    /**
+     * Versione pubblica per il viewer corrente. Da usare nelle pagine admin al
+     * posto di check manuali su company_id NULL (che ignorano user_companies).
+     */
+    public static function isCurrentUserTrueGlobalAdmin(): bool
+    {
+        $user = Auth::getUser();
+        return $user ? self::isTrueGlobalAdmin($user) : false;
     }
 
     /** ID delle aziende accessibili al viewer corrente (admin / staff). */
