@@ -286,14 +286,16 @@ class Wrike
     }
 
     /**
-     * Menzione HTML di un utente Wrike per generare la notifica in Inbox.
-     * Il task viene auto-assegnato al consulente, quindi me_id e' il destinatario.
+     * NB: Wrike NON notifica le auto-azioni. Menzionare se stessi non genera alcun
+     * alert in Inbox ("In arrivo"): il commento finisce nella sezione "Inviati" e
+     * basta. Poiche' l'integrazione agisce sempre col token del consulente (= autore),
+     * una notifica Inbox via API e' impossibile by-design. Restituiamo stringa vuota
+     * per non sporcare i commenti con una @menzione inerte. Per notifiche reali serve
+     * una regola di Automation configurata lato Wrike (piano a pagamento).
      */
     private static function mention(array $integration): string
     {
-        $meId = $integration['config']['me_id'] ?? null;
-        if (!$meId) return '';
-        return '<a class="stream-user-id avatar" rel="' . htmlspecialchars($meId) . '">@' . htmlspecialchars($integration['config']['account_name'] ?? 'tu') . '</a> ';
+        return '';
     }
 
     /**
