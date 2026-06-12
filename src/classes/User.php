@@ -57,7 +57,15 @@ class User
         $params = [$cid];
 
         if ($role === 'admin') {
-            $sql .= " OR u.company_id IS NULL";
+            // Admin con company_id NULL: visibile solo se admin globale "vero"
+            // (zero righe user_companies) oppure linkato all'azienda corrente.
+            // Senza il vincolo, gli admin NULL scopati su ALTRI tenant comparivano
+            // in tutte le liste utenti/contatti chat (leak cross-tenant).
+            $sql .= " OR (u.company_id IS NULL AND (
+                            NOT EXISTS (SELECT 1 FROM user_companies uc0 WHERE uc0.user_id = u.id)
+                            OR EXISTS (SELECT 1 FROM user_companies uc1 WHERE uc1.user_id = u.id AND uc1.company_id = ?)
+                        ))";
+            $params[] = $cid;
         }
         if (in_array($role, ['accountant', 'consulente_lavoro'], true) && !empty($accessible)) {
             $ph = implode(',', array_fill(0, count($accessible), '?'));
