@@ -767,6 +767,11 @@ if ($action === 'new' || $action === 'edit') {
             </div>
 
             <h3 style="margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0;">Anagrafica risorsa</h3>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Codice fiscale</label>
+                <input type="text" name="fiscal_code" maxlength="16" pattern="[A-Za-z0-9]{16}" value="<?= htmlspecialchars($form['fiscal_code'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; text-transform:uppercase;" placeholder="RSSMRA85M01H501Z">
+                <p style="font-size:.75rem; color:#64748b; margin:4px 0 0;">Compilalo per primo: data e luogo di nascita vengono precompilati automaticamente.</p>
+            </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
                     <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Nome</label>
@@ -779,10 +784,6 @@ if ($action === 'new' || $action === 'edit') {
                 <div>
                     <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Data di nascita</label>
                     <input type="date" name="employee_birth_date" value="<?= htmlspecialchars($form['employee_birth_date'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Codice fiscale</label>
-                    <input type="text" name="fiscal_code" maxlength="16" pattern="[A-Za-z0-9]{16}" value="<?= htmlspecialchars($form['fiscal_code'] ?? '') ?>" style="width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; text-transform:uppercase;">
                 </div>
                 <div>
                     <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:4px;">Stato di nascita</label>
