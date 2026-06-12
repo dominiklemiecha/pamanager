@@ -182,19 +182,22 @@ if ($id > 0) {
                     <input type="hidden" name="action" value="upload_prospects">
                     <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
                     <div id="prospects-list"></div>
-                    <label class="file-drop" style="display:flex; align-items:center; gap:.75rem; padding:.9rem 1rem; border:1.5px dashed #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; margin-bottom:1rem;">
-                        <input type="file" name="prospects[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp" style="position:absolute; opacity:0; pointer-events:none;" id="prospects-input">
+                    <label for="prospects-input" class="file-drop" id="prospects-drop" style="display:flex; align-items:center; gap:.75rem; padding:.9rem 1rem; border:1.5px dashed #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; margin-bottom:1rem;">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         <span style="font-size:.85rem; color:#475569;"><strong style="color:#044bff;">Scegli file</strong> o trascina qui — uno o piu' PDF</span>
                     </label>
+                    <input type="file" name="prospects[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp" id="prospects-input" style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; clip:rect(0 0 0 0);">
                     <button type="submit" class="btn btn-primary">Invia prospetti all'admin</button>
                 </form>
                 <script>
                 (function(){
                     const inp = document.getElementById('prospects-input');
                     const list = document.getElementById('prospects-list');
-                    inp.style.position = 'absolute'; inp.style.opacity = '0'; inp.style.inset = '0'; inp.style.cursor = 'pointer';
-                    inp.parentElement.style.position = 'relative';
+                    const drop = document.getElementById('prospects-drop');
+                    // Drag & drop sul box (oltre al click nativo via label[for])
+                    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.borderColor = '#044bff'; drop.style.background = '#eff5ff'; }));
+                    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.borderColor = '#cbd5e1'; drop.style.background = '#f8fafc'; }));
+                    drop.addEventListener('drop', e => { if (e.dataTransfer.files && e.dataTransfer.files.length) { inp.files = e.dataTransfer.files; inp.dispatchEvent(new Event('change')); } });
                     inp.addEventListener('change', () => {
                         const files = Array.from(inp.files || []);
                         list.innerHTML = '';
