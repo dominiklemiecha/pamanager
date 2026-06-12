@@ -895,6 +895,10 @@ class HireRequest
                     'message'        => 'Carica il contratto per ' . $hr['employee_first_name'] . ' ' . $hr['employee_last_name'],
                     'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
                 ]);
+                if (class_exists('Wrike')) {
+                    Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
+                        '✅ <b>Prospetti approvati</b> dall\'azienda: ora carica il contratto per <b>' . htmlspecialchars($hr['employee_first_name'] . ' ' . $hr['employee_last_name']) . '</b> dal gestionale.');
+                }
             }
         } catch (Throwable $e) {}
 
@@ -936,6 +940,14 @@ class HireRequest
             Database::update('hire_requests', ['status' => 'contract_pending'], 'id = ?', [$hireRequestId]);
         } catch (Throwable $e) {
             return ['success' => false, 'error' => 'Errore upload: ' . $e->getMessage()];
+        }
+
+        // Traccia sullo step Wrike (commento sul task della richiesta)
+        if (class_exists('Wrike') && !empty($hr['assigned_consulente_user_id'])) {
+            try {
+                Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
+                    '📄 <b>Contratto caricato</b>: in attesa della firma del dipendente.');
+            } catch (Throwable $e) {}
         }
 
         // Notifica dipendente
@@ -1087,6 +1099,11 @@ class HireRequest
                     'message'        => $emp['first_name'] . ' ' . $emp['last_name'] . ' ha firmato il contratto.',
                     'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
                 ]);
+                if (class_exists('Wrike')) {
+                    Wrike::hireStep((int)$hr['assigned_consulente_user_id'], $hireRequestId,
+                        '🎉 <b>Contratto firmato</b> da ' . htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) . ' il ' . date('d/m/Y H:i') . '. Pratica completata.',
+                        true /* completa il task */);
+                }
             }
         } catch (Throwable $e) {}
 
