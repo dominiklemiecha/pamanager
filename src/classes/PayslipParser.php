@@ -123,7 +123,28 @@ class PayslipParser
     }
 
     /**
-     * Cerca saldi ferie/permessi nel testo (formato Teamsystem):
+     * Cerca saldi ferie/permessi nel testo. Prova in cascata i layout noti:
+     *   A) Teamsystem "tabellare": header ANNO PREC. MATURATO GODUTO RESIDUO
+     *      PROIEZIONE + righe-marker g (ferie) / h (permessi).
+     *   B) Teamsystem "Mod. Cedolino TS" a griglia: contatori FERIE/PERM./ROL e
+     *      FEST.(ex festivita')/FLESS./B.ORE, ognuno con 4 sotto-colonne
+     *      A.P. | MAT. | GOD. | RES.
+     * Restituisce sempre ['ferie' => ?array, 'permesso' => ?array] dove ogni
+     * array ha almeno la chiave 'residuo' (gli unici consumer usano quella).
+     */
+    public static function findBalances(string $text): array
+    {
+        $byHeader = self::findBalancesHeader($text);
+        if ($byHeader['ferie'] !== null || $byHeader['permesso'] !== null) return $byHeader;
+
+        $byGrid = self::findBalancesGrid($text);
+        if ($byGrid !== null) return $byGrid;
+
+        return ['ferie' => null, 'permesso' => null];
+    }
+
+    /**
+     * Formato A (tabellare):
      *   ANNO PREC. MATURATO GODUTO RESIDUO PROIEZIONE
      *   FERIE
      *   g  7,36  1,83  5,53  20,17     <- numeri allineati posizionalmente
@@ -134,7 +155,7 @@ class PayslipParser
      * quindi servono X-position per mappare i numeri alle colonne giuste.
      * Restituisce: ['ferie' => ['residuo' => float|null, 'maturato' => ..., ...], 'permesso' => same]
      */
-    public static function findBalances(string $text): array
+    private static function findBalancesHeader(string $text): array
     {
         $out = ['ferie' => null, 'permesso' => null];
         $lines = explode("\n", $text);
@@ -196,6 +217,129 @@ class PayslipParser
             }
         }
         return $row;
+    }
+
+    /**
+     * Formato B ("Mod. Cedolino TS"): due righe-griglia di contatori, ognuna con
+     * 4 sotto-colonne A.P. | MAT. | GOD. | RES. per ciascun istituto.
+     *   riga 1: FERIE | PERM. | ROL
+     *   riga 2: FEST. (ex festivita') | FLESS. | B. ORE
+     * Le celle a 0 sono OMESSE, quindi si mappano i numeri alle colonne per
+     * posizione X (assegnazione monotona sinistra->destra, vedi assignByColumn).
+     *
+     * Regole concordate col cliente:
+     *   - "ferie"    = residuo della colonna FERIE RES.
+     *   - "permesso" = SOMMA dei residui VALORIZZATI degli istituti di permesso
+     *                  (PERM. + ROL + EX FESTIVITA'). Le colonne vuote non contano.
+     *                  FLESS. e B.ORE (banca ore) sono ESCLUSE: non sono permessi.
+     * @return array{ferie: ?array, permesso: ?array}|null  null se la griglia non c'e'
+     */
+    private static function findBalancesGrid(string $text): ?array
+    {
+        $lines = explode("\n", $text);
+        $row1 = -1; $row2 = -1;
+        foreach ($lines as $i => $ln) {
+            if ($row1 < 0 && stripos($ln, 'FERIE A.P.') !== false && stripos($ln, 'FERIE RES.') !== false) $row1 = $i;
+            if ($row2 < 0 && stripos($ln, 'FEST. A.P.') !== false) $row2 = $i;
+        }
+        if ($row1 < 0) return null;
+
+        $res = []; // istituto => residuo (float)
+        $grab = function (int $hdrIdx, array $labels, array $resMap) use ($lines, &$res) {
+            if ($hdrIdx < 0) return;
+            $valLine = self::gridValueLine($lines, $hdrIdx);
+            if ($valLine === null) return;
+            $cols = self::gridColumns($lines[$hdrIdx], $labels);
+            if (count($cols) < 2) return;
+            $assigned = self::assignByColumn($valLine, $cols); // label => float
+            foreach ($resMap as $resLabel => $istituto) {
+                if (isset($assigned[$resLabel])) $res[$istituto] = $assigned[$resLabel];
+            }
+        };
+
+        $grab($row1, [
+            'FERIE A.P.', 'FERIE MAT.', 'FERIE GOD.', 'FERIE RES.',
+            'PERM. A.P.', 'PERM. MAT.', 'PERM. GOD.', 'PERM. RES.',
+            'ROL. A.P.', 'ROL. MAT.', 'ROL GOD.', 'ROL RES.',
+        ], ['FERIE RES.' => 'ferie', 'PERM. RES.' => 'perm', 'ROL RES.' => 'rol']);
+
+        $grab($row2, [
+            'FEST. A.P.', 'FEST. MAT.', 'FEST. GOD.', 'FEST. RES.',
+            'FLESS. A.P.', 'FLESS. MAT.', 'FLESS.GOD.', 'FLESS. RES.',
+            'B. ORE A.P.', 'B. ORE MAT.', 'B. ORE GOD.', 'B. ORE RES.',
+        ], ['FEST. RES.' => 'exfest']);
+
+        if (empty($res)) return null;
+
+        $mk = fn(float $v) => [
+            'anno_prec' => null, 'maturato' => null, 'goduto' => null,
+            'residuo' => round($v, 2), 'proiezione' => null,
+        ];
+
+        $ferie = isset($res['ferie']) ? $mk($res['ferie']) : null;
+
+        // permesso = somma residui valorizzati di PERM + ROL + EX FEST
+        $components = [];
+        foreach (['perm', 'rol', 'exfest'] as $k) {
+            if (isset($res[$k])) $components[$k] = $res[$k];
+        }
+        $permesso = null;
+        if (!empty($components)) {
+            $permesso = $mk(array_sum($components));
+            $permesso['components'] = $components; // dettaglio per debug/UI futura
+        }
+
+        return ['ferie' => $ferie, 'permesso' => $permesso];
+    }
+
+    /** Prima riga con cifre dopo l'header griglia (salta righe vuote). */
+    private static function gridValueLine(array $lines, int $hdrIdx): ?string
+    {
+        for ($i = $hdrIdx + 1; $i < min($hdrIdx + 5, count($lines)); $i++) {
+            if (isset($lines[$i]) && preg_match('/\d/', $lines[$i])) return $lines[$i];
+        }
+        return null;
+    }
+
+    /** Centro X (offset carattere) di ogni label presente nell'header, ordinato per posizione. */
+    private static function gridColumns(string $header, array $labels): array
+    {
+        $cols = [];
+        foreach ($labels as $lab) {
+            $p = stripos($header, $lab);
+            if ($p !== false) {
+                $cols[] = ['label' => $lab, 'pos' => $p, 'center' => $p + (strlen($lab) - 1) / 2.0];
+            }
+        }
+        usort($cols, fn($a, $b) => $a['pos'] <=> $b['pos']);
+        return $cols;
+    }
+
+    /**
+     * Mappa i numeri della riga alle colonne con assegnazione MONOTONA
+     * sinistra->destra: ogni numero va alla colonna piu' vicina (per centro X)
+     * con indice > dell'ultima usata. Cosi' le celle a 0 (omesse dalla stampa)
+     * vengono saltate senza disallineare i numeri successivi.
+     * @return array<string,float> label => valore
+     */
+    private static function assignByColumn(string $line, array $cols): array
+    {
+        if (!preg_match_all('/-?\d+(?:[\.,]\d+)?/u', $line, $m, PREG_OFFSET_CAPTURE)) return [];
+        $out = [];
+        $lastIdx = -1;
+        foreach ($m[0] as $match) {
+            [$val, $pos] = $match;
+            $center = $pos + (strlen($val) - 1) / 2.0;
+            $bestIdx = -1; $bestDist = PHP_FLOAT_MAX;
+            for ($c = $lastIdx + 1; $c < count($cols); $c++) {
+                $d = abs($cols[$c]['center'] - $center);
+                if ($d < $bestDist) { $bestDist = $d; $bestIdx = $c; }
+            }
+            if ($bestIdx < 0) break; // colonne esaurite
+            $out[$cols[$bestIdx]['label']] = (float) str_replace(',', '.', $val);
+            $lastIdx = $bestIdx;
+        }
+        return $out;
     }
 
     private static function pickBestMatchByKeyword(string $haystack, array $matches, array $keywords): int
