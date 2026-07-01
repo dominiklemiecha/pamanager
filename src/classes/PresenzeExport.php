@@ -6,7 +6,7 @@
  *
  * Codici scritti:
  *   F  = Ferie | M = Malattia | ROL = permesso intero | ROL hh-hh = parziale
- *   P104 = L.104 | CP = Congedo parentale | A = altro
+ *   P104 = L.104 intero | P104 hh-hh = L.104 parziale | CP = Congedo parentale | A = altro
  */
 class PresenzeExport
 {
@@ -15,8 +15,12 @@ class PresenzeExport
     private array $employees = [];
     /** @var array<int, array<string, string>> [empId][YYYY-MM-DD] = code */
     private array $cells = [];
-    /** @var array<int, array{ferie_d:int,permessi_h:float,malattia_d:int,p104_d:int}> riepilogo per dipendente */
+    /** @var array<int, array{ferie_d:int,permessi_h:float,malattia_d:int,p104_h:float}> riepilogo per dipendente */
     private array $summary = [];
+    /** @var array<int, array{days:array,hours:float}> cache orario contrattuale per dipendente */
+    private array $scheduleCache = [];
+    /** Chiavi giorno settimana index 0=lunedi..6=domenica (allineate a date('N')-1). */
+    private const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
     public int $writtenEmployees = 0;
     public int $templateRowsAvailable = 0;
     public bool $overflow = false;
@@ -116,22 +120,29 @@ class PresenzeExport
                 if ($existing === '') $this->cells[$empId][$key] = $code;
                 elseif (strpos($existing, $code) === false) $this->cells[$empId][$key] = $existing . '/' . $code;
 
-                // Riepilogo: ferie/malattia/104 in giorni, permessi in ore
+                // Riepilogo: ferie/malattia in giorni; permessi (ROL) e L.104 in ore.
                 if (!isset($this->summary[$empId])) {
-                    $this->summary[$empId] = ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_d' => 0];
+                    $this->summary[$empId] = ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_h' => 0.0];
                 }
                 switch ($r['leave_type']) {
                     case 'ferie':         $this->summary[$empId]['ferie_d']++;    break;
                     case 'malattia':      $this->summary[$empId]['malattia_d']++; break;
-                    case 'permesso_104':  $this->summary[$empId]['p104_d']++;     break;
                     case 'permesso':
+                    case 'permesso_104':
+                        // Ore contrattuali del dipendente, solo su giorni lavorativi:
+                        //  - giornata intera  -> ore/giorno da orario (full-time 8h, part-time meno)
+                        //  - a ore            -> differenza start_time/end_time
+                        $sched = $this->scheduleFor($empId);
+                        $dayKey = self::DAY_KEYS[((int)$d->format('N')) - 1];
+                        if (!in_array($dayKey, $sched['days'], true)) break; // no giorni non lavorativi
+                        $bucket = $r['leave_type'] === 'permesso' ? 'permessi_h' : 'p104_h';
                         $isFull = !empty($r['is_full_day']) || empty($r['start_time']) || empty($r['end_time']);
                         if ($isFull) {
-                            $this->summary[$empId]['permessi_h'] += 8.0; // giorno intero = 8h
+                            $this->summary[$empId][$bucket] += $sched['hours'];
                         } else {
                             $s = strtotime($key . ' ' . $r['start_time']);
                             $e = strtotime($key . ' ' . $r['end_time']);
-                            if ($e > $s) $this->summary[$empId]['permessi_h'] += ($e - $s) / 3600.0;
+                            if ($e > $s) $this->summary[$empId][$bucket] += ($e - $s) / 3600.0;
                         }
                         break;
                 }
@@ -159,7 +170,10 @@ class PresenzeExport
         switch ($r['leave_type']) {
             case 'ferie':              return 'F';
             case 'malattia':           return 'M';
-            case 'permesso_104':       return 'P104';
+            case 'permesso_104':
+                $isFull = !empty($r['is_full_day']) || empty($r['start_time']) || empty($r['end_time']);
+                if ($isFull) return 'P104';
+                return 'P104 ' . self::fmtTime($r['start_time']) . '-' . self::fmtTime($r['end_time']);
             case 'congedo_parentale':  return 'CP';
             case 'altro':              return 'A';
             case 'chiusura':           return 'C';
@@ -169,6 +183,20 @@ class PresenzeExport
                 return 'ROL ' . self::fmtTime($r['start_time']) . '-' . self::fmtTime($r['end_time']);
             default: return '';
         }
+    }
+
+    /**
+     * Orario contrattuale del dipendente (giorni lavorativi + ore/giorno), con cache.
+     * Delega a LeaveBalance::getSchedule (override dipendente o default azienda).
+     */
+    private function scheduleFor(int $empId): array
+    {
+        if (!isset($this->scheduleCache[$empId])) {
+            $this->scheduleCache[$empId] = class_exists('LeaveBalance')
+                ? LeaveBalance::getSchedule($empId)
+                : ['days' => ['mon','tue','wed','thu','fri'], 'hours' => 8.0];
+        }
+        return $this->scheduleCache[$empId];
     }
 
     // ============== Build XLSX ==============
@@ -588,7 +616,7 @@ class PresenzeExport
             self::numToCol($lastDayColNum + 2) => ['header' => 'Ferie',    'unit' => 'gg'],
             self::numToCol($lastDayColNum + 3) => ['header' => 'Permessi', 'unit' => 'ore'],
             self::numToCol($lastDayColNum + 4) => ['header' => 'Malattia', 'unit' => 'gg'],
-            self::numToCol($lastDayColNum + 5) => ['header' => '104',      'unit' => 'gg'],
+            self::numToCol($lastDayColNum + 5) => ['header' => '104',      'unit' => 'ore'],
         ];
         // Intestazioni in riga 3
         foreach ($sumCols as $colL => $meta) {
@@ -598,12 +626,12 @@ class PresenzeExport
         for ($i = 0; $i < $maxWrite; $i++) {
             $row   = $empRowsTemplate[$i];
             $empId = (int)$this->employees[$i]['id'];
-            $s = $this->summary[$empId] ?? ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_d' => 0];
+            $s = $this->summary[$empId] ?? ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_h' => 0.0];
             $cols = array_keys($sumCols);
             $this->writeCell($dom, $xpath, $cols[0] . $row, $s['ferie_d']    > 0 ? $s['ferie_d'] . ' gg'                         : '');
             $this->writeCell($dom, $xpath, $cols[1] . $row, $s['permessi_h'] > 0 ? self::fmtHours($s['permessi_h']) . ' ore'    : '');
             $this->writeCell($dom, $xpath, $cols[2] . $row, $s['malattia_d'] > 0 ? $s['malattia_d'] . ' gg'                      : '');
-            $this->writeCell($dom, $xpath, $cols[3] . $row, $s['p104_d']     > 0 ? $s['p104_d'] . ' gg'                          : '');
+            $this->writeCell($dom, $xpath, $cols[3] . $row, $s['p104_h']     > 0 ? self::fmtHours($s['p104_h']) . ' ore'         : '');
         }
         // Larghezza colonne riepilogo
         $this->setColumnWidth($dom, $xpath, $lastDayColNum + 2, $lastDayColNum + 5, 11.0);
