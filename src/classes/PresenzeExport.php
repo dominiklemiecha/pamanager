@@ -19,6 +19,10 @@ class PresenzeExport
     private array $summary = [];
     /** @var array<int, array{days:array,hours:float}> cache orario contrattuale per dipendente */
     private array $scheduleCache = [];
+    /** @var array<int, array<string, array{full:bool,hours:float}>> assenze per-giorno per il calcolo buoni pasto */
+    private array $dailyLeave = [];
+    /** @var array{enabled:bool,min_hours:float,sw_eligible:bool} config buoni pasto azienda */
+    private array $mealVoucherCfg = ['enabled' => false, 'min_hours' => 6.0, 'sw_eligible' => false];
     /** Chiavi giorno settimana index 0=lunedi..6=domenica (allineate a date('N')-1). */
     private const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
     public int $writtenEmployees = 0;
@@ -85,11 +89,22 @@ class PresenzeExport
     {
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
         $this->employees = Database::fetchAll(
-            "SELECT id, first_name, last_name FROM employees
+            "SELECT id, first_name, last_name, smart_working_days,
+                    buoni_pasto_min_hours_override, buoni_pasto_sw_eligible_override, buoni_pasto_excluded
+             FROM employees
              WHERE is_active = TRUE AND company_id = ?
              ORDER BY last_name, first_name",
             [$cid]
         );
+        $comp = Database::fetchOne(
+            "SELECT buoni_pasto_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible FROM companies WHERE id = ?",
+            [$cid]
+        );
+        $this->mealVoucherCfg = [
+            'enabled'     => !empty($comp['buoni_pasto_enabled']),
+            'min_hours'   => (float) ($comp['buoni_pasto_min_hours'] ?? 6.0),
+            'sw_eligible' => !empty($comp['buoni_pasto_sw_eligible']),
+        ];
     }
 
     private function loadLeaves(): void
@@ -119,6 +134,21 @@ class PresenzeExport
                 $existing = $this->cells[$empId][$key] ?? '';
                 if ($existing === '') $this->cells[$empId][$key] = $code;
                 elseif (strpos($existing, $code) === false) $this->cells[$empId][$key] = $existing . '/' . $code;
+
+                // Assenze per-giorno per il conteggio buoni pasto (MealVoucher):
+                // giornata intera (ferie/malattia/CP/altro/chiusura o permesso full-day) vs permesso a ore.
+                $isHourlyPermit = in_array($r['leave_type'], ['permesso', 'permesso_104'], true)
+                    && empty($r['is_full_day']) && !empty($r['start_time']) && !empty($r['end_time']);
+                if (!isset($this->dailyLeave[$empId][$key])) {
+                    $this->dailyLeave[$empId][$key] = ['full' => false, 'hours' => 0.0];
+                }
+                if ($isHourlyPermit) {
+                    $s0 = strtotime($key . ' ' . $r['start_time']);
+                    $e0 = strtotime($key . ' ' . $r['end_time']);
+                    if ($e0 > $s0) $this->dailyLeave[$empId][$key]['hours'] += ($e0 - $s0) / 3600.0;
+                } else {
+                    $this->dailyLeave[$empId][$key]['full'] = true;
+                }
 
                 // Riepilogo: ferie/malattia in giorni; permessi (ROL) e L.104 in ore.
                 if (!isset($this->summary[$empId])) {
@@ -197,6 +227,34 @@ class PresenzeExport
                 : ['days' => ['mon','tue','wed','thu','fri'], 'hours' => 8.0];
         }
         return $this->scheduleCache[$empId];
+    }
+
+    /**
+     * Ticket restaurant del mese per il dipendente (config azienda + override),
+     * o null se la feature è disattivata a livello azienda.
+     */
+    private function mealVoucherCount(array $emp): ?int
+    {
+        if (!$this->mealVoucherCfg['enabled'] || !class_exists('MealVoucher')) return null;
+        $empId = (int) $emp['id'];
+        $sched = $this->scheduleFor($empId);
+        $sw = !empty($emp['smart_working_days'])
+            ? array_values(array_filter(array_map('trim', explode(',', $emp['smart_working_days']))))
+            : [];
+        $cfg = [
+            'enabled'            => true,
+            'excluded'           => !empty($emp['buoni_pasto_excluded']),
+            'working_days'       => $sched['days'],
+            'hours_per_day'      => $sched['hours'],
+            'smart_working_days' => $sw,
+            'min_hours'          => isset($emp['buoni_pasto_min_hours_override'])
+                ? (float) $emp['buoni_pasto_min_hours_override']
+                : $this->mealVoucherCfg['min_hours'],
+            'sw_eligible'        => isset($emp['buoni_pasto_sw_eligible_override'])
+                ? (bool) (int) $emp['buoni_pasto_sw_eligible_override']
+                : $this->mealVoucherCfg['sw_eligible'],
+        ];
+        return MealVoucher::monthlyCount($cfg, $this->year, $this->month, $this->dailyLeave[$empId] ?? []);
     }
 
     // ============== Build XLSX ==============
@@ -618,6 +676,9 @@ class PresenzeExport
             self::numToCol($lastDayColNum + 4) => ['header' => 'Malattia', 'unit' => 'gg'],
             self::numToCol($lastDayColNum + 5) => ['header' => '104',      'unit' => 'ore'],
         ];
+        if ($this->mealVoucherCfg['enabled']) {
+            $sumCols[self::numToCol($lastDayColNum + 6)] = ['header' => 'Buoni pasto', 'unit' => 'nr'];
+        }
         // Intestazioni in riga 3
         foreach ($sumCols as $colL => $meta) {
             $this->writeCell($dom, $xpath, $colL . '3', $meta['header'] . ' (' . $meta['unit'] . ')');
@@ -632,9 +693,13 @@ class PresenzeExport
             $this->writeCell($dom, $xpath, $cols[1] . $row, $s['permessi_h'] > 0 ? self::fmtHours($s['permessi_h']) . ' ore'    : '');
             $this->writeCell($dom, $xpath, $cols[2] . $row, $s['malattia_d'] > 0 ? $s['malattia_d'] . ' gg'                      : '');
             $this->writeCell($dom, $xpath, $cols[3] . $row, $s['p104_h']     > 0 ? self::fmtHours($s['p104_h']) . ' ore'         : '');
+            if (isset($cols[4])) {
+                $bp = $this->mealVoucherCount($this->employees[$i]);
+                $this->writeCell($dom, $xpath, $cols[4] . $row, $bp !== null ? (string) $bp : '');
+            }
         }
         // Larghezza colonne riepilogo
-        $this->setColumnWidth($dom, $xpath, $lastDayColNum + 2, $lastDayColNum + 5, 11.0);
+        $this->setColumnWidth($dom, $xpath, $lastDayColNum + 2, $lastDayColNum + (count($sumCols) + 1), 11.0);
 
         // 4) Cancella righe decorative (1,2,4) + righe dipendente non usate.
         // Renumera tutto in modo che la riga date diventi riga 1.
