@@ -194,6 +194,14 @@ class Employee
                 'ccnl_id'                => $nullIfEmpty($data['ccnl_id'] ?? null),
                 'ferie_year_override'    => $toFloat($data['ferie_year_override'] ?? null),
                 'permessi_year_override' => $toFloat($data['permessi_year_override'] ?? null),
+                // Orario personalizzato (migration 025): null = default azienda
+                'working_days'   => $nullIfEmpty($data['working_days'] ?? null),
+                'hours_per_day'  => $toFloat($data['hours_per_day'] ?? null),
+                // Smart working + buoni pasto (migration 047)
+                'smart_working_days'               => $nullIfEmpty($data['smart_working_days'] ?? null),
+                'buoni_pasto_min_hours_override'   => $toFloat($data['buoni_pasto_min_hours_override'] ?? null),
+                'buoni_pasto_sw_eligible_override' => isset($data['buoni_pasto_sw_eligible_override']) && $data['buoni_pasto_sw_eligible_override'] !== null && $data['buoni_pasto_sw_eligible_override'] !== '' ? (int) $data['buoni_pasto_sw_eligible_override'] : null,
+                'buoni_pasto_excluded'             => !empty($data['buoni_pasto_excluded']) ? 1 : 0,
                 'is_active' => 1,
                 'must_change_password' => 1,
                 'created_by' => $user ? $user['id'] : null
@@ -356,6 +364,20 @@ class Employee
         }
         if (array_key_exists('hours_per_day', $data)) {
             $updateData['hours_per_day'] = $data['hours_per_day'];
+        }
+
+        // Smart working + buoni pasto (migration 047): null = eredita default azienda
+        if (array_key_exists('smart_working_days', $data)) {
+            $updateData['smart_working_days'] = $data['smart_working_days'] ?: null;
+        }
+        if (array_key_exists('buoni_pasto_min_hours_override', $data)) {
+            $updateData['buoni_pasto_min_hours_override'] = $data['buoni_pasto_min_hours_override'];
+        }
+        if (array_key_exists('buoni_pasto_sw_eligible_override', $data)) {
+            $updateData['buoni_pasto_sw_eligible_override'] = $data['buoni_pasto_sw_eligible_override'];
+        }
+        if (array_key_exists('buoni_pasto_excluded', $data)) {
+            $updateData['buoni_pasto_excluded'] = ((bool) $data['buoni_pasto_excluded']) ? 1 : 0;
         }
 
         // CCNL e override saldi (migration 033)

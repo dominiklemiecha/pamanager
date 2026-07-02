@@ -84,6 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $__hpdPosted = trim($_POST['hours_per_day'] ?? '');
                 $createData['hours_per_day'] = $__hpdPosted === '' ? null : (float) str_replace(',', '.', $__hpdPosted);
             }
+            // Smart working + buoni pasto (migration 047)
+            $__swPosted = $_POST['smart_working_days'] ?? [];
+            $__swClean = is_array($__swPosted) ? array_values(array_intersect(LeaveBalance::allDayKeys(), $__swPosted)) : [];
+            $createData['smart_working_days'] = $__swClean ? implode(',', $__swClean) : null;
+            $__bpMinPosted = trim((string) ($_POST['buoni_pasto_min_hours_override'] ?? ''));
+            $createData['buoni_pasto_min_hours_override'] = $__bpMinPosted === '' ? null : (float) str_replace(',', '.', $__bpMinPosted);
+            $__bpSwPosted = (string) ($_POST['buoni_pasto_sw_eligible_override'] ?? '');
+            $createData['buoni_pasto_sw_eligible_override'] = $__bpSwPosted === '' ? null : (int) $__bpSwPosted;
+            $createData['buoni_pasto_excluded'] = isset($_POST['buoni_pasto_excluded']) ? 1 : 0;
             $result = Employee::create($createData);
 
             // Salva configurazione visibilita campi anche dal form di creazione
@@ -175,6 +184,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $updateData['working_days'] = null;
                     $updateData['hours_per_day'] = null;
                 }
+
+                // Smart working + buoni pasto (migration 047)
+                $swPosted = $_POST['smart_working_days'] ?? [];
+                $swClean = is_array($swPosted) ? array_values(array_intersect(LeaveBalance::allDayKeys(), $swPosted)) : [];
+                $updateData['smart_working_days'] = $swClean ? implode(',', $swClean) : null;
+                $bpMinPosted = trim((string) ($_POST['buoni_pasto_min_hours_override'] ?? ''));
+                $updateData['buoni_pasto_min_hours_override'] = $bpMinPosted === '' ? null : (float) str_replace(',', '.', $bpMinPosted);
+                $bpSwPosted = (string) ($_POST['buoni_pasto_sw_eligible_override'] ?? '');
+                $updateData['buoni_pasto_sw_eligible_override'] = $bpSwPosted === '' ? null : (int) $bpSwPosted;
+                $updateData['buoni_pasto_excluded'] = isset($_POST['buoni_pasto_excluded']) ? 1 : 0;
 
                 $result = Employee::update($id, $updateData);
 
@@ -934,6 +953,54 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     <input type="number" step="0.25" min="0" max="24" id="hours_per_day" name="hours_per_day"
                            value="<?= htmlspecialchars($employee['hours_per_day'] !== null ? (string) $employee['hours_per_day'] : '') ?>"
                            placeholder="<?= rtrim(rtrim(number_format($compDefaults['hours'], 2, '.', ''), '0'), '.') ?>" style="max-width:160px;">
+                </div>
+
+                <?php
+                $__bpComp = Database::fetchOne("SELECT buoni_pasto_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible FROM companies WHERE id = ?", [$__wdCompId]) ?: [];
+                $__bpCompMin = (float) ($__bpComp['buoni_pasto_min_hours'] ?? 6.0);
+                $__bpCompSw  = !empty($__bpComp['buoni_pasto_sw_eligible']);
+                $__empSwDays = $action === 'edit' && !empty($employee['smart_working_days'])
+                    ? array_filter(array_map('trim', explode(',', $employee['smart_working_days'])))
+                    : [];
+                $__empBpMin = $action === 'edit' ? ($employee['buoni_pasto_min_hours_override'] ?? null) : null;
+                $__empBpSw  = $action === 'edit' ? ($employee['buoni_pasto_sw_eligible_override'] ?? null) : null;
+                $__empBpExc = $action === 'edit' && !empty($employee['buoni_pasto_excluded']);
+                ?>
+                <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Smart working e buoni pasto</h3>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Giorni di smart working ricorrenti</label>
+                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                        <?php foreach (LeaveBalance::allDayKeys() as $dk): ?>
+                            <label class="checkbox-label" style="font-weight:500;">
+                                <input type="checkbox" name="smart_working_days[]" value="<?= $dk ?>" <?= in_array($dk, $__empSwDays, true) ? 'checked' : '' ?>>
+                                <?= htmlspecialchars(LeaveBalance::dayLabel($dk)) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <small style="color:#94a3b8;">Usati dal conteggio buoni pasto: di default i giorni in smart working non danno diritto al ticket.</small>
+                </div>
+                <div class="form-group">
+                    <label for="buoni_pasto_min_hours_override">Soglia ore buono pasto (override)</label>
+                    <input type="number" step="0.25" min="0.25" max="24" id="buoni_pasto_min_hours_override" name="buoni_pasto_min_hours_override"
+                           value="<?= htmlspecialchars($__empBpMin !== null ? rtrim(rtrim(number_format((float) $__empBpMin, 2, '.', ''), '0'), '.') : '') ?>"
+                           placeholder="<?= htmlspecialchars(rtrim(rtrim(number_format($__bpCompMin, 2, '.', ''), '0'), '.')) ?> (default azienda)">
+                </div>
+                <div class="form-group">
+                    <label for="buoni_pasto_sw_eligible_override">Smart working d&agrave; il ticket?</label>
+                    <select id="buoni_pasto_sw_eligible_override" name="buoni_pasto_sw_eligible_override">
+                        <option value="">&mdash; eredita azienda (<?= $__bpCompSw ? 'S&igrave;' : 'No' ?>) &mdash;</option>
+                        <option value="1" <?= $__empBpSw !== null && (int) $__empBpSw === 1 ? 'selected' : '' ?>>S&igrave;</option>
+                        <option value="0" <?= $__empBpSw !== null && (int) $__empBpSw === 0 ? 'selected' : '' ?>>No</option>
+                    </select>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="buoni_pasto_excluded" value="1" <?= $__empBpExc ? 'checked' : '' ?>>
+                        Escludi questo dipendente dai buoni pasto
+                    </label>
+                    <?php if (empty($__bpComp['buoni_pasto_enabled'])): ?>
+                        <small style="color:#94a3b8;">I buoni pasto sono disattivati a livello azienda (Configurazione &rarr; Orario lavorativo).</small>
+                    <?php endif; ?>
                 </div>
 
                 <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Saldo ferie e permessi (<?= $currentYear ?>)</h3>

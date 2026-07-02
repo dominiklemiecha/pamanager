@@ -1,7 +1,7 @@
 # Buoni pasto (ticket restaurant) — conteggio mensile
 
 **Data:** 2026-06-16
-**Stato:** design approvato in brainstorming, in attesa di review
+**Stato:** implementato (2026-07-02) — migration 047, classe MealVoucher + unit test, config in work-schedule.php ed employees.php, colonna "Buoni pasto (nr)" nell'export
 
 ## Obiettivo
 
