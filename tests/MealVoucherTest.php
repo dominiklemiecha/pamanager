@@ -110,5 +110,21 @@ check('soglia disattivata assenza intera', 20, MealVoucher::monthlyCount(baseCfg
     '2026-06-12' => ['full' => true, 'hours' => 0.0],
 ]));
 
+// Smart working OCCASIONALE (richiesta approvata, flag sw nel giorno):
+// con regola "SW non dà ticket" il giorno è escluso
+check('SW da richiesta, non eleggibile', 20, MealVoucher::monthlyCount(baseCfg(), 2026, 6, [
+    '2026-06-15' => ['full' => false, 'hours' => 0.0, 'sw' => true],
+]));
+
+// Con regola "SW dà ticket" il giorno conta normalmente (giornata piena)
+check('SW da richiesta, eleggibile', 21, MealVoucher::monthlyCount(baseCfg(['sw_eligible' => true]), 2026, 6, [
+    '2026-06-15' => ['full' => false, 'hours' => 0.0, 'sw' => true],
+]));
+
+// SW da richiesta eleggibile + permesso a ore sotto soglia lo stesso giorno -> escluso dalla soglia
+check('SW da richiesta eleggibile ma sotto soglia', 20, MealVoucher::monthlyCount(baseCfg(['sw_eligible' => true]), 2026, 6, [
+    '2026-06-16' => ['full' => false, 'hours' => 4.0, 'sw' => true],
+]));
+
 echo "\n$tests test, $failures falliti\n";
 exit($failures > 0 ? 1 : 0);

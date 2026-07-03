@@ -18,7 +18,8 @@ class LeaveRequest
         'congedo_separazione' => 'Congedo Separazione',
         'congedo_mestruale' => 'Congedo Mestruale',
         'altro' => 'Altro',
-        'chiusura' => 'Chiusura aziendale'
+        'chiusura' => 'Chiusura aziendale',
+        'smart_working' => 'Smart working'
     ];
 
     /**

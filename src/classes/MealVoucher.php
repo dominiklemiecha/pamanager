@@ -22,8 +22,9 @@ class MealVoucher
      *   enabled bool, excluded bool, working_days string[], hours_per_day float,
      *   smart_working_days string[], min_hours_enabled bool, min_hours float,
      *   sw_eligible bool
-     * @param array $dailyLeave ['YYYY-MM-DD' => ['full' => bool, 'hours' => float]]
-     *   assenze approvate del dipendente nel mese (giornata intera / permessi a ore)
+     * @param array $dailyLeave ['YYYY-MM-DD' => ['full' => bool, 'hours' => float, 'sw' => bool]]
+     *   assenze approvate del dipendente nel mese (giornata intera / permessi a ore);
+     *   'sw' = giorno di smart working occasionale da richiesta approvata
      */
     public static function monthlyCount(array $cfg, int $year, int $month, array $dailyLeave = []): int
     {
@@ -45,9 +46,11 @@ class MealVoucher
 
             if (!isset($workingDays[$dayKey])) continue;
             if (class_exists('ItalianHolidays') && ItalianHolidays::isHoliday($ymd)) continue;
-            if (isset($swDays[$dayKey]) && !$swEligible) continue;
 
             $leave = $dailyLeave[$ymd] ?? null;
+            // Giorno SW: ricorrente (giorno della settimana) o occasionale (richiesta approvata)
+            $isSwDay = isset($swDays[$dayKey]) || ($leave && !empty($leave['sw']));
+            if ($isSwDay && !$swEligible) continue;
             if ($leave && !empty($leave['full'])) continue;
             $oreEff = $hoursPerDay - ($leave ? (float) ($leave['hours'] ?? 0.0) : 0.0);
             if ($minHoursOn ? $oreEff < $minHours : $oreEff <= 0) continue;
