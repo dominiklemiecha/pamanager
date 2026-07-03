@@ -530,11 +530,12 @@ foreach ($requests as $__r) {
     $__presetType = $_GET['type'] ?? '';
     // Quick type chips (limitati ai più comuni)
     $__quickTypes = [
-        'ferie'        => ['label' => 'Ferie',     'days_default' => true],
-        'permesso'     => ['label' => 'Permesso',  'days_default' => false],
-        'malattia'     => ['label' => 'Malattia',  'days_default' => true],
-        'permesso_104' => ['label' => 'L.104',     'days_default' => false],
-        'altro'        => ['label' => 'Altro',     'days_default' => true],
+        'ferie'         => ['label' => 'Ferie',         'days_default' => true],
+        'permesso'      => ['label' => 'Permesso',      'days_default' => false],
+        'malattia'      => ['label' => 'Malattia',      'days_default' => true],
+        'permesso_104'  => ['label' => 'L.104',         'days_default' => false],
+        'smart_working' => ['label' => 'Smart working', 'days_default' => true],
+        'altro'         => ['label' => 'Altro',         'days_default' => true],
     ];
     ?>
     <div class="lr-form-card">

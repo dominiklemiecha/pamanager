@@ -143,12 +143,16 @@ class PresenzeExport
 
                 // Assenze per-giorno per il conteggio buoni pasto (MealVoucher):
                 // giornata intera (ferie/malattia/CP/altro/chiusura o permesso full-day) vs permesso a ore.
+                // Lo smart working NON è un'assenza: marca solo il giorno come SW
+                // (segue la regola sw_eligible aziendale nel conteggio ticket).
                 $isHourlyPermit = in_array($r['leave_type'], ['permesso', 'permesso_104'], true)
                     && empty($r['is_full_day']) && !empty($r['start_time']) && !empty($r['end_time']);
                 if (!isset($this->dailyLeave[$empId][$key])) {
-                    $this->dailyLeave[$empId][$key] = ['full' => false, 'hours' => 0.0];
+                    $this->dailyLeave[$empId][$key] = ['full' => false, 'hours' => 0.0, 'sw' => false];
                 }
-                if ($isHourlyPermit) {
+                if ($r['leave_type'] === 'smart_working') {
+                    $this->dailyLeave[$empId][$key]['sw'] = true;
+                } elseif ($isHourlyPermit) {
                     $schedL = $this->scheduleFor($empId);
                     $this->dailyLeave[$empId][$key]['hours'] += class_exists('LeaveBalance')
                         ? LeaveBalance::effectiveHours($r['start_time'], $r['end_time'], $schedL['lunch_start'] ?? null, $schedL['lunch_end'] ?? null)
@@ -223,6 +227,7 @@ class PresenzeExport
             case 'congedo_parentale':  return 'CP';
             case 'altro':              return 'A';
             case 'chiusura':           return 'C';
+            case 'smart_working':      return 'SW';
             case 'permesso':
                 $isFull = !empty($r['is_full_day']) || empty($r['start_time']) || empty($r['end_time']);
                 if ($isFull) return 'ROL';
