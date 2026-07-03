@@ -108,6 +108,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode($result);
                 exit;
 
+            case 'remove_participant':
+                $convId  = (int) ($_POST['conversation_id'] ?? 0);
+                $remType = $_POST['rem_type'] ?? '';
+                $remId   = (int) ($_POST['rem_id'] ?? 0);
+                $result = Chat::removeStaffParticipant($convId, $userType, $userId, $remType, $remId);
+                echo json_encode($result);
+                exit;
+
             case 'start_conversation':
                 $otherType = $_POST['other_type'] ?? '';
                 $otherId   = (int) ($_POST['other_id'] ?? 0);
@@ -1082,9 +1090,28 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 700; flex-shrink: 0;
 }
-.invite-menu .im-info { display: flex; flex-direction: column; min-width: 0; }
+.invite-menu .im-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .invite-menu .im-n { font-size: 12.5px; font-weight: 600; color: var(--chat-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .invite-menu .im-r { font-size: 10.5px; color: var(--chat-muted); }
+.invite-menu .im-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px; border-radius: 8px;
+}
+.invite-menu .im-av-in { background: #64748b; }
+.invite-menu .im-remove {
+    border: 1px solid #fecaca; background: #fef2f2;
+    color: #dc2626; cursor: pointer;
+    border-radius: 7px; flex-shrink: 0;
+    width: 24px; height: 24px;
+    font-size: 15px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: inherit;
+}
+.invite-menu .im-remove.im-leave {
+    width: auto; padding: 0 9px; height: 24px;
+    font-size: 11px; font-weight: 700;
+}
+.invite-menu .im-remove:hover { background: #dc2626; color: white; border-color: #dc2626; }
 .invite-menu-note {
     font-size: 10.5px; color: var(--chat-muted);
     padding: 6px 8px 2px;
@@ -1261,23 +1288,44 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                     </div>
                 </div>
                 <div class="acts">
-                    <?php if (!empty($__inviteCandidates)): ?>
+                    <?php if ($__isStaff && $__convHasEmployee && (!empty($__inviteCandidates) || !empty($__extraParticipants))): ?>
                         <div class="invite-wrap">
-                            <button type="button" id="btnInvite" title="Fai intervenire admin o consulente">
+                            <button type="button" id="btnInvite" title="Gestisci partecipanti (aggiungi o rimuovi admin/consulente)">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                             </button>
                             <div class="invite-menu" id="inviteMenu" hidden>
-                                <div class="invite-menu-title">Fai intervenire</div>
-                                <?php foreach ($__inviteCandidates as $__ic): ?>
-                                    <button type="button" onclick="addParticipant('<?= e($__ic['type']) ?>', <?= $__ic['id'] ?>)">
-                                        <span class="im-av"><?= e(strtoupper(mb_substr($__ic['name'], 0, 2))) ?></span>
-                                        <span class="im-info">
-                                            <span class="im-n"><?= e($__ic['name']) ?></span>
-                                            <span class="im-r"><?= e($singularLabels[$__ic['type']] ?? '') ?></span>
-                                        </span>
-                                    </button>
-                                <?php endforeach; ?>
-                                <div class="invite-menu-note">Vedrà tutta la cronologia. Potrete anche scrivervi note interne invisibili al dipendente.</div>
+                                <?php if (!empty($__inviteCandidates)): ?>
+                                    <div class="invite-menu-title">Fai intervenire</div>
+                                    <?php foreach ($__inviteCandidates as $__ic): ?>
+                                        <button type="button" onclick="addParticipant('<?= e($__ic['type']) ?>', <?= $__ic['id'] ?>)">
+                                            <span class="im-av"><?= e(strtoupper(mb_substr($__ic['name'], 0, 2))) ?></span>
+                                            <span class="im-info">
+                                                <span class="im-n"><?= e($__ic['name']) ?></span>
+                                                <span class="im-r"><?= e($singularLabels[$__ic['type']] ?? '') ?></span>
+                                            </span>
+                                        </button>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                <?php if (!empty($__extraParticipants)): ?>
+                                    <div class="invite-menu-title">Nella conversazione</div>
+                                    <?php foreach ($__extraParticipants as $__ep):
+                                        $__epIsMe = ($__ep['type'] === $userType && (int)$__ep['id'] === $userId);
+                                    ?>
+                                        <div class="im-row">
+                                            <span class="im-av im-av-in"><?= e(strtoupper(mb_substr($__ep['name'], 0, 2))) ?></span>
+                                            <span class="im-info">
+                                                <span class="im-n"><?= e($__ep['name']) ?><?= $__epIsMe ? ' (tu)' : '' ?></span>
+                                                <span class="im-r"><?= e($singularLabels[$__ep['type']] ?? '') ?></span>
+                                            </span>
+                                            <button type="button" class="im-remove <?= $__epIsMe ? 'im-leave' : '' ?>"
+                                                    title="<?= $__epIsMe ? 'Esci dalla conversazione: non la vedrai più e non riceverai notifiche' : 'Rimuovi dalla conversazione: non vedrà più la chat né riceverà notifiche' ?>"
+                                                    onclick="removeParticipant('<?= e($__ep['type']) ?>', <?= (int)$__ep['id'] ?>, <?= $__epIsMe ? 'true' : 'false' ?>)">
+                                                <?= $__epIsMe ? 'Esci' : '&times;' ?>
+                                            </button>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                <div class="invite-menu-note">Chi viene aggiunto vede tutta la cronologia; chi esce non riceve più notifiche. Le note interne restano invisibili al dipendente.</div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -1466,7 +1514,7 @@ function toggleInternal() {
     if (msgInput) msgInput.placeholder = on ? 'Nota interna — il dipendente non la vedrà…' : 'Scrivi un messaggio…';
 }
 
-/* ====== Invita terzo partecipante ====== */
+/* ====== Aggiungi / rimuovi partecipanti ====== */
 function addParticipant(type, id) {
     const convId = document.querySelector('input[name="conversation_id"]')?.value;
     if (!convId) return;
@@ -1481,6 +1529,29 @@ function addParticipant(type, id) {
         .then(data => {
             if (data.success) window.location.reload();
             else alert(data.error || 'Errore');
+        })
+        .catch(err => { console.error(err); alert('Errore di connessione'); });
+}
+
+function removeParticipant(type, id, isSelf) {
+    const convId = document.querySelector('input[name="conversation_id"]')?.value;
+    if (!convId) return;
+    const msg = isSelf
+        ? 'Vuoi uscire da questa conversazione? Non la vedrai più e non riceverai notifiche.'
+        : 'Rimuovere questo partecipante? Non vedrà più la chat né riceverà notifiche.';
+    if (!confirm(msg)) return;
+    const fd = new FormData();
+    fd.append('action', 'remove_participant');
+    fd.append('conversation_id', convId);
+    fd.append('rem_type', type);
+    fd.append('rem_id', id);
+    fd.append('csrf_token', csrfToken);
+    fetch('', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) window.location.href = data.left ? '?' : window.location.href;
+            else alert(data.error || 'Errore');
+            if (data.success && !data.left) window.location.reload();
         })
         .catch(err => { console.error(err); alert('Errore di connessione'); });
 }
