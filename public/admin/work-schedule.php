@@ -31,6 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Giorni smart working ricorrenti aziendali (migration 048)
             $swPosted = $_POST['smart_working_days'] ?? [];
             $swClean = is_array($swPosted) ? array_values(array_intersect($allowed, $swPosted)) : [];
+            // Pausa pranzo (migration 049): entrambi gli orari o nessuno
+            $lunchS = trim((string) ($_POST['lunch_break_start'] ?? ''));
+            $lunchE = trim((string) ($_POST['lunch_break_end'] ?? ''));
+            if (($lunchS !== '') !== ($lunchE !== '')) {
+                $error = 'Pausa pranzo: indica sia inizio che fine (o lascia entrambi vuoti).';
+            } elseif ($lunchS !== '' && $lunchE !== '' && $lunchE <= $lunchS) {
+                $error = 'Pausa pranzo: la fine deve essere dopo l\'inizio.';
+            }
             // Slug NFC: solo lettere/numeri/trattino, lowercased
             $postedSlug = trim((string) ($_POST['nfc_slug'] ?? ''));
             $cleanSlug = preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($postedSlug));
@@ -40,6 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'hours_per_day'      => $hours,
                 'default_ccnl_id'    => $defaultCcnl,
                 'smart_working_days' => $swClean ? implode(',', $swClean) : null,
+                'lunch_break_start'  => $lunchS !== '' ? $lunchS : null,
+                'lunch_break_end'    => $lunchE !== '' ? $lunchE : null,
             ];
             if ($cleanSlug !== '') {
                 // Verifica unicità globale
@@ -60,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $defaults = LeaveBalance::companyDefaults($companyId);
 $ccnls = LeaveBalance::availableCcnls($companyId);
-$compRow = Database::fetchOne("SELECT default_ccnl_id, slug, name, smart_working_days FROM companies WHERE id = ?", [$companyId]);
+$compRow = Database::fetchOne("SELECT default_ccnl_id, slug, name, smart_working_days, lunch_break_start, lunch_break_end FROM companies WHERE id = ?", [$companyId]);
 $companySwDays = !empty($compRow['smart_working_days'])
     ? array_filter(array_map('trim', explode(',', $compRow['smart_working_days'])))
     : [];
@@ -140,6 +150,21 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
                     <?= htmlspecialchars(LeaveBalance::dayLabel($dk)) ?>
                 </label>
             <?php endforeach; ?>
+        </div>
+
+        <h3 style="margin-top: 24px;">Pausa pranzo</h3>
+        <p class="desc">Se configurata, i permessi a ore che la attraversano scalano automaticamente la sovrapposizione: es. ROL 12:00&ndash;18:00 con pausa 13:00&ndash;14:00 = 5 ore (in saldo, export presenze e durata mostrata). Lascia entrambi i campi vuoti per non applicare deduzioni.</p>
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            <div class="cfg-fg" style="max-width:160px;">
+                <label>Inizio</label>
+                <input type="time" name="lunch_break_start" value="<?= htmlspecialchars(substr((string) ($compRow['lunch_break_start'] ?? ''), 0, 5)) ?>"
+                       style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; font-family:inherit; font-size:14px;">
+            </div>
+            <div class="cfg-fg" style="max-width:160px;">
+                <label>Fine</label>
+                <input type="time" name="lunch_break_end" value="<?= htmlspecialchars(substr((string) ($compRow['lunch_break_end'] ?? ''), 0, 5)) ?>"
+                       style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; font-family:inherit; font-size:14px;">
+            </div>
         </div>
 
         <div class="cfg-actions">

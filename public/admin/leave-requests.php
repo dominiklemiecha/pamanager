@@ -942,7 +942,12 @@ try {
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($requests as $req):
+                <?php
+                // Pausa pranzo aziendale (migration 049): scala la sovrapposizione dai permessi a ore
+                $__lunchCfg = Database::fetchOne("SELECT lunch_break_start, lunch_break_end FROM companies WHERE id = ?", [Tenant::currentCompanyId()]) ?: [];
+                $__lunchS = $__lunchCfg['lunch_break_start'] ?? null;
+                $__lunchE = $__lunchCfg['lunch_break_end'] ?? null;
+                foreach ($requests as $req):
                     $workingDays = LeaveRequest::calculateWorkingDays($req['start_date'], $req['end_date']);
                     $sameDay = $req['start_date'] === $req['end_date'];
                     $__rowMissing = $req['status'] === 'pending' && $req['leave_type'] === 'malattia' && (
@@ -994,7 +999,7 @@ try {
                         </td>
                         <td data-label="Giorni">
                             <?php if (!$req['is_full_day'] && $req['start_time'] && $req['end_time']):
-                                $__minutes = max(0, (strtotime($req['end_time']) - strtotime($req['start_time'])) / 60);
+                                $__minutes = (int) round(LeaveBalance::effectiveHours($req['start_time'], $req['end_time'], $__lunchS, $__lunchE) * 60);
                                 $__h = floor($__minutes / 60);
                                 $__m = (int) round($__minutes - $__h * 60);
                                 if ($__m === 60) { $__h++; $__m = 0; }

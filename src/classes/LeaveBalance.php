@@ -106,7 +106,8 @@ class LeaveBalance
                     $total += $days * $schedule['hours'];
                 } else {
                     if ($r['start_time'] && $r['end_time']) {
-                        $h = self::hoursBetween($r['start_time'], $r['end_time']);
+                        // Al netto della pausa pranzo aziendale (se configurata)
+                        $h = self::effectiveHours($r['start_time'], $r['end_time'], $schedule['lunch_start'] ?? null, $schedule['lunch_end'] ?? null);
                         // Se intervalla pi� giorni, applica solo se quel giorno e' lavorativo
                         $days = self::countWorkingDays($rs, $re, $schedule['days']);
                         $total += $h * max(1, $days);
@@ -162,18 +163,24 @@ class LeaveBalance
     {
         $row = Database::fetchOne(
             "SELECT e.working_days AS e_days, e.hours_per_day AS e_hours, e.company_id,
-                    c.working_days AS c_days, c.hours_per_day AS c_hours
+                    c.working_days AS c_days, c.hours_per_day AS c_hours,
+                    c.lunch_break_start AS c_lunch_s, c.lunch_break_end AS c_lunch_e
              FROM employees e
              LEFT JOIN companies c ON c.id = e.company_id
              WHERE e.id = ?",
             [$employeeId]
         );
-        if (!$row) return ['days' => ['mon','tue','wed','thu','fri'], 'hours' => 8.0];
+        if (!$row) return ['days' => ['mon','tue','wed','thu','fri'], 'hours' => 8.0, 'lunch_start' => null, 'lunch_end' => null];
         $daysCsv = !empty($row['e_days']) ? $row['e_days'] : ($row['c_days'] ?? 'mon,tue,wed,thu,fri');
         $hours   = $row['e_hours'] !== null ? (float) $row['e_hours']
                                             : (float) ($row['c_hours'] ?? 8.0);
         $days = array_values(array_filter(array_map('trim', explode(',', $daysCsv))));
-        return ['days' => $days, 'hours' => $hours];
+        return [
+            'days'  => $days,
+            'hours' => $hours,
+            'lunch_start' => $row['c_lunch_s'] ?? null,
+            'lunch_end'   => $row['c_lunch_e'] ?? null,
+        ];
     }
 
     public static function companyDefaults(int $companyId): array
@@ -212,6 +219,27 @@ class LeaveBalance
         $e = strtotime("1970-01-01 $end");
         if ($s === false || $e === false || $e <= $s) return 0.0;
         return round(($e - $s) / 3600, 2);
+    }
+
+    /**
+     * Durata di un permesso a ore al netto della pausa pranzo aziendale:
+     * dalla differenza start-end si sottrae la sovrapposizione con la fascia
+     * pausa (se configurata). Pausa NULL o incompleta = nessuna deduzione.
+     */
+    public static function effectiveHours(string $start, string $end, ?string $lunchStart = null, ?string $lunchEnd = null): float
+    {
+        $s = strtotime("1970-01-01 $start");
+        $e = strtotime("1970-01-01 $end");
+        if ($s === false || $e === false || $e <= $s) return 0.0;
+        $seconds = $e - $s;
+        if ($lunchStart && $lunchEnd) {
+            $ls = strtotime("1970-01-01 $lunchStart");
+            $le = strtotime("1970-01-01 $lunchEnd");
+            if ($ls !== false && $le !== false && $le > $ls) {
+                $seconds -= max(0, min($e, $le) - max($s, $ls));
+            }
+        }
+        return round($seconds / 3600, 2);
     }
 
     public static function dayLabel(string $key): string
