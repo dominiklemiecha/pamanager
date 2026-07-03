@@ -193,7 +193,7 @@ $__typeLabels = [
     'ferie' => 'ferie', 'permesso' => 'permesso', 'malattia' => 'malattia',
     'permesso_104' => 'permesso L.104', 'congedo_parentale' => 'congedo parentale',
     'congedo_separazione' => 'congedo separazione', 'congedo_mestruale' => 'congedo',
-    'altro' => 'assenza', 'chiusura' => 'chiusura',
+    'altro' => 'assenza', 'chiusura' => 'chiusura', 'smart_working' => 'smart working',
 ];
 try {
     $recentLeaves = Database::fetchAll(
