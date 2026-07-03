@@ -59,7 +59,8 @@ class Chat
     }
 
     /**
-     * Partecipanti di una conversazione come lista [ [type, id], ... ] (2 o 3).
+     * Partecipanti di una conversazione come lista [ [type, id], ... ]:
+     * i 2 originali + gli extra (illimitati) dalla tabella chat_extra_participants.
      */
     public static function participantsOf(array $conv): array
     {
@@ -67,8 +68,22 @@ class Chat
             ['type' => $conv['participant1_type'], 'id' => (int) $conv['participant1_id']],
             ['type' => $conv['participant2_type'], 'id' => (int) $conv['participant2_id']],
         ];
-        if (!empty($conv['participant3_type']) && !empty($conv['participant3_id'])) {
-            $out[] = ['type' => $conv['participant3_type'], 'id' => (int) $conv['participant3_id']];
+        if (!empty($conv['id'])) {
+            try {
+                $extras = Database::fetchAll(
+                    "SELECT participant_type, participant_id FROM chat_extra_participants
+                     WHERE conversation_id = ? ORDER BY id",
+                    [(int) $conv['id']]
+                );
+                foreach ($extras as $e) {
+                    $out[] = ['type' => $e['participant_type'], 'id' => (int) $e['participant_id']];
+                }
+            } catch (Throwable $e) {
+                // Tabella non ancora migrata: fallback allo slot legacy participant3
+                if (!empty($conv['participant3_type']) && !empty($conv['participant3_id'])) {
+                    $out[] = ['type' => $conv['participant3_type'], 'id' => (int) $conv['participant3_id']];
+                }
+            }
         }
         return $out;
     }
@@ -96,7 +111,9 @@ class Chat
                 WHERE cc.company_id = ?
                   AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
                        OR (cc.participant2_type = ? AND cc.participant2_id = ?)
-                       OR (cc.participant3_type = ? AND cc.participant3_id = ?))
+                       OR EXISTS (SELECT 1 FROM chat_extra_participants ep
+                                  WHERE ep.conversation_id = cc.id
+                                    AND ep.participant_type = ? AND ep.participant_id = ?))
                 ORDER BY COALESCE(cc.last_message_at, cc.created_at) DESC";
 
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
@@ -156,12 +173,14 @@ class Chat
     public static function isParticipant(int $conversationId, string $userType, int $userId): ?array
     {
         $row = Database::fetchOne(
-            "SELECT * FROM chat_conversations
-             WHERE id = ?
+            "SELECT * FROM chat_conversations cc
+             WHERE cc.id = ?
                AND (
-                  (participant1_type = ? AND participant1_id = ?)
-                  OR (participant2_type = ? AND participant2_id = ?)
-                  OR (participant3_type = ? AND participant3_id = ?)
+                  (cc.participant1_type = ? AND cc.participant1_id = ?)
+                  OR (cc.participant2_type = ? AND cc.participant2_id = ?)
+                  OR EXISTS (SELECT 1 FROM chat_extra_participants ep
+                             WHERE ep.conversation_id = cc.id
+                               AND ep.participant_type = ? AND ep.participant_id = ?)
                )",
             [$conversationId, $userType, $userId, $userType, $userId, $userType, $userId]
         );
@@ -169,11 +188,11 @@ class Chat
     }
 
     /**
-     * Aggiunge un terzo partecipante (admin o consulente lavoro) a una conversazione
-     * con un dipendente. Solo admin/consulente già partecipanti possono invitare,
-     * e solo l'una o l'altra figura. Il nuovo entrato vede tutta la cronologia.
+     * Aggiunge un partecipante extra (admin o consulente lavoro) a una conversazione
+     * con un dipendente. Solo admin/consulente già partecipanti possono invitare;
+     * nessun limite di numero. Il nuovo entrato vede tutta la cronologia.
      */
-    public static function addThirdParticipant(
+    public static function addStaffParticipant(
         int $conversationId,
         string $byType, int $byId,
         string $newType, int $newId
@@ -188,7 +207,7 @@ class Chat
         if (!in_array($newType, ['admin', 'consulente_lavoro'], true)) {
             return ['success' => false, 'error' => 'Puoi aggiungere solo un admin o un consulente del lavoro'];
         }
-        // La chat a 3 esiste solo attorno a un dipendente
+        // La chat di gruppo esiste solo attorno a un dipendente
         $hasEmployee = false;
         foreach (self::participantsOf($conv) as $p) {
             if ($p['type'] === 'employee') $hasEmployee = true;
@@ -199,9 +218,6 @@ class Chat
         if (!$hasEmployee) {
             return ['success' => false, 'error' => 'Puoi aggiungere partecipanti solo nelle chat con un dipendente'];
         }
-        if (!empty($conv['participant3_id'])) {
-            return ['success' => false, 'error' => 'La conversazione ha già un terzo partecipante'];
-        }
 
         // Verifica che il nuovo utente esista ed è attivo
         $u = User::getById($newId);
@@ -209,10 +225,13 @@ class Chat
             return ['success' => false, 'error' => 'Utente non valido'];
         }
 
-        Database::update('chat_conversations', [
-            'participant3_type' => $newType,
-            'participant3_id'   => $newId,
-        ], 'id = ?', [$conversationId]);
+        Database::insert('chat_extra_participants', [
+            'conversation_id'  => $conversationId,
+            'participant_type' => $newType,
+            'participant_id'   => $newId,
+            'added_by_type'    => $byType,
+            'added_by_id'      => $byId,
+        ]);
 
         // Notifica l'invitato (best-effort)
         try {
@@ -344,7 +363,9 @@ class Chat
              WHERE cc.company_id = ?
                AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
                     OR (cc.participant2_type = ? AND cc.participant2_id = ?)
-                    OR (cc.participant3_type = ? AND cc.participant3_id = ?))
+                    OR EXISTS (SELECT 1 FROM chat_extra_participants ep
+                               WHERE ep.conversation_id = cc.id
+                                 AND ep.participant_type = ? AND ep.participant_id = ?))
                AND NOT (cm.sender_type = ? AND cm.sender_id = ?)
                AND cm.is_read = FALSE$intFilter",
             [$cid, $userType, $userId, $userType, $userId, $userType, $userId, $userType, $userId]
@@ -680,11 +701,7 @@ class Chat
     public static function getAttachment(int $messageId, string $userType, int $userId): array
     {
         $msg = Database::fetchOne(
-            "SELECT m.*, c.participant1_type, c.participant1_id, c.participant2_type, c.participant2_id,
-                    c.participant3_type, c.participant3_id
-             FROM chat_messages m
-             JOIN chat_conversations c ON c.id = m.conversation_id
-             WHERE m.id = ?",
+            "SELECT m.* FROM chat_messages m WHERE m.id = ?",
             [$messageId]
         );
 
@@ -693,9 +710,8 @@ class Chat
             return ['success' => false, 'error' => 'Allegato non disponibile'];
         }
 
-        $isParticipant = ($msg['participant1_type'] === $userType && (int)$msg['participant1_id'] === $userId)
-                      || ($msg['participant2_type'] === $userType && (int)$msg['participant2_id'] === $userId)
-                      || ($msg['participant3_type'] === $userType && (int)$msg['participant3_id'] === $userId);
+        // Partecipanti originali + extra (chat di gruppo)
+        $isParticipant = self::isParticipant((int) $msg['conversation_id'], $userType, $userId) !== null;
 
         // Allegati di messaggi interni: mai accessibili al dipendente
         if ($isParticipant && !empty($msg['is_internal']) && $userType === 'employee') {

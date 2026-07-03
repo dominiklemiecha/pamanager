@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $convId  = (int) ($_POST['conversation_id'] ?? 0);
                 $newType = $_POST['new_type'] ?? '';
                 $newId   = (int) ($_POST['new_id'] ?? 0);
-                $result = Chat::addThirdParticipant($convId, $userType, $userId, $newType, $newId);
+                $result = Chat::addStaffParticipant($convId, $userType, $userId, $newType, $newId);
                 echo json_encode($result);
                 exit;
 
@@ -171,26 +171,22 @@ if ($selectedConvId) {
     }
 }
 
-// ---- Chat a 3: contesto della conversazione selezionata ----
+// ---- Chat di gruppo: contesto della conversazione selezionata ----
 $__isStaff = in_array($userType, ['admin', 'consulente_lavoro'], true);
 $__convHasEmployee = false;
-$__thirdParticipant = null;   // ['type','id','name'] se presente
-$__isThreeWay = false;
+$__extraParticipants = [];    // partecipanti oltre ai 2 originali, con nome
+$__isThreeWay = false;        // true se la chat ha partecipanti extra
 $__inviteCandidates = [];     // staff invitabile (admin + consulenti, esclusi i presenti)
 if ($selectedConv) {
     $__parts = Chat::participantsOf($selectedConv);
     foreach ($__parts as $__p) {
         if ($__p['type'] === 'employee') $__convHasEmployee = true;
     }
-    if (!empty($selectedConv['participant3_id'])) {
-        $__isThreeWay = true;
-        $__thirdParticipant = [
-            'type' => $selectedConv['participant3_type'],
-            'id'   => (int) $selectedConv['participant3_id'],
-            'name' => Chat::getParticipantName($selectedConv['participant3_type'], (int) $selectedConv['participant3_id']),
-        ];
+    foreach (array_slice($__parts, 2) as $__p) {
+        $__extraParticipants[] = $__p + ['name' => Chat::getParticipantName($__p['type'], $__p['id'])];
     }
-    if ($__isStaff && $__convHasEmployee && !$__isThreeWay) {
+    $__isThreeWay = !empty($__extraParticipants);
+    if ($__isStaff && $__convHasEmployee) {
         $__present = [];
         foreach ($__parts as $__p) $__present[$__p['type'] . ':' . $__p['id']] = true;
         foreach (['admin', 'consulente_lavoro'] as $__g) {
@@ -1261,7 +1257,7 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                 <div class="info">
                     <div class="n"><?= e($hName) ?></div>
                     <div class="s">
-                        <?= e($singularLabels[$hType] ?? '') ?><?php if ($__isThreeWay && $__thirdParticipant): ?> · con <?= e($__thirdParticipant['name']) ?> (<?= e($singularLabels[$__thirdParticipant['type']] ?? '') ?>)<?php endif; ?>
+                        <?= e($singularLabels[$hType] ?? '') ?><?php if ($__extraParticipants): ?> · con <?= e(implode(', ', array_map(fn($p) => $p['name'], $__extraParticipants))) ?><?php endif; ?>
                     </div>
                 </div>
                 <div class="acts">
