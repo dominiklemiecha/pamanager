@@ -447,13 +447,23 @@ class Chat
                 break;
         }
 
-        // Filtro tenant: per ogni gruppo, escludi entita' di altre aziende quando applicabile
+        // Filtro tenant: per ogni gruppo, escludi entita' di altre aziende quando applicabile.
+        // Gli utenti CONDIVISI (company_id di un'altra azienda ma collegati alla corrente
+        // via user_companies, es. consulenti multi-tenant) devono restare visibili.
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : null;
         if ($cid) {
+            $linkedToCurrent = [];
+            try {
+                foreach (Database::fetchAll("SELECT user_id FROM user_companies WHERE company_id = ?", [$cid]) as $lr) {
+                    $linkedToCurrent[(int) $lr['user_id']] = true;
+                }
+            } catch (Throwable $e) {}
             foreach (['admin_reparto', 'accountant', 'consulente_lavoro'] as $g) {
                 if (!empty($contacts[$g])) {
-                    $contacts[$g] = array_values(array_filter($contacts[$g], function($u) use ($cid) {
-                        return empty($u['company_id']) || (int)$u['company_id'] === (int)$cid;
+                    $contacts[$g] = array_values(array_filter($contacts[$g], function($u) use ($cid, $linkedToCurrent) {
+                        return empty($u['company_id'])
+                            || (int)$u['company_id'] === (int)$cid
+                            || isset($linkedToCurrent[(int)($u['id'] ?? 0)]);
                     }));
                 }
             }
