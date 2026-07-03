@@ -141,6 +141,7 @@ $leaveTypeLabels = [
     'malattia' => 'Malattia',
     'permesso_104' => 'Permesso L.104',
     'congedo_parentale' => 'Congedo Parentale',
+    'smart_working' => 'Smart working',
     'altro' => 'Assenza',
 ];
 
@@ -258,7 +259,12 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                 }
                 $hit = $approvedHit ?? $pendingHit;
                 if ($hit) {
-                    $state = $approvedHit ? 'absent' : 'pending';
+                    // Smart working approvato: stato dedicato (lavora da remoto, non assente)
+                    if ($approvedHit && $hit['leave_type'] === 'smart_working') {
+                        $state = 'sw';
+                    } else {
+                        $state = $approvedHit ? 'absent' : 'pending';
+                    }
                     $__hmType = $hit['leave_type'];
                     if ($__hmMaskL104 && $__hmType === 'permesso_104' && (int)$emp['id'] !== $__hmCurrentEmpId) {
                         $label = 'Permesso';
@@ -297,7 +303,7 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
             // Ordine display: prima i "mancanti" (assenti/in approvazione/occupati),
             // poi i disponibili mescolati in modo deterministico per giorno (variano
             // giorno per giorno ma restano stabili sullo stesso giorno tra reload).
-            $stateOrder = ['absent' => 0, 'pending' => 1, 'busy' => 2, 'present' => 3];
+            $stateOrder = ['absent' => 0, 'pending' => 1, 'busy' => 2, 'sw' => 3, 'present' => 4];
             $__missing = []; $__available = [];
             foreach ($rowAvatars as $a) {
                 if ($a['state'] === 'present') $__available[] = $a; else $__missing[] = $a;
@@ -316,12 +322,13 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
             $__CAP = 8;
             $__moreCount = max(0, count($rowAvatars) - $__CAP);
 
-            $countPresent = 0; $countBusy = 0; $countPending = 0;
+            $countPresent = 0; $countBusy = 0; $countPending = 0; $countSw = 0;
             $absentByType = []; // label causale (gia' mascherata L.104) => conteggio
             foreach ($rowAvatars as $a) {
                 if ($a['state'] === 'present') $countPresent++;
                 elseif ($a['state'] === 'busy') $countBusy++;
                 elseif ($a['state'] === 'pending') $countPending++;
+                elseif ($a['state'] === 'sw') $countSw++;
                 else {
                     $__lbl = $a['leaveLabel'] ?? 'Assenza';
                     $absentByType[$__lbl] = ($absentByType[$__lbl] ?? 0) + 1;
@@ -367,6 +374,7 @@ $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
                     </div>
                     <div class="heatmap-day-count">
                         <span class="hm-count hm-count-present" title="Disponibili"><?= $countPresent ?></span>
+                        <?php if ($countSw > 0): ?><span class="hm-count hm-count-sw" title="In smart working"><?= $countSw ?></span><?php endif; ?>
                         <?php if ($countBusy > 0): ?><span class="hm-count hm-count-busy" title="Occupati"><?= $countBusy ?></span><?php endif; ?>
                         <?php if ($countPending > 0): ?><span class="hm-count hm-count-pending" title="In approvazione"><?= $countPending ?></span><?php endif; ?>
                         <?php foreach ($absentByType as $__lbl => $__n): [$__abbr, $__absCls] = $__absChipMeta($__lbl); ?>

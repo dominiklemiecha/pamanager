@@ -1656,6 +1656,7 @@ body.login-page {
 .hr-status.is-busy    { color: #d97706; }
 .hr-status.is-pending { color: #2877ff; }
 .hr-status.is-absent  { color: #dc2626; }
+.hr-status.is-sw      { color: #7c3aed; }
 
 /* Contatori come pill colorate in fondo alla card */
 .heatmap-day-count { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
@@ -1673,10 +1674,12 @@ body.login-page {
 .hm-count-busy    { color: #d97706; background: #fef3c7; }
 .hm-count-pending { color: #2877ff; background: #dbeafe; }
 .hm-count-absent  { color: #dc2626; background: #fee2e2; }
+.hm-count-sw      { color: #6d28d9; background: #ede9fe; }
 .hm-count-present::after { content: ' disp.'; font-weight: 600; }
 .hm-count-busy::after    { content: ' occ.';  font-weight: 600; }
 .hm-count-pending::after { content: ' appr.'; font-weight: 600; }
 .hm-count-absent::after  { content: ' ass.';  font-weight: 600; }
+.hm-count-sw::after      { content: ' sw';    font-weight: 600; }
 /* Chip assenti con causale esplicita ("2 perm."): niente suffisso generico */
 .hm-count-typed::after   { content: none; }
 /* Chip uniformi (rosso tenue) + pallino colorato che identifica la causale */
@@ -1856,6 +1859,7 @@ html, body { max-width: 100%; }
 .heatmap-stack-avatar.is-busy::after    { background: #d97706; }
 .heatmap-stack-avatar.is-pending::after  { background: #2877ff; }
 .heatmap-stack-avatar.is-absent::after   { background: #dc2626; }
+.heatmap-stack-avatar.is-sw::after       { background: #7c3aed; }
 
 /* Fan-out su hover dello stack: translateX dinamico (calcolato da JS in base allo spazio) */
 .heatmap-stack:hover .heatmap-stack-avatar,
@@ -1959,6 +1963,7 @@ html, body { max-width: 100%; }
 .heatmap-stack-tooltip .hst-busy    { color: #facc15; }
 .heatmap-stack-tooltip .hst-pending { color: #fca5a5; }
 .heatmap-stack-tooltip .hst-absent  { color: #f87171; }
+.heatmap-stack-tooltip .hst-sw      { color: #c4b5fd; }
 
 .heatmap-stack-avatar:hover .heatmap-stack-tooltip,
 .heatmap-stack-avatar:focus-visible .heatmap-stack-tooltip {

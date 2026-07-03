@@ -135,7 +135,7 @@
             card.querySelectorAll('.heatmap-day-row').forEach((row) => {
                 const counters = row.querySelectorAll('.hm-count');
                 if (!counters.length) return;
-                const visible = { present: 0, busy: 0, pending: 0, absent: 0 };
+                const visible = { present: 0, busy: 0, pending: 0, absent: 0, sw: 0 };
                 const absentByLeave = {};
                 row.querySelectorAll('.heatmap-stack-avatar:not(.is-hidden)').forEach((av) => {
                     const s = av.dataset.state;
@@ -227,7 +227,7 @@
             if (rosterTitle) rosterTitle.textContent = 'Presenze · ' + label;
             rosterList.innerHTML = '';
             // Ordine popup: assenti/pending/occupati prima, poi disponibili
-            const order = { absent: 0, pending: 1, busy: 2, present: 3 };
+            const order = { absent: 0, pending: 1, busy: 2, sw: 3, present: 4 };
             const items = Array.from(stack.querySelectorAll('.heatmap-stack-avatar')).sort((a, b) => {
                 return (order[a.dataset.state] ?? 9) - (order[b.dataset.state] ?? 9);
             });
