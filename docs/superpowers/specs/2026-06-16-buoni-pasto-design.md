@@ -1,7 +1,7 @@
 # Buoni pasto (ticket restaurant) — conteggio mensile
 
 **Data:** 2026-06-16
-**Stato:** implementato (2026-07-02) — migration 047, classe MealVoucher + unit test, config in work-schedule.php ed employees.php, colonna "Buoni pasto (nr)" nell'export
+**Stato:** implementato (2026-07-02, rivisto 2026-07-03) — migration 047+048, classe MealVoucher + unit test, tab Configurazione → Buoni pasto dedicato (toggle: abilita / soglia sì-no / SW sì-no), giorni SW aziendali in Orario lavorativo con override per dipendente, colonna "Buoni pasto (nr)" nell'export
 
 ## Obiettivo
 

@@ -28,20 +28,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Ore/giorno deve essere tra 0 e 24.';
         } else {
             $defaultCcnl = !empty($_POST['default_ccnl_id']) ? (int) $_POST['default_ccnl_id'] : null;
-            // Buoni pasto (migration 047)
-            $bpMinHours = (float) str_replace(',', '.', trim((string) ($_POST['buoni_pasto_min_hours'] ?? '6')));
-            if ($bpMinHours <= 0 || $bpMinHours > 24) $bpMinHours = 6.0;
+            // Giorni smart working ricorrenti aziendali (migration 048)
+            $swPosted = $_POST['smart_working_days'] ?? [];
+            $swClean = is_array($swPosted) ? array_values(array_intersect($allowed, $swPosted)) : [];
             // Slug NFC: solo lettere/numeri/trattino, lowercased
             $postedSlug = trim((string) ($_POST['nfc_slug'] ?? ''));
             $cleanSlug = preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($postedSlug));
             $cleanSlug = trim($cleanSlug, '-');
             $update = [
-                'working_days'    => implode(',', $clean),
-                'hours_per_day'   => $hours,
-                'default_ccnl_id' => $defaultCcnl,
-                'buoni_pasto_enabled'     => isset($_POST['buoni_pasto_enabled']) ? 1 : 0,
-                'buoni_pasto_min_hours'   => $bpMinHours,
-                'buoni_pasto_sw_eligible' => isset($_POST['buoni_pasto_sw_eligible']) ? 1 : 0,
+                'working_days'       => implode(',', $clean),
+                'hours_per_day'      => $hours,
+                'default_ccnl_id'    => $defaultCcnl,
+                'smart_working_days' => $swClean ? implode(',', $swClean) : null,
             ];
             if ($cleanSlug !== '') {
                 // Verifica unicità globale
@@ -62,7 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $defaults = LeaveBalance::companyDefaults($companyId);
 $ccnls = LeaveBalance::availableCcnls($companyId);
-$compRow = Database::fetchOne("SELECT default_ccnl_id, slug, name, buoni_pasto_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible FROM companies WHERE id = ?", [$companyId]);
+$compRow = Database::fetchOne("SELECT default_ccnl_id, slug, name, smart_working_days FROM companies WHERE id = ?", [$companyId]);
+$companySwDays = !empty($compRow['smart_working_days'])
+    ? array_filter(array_map('trim', explode(',', $compRow['smart_working_days'])))
+    : [];
 $currentDefaultCcnl = $compRow['default_ccnl_id'] ?? null;
 $companySlug = $compRow['slug'] ?? '';
 // Auto-genera slug se mancante (azienda creata prima dell'introduzione delle URL tenant)
@@ -129,26 +130,17 @@ include dirname(__DIR__) . '/includes/_config-tabs.php';
         </div>
 
 
-        <h3 style="margin-top: 24px;">Buoni pasto</h3>
-        <p class="desc">Conteggio automatico dei ticket restaurant nell'export presenze: 1 ticket per ogni giorno lavorato con ore effettive sopra la soglia. Giorni di smart working, override e esclusioni si impostano sul singolo dipendente.</p>
-        <?php
-        $bpEnabled  = !empty($compRow['buoni_pasto_enabled']);
-        $bpMinHours = (float) ($compRow['buoni_pasto_min_hours'] ?? 6.0);
-        $bpSw       = !empty($compRow['buoni_pasto_sw_eligible']);
-        ?>
-        <label class="cfg-day-chip" style="margin-bottom: 12px;">
-            <input type="checkbox" name="buoni_pasto_enabled" value="1" <?= $bpEnabled ? 'checked' : '' ?>>
-            Abilita buoni pasto
-        </label>
-        <div class="cfg-fg" style="max-width:220px; margin-top: 12px;">
-            <label>Soglia ore minima al giorno</label>
-            <input type="number" step="0.25" min="0.25" max="24" name="buoni_pasto_min_hours"
-                   value="<?= htmlspecialchars(rtrim(rtrim(number_format($bpMinHours, 2, '.', ''), '0'), '.')) ?>">
+        <h3 style="margin-top: 24px;">Giorni smart working ricorrenti</h3>
+        <p class="desc">Default aziendale dei giorni in cui il team lavora da remoto. Ogni dipendente pu&ograve; avere un override nella sua scheda. Usati dal conteggio <a href="buoni-pasto.php" style="color: var(--accent);">buoni pasto</a>.</p>
+        <div class="cfg-day-chips" style="margin-bottom: 24px;">
+            <?php foreach (LeaveBalance::allDayKeys() as $dk): ?>
+                <label class="cfg-day-chip">
+                    <input type="checkbox" name="smart_working_days[]" value="<?= $dk ?>"
+                           <?= in_array($dk, $companySwDays, true) ? 'checked' : '' ?>>
+                    <?= htmlspecialchars(LeaveBalance::dayLabel($dk)) ?>
+                </label>
+            <?php endforeach; ?>
         </div>
-        <label class="cfg-day-chip" style="margin-top: 12px;">
-            <input type="checkbox" name="buoni_pasto_sw_eligible" value="1" <?= $bpSw ? 'checked' : '' ?>>
-            Lo smart working d&agrave; diritto al ticket
-        </label>
 
         <div class="cfg-actions">
             <button type="submit" class="cfg-btn cfg-btn-primary">

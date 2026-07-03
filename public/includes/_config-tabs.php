@@ -16,6 +16,7 @@ $__cfgTitles = [
     'door-log'        => 'Log apertura porta',
     'password-resets' => 'Reset Password',
     'work-schedule'   => 'Orario lavorativo',
+    'buoni-pasto'     => 'Buoni pasto',
 ];
 $__cfgSubs = [
     'profile'         => 'Le tue informazioni personali e impostazioni account',
@@ -24,6 +25,7 @@ $__cfgSubs = [
     'door-log'        => 'Storico tentativi di apertura della porta',
     'password-resets' => 'Gestisci richieste di reset e password manuali',
     'work-schedule'   => 'Giorni e ore lavorative usate dal saldo ferie',
+    'buoni-pasto'     => 'Regole di maturazione dei ticket restaurant',
 ];
 $__cfgCurrentTitle = $__cfgTitles[$__cfgPage] ?? 'Configurazione';
 $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
@@ -57,6 +59,10 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
     <a href="<?= $__cfgBaseUrl ?>/work-schedule.php"
        class="cd-tab <?= $__cfgPage === 'work-schedule' ? 'active' : '' ?>">
         Orario lavorativo
+    </a>
+    <a href="<?= $__cfgBaseUrl ?>/buoni-pasto.php"
+       class="cd-tab <?= $__cfgPage === 'buoni-pasto' ? 'active' : '' ?>">
+        Buoni pasto
     </a>
 </nav>
 

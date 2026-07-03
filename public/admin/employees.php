@@ -84,10 +84,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $__hpdPosted = trim($_POST['hours_per_day'] ?? '');
                 $createData['hours_per_day'] = $__hpdPosted === '' ? null : (float) str_replace(',', '.', $__hpdPosted);
             }
-            // Smart working + buoni pasto (migration 047)
-            $__swPosted = $_POST['smart_working_days'] ?? [];
-            $__swClean = is_array($__swPosted) ? array_values(array_intersect(LeaveBalance::allDayKeys(), $__swPosted)) : [];
-            $createData['smart_working_days'] = $__swClean ? implode(',', $__swClean) : null;
+            // Smart working + buoni pasto (migration 047/048): SW null = eredita azienda, '' = nessun giorno
+            if (isset($_POST['smart_working_override']) && $_POST['smart_working_override'] === '1') {
+                $__swPosted = $_POST['smart_working_days'] ?? [];
+                $__swClean = is_array($__swPosted) ? array_values(array_intersect(LeaveBalance::allDayKeys(), $__swPosted)) : [];
+                $createData['smart_working_days'] = implode(',', $__swClean);
+            } else {
+                $createData['smart_working_days'] = null;
+            }
             $__bpMinPosted = trim((string) ($_POST['buoni_pasto_min_hours_override'] ?? ''));
             $createData['buoni_pasto_min_hours_override'] = $__bpMinPosted === '' ? null : (float) str_replace(',', '.', $__bpMinPosted);
             $__bpSwPosted = (string) ($_POST['buoni_pasto_sw_eligible_override'] ?? '');
@@ -185,10 +189,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $updateData['hours_per_day'] = null;
                 }
 
-                // Smart working + buoni pasto (migration 047)
-                $swPosted = $_POST['smart_working_days'] ?? [];
-                $swClean = is_array($swPosted) ? array_values(array_intersect(LeaveBalance::allDayKeys(), $swPosted)) : [];
-                $updateData['smart_working_days'] = $swClean ? implode(',', $swClean) : null;
+                // Smart working + buoni pasto (migration 047/048): SW null = eredita azienda, '' = nessun giorno
+                if (isset($_POST['smart_working_override']) && $_POST['smart_working_override'] === '1') {
+                    $swPosted = $_POST['smart_working_days'] ?? [];
+                    $swClean = is_array($swPosted) ? array_values(array_intersect(LeaveBalance::allDayKeys(), $swPosted)) : [];
+                    $updateData['smart_working_days'] = implode(',', $swClean);
+                } else {
+                    $updateData['smart_working_days'] = null;
+                }
                 $bpMinPosted = trim((string) ($_POST['buoni_pasto_min_hours_override'] ?? ''));
                 $updateData['buoni_pasto_min_hours_override'] = $bpMinPosted === '' ? null : (float) str_replace(',', '.', $bpMinPosted);
                 $bpSwPosted = (string) ($_POST['buoni_pasto_sw_eligible_override'] ?? '');
@@ -956,18 +964,32 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 </div>
 
                 <?php
-                $__bpComp = Database::fetchOne("SELECT buoni_pasto_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible FROM companies WHERE id = ?", [$__wdCompId]) ?: [];
+                $__bpComp = Database::fetchOne("SELECT buoni_pasto_enabled, buoni_pasto_min_hours_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible, smart_working_days FROM companies WHERE id = ?", [$__wdCompId]) ?: [];
                 $__bpCompMin = (float) ($__bpComp['buoni_pasto_min_hours'] ?? 6.0);
+                $__bpCompMinOn = !empty($__bpComp['buoni_pasto_min_hours_enabled']);
                 $__bpCompSw  = !empty($__bpComp['buoni_pasto_sw_eligible']);
-                $__empSwDays = $action === 'edit' && !empty($employee['smart_working_days'])
-                    ? array_filter(array_map('trim', explode(',', $employee['smart_working_days'])))
+                $__compSwDays = !empty($__bpComp['smart_working_days'])
+                    ? array_filter(array_map('trim', explode(',', $__bpComp['smart_working_days'])))
                     : [];
+                // SW: null = eredita azienda, stringa (anche vuota) = override
+                $__empHasSwOverride = $action === 'edit' && $employee['smart_working_days'] !== null;
+                $__empSwDays = $__empHasSwOverride
+                    ? array_filter(array_map('trim', explode(',', $employee['smart_working_days'])))
+                    : $__compSwDays;
                 $__empBpMin = $action === 'edit' ? ($employee['buoni_pasto_min_hours_override'] ?? null) : null;
                 $__empBpSw  = $action === 'edit' ? ($employee['buoni_pasto_sw_eligible_override'] ?? null) : null;
                 $__empBpExc = $action === 'edit' && !empty($employee['buoni_pasto_excluded']);
+                $__compSwLabel = $__compSwDays ? implode(', ', array_map(['LeaveBalance', 'dayLabel'], $__compSwDays)) : 'nessuno';
                 ?>
                 <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Smart working e buoni pasto</h3>
                 <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="smart_working_override" value="1" id="sw_override" <?= $__empHasSwOverride ? 'checked' : '' ?>>
+                        Personalizza i giorni di smart working per questo dipendente
+                    </label>
+                    <small style="color:#94a3b8;">Default azienda: <?= htmlspecialchars($__compSwLabel) ?> · Usati dal conteggio buoni pasto.</small>
+                </div>
+                <div class="form-group" id="sw_panel" style="grid-column: 1 / -1; <?= $__empHasSwOverride ? '' : 'display:none;' ?>">
                     <label>Giorni di smart working ricorrenti</label>
                     <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
                         <?php foreach (LeaveBalance::allDayKeys() as $dk): ?>
@@ -977,13 +999,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             </label>
                         <?php endforeach; ?>
                     </div>
-                    <small style="color:#94a3b8;">Usati dal conteggio buoni pasto: di default i giorni in smart working non danno diritto al ticket.</small>
+                    <small style="color:#94a3b8;">Nessun giorno spuntato = il dipendente non fa mai smart working (anche se l'azienda ha giorni SW).</small>
                 </div>
                 <div class="form-group">
                     <label for="buoni_pasto_min_hours_override">Soglia ore buono pasto (override)</label>
                     <input type="number" step="0.25" min="0.25" max="24" id="buoni_pasto_min_hours_override" name="buoni_pasto_min_hours_override"
                            value="<?= htmlspecialchars($__empBpMin !== null ? rtrim(rtrim(number_format((float) $__empBpMin, 2, '.', ''), '0'), '.') : '') ?>"
-                           placeholder="<?= htmlspecialchars(rtrim(rtrim(number_format($__bpCompMin, 2, '.', ''), '0'), '.')) ?> (default azienda)">
+                           placeholder="<?= $__bpCompMinOn ? htmlspecialchars(rtrim(rtrim(number_format($__bpCompMin, 2, '.', ''), '0'), '.')) . ' (default azienda)' : 'soglia disattivata a livello azienda' ?>">
                 </div>
                 <div class="form-group">
                     <label for="buoni_pasto_sw_eligible_override">Smart working d&agrave; il ticket?</label>
@@ -999,7 +1021,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         Escludi questo dipendente dai buoni pasto
                     </label>
                     <?php if (empty($__bpComp['buoni_pasto_enabled'])): ?>
-                        <small style="color:#94a3b8;">I buoni pasto sono disattivati a livello azienda (Configurazione &rarr; Orario lavorativo).</small>
+                        <small style="color:#94a3b8;">I buoni pasto sono disattivati a livello azienda (Configurazione &rarr; Buoni pasto).</small>
                     <?php endif; ?>
                 </div>
 
@@ -1102,6 +1124,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     if (cb && panel) {
                         cb.addEventListener('change', function() {
                             panel.style.display = cb.checked ? '' : 'none';
+                        });
+                    }
+                    var swCb = document.getElementById('sw_override');
+                    var swPanel = document.getElementById('sw_panel');
+                    if (swCb && swPanel) {
+                        swCb.addEventListener('change', function() {
+                            swPanel.style.display = swCb.checked ? '' : 'none';
                         });
                     }
                 })();

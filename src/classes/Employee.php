@@ -197,8 +197,8 @@ class Employee
                 // Orario personalizzato (migration 025): null = default azienda
                 'working_days'   => $nullIfEmpty($data['working_days'] ?? null),
                 'hours_per_day'  => $toFloat($data['hours_per_day'] ?? null),
-                // Smart working + buoni pasto (migration 047)
-                'smart_working_days'               => $nullIfEmpty($data['smart_working_days'] ?? null),
+                // Smart working + buoni pasto (migration 047/048): null = eredita azienda, '' = nessun giorno
+                'smart_working_days'               => $data['smart_working_days'] ?? null,
                 'buoni_pasto_min_hours_override'   => $toFloat($data['buoni_pasto_min_hours_override'] ?? null),
                 'buoni_pasto_sw_eligible_override' => isset($data['buoni_pasto_sw_eligible_override']) && $data['buoni_pasto_sw_eligible_override'] !== null && $data['buoni_pasto_sw_eligible_override'] !== '' ? (int) $data['buoni_pasto_sw_eligible_override'] : null,
                 'buoni_pasto_excluded'             => !empty($data['buoni_pasto_excluded']) ? 1 : 0,
@@ -366,9 +366,9 @@ class Employee
             $updateData['hours_per_day'] = $data['hours_per_day'];
         }
 
-        // Smart working + buoni pasto (migration 047): null = eredita default azienda
+        // Smart working + buoni pasto (migration 047/048): null = eredita azienda, '' = nessun giorno SW
         if (array_key_exists('smart_working_days', $data)) {
-            $updateData['smart_working_days'] = $data['smart_working_days'] ?: null;
+            $updateData['smart_working_days'] = $data['smart_working_days'];
         }
         if (array_key_exists('buoni_pasto_min_hours_override', $data)) {
             $updateData['buoni_pasto_min_hours_override'] = $data['buoni_pasto_min_hours_override'];
