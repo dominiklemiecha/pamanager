@@ -70,7 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $attachMime = $upload['mime'];
                 }
 
-                $result = Chat::sendMessage($convId, $userType, $userId, $msg, $attachPath, $attachName, $attachSize, $attachMime);
+                // Messaggio interno (solo staff admin/consulente, invisibile al dipendente)
+                $isInternal = !empty($_POST['is_internal']) && in_array($userType, ['admin', 'consulente_lavoro'], true);
+                $result = Chat::sendMessage($convId, $userType, $userId, $msg, $attachPath, $attachName, $attachSize, $attachMime, $isInternal);
                 echo json_encode($result);
                 exit;
 
@@ -82,8 +84,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
                 Chat::markAsRead($convId, $userType, $userId);
-                $messages = Chat::getMessages($convId);
-                echo json_encode(['success' => true, 'messages' => array_reverse($messages)]);
+                // Il dipendente non riceve mai i messaggi interni dello staff
+                $messages = Chat::getMessages($convId, 50, 0, $userType !== 'employee');
+                $messages = array_reverse($messages);
+                // Nome mittente per le chat a 3 (cache per non ripetere query)
+                $__nameCache = [];
+                foreach ($messages as &$__m) {
+                    $__k = $__m['sender_type'] . ':' . $__m['sender_id'];
+                    if (!isset($__nameCache[$__k])) {
+                        $__nameCache[$__k] = Chat::getParticipantName($__m['sender_type'], (int)$__m['sender_id']);
+                    }
+                    $__m['sender_name'] = $__nameCache[$__k];
+                }
+                unset($__m);
+                echo json_encode(['success' => true, 'messages' => $messages]);
+                exit;
+
+            case 'add_participant':
+                $convId  = (int) ($_POST['conversation_id'] ?? 0);
+                $newType = $_POST['new_type'] ?? '';
+                $newId   = (int) ($_POST['new_id'] ?? 0);
+                $result = Chat::addThirdParticipant($convId, $userType, $userId, $newType, $newId);
+                echo json_encode($result);
                 exit;
 
             case 'start_conversation':
@@ -141,10 +163,51 @@ if ($selectedConvId) {
         $selectedConvId = 0;
     } else {
         Chat::markAsRead($selectedConvId, $userType, $userId);
-        $selectedMessages = array_reverse(Chat::getMessages($selectedConvId));
+        // Il dipendente non vede i messaggi interni dello staff
+        $selectedMessages = array_reverse(Chat::getMessages($selectedConvId, 50, 0, $userType !== 'employee'));
         foreach ($conversations as $c) {
             if ((int)$c['id'] === $selectedConvId) { $selectedConv = $c; break; }
         }
+    }
+}
+
+// ---- Chat a 3: contesto della conversazione selezionata ----
+$__isStaff = in_array($userType, ['admin', 'consulente_lavoro'], true);
+$__convHasEmployee = false;
+$__thirdParticipant = null;   // ['type','id','name'] se presente
+$__isThreeWay = false;
+$__inviteCandidates = [];     // staff invitabile (admin + consulenti, esclusi i presenti)
+if ($selectedConv) {
+    $__parts = Chat::participantsOf($selectedConv);
+    foreach ($__parts as $__p) {
+        if ($__p['type'] === 'employee') $__convHasEmployee = true;
+    }
+    if (!empty($selectedConv['participant3_id'])) {
+        $__isThreeWay = true;
+        $__thirdParticipant = [
+            'type' => $selectedConv['participant3_type'],
+            'id'   => (int) $selectedConv['participant3_id'],
+            'name' => Chat::getParticipantName($selectedConv['participant3_type'], (int) $selectedConv['participant3_id']),
+        ];
+    }
+    if ($__isStaff && $__convHasEmployee && !$__isThreeWay) {
+        $__present = [];
+        foreach ($__parts as $__p) $__present[$__p['type'] . ':' . $__p['id']] = true;
+        foreach (['admin', 'consulente_lavoro'] as $__g) {
+            foreach (($contacts[$__g] ?? []) as $__u) {
+                $__k = $__g . ':' . (int) $__u['id'];
+                if (isset($__present[$__k])) continue;
+                $__inviteCandidates[] = ['type' => $__g, 'id' => (int) $__u['id'], 'name' => $__u['name'] ?? ('Utente #' . $__u['id'])];
+            }
+        }
+    }
+}
+// Nomi mittente per il render PHP iniziale (chat a 3)
+$__senderNames = [];
+foreach ($selectedMessages as $__m) {
+    $__k = $__m['sender_type'] . ':' . $__m['sender_id'];
+    if (!isset($__senderNames[$__k])) {
+        $__senderNames[$__k] = Chat::getParticipantName($__m['sender_type'], (int) $__m['sender_id']);
     }
 }
 
@@ -181,10 +244,12 @@ if ($__chatLayout === 'admin' && $userType === 'admin_reparto') {
 $sharedFiles = [];
 if ($selectedConvId) {
     try {
+        // Gli allegati dei messaggi interni non compaiono al dipendente
+        $__sfInternal = $userType === 'employee' ? ' AND is_internal = 0' : '';
         $sharedFiles = Database::fetchAll(
             "SELECT id, attachment_name, attachment_size, attachment_mime, created_at
              FROM chat_messages
-             WHERE conversation_id = ? AND attachment_path IS NOT NULL AND attachment_path <> ''
+             WHERE conversation_id = ? AND attachment_path IS NOT NULL AND attachment_path <> ''$__sfInternal
              ORDER BY created_at DESC LIMIT 20",
             [$selectedConvId]
         );
@@ -936,6 +1001,97 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
     .chat-shell.info-open { grid-template-columns: 1fr; }
     .info-back-btn { display: inline-flex; }
 }
+
+/* ============ CHAT A 3: contatti fissati (dipendente) ============ */
+.pinned-item { background: var(--chat-primary-50); }
+.pinned-item .pin-ic { color: var(--chat-primary); flex-shrink: 0; opacity: 0.7; }
+
+/* ============ CHAT A 3: messaggi interni staff ============ */
+.msg-group.internal .msg {
+    background: #fef3c7;
+    color: #78350f;
+    border: 1px dashed #f59e0b;
+}
+.msg-group.internal.sent .msg { background: #fef3c7; color: #78350f; }
+.msg-internal-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700;
+    color: #b45309;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    margin-bottom: 2px;
+}
+.msg-group.internal .msg-attach {
+    background: #fef3c7;
+    border: 1px dashed #f59e0b;
+}
+.msg-sender {
+    font-size: 10.5px; font-weight: 700;
+    color: var(--chat-primary);
+    margin-bottom: 1px;
+}
+
+/* Toggle "Interno" nel composer */
+.internal-toggle {
+    width: auto !important;
+    padding: 0 8px;
+    gap: 4px;
+    display: inline-flex; align-items: center;
+    border-radius: 8px;
+}
+.internal-toggle .it-label { font-size: 11px; font-weight: 700; }
+.internal-toggle.active-internal {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+}
+.composer.internal-mode .input-wrap {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+.composer.internal-mode textarea { background: transparent; }
+
+/* Menu "Fai intervenire" */
+.invite-wrap { position: relative; display: inline-flex; }
+.invite-menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    width: 260px;
+    background: white;
+    border: 1px solid var(--chat-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.18);
+    padding: 8px;
+    z-index: 900;
+}
+.invite-menu[hidden] { display: none !important; }
+.invite-menu-title {
+    font-size: 10px; font-weight: 700;
+    color: var(--chat-muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 4px 8px 6px;
+}
+.invite-menu > button {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    border: none; background: transparent;
+    padding: 8px; border-radius: 8px;
+    cursor: pointer; text-align: left;
+    font-family: inherit;
+}
+.invite-menu > button:hover { background: var(--chat-primary-50); }
+.invite-menu .im-av {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--chat-primary); color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.invite-menu .im-info { display: flex; flex-direction: column; min-width: 0; }
+.invite-menu .im-n { font-size: 12.5px; font-weight: 600; color: var(--chat-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.invite-menu .im-r { font-size: 10.5px; color: var(--chat-muted); }
+.invite-menu-note {
+    font-size: 10.5px; color: var(--chat-muted);
+    padding: 6px 8px 2px;
+    border-top: 1px solid var(--chat-border);
+    margin-top: 6px;
+}
 </style>
 
 <div class="chat-shell <?= $selectedConvId ? 'has-active' : '' ?>">
@@ -947,6 +1103,47 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
         </div>
 
         <div class="chat-list" id="chatSidebarList">
+            <?php if ($userType === 'employee'):
+                // Contatti FISSI in cima per il dipendente: admin + consulente lavoro.
+                // Se esiste già una conversazione, il click la apre; altrimenti la crea.
+                $__convByOther = [];
+                foreach ($conversations as $__c) {
+                    $__convByOther[$__c['other_type'] . ':' . $__c['other_id']] = (int) $__c['id'];
+                }
+                $__pinned = [];
+                foreach (['admin' => 'Amministrazione', 'consulente_lavoro' => 'Consulente del lavoro'] as $__pt => $__plabel) {
+                    foreach (($contacts[$__pt] ?? []) as $__pu) {
+                        $__pinned[] = ['type' => $__pt, 'id' => (int) $__pu['id'], 'name' => $__pu['name'] ?? ('Utente #' . $__pu['id']), 'label' => $__plabel];
+                        break; // un contatto per figura
+                    }
+                }
+            ?>
+                <?php if (!empty($__pinned)): ?>
+                <div class="chat-sidebar-section" data-section="pinned">
+                    <div class="chat-group-title"><span>In evidenza</span></div>
+                    <?php foreach ($__pinned as $__pc):
+                        $__pcConv = $__convByOther[$__pc['type'] . ':' . $__pc['id']] ?? null;
+                        $__pcInit = strtoupper(mb_substr($__pc['name'], 0, 2));
+                    ?>
+                        <?php if ($__pcConv): ?>
+                            <a href="?conv=<?= $__pcConv ?>" class="contact-item pinned-item <?= $selectedConvId == $__pcConv ? 'active' : '' ?>"
+                               data-search="<?= e(strtolower($__pc['name'] . ' ' . $__pc['label'])) ?>">
+                        <?php else: ?>
+                            <div class="contact-item pinned-item" role="button" tabindex="0"
+                                 data-search="<?= e(strtolower($__pc['name'] . ' ' . $__pc['label'])) ?>"
+                                 onclick="startConversation('<?= e($__pc['type']) ?>', <?= $__pc['id'] ?>)">
+                        <?php endif; ?>
+                                <div class="av"><?= e($__pcInit) ?></div>
+                                <div class="contact-info">
+                                    <div class="n"><?= e($__pc['name']) ?></div>
+                                    <div class="p"><?= e($__pc['label']) ?></div>
+                                </div>
+                                <svg class="pin-ic" viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true"><path d="M16 4v5l2 3v2h-5v6l-1 2-1-2v-6H6v-2l2-3V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1z"/></svg>
+                        <?php if ($__pcConv): ?></a><?php else: ?></div><?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            <?php endif; ?>
             <?php if (!empty($conversations)): ?>
                 <div class="chat-sidebar-section" data-section="conv">
                     <div class="chat-group-title">
@@ -1060,9 +1257,31 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                 </div>
                 <div class="info">
                     <div class="n"><?= e($hName) ?></div>
-                    <div class="s"><?= e($singularLabels[$hType] ?? '') ?></div>
+                    <div class="s">
+                        <?= e($singularLabels[$hType] ?? '') ?><?php if ($__isThreeWay && $__thirdParticipant): ?> · con <?= e($__thirdParticipant['name']) ?> (<?= e($singularLabels[$__thirdParticipant['type']] ?? '') ?>)<?php endif; ?>
+                    </div>
                 </div>
                 <div class="acts">
+                    <?php if (!empty($__inviteCandidates)): ?>
+                        <div class="invite-wrap">
+                            <button type="button" id="btnInvite" title="Fai intervenire admin o consulente">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                            </button>
+                            <div class="invite-menu" id="inviteMenu" hidden>
+                                <div class="invite-menu-title">Fai intervenire</div>
+                                <?php foreach ($__inviteCandidates as $__ic): ?>
+                                    <button type="button" onclick="addParticipant('<?= e($__ic['type']) ?>', <?= $__ic['id'] ?>)">
+                                        <span class="im-av"><?= e(strtoupper(mb_substr($__ic['name'], 0, 2))) ?></span>
+                                        <span class="im-info">
+                                            <span class="im-n"><?= e($__ic['name']) ?></span>
+                                            <span class="im-r"><?= e($singularLabels[$__ic['type']] ?? '') ?></span>
+                                        </span>
+                                    </button>
+                                <?php endforeach; ?>
+                                <div class="invite-menu-note">Vedrà tutta la cronologia. Potrete anche scrivervi note interne invisibili al dipendente.</div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <button type="button" id="btnThreadSearch" title="Cerca nella conversazione">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </button>
@@ -1094,7 +1313,17 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                         echo '<div class="day-divider"><span>' . e($lbl) . '</span></div>';
                     }
                 ?>
-                    <div class="msg-group <?= $isSent ? 'sent' : 'received' ?>">
+                    <?php $__msgInternal = !empty($msg['is_internal']); ?>
+                    <div class="msg-group <?= $isSent ? 'sent' : 'received' ?><?= $__msgInternal ? ' internal' : '' ?>">
+                        <?php if ($__isThreeWay && !$isSent): ?>
+                            <span class="msg-sender"><?= e($__senderNames[$msg['sender_type'] . ':' . $msg['sender_id']] ?? '') ?></span>
+                        <?php endif; ?>
+                        <?php if ($__msgInternal): ?>
+                            <span class="msg-internal-tag">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                Interno — invisibile al dipendente
+                            </span>
+                        <?php endif; ?>
                         <?php if (!empty(trim($msg['message']))): ?>
                             <div class="msg"><?= nl2br(e($msg['message'])) ?></div>
                         <?php endif; ?>
@@ -1123,16 +1352,26 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                 <button type="button" onclick="clearAttachment()" title="Rimuovi">&times;</button>
             </div>
 
+            <?php $__showInternalToggle = $__isStaff && $__convHasEmployee; ?>
             <form class="composer" id="chatForm" enctype="multipart/form-data" onsubmit="sendMessage(event)">
                 <?= CSRF::field() ?>
                 <input type="hidden" name="action" value="send">
                 <input type="hidden" name="conversation_id" value="<?= $selectedConvId ?>">
+                <input type="hidden" name="is_internal" id="isInternalInput" value="">
                 <input type="file" id="attachInput" name="attachment" style="display:none;" onchange="onAttachChange()">
                 <div class="input-wrap">
                     <textarea name="message" id="messageInput"
                               placeholder="Scrivi un messaggio…" rows="1"
                               onkeydown="handleKeyDown(event)"></textarea>
                     <div class="tools">
+                        <?php if ($__showInternalToggle): ?>
+                            <button type="button" class="tool-btn internal-toggle" id="btnInternal"
+                                    title="Nota interna: visibile solo ad admin e consulente, il dipendente non la vede"
+                                    onclick="toggleInternal()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                <span class="it-label">Interno</span>
+                            </button>
+                        <?php endif; ?>
                         <button type="button" class="tool-btn" title="Allega file" onclick="document.getElementById('attachInput').click()">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                         </button>
@@ -1212,6 +1451,40 @@ const csrfMeta  = document.querySelector('meta[name="csrf-token"]');
 const csrfToken = csrfMeta ? csrfMeta.content : '';
 const _userType = <?= json_encode($userType) ?>;
 const _userId   = <?= (int)$userId ?>;
+const _isThreeWay = <?= json_encode($__isThreeWay) ?>;
+
+/* ====== Nota interna (staff) ====== */
+function toggleInternal() {
+    const inp = document.getElementById('isInternalInput');
+    const btn = document.getElementById('btnInternal');
+    const form = document.getElementById('chatForm');
+    const msgInput = document.getElementById('messageInput');
+    if (!inp || !btn) return;
+    const on = inp.value !== '1';
+    inp.value = on ? '1' : '';
+    btn.classList.toggle('active-internal', on);
+    form.classList.toggle('internal-mode', on);
+    if (msgInput) msgInput.placeholder = on ? 'Nota interna — il dipendente non la vedrà…' : 'Scrivi un messaggio…';
+}
+
+/* ====== Invita terzo partecipante ====== */
+function addParticipant(type, id) {
+    const convId = document.querySelector('input[name="conversation_id"]')?.value;
+    if (!convId) return;
+    const fd = new FormData();
+    fd.append('action', 'add_participant');
+    fd.append('conversation_id', convId);
+    fd.append('new_type', type);
+    fd.append('new_id', id);
+    fd.append('csrf_token', csrfToken);
+    fetch('', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) window.location.reload();
+            else alert(data.error || 'Errore');
+        })
+        .catch(err => { console.error(err); alert('Errore di connessione'); });
+}
 
 function startConversation(type, id) {
     const fd = new FormData();
@@ -1314,7 +1587,14 @@ function loadMessages() {
                     lastDay = ymd;
                     html += `<div class="day-divider"><span>${esc(fmtDay(ymd))}</span></div>`;
                 }
-                html += `<div class="msg-group ${isSent ? 'sent' : 'received'}">`;
+                const isInternal = parseInt(msg.is_internal || 0) === 1;
+                html += `<div class="msg-group ${isSent ? 'sent' : 'received'}${isInternal ? ' internal' : ''}">`;
+                if (_isThreeWay && !isSent && msg.sender_name) {
+                    html += `<span class="msg-sender">${esc(msg.sender_name)}</span>`;
+                }
+                if (isInternal) {
+                    html += `<span class="msg-internal-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Interno — invisibile al dipendente</span>`;
+                }
                 if (msg.message && msg.message.trim()) {
                     html += `<div class="msg">${esc(msg.message).replace(/\n/g,'<br>')}</div>`;
                 }
@@ -1394,6 +1674,21 @@ function insertEmojiChar(em) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    /* Menu "Fai intervenire" */
+    const btnInvite = document.getElementById('btnInvite');
+    const inviteMenu = document.getElementById('inviteMenu');
+    if (btnInvite && inviteMenu) {
+        btnInvite.addEventListener('click', (e) => {
+            e.stopPropagation();
+            inviteMenu.hidden = !inviteMenu.hidden;
+        });
+        document.addEventListener('click', (e) => {
+            if (!inviteMenu.hidden && !inviteMenu.contains(e.target) && e.target !== btnInvite) {
+                inviteMenu.hidden = true;
+            }
+        });
+    }
+
     /* Emoji */
     const btnEmoji = document.getElementById('btnEmoji');
     const picker = document.getElementById('emojiPicker');

@@ -59,25 +59,44 @@ class Chat
     }
 
     /**
+     * Partecipanti di una conversazione come lista [ [type, id], ... ] (2 o 3).
+     */
+    public static function participantsOf(array $conv): array
+    {
+        $out = [
+            ['type' => $conv['participant1_type'], 'id' => (int) $conv['participant1_id']],
+            ['type' => $conv['participant2_type'], 'id' => (int) $conv['participant2_id']],
+        ];
+        if (!empty($conv['participant3_type']) && !empty($conv['participant3_id'])) {
+            $out[] = ['type' => $conv['participant3_type'], 'id' => (int) $conv['participant3_id']];
+        }
+        return $out;
+    }
+
+    /**
      * Ottiene le conversazioni di un utente
      */
     public static function getConversations(string $userType, int $userId): array
     {
+        // Il dipendente non deve MAI vedere i messaggi interni dello staff:
+        // esclusi da unread count e anteprima ultimo messaggio.
+        $intFilter = $userType === 'employee' ? ' AND cm.is_internal = 0' : '';
         $sql = "SELECT cc.*,
                        (SELECT COUNT(*) FROM chat_messages cm
                         WHERE cm.conversation_id = cc.id
                           AND cm.is_read = FALSE
-                          AND NOT (cm.sender_type = ? AND cm.sender_id = ?)) AS unread_count,
+                          AND NOT (cm.sender_type = ? AND cm.sender_id = ?)$intFilter) AS unread_count,
                        (SELECT cm.message FROM chat_messages cm
-                        WHERE cm.conversation_id = cc.id
+                        WHERE cm.conversation_id = cc.id$intFilter
                         ORDER BY cm.created_at DESC LIMIT 1) AS last_message,
                        (SELECT cm.created_at FROM chat_messages cm
-                        WHERE cm.conversation_id = cc.id
+                        WHERE cm.conversation_id = cc.id$intFilter
                         ORDER BY cm.created_at DESC LIMIT 1) AS last_message_time
                 FROM chat_conversations cc
                 WHERE cc.company_id = ?
                   AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
-                       OR (cc.participant2_type = ? AND cc.participant2_id = ?))
+                       OR (cc.participant2_type = ? AND cc.participant2_id = ?)
+                       OR (cc.participant3_type = ? AND cc.participant3_id = ?))
                 ORDER BY COALESCE(cc.last_message_at, cc.created_at) DESC";
 
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
@@ -85,35 +104,45 @@ class Chat
             $userType, $userId,
             $cid,
             $userType, $userId,
+            $userType, $userId,
             $userType, $userId
         ]);
 
-        // Aggiungi info sull'altro partecipante
+        // Aggiungi info sull'altro partecipante. Nelle chat a 3, per lo staff
+        // il "contatto" mostrato è il dipendente; per il dipendente l'interlocutore originale.
         foreach ($conversations as &$conv) {
-            if ($conv['participant1_type'] === $userType && (int)$conv['participant1_id'] === (int)$userId) {
-                $conv['other_type'] = $conv['participant2_type'];
-                $conv['other_id'] = $conv['participant2_id'];
-            } else {
-                $conv['other_type'] = $conv['participant1_type'];
-                $conv['other_id'] = $conv['participant1_id'];
+            $others = array_values(array_filter(self::participantsOf($conv), function ($p) use ($userType, $userId) {
+                return !($p['type'] === $userType && $p['id'] === (int) $userId);
+            }));
+            $primary = $others[0] ?? ['type' => $conv['participant1_type'], 'id' => (int) $conv['participant1_id']];
+            foreach ($others as $p) {
+                if ($p['type'] === 'employee') { $primary = $p; break; }
             }
-
-            // Ottieni nome altro partecipante
-            $conv['other_name'] = self::getParticipantName($conv['other_type'], $conv['other_id']);
-            $conv['other_photo'] = self::getParticipantPhoto($conv['other_type'], (int) $conv['other_id']);
+            $conv['other_type'] = $primary['type'];
+            $conv['other_id']   = $primary['id'];
+            $conv['other_name'] = self::getParticipantName($primary['type'], $primary['id']);
+            $conv['other_photo'] = self::getParticipantPhoto($primary['type'], $primary['id']);
+            // Altri partecipanti oltre al principale (per header/lista chat a 3)
+            $conv['extra_participants'] = [];
+            foreach ($others as $p) {
+                if ($p['type'] === $primary['type'] && $p['id'] === $primary['id']) continue;
+                $conv['extra_participants'][] = $p + ['name' => self::getParticipantName($p['type'], $p['id'])];
+            }
         }
 
         return $conversations;
     }
 
     /**
-     * Ottiene i messaggi di una conversazione
+     * Ottiene i messaggi di una conversazione.
+     * $includeInternal=false esclude i messaggi interni dello staff (vista dipendente).
      */
-    public static function getMessages(int $conversationId, int $limit = 50, int $offset = 0): array
+    public static function getMessages(int $conversationId, int $limit = 50, int $offset = 0, bool $includeInternal = true): array
     {
+        $intFilter = $includeInternal ? '' : ' AND is_internal = 0';
         return Database::fetchAll(
             "SELECT * FROM chat_messages
-             WHERE conversation_id = ?
+             WHERE conversation_id = ?$intFilter
              ORDER BY created_at DESC
              LIMIT ? OFFSET ?",
             [$conversationId, $limit, $offset]
@@ -132,10 +161,79 @@ class Chat
                AND (
                   (participant1_type = ? AND participant1_id = ?)
                   OR (participant2_type = ? AND participant2_id = ?)
+                  OR (participant3_type = ? AND participant3_id = ?)
                )",
-            [$conversationId, $userType, $userId, $userType, $userId]
+            [$conversationId, $userType, $userId, $userType, $userId, $userType, $userId]
         );
         return $row ?: null;
+    }
+
+    /**
+     * Aggiunge un terzo partecipante (admin o consulente lavoro) a una conversazione
+     * con un dipendente. Solo admin/consulente già partecipanti possono invitare,
+     * e solo l'una o l'altra figura. Il nuovo entrato vede tutta la cronologia.
+     */
+    public static function addThirdParticipant(
+        int $conversationId,
+        string $byType, int $byId,
+        string $newType, int $newId
+    ): array {
+        $conv = self::isParticipant($conversationId, $byType, $byId);
+        if (!$conv) {
+            return ['success' => false, 'error' => 'Accesso non autorizzato'];
+        }
+        if (!in_array($byType, ['admin', 'consulente_lavoro'], true)) {
+            return ['success' => false, 'error' => 'Solo admin e consulente del lavoro possono aggiungere partecipanti'];
+        }
+        if (!in_array($newType, ['admin', 'consulente_lavoro'], true)) {
+            return ['success' => false, 'error' => 'Puoi aggiungere solo un admin o un consulente del lavoro'];
+        }
+        // La chat a 3 esiste solo attorno a un dipendente
+        $hasEmployee = false;
+        foreach (self::participantsOf($conv) as $p) {
+            if ($p['type'] === 'employee') $hasEmployee = true;
+            if ($p['type'] === $newType && $p['id'] === $newId) {
+                return ['success' => false, 'error' => 'Utente già presente nella conversazione'];
+            }
+        }
+        if (!$hasEmployee) {
+            return ['success' => false, 'error' => 'Puoi aggiungere partecipanti solo nelle chat con un dipendente'];
+        }
+        if (!empty($conv['participant3_id'])) {
+            return ['success' => false, 'error' => 'La conversazione ha già un terzo partecipante'];
+        }
+
+        // Verifica che il nuovo utente esista ed è attivo
+        $u = User::getById($newId);
+        if (!$u || empty($u['is_active']) || $u['role'] !== $newType) {
+            return ['success' => false, 'error' => 'Utente non valido'];
+        }
+
+        Database::update('chat_conversations', [
+            'participant3_type' => $newType,
+            'participant3_id'   => $newId,
+        ], 'id = ?', [$conversationId]);
+
+        // Notifica l'invitato (best-effort)
+        try {
+            $byName = self::getParticipantName($byType, $byId);
+            $empName = '';
+            foreach (self::participantsOf($conv) as $p) {
+                if ($p['type'] === 'employee') { $empName = self::getParticipantName('employee', $p['id']); break; }
+            }
+            Notification::create([
+                'recipient_type' => $newType,
+                'recipient_id'   => $newId,
+                'type'           => 'new_message',
+                'title'          => $byName . ' ti ha aggiunto a una conversazione',
+                'message'        => 'Chat con ' . $empName,
+                'link'           => self::getChatUrl($newType) . '?conv=' . $conversationId,
+            ]);
+        } catch (Throwable $e) {
+            error_log('[Chat] addThirdParticipant notify error: ' . $e->getMessage());
+        }
+
+        return ['success' => true];
     }
 
     /**
@@ -149,7 +247,8 @@ class Chat
         ?string $attachmentPath = null,
         ?string $attachmentName = null,
         ?int $attachmentSize = null,
-        ?string $attachmentMime = null
+        ?string $attachmentMime = null,
+        bool $isInternal = false
     ): array {
         if (empty(trim($message)) && empty($attachmentPath)) {
             return ['success' => false, 'error' => 'Messaggio vuoto'];
@@ -165,12 +264,19 @@ class Chat
             return ['success' => false, 'error' => 'Conversazione non trovata'];
         }
 
-        // Verifica che l'utente sia un partecipante
-        $isParticipant = ($conv['participant1_type'] === $senderType && $conv['participant1_id'] == $senderId)
-                      || ($conv['participant2_type'] === $senderType && $conv['participant2_id'] == $senderId);
+        // Verifica che l'utente sia un partecipante (incluso il terzo)
+        $isParticipant = false;
+        foreach (self::participantsOf($conv) as $p) {
+            if ($p['type'] === $senderType && $p['id'] === $senderId) { $isParticipant = true; break; }
+        }
 
         if (!$isParticipant) {
             return ['success' => false, 'error' => 'Non sei un partecipante di questa conversazione'];
+        }
+
+        // I messaggi interni sono riservati allo staff: un dipendente non può inviarli
+        if ($senderType === 'employee') {
+            $isInternal = false;
         }
 
         try {
@@ -184,7 +290,8 @@ class Chat
                 'attachment_name' => $attachmentName,
                 'attachment_size' => $attachmentSize,
                 'attachment_mime' => $attachmentMime,
-                'is_read' => 0
+                'is_read' => 0,
+                'is_internal' => $isInternal ? 1 : 0
             ]);
 
             // Aggiorna timestamp ultima attività
@@ -192,9 +299,9 @@ class Chat
                 'last_message_at' => date('Y-m-d H:i:s')
             ], 'id = ?', [$conversationId]);
 
-            // Crea notifica per l'altro partecipante (ignora errori)
+            // Crea notifica per gli altri partecipanti (ignora errori)
             try {
-                self::createMessageNotification($conv, $senderType, $senderId, $message);
+                self::createMessageNotification($conv, $senderType, $senderId, $message, $isInternal);
             } catch (Exception $notifErr) {
                 // Ignora errori notifica, il messaggio è già stato inviato
                 error_log('Chat notification error: ' . $notifErr->getMessage());
@@ -212,12 +319,14 @@ class Chat
      */
     public static function markAsRead(int $conversationId, string $readerType, int $readerId): void
     {
+        // Il dipendente non vede (e non deve "leggere") i messaggi interni dello staff
+        $intFilter = $readerType === 'employee' ? ' AND is_internal = 0' : '';
         Database::query(
             "UPDATE chat_messages
              SET is_read = TRUE
              WHERE conversation_id = ?
                AND NOT (sender_type = ? AND sender_id = ?)
-               AND is_read = FALSE",
+               AND is_read = FALSE$intFilter",
             [$conversationId, $readerType, $readerId]
         );
     }
@@ -228,15 +337,17 @@ class Chat
     public static function countUnread(string $userType, int $userId): int
     {
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $intFilter = $userType === 'employee' ? ' AND cm.is_internal = 0' : '';
         return (int) Database::fetchColumn(
             "SELECT COUNT(*) FROM chat_messages cm
              JOIN chat_conversations cc ON cm.conversation_id = cc.id
              WHERE cc.company_id = ?
                AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
-                    OR (cc.participant2_type = ? AND cc.participant2_id = ?))
+                    OR (cc.participant2_type = ? AND cc.participant2_id = ?)
+                    OR (cc.participant3_type = ? AND cc.participant3_id = ?))
                AND NOT (cm.sender_type = ? AND cm.sender_id = ?)
-               AND cm.is_read = FALSE",
-            [$cid, $userType, $userId, $userType, $userId, $userType, $userId]
+               AND cm.is_read = FALSE$intFilter",
+            [$cid, $userType, $userId, $userType, $userId, $userType, $userId, $userType, $userId]
         );
     }
 
@@ -385,17 +496,36 @@ class Chat
         array $conversation,
         string $senderType,
         int $senderId,
-        string $message
+        string $message,
+        bool $isInternal = false
     ): void {
-        // Determina destinatario
-        if ($conversation['participant1_type'] === $senderType && $conversation['participant1_id'] == $senderId) {
-            $recipientType = $conversation['participant2_type'];
-            $recipientId = $conversation['participant2_id'];
-        } else {
-            $recipientType = $conversation['participant1_type'];
-            $recipientId = $conversation['participant1_id'];
+        // Destinatari: tutti i partecipanti tranne il mittente.
+        // I messaggi interni non arrivano MAI al dipendente.
+        $recipients = array_values(array_filter(self::participantsOf($conversation), function ($p) use ($senderType, $senderId, $isInternal) {
+            if ($p['type'] === $senderType && $p['id'] === $senderId) return false;
+            if ($isInternal && $p['type'] === 'employee') return false;
+            return true;
+        }));
+        foreach ($recipients as $r) {
+            try {
+                self::notifyRecipient($conversation, $senderType, $senderId, $message, $r['type'], $r['id']);
+            } catch (Throwable $e) {
+                error_log('[Chat] notifyRecipient error: ' . $e->getMessage());
+            }
         }
+    }
 
+    /**
+     * Notifica un singolo destinatario di un nuovo messaggio (in-app + Wrike + push + email).
+     */
+    private static function notifyRecipient(
+        array $conversation,
+        string $senderType,
+        int $senderId,
+        string $message,
+        string $recipientType,
+        int $recipientId
+    ): void {
         $senderName = self::getParticipantName($senderType, $senderId);
         $preview = mb_strlen($message) > 50 ? mb_substr($message, 0, 47) . '...' : $message;
         $chatUrl = self::getChatUrl($recipientType) . '?conv=' . $conversation['id'];
@@ -550,7 +680,8 @@ class Chat
     public static function getAttachment(int $messageId, string $userType, int $userId): array
     {
         $msg = Database::fetchOne(
-            "SELECT m.*, c.participant1_type, c.participant1_id, c.participant2_type, c.participant2_id
+            "SELECT m.*, c.participant1_type, c.participant1_id, c.participant2_type, c.participant2_id,
+                    c.participant3_type, c.participant3_id
              FROM chat_messages m
              JOIN chat_conversations c ON c.id = m.conversation_id
              WHERE m.id = ?",
@@ -563,7 +694,13 @@ class Chat
         }
 
         $isParticipant = ($msg['participant1_type'] === $userType && (int)$msg['participant1_id'] === $userId)
-                      || ($msg['participant2_type'] === $userType && (int)$msg['participant2_id'] === $userId);
+                      || ($msg['participant2_type'] === $userType && (int)$msg['participant2_id'] === $userId)
+                      || ($msg['participant3_type'] === $userType && (int)$msg['participant3_id'] === $userId);
+
+        // Allegati di messaggi interni: mai accessibili al dipendente
+        if ($isParticipant && !empty($msg['is_internal']) && $userType === 'employee') {
+            $isParticipant = false;
+        }
 
         if (!$isParticipant) {
             if (class_exists('AuditLog')) {
