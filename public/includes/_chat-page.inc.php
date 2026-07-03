@@ -1049,17 +1049,20 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
 }
 .composer.internal-mode textarea { background: transparent; }
 
-/* Menu "Fai intervenire" */
+/* Menu "Fai intervenire" — position:fixed + append al body (come l'emoji picker)
+   per non essere clippato dagli overflow:hidden dei pannelli chat */
 .invite-wrap { position: relative; display: inline-flex; }
 .invite-menu {
-    position: absolute; top: calc(100% + 6px); right: 0;
-    width: 260px;
+    position: fixed;
+    width: min(280px, calc(100vw - 16px));
+    max-height: min(60vh, 380px);
+    overflow-y: auto;
     background: white;
     border: 1px solid var(--chat-border);
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(15,23,42,0.18);
     padding: 8px;
-    z-index: 900;
+    z-index: 1000;
 }
 .invite-menu[hidden] { display: none !important; }
 .invite-menu-title {
@@ -1674,16 +1677,36 @@ function insertEmojiChar(em) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    /* Menu "Fai intervenire" */
+    /* Menu "Fai intervenire" — spostato sul body e posizionato fixed sotto il
+       bottone, così resta SEMPRE visibile (niente clipping da overflow:hidden) */
     const btnInvite = document.getElementById('btnInvite');
     const inviteMenu = document.getElementById('inviteMenu');
     if (btnInvite && inviteMenu) {
+        if (inviteMenu.parentElement !== document.body) document.body.appendChild(inviteMenu);
+        const positionInviteMenu = () => {
+            const r = btnInvite.getBoundingClientRect();
+            const mw = Math.min(280, window.innerWidth - 16);
+            // allinea il bordo destro del menu al bordo destro del bottone
+            let left = r.right - mw;
+            if (left < 8) left = 8;
+            if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+            let top = r.bottom + 6;
+            // se non c'è spazio sotto, aprilo sopra il bottone
+            const mh = Math.min(inviteMenu.scrollHeight || 300, Math.min(window.innerHeight * 0.6, 380));
+            if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+            inviteMenu.style.left = left + 'px';
+            inviteMenu.style.top = top + 'px';
+        };
         btnInvite.addEventListener('click', (e) => {
             e.stopPropagation();
-            inviteMenu.hidden = !inviteMenu.hidden;
+            const opening = inviteMenu.hidden;
+            inviteMenu.hidden = !opening ? true : false;
+            if (opening) positionInviteMenu();
         });
+        window.addEventListener('resize', () => { if (!inviteMenu.hidden) positionInviteMenu(); });
+        window.addEventListener('scroll', () => { if (!inviteMenu.hidden) positionInviteMenu(); }, true);
         document.addEventListener('click', (e) => {
-            if (!inviteMenu.hidden && !inviteMenu.contains(e.target) && e.target !== btnInvite) {
+            if (!inviteMenu.hidden && !inviteMenu.contains(e.target) && !btnInvite.contains(e.target)) {
                 inviteMenu.hidden = true;
             }
         });
