@@ -23,7 +23,6 @@ if ($isAdmin) {
         [$__cid]
     );
 }
-$pendingResets = $isAdmin ? (int) Auth::countPendingResetRequests() : 0;
 $unreadChats = class_exists('Chat')
     ? (int) Chat::countUnread($isAdmin ? 'admin' : ($isConsulente ? 'consulente_lavoro' : 'accountant'), $currentUser['id'])
     : 0;

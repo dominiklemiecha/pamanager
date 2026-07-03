@@ -40,7 +40,8 @@ $accountantCount = (int) Database::fetchColumn(
 );
 
 // ===== Azioni richieste =====
-$pendingResets = (int) Auth::countPendingResetRequests();
+// Reset password esclusi: li fanno gli utenti in autonomia (self-service),
+// non sono più un'azione richiesta all'admin.
 $pendingLeaves = 0;
 $pendingLeavesList = [];
 try {
@@ -57,7 +58,7 @@ try {
         [$__cid]
     );
 } catch (Exception $e) {}
-$totalActions = $pendingResets + $pendingLeaves;
+$totalActions = $pendingLeaves;
 
 // ===== Saluto dinamico per fascia oraria =====
 $__hour = (int) date('H');
@@ -133,8 +134,8 @@ try {
     $__upcomingEvents = $__upcomingBirthdays + $__upcomingAnniversaries;
 } catch (Throwable $e) {}
 
-// ===== Da approvare totali (ferie + reset password) =====
-$__totalApprovals = $pendingLeaves + $pendingResets;
+// ===== Da approvare totali =====
+$__totalApprovals = $pendingLeaves;
 $__absentToday = count($todayOnLeaveIds);
 
 // ===== Ultime attività =====
@@ -284,8 +285,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         <h2><?= $__greeting ?>, <?= htmlspecialchars(explode(' ', $user['name'])[0]) ?> 👋</h2>
         <p>
             <?php if ($totalActions > 0): ?>
-                Hai <?= $pendingLeaves ?> <?= $pendingLeaves === 1 ? 'richiesta in attesa' : 'richieste in attesa' ?>
-                <?php if ($pendingResets > 0): ?> e <?= $pendingResets ?> reset password<?php endif; ?>.
+                Hai <?= $pendingLeaves ?> <?= $pendingLeaves === 1 ? 'richiesta in attesa' : 'richieste in attesa' ?>.
             <?php else: ?>
                 Tutto in ordine. Nessuna azione richiesta al momento.
             <?php endif; ?>
