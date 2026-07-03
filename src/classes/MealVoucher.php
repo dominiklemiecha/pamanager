@@ -6,8 +6,9 @@
  *
  * Regola: 1 ticket per ogni giorno lavorativo non festivo in cui
  *   ore_effettive = hours_per_day - permessi_a_ore >= min_hours
- * e non c'è un'assenza a giornata intera. I giorni di smart working ricorrente
- * danno ticket solo se sw_eligible.
+ * e non c'è un'assenza a giornata intera. Se la soglia è disattivata
+ * (min_hours_enabled=false) basta ore_effettive > 0. I giorni di smart working
+ * ricorrente danno ticket solo se sw_eligible.
  */
 class MealVoucher
 {
@@ -19,7 +20,8 @@ class MealVoucher
      *
      * @param array $cfg config risolta:
      *   enabled bool, excluded bool, working_days string[], hours_per_day float,
-     *   smart_working_days string[], min_hours float, sw_eligible bool
+     *   smart_working_days string[], min_hours_enabled bool, min_hours float,
+     *   sw_eligible bool
      * @param array $dailyLeave ['YYYY-MM-DD' => ['full' => bool, 'hours' => float]]
      *   assenze approvate del dipendente nel mese (giornata intera / permessi a ore)
      */
@@ -30,6 +32,7 @@ class MealVoucher
         $workingDays = array_flip($cfg['working_days'] ?? []);
         $swDays      = array_flip($cfg['smart_working_days'] ?? []);
         $hoursPerDay = (float) ($cfg['hours_per_day'] ?? 8.0);
+        $minHoursOn  = !array_key_exists('min_hours_enabled', $cfg) || !empty($cfg['min_hours_enabled']);
         $minHours    = (float) ($cfg['min_hours'] ?? 6.0);
         $swEligible  = !empty($cfg['sw_eligible']);
 
@@ -47,7 +50,7 @@ class MealVoucher
             $leave = $dailyLeave[$ymd] ?? null;
             if ($leave && !empty($leave['full'])) continue;
             $oreEff = $hoursPerDay - ($leave ? (float) ($leave['hours'] ?? 0.0) : 0.0);
-            if ($oreEff < $minHours) continue;
+            if ($minHoursOn ? $oreEff < $minHours : $oreEff <= 0) continue;
 
             $count++;
         }

@@ -21,8 +21,8 @@ class PresenzeExport
     private array $scheduleCache = [];
     /** @var array<int, array<string, array{full:bool,hours:float}>> assenze per-giorno per il calcolo buoni pasto */
     private array $dailyLeave = [];
-    /** @var array{enabled:bool,min_hours:float,sw_eligible:bool} config buoni pasto azienda */
-    private array $mealVoucherCfg = ['enabled' => false, 'min_hours' => 6.0, 'sw_eligible' => false];
+    /** @var array{enabled:bool,min_hours_enabled:bool,min_hours:float,sw_eligible:bool,smart_working_days:array} config buoni pasto azienda */
+    private array $mealVoucherCfg = ['enabled' => false, 'min_hours_enabled' => true, 'min_hours' => 6.0, 'sw_eligible' => false, 'smart_working_days' => []];
     /** Chiavi giorno settimana index 0=lunedi..6=domenica (allineate a date('N')-1). */
     private const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
     public int $writtenEmployees = 0;
@@ -97,13 +97,19 @@ class PresenzeExport
             [$cid]
         );
         $comp = Database::fetchOne(
-            "SELECT buoni_pasto_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible FROM companies WHERE id = ?",
+            "SELECT buoni_pasto_enabled, buoni_pasto_min_hours_enabled, buoni_pasto_min_hours,
+                    buoni_pasto_sw_eligible, smart_working_days
+             FROM companies WHERE id = ?",
             [$cid]
         );
         $this->mealVoucherCfg = [
-            'enabled'     => !empty($comp['buoni_pasto_enabled']),
-            'min_hours'   => (float) ($comp['buoni_pasto_min_hours'] ?? 6.0),
-            'sw_eligible' => !empty($comp['buoni_pasto_sw_eligible']),
+            'enabled'            => !empty($comp['buoni_pasto_enabled']),
+            'min_hours_enabled'  => !empty($comp['buoni_pasto_min_hours_enabled']),
+            'min_hours'          => (float) ($comp['buoni_pasto_min_hours'] ?? 6.0),
+            'sw_eligible'        => !empty($comp['buoni_pasto_sw_eligible']),
+            'smart_working_days' => !empty($comp['smart_working_days'])
+                ? array_values(array_filter(array_map('trim', explode(',', $comp['smart_working_days']))))
+                : [],
         ];
     }
 
@@ -238,15 +244,17 @@ class PresenzeExport
         if (!$this->mealVoucherCfg['enabled'] || !class_exists('MealVoucher')) return null;
         $empId = (int) $emp['id'];
         $sched = $this->scheduleFor($empId);
-        $sw = !empty($emp['smart_working_days'])
+        // SW: null = eredita azienda, stringa (anche vuota) = override dipendente
+        $sw = $emp['smart_working_days'] !== null
             ? array_values(array_filter(array_map('trim', explode(',', $emp['smart_working_days']))))
-            : [];
+            : $this->mealVoucherCfg['smart_working_days'];
         $cfg = [
             'enabled'            => true,
             'excluded'           => !empty($emp['buoni_pasto_excluded']),
             'working_days'       => $sched['days'],
             'hours_per_day'      => $sched['hours'],
             'smart_working_days' => $sw,
+            'min_hours_enabled'  => $this->mealVoucherCfg['min_hours_enabled'],
             'min_hours'          => isset($emp['buoni_pasto_min_hours_override'])
                 ? (float) $emp['buoni_pasto_min_hours_override']
                 : $this->mealVoucherCfg['min_hours'],

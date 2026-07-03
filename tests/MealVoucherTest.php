@@ -35,6 +35,7 @@ function baseCfg(array $override = []): array
         'working_days'       => ['mon', 'tue', 'wed', 'thu', 'fri'],
         'hours_per_day'      => 8.0,
         'smart_working_days' => [],
+        'min_hours_enabled'  => true,
         'min_hours'          => 6.0,
         'sw_eligible'        => false,
     ], $override);
@@ -90,6 +91,24 @@ check('sabato lavorativo', 25, MealVoucher::monthlyCount(baseCfg(['working_days'
 // Festività su giorno lavorativo esclusa anche con assenze vuote (già coperto dal 21)
 // Dicembre 2026: 25 (ven) e 26 (sab) festivi, 8 (mar) festivo -> lun-ven = 23 - 2 = 21
 check('dicembre con festività', 21, MealVoucher::monthlyCount(baseCfg(), 2026, 12, []));
+
+// Soglia disattivata (min_hours_enabled=false): part-time 3h prende comunque il ticket
+check('soglia disattivata part-time', 21, MealVoucher::monthlyCount(baseCfg(['min_hours_enabled' => false, 'hours_per_day' => 3.0]), 2026, 6, []));
+
+// Soglia disattivata: permesso a ore che copre TUTTA la giornata -> niente ticket (ore_eff = 0)
+check('soglia disattivata giornata coperta da permesso', 20, MealVoucher::monthlyCount(baseCfg(['min_hours_enabled' => false]), 2026, 6, [
+    '2026-06-10' => ['full' => false, 'hours' => 8.0],
+]));
+
+// Soglia disattivata: permesso a ore parziale -> ticket (ore_eff > 0)
+check('soglia disattivata permesso parziale', 21, MealVoucher::monthlyCount(baseCfg(['min_hours_enabled' => false]), 2026, 6, [
+    '2026-06-11' => ['full' => false, 'hours' => 7.5],
+]));
+
+// Soglia disattivata: assenza a giornata intera resta esclusa
+check('soglia disattivata assenza intera', 20, MealVoucher::monthlyCount(baseCfg(['min_hours_enabled' => false]), 2026, 6, [
+    '2026-06-12' => ['full' => true, 'hours' => 0.0],
+]));
 
 echo "\n$tests test, $failures falliti\n";
 exit($failures > 0 ? 1 : 0);
