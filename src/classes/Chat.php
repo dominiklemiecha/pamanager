@@ -146,6 +146,15 @@ class Chat
                 $conv['extra_participants'][] = $p + ['name' => self::getParticipantName($p['type'], $p['id'])];
             }
         }
+        unset($conv);
+
+        // Conversazioni con dipendenti DISATTIVATI: nascoste dalla chat
+        // (riappaiono se il dipendente viene riattivato).
+        $conversations = array_values(array_filter($conversations, function ($conv) {
+            if ($conv['other_type'] !== 'employee') return true;
+            $emp = Employee::getById((int) $conv['other_id']);
+            return $emp && !empty($emp['is_active']);
+        }));
 
         return $conversations;
     }
@@ -367,7 +376,11 @@ class Chat
                                WHERE ep.conversation_id = cc.id
                                  AND ep.participant_type = ? AND ep.participant_id = ?))
                AND NOT (cm.sender_type = ? AND cm.sender_id = ?)
-               AND cm.is_read = FALSE$intFilter",
+               AND cm.is_read = FALSE$intFilter
+               AND NOT EXISTS (SELECT 1 FROM employees ei
+                               WHERE ei.is_active = FALSE
+                                 AND ((cc.participant1_type = 'employee' AND cc.participant1_id = ei.id)
+                                      OR (cc.participant2_type = 'employee' AND cc.participant2_id = ei.id)))",
             [$cid, $userType, $userId, $userType, $userId, $userType, $userId, $userType, $userId]
         );
     }
@@ -487,6 +500,14 @@ class Chat
         // Niente self-chat
         if ($fromType === $toType && $fromId === $toId) {
             return false;
+        }
+
+        // Dipendenti disattivati: non contattabili da nessuno
+        if ($toType === 'employee') {
+            $target = Employee::getById($toId);
+            if (!$target || empty($target['is_active'])) {
+                return false;
+            }
         }
 
         // Admin / accountant / consulente_lavoro: contattano tutti
