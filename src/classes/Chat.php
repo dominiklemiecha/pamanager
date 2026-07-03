@@ -265,6 +265,60 @@ class Chat
     }
 
     /**
+     * Rimuove un partecipante EXTRA dalla conversazione (i 2 originali non si toccano).
+     * Può farlo qualsiasi admin/consulente partecipante; un invitato può anche
+     * rimuovere se stesso ("esci dalla conversazione"). Il rimosso non vede più
+     * la chat e non riceve più notifiche; rientra solo con un nuovo invito.
+     */
+    public static function removeStaffParticipant(
+        int $conversationId,
+        string $byType, int $byId,
+        string $remType, int $remId
+    ): array {
+        $conv = self::isParticipant($conversationId, $byType, $byId);
+        if (!$conv) {
+            return ['success' => false, 'error' => 'Accesso non autorizzato'];
+        }
+        if (!in_array($byType, ['admin', 'consulente_lavoro'], true)) {
+            return ['success' => false, 'error' => 'Solo admin e consulente del lavoro possono rimuovere partecipanti'];
+        }
+        $isExtra = Database::exists(
+            'chat_extra_participants',
+            'conversation_id = ? AND participant_type = ? AND participant_id = ?',
+            [$conversationId, $remType, $remId]
+        );
+        if (!$isExtra) {
+            return ['success' => false, 'error' => 'Puoi rimuovere solo i partecipanti aggiunti alla conversazione'];
+        }
+
+        Database::delete(
+            'chat_extra_participants',
+            'conversation_id = ? AND participant_type = ? AND participant_id = ?',
+            [$conversationId, $remType, $remId]
+        );
+
+        // Notifica il rimosso (se non sta uscendo da solo) — best-effort
+        $isSelf = ($remType === $byType && $remId === $byId);
+        if (!$isSelf) {
+            try {
+                $byName = self::getParticipantName($byType, $byId);
+                Notification::create([
+                    'recipient_type' => $remType,
+                    'recipient_id'   => $remId,
+                    'type'           => 'new_message',
+                    'title'          => $byName . ' ti ha rimosso da una conversazione',
+                    'message'        => 'Non riceverai più notifiche da questa chat',
+                    'link'           => self::getChatUrl($remType),
+                ]);
+            } catch (Throwable $e) {
+                error_log('[Chat] removeStaffParticipant notify error: ' . $e->getMessage());
+            }
+        }
+
+        return ['success' => true, 'left' => $isSelf];
+    }
+
+    /**
      * Invia un messaggio
      */
     public static function sendMessage(
@@ -560,7 +614,7 @@ class Chat
         }));
         foreach ($recipients as $r) {
             try {
-                self::notifyRecipient($conversation, $senderType, $senderId, $message, $r['type'], $r['id']);
+                self::notifyRecipient($conversation, $senderType, $senderId, $message, $r['type'], $r['id'], $isInternal);
             } catch (Throwable $e) {
                 error_log('[Chat] notifyRecipient error: ' . $e->getMessage());
             }
@@ -576,18 +630,22 @@ class Chat
         int $senderId,
         string $message,
         string $recipientType,
-        int $recipientId
+        int $recipientId,
+        bool $isInternal = false
     ): void {
         $senderName = self::getParticipantName($senderType, $senderId);
         $preview = mb_strlen($message) > 50 ? mb_substr($message, 0, 47) . '...' : $message;
         $chatUrl = self::getChatUrl($recipientType) . '?conv=' . $conversation['id'];
+        // Le note interne (solo staff) hanno un titolo distinto, così non si
+        // confondono con i messaggi normali della conversazione col dipendente.
+        $notifTitle = ($isInternal ? 'Nota interna da ' : 'Nuovo messaggio da ') . $senderName;
 
         // Notifica in-app (database)
         Notification::create([
             'recipient_type' => $recipientType,
             'recipient_id' => $recipientId,
             'type' => 'new_message',
-            'title' => 'Nuovo messaggio da ' . $senderName,
+            'title' => $notifTitle,
             'message' => $preview,
             'link' => $chatUrl
         ]);
@@ -606,7 +664,7 @@ class Chat
         try {
             error_log('[Chat] Invio push a ' . $recipientType . ' #' . $recipientId);
             $pushResult = PushNotification::sendToUser($recipientType, (int)$recipientId, [
-                'title' => 'Nuovo messaggio da ' . $senderName,
+                'title' => $notifTitle,
                 'body' => $preview,
                 'url' => $chatUrl,
                 'tag' => 'chat-' . $conversation['id'],
@@ -629,16 +687,17 @@ class Chat
                     $senderSafe  = htmlspecialchars($senderName);
                     $previewSafe = nl2br(htmlspecialchars($preview));
 
+                    $whatSafe = $isInternal ? 'una <strong>nota interna</strong> (invisibile al dipendente) da' : 'un nuovo messaggio da';
                     $html = "<p>Ciao {$nameSafe},</p>"
-                          . "<p>Hai ricevuto un nuovo messaggio da <strong>{$senderSafe}</strong>:</p>"
+                          . "<p>Hai ricevuto {$whatSafe} <strong>{$senderSafe}</strong>:</p>"
                           . "<blockquote style=\"border-left:3px solid #ccc;padding-left:1em;color:#444;\">{$previewSafe}</blockquote>"
                           . "<p><a href=\"{$loginUrl}\">Apri la chat per rispondere</a></p>";
-                    $text = "Ciao {$recipient['name']},\n\nNuovo messaggio da {$senderName}:\n\n{$preview}\n\nApri la chat: {$loginUrl}";
+                    $text = "Ciao {$recipient['name']},\n\n{$notifTitle}:\n\n{$preview}\n\nApri la chat: {$loginUrl}";
 
                     if ($recipientType === 'employee') {
-                        Mailer::sendToEmployee((int) $recipientId, 'Nuovo messaggio da ' . $senderName, $html, $text);
+                        Mailer::sendToEmployee((int) $recipientId, $notifTitle, $html, $text);
                     } else {
-                        Mailer::send($recipient['email'], $recipient['name'], 'Nuovo messaggio da ' . $senderName, $html, $text);
+                        Mailer::send($recipient['email'], $recipient['name'], $notifTitle, $html, $text);
                     }
                 }
             }
