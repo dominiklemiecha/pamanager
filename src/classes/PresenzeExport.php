@@ -161,8 +161,16 @@ class PresenzeExport
                     $this->summary[$empId] = ['ferie_d' => 0, 'permessi_h' => 0.0, 'malattia_d' => 0, 'p104_h' => 0.0];
                 }
                 switch ($r['leave_type']) {
-                    case 'ferie':         $this->summary[$empId]['ferie_d']++;    break;
-                    case 'malattia':      $this->summary[$empId]['malattia_d']++; break;
+                    case 'ferie':
+                    case 'malattia':
+                        // Conta solo i giorni lavorativi del dipendente, festività escluse:
+                        // weekend e festivi non consumano ferie/malattia.
+                        $sched = $this->scheduleFor($empId);
+                        $dayKey = self::DAY_KEYS[((int)$d->format('N')) - 1];
+                        if (!in_array($dayKey, $sched['days'], true)) break;
+                        if (class_exists('ItalianHolidays') && ItalianHolidays::isHoliday($key)) break;
+                        $this->summary[$empId][$r['leave_type'] === 'ferie' ? 'ferie_d' : 'malattia_d']++;
+                        break;
                     case 'permesso':
                     case 'permesso_104':
                         // Ore contrattuali del dipendente, solo su giorni lavorativi:
