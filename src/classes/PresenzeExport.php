@@ -149,9 +149,10 @@ class PresenzeExport
                     $this->dailyLeave[$empId][$key] = ['full' => false, 'hours' => 0.0];
                 }
                 if ($isHourlyPermit) {
-                    $s0 = strtotime($key . ' ' . $r['start_time']);
-                    $e0 = strtotime($key . ' ' . $r['end_time']);
-                    if ($e0 > $s0) $this->dailyLeave[$empId][$key]['hours'] += ($e0 - $s0) / 3600.0;
+                    $schedL = $this->scheduleFor($empId);
+                    $this->dailyLeave[$empId][$key]['hours'] += class_exists('LeaveBalance')
+                        ? LeaveBalance::effectiveHours($r['start_time'], $r['end_time'], $schedL['lunch_start'] ?? null, $schedL['lunch_end'] ?? null)
+                        : max(0, (strtotime($key . ' ' . $r['end_time']) - strtotime($key . ' ' . $r['start_time'])) / 3600.0);
                 } else {
                     $this->dailyLeave[$empId][$key]['full'] = true;
                 }
@@ -184,9 +185,10 @@ class PresenzeExport
                         if ($isFull) {
                             $this->summary[$empId][$bucket] += $sched['hours'];
                         } else {
-                            $s = strtotime($key . ' ' . $r['start_time']);
-                            $e = strtotime($key . ' ' . $r['end_time']);
-                            if ($e > $s) $this->summary[$empId][$bucket] += ($e - $s) / 3600.0;
+                            // Al netto della pausa pranzo aziendale (se configurata)
+                            $this->summary[$empId][$bucket] += class_exists('LeaveBalance')
+                                ? LeaveBalance::effectiveHours($r['start_time'], $r['end_time'], $sched['lunch_start'] ?? null, $sched['lunch_end'] ?? null)
+                                : max(0, (strtotime($key . ' ' . $r['end_time']) - strtotime($key . ' ' . $r['start_time'])) / 3600.0);
                         }
                         break;
                 }
