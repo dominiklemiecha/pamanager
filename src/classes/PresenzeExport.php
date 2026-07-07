@@ -651,8 +651,11 @@ class PresenzeExport
         $this->templateRowsAvailable = count($empRowsTemplate);
 
         $dbCount = count($this->employees);
-        $this->overflow = $dbCount > $this->templateRowsAvailable;
-        $maxWrite = min($dbCount, $this->templateRowsAvailable);
+        if ($dbCount > count($empRowsTemplate) && !empty($empRowsTemplate)) {
+            $empRowsTemplate = $this->expandEmployeeRows($dom, $xpath, $empRowsTemplate, $dbCount - count($empRowsTemplate));
+        }
+        $this->overflow = $dbCount > count($empRowsTemplate);
+        $maxWrite = min($dbCount, count($empRowsTemplate));
 
         // 3) Scrivi i dipendenti DB nelle righe template
         for ($i = 0; $i < $maxWrite; $i++) {
@@ -727,12 +730,55 @@ class PresenzeExport
         // 4) Cancella righe decorative (1,2,4) + righe dipendente non usate.
         // Renumera tutto in modo che la riga date diventi riga 1.
         $rowsToRemove = [1, 2, 4];
-        for ($i = $maxWrite; $i < $this->templateRowsAvailable; $i++) {
+        for ($i = $maxWrite; $i < count($empRowsTemplate); $i++) {
             $rowsToRemove[] = $empRowsTemplate[$i];
         }
         $this->renumberRows($xpath, $rowsToRemove);
 
         return $dom->saveXML();
+    }
+
+    /**
+     * Quando i dipendenti superano le righe del template, clona l'ultima riga
+     * dipendente (stili weekend/weekday preservati, contenuto svuotato) per le
+     * righe mancanti, spostando in giu' le righe successive (legenda inclusa).
+     * Restituisce l'elenco righe dipendente aggiornato.
+     */
+    private function expandEmployeeRows(DOMDocument $dom, DOMXPath $xpath, array $empRows, int $extra): array
+    {
+        $lastRow = (int) end($empRows);
+        $lastRowNodes = $xpath->query("//s:sheetData/s:row[@r=\"$lastRow\"]");
+        if ($lastRowNodes->length === 0) return $empRows;
+        $lastRowEl = $lastRowNodes->item(0);
+
+        // 1) Sposta in giu' di $extra tutte le righe dopo l'ultima riga dipendente
+        foreach ($xpath->query('//s:sheetData/s:row') as $row) {
+            $r = (int) $row->getAttribute('r');
+            if ($r <= $lastRow) continue;
+            $newR = $r + $extra;
+            $row->setAttribute('r', (string) $newR);
+            foreach ($row->getElementsByTagName('c') as $c) {
+                $col = preg_replace('/\d+/', '', $c->getAttribute('r'));
+                $c->setAttribute('r', $col . $newR);
+            }
+        }
+
+        // 2) Inserisci i cloni subito dopo l'ultima riga dipendente
+        $insertBefore = $lastRowEl->nextSibling;
+        for ($i = 1; $i <= $extra; $i++) {
+            $newR = $lastRow + $i;
+            $clone = $lastRowEl->cloneNode(true);
+            $clone->setAttribute('r', (string) $newR);
+            foreach ($clone->getElementsByTagName('c') as $c) {
+                $col = preg_replace('/\d+/', '', $c->getAttribute('r'));
+                $c->setAttribute('r', $col . $newR);
+                while ($c->firstChild) $c->removeChild($c->firstChild);
+                $c->removeAttribute('t');
+            }
+            $lastRowEl->parentNode->insertBefore($clone, $insertBefore);
+            $empRows[] = $newR;
+        }
+        return $empRows;
     }
 
     private function readCellText(DOMXPath $xpath, string $cellRef, array $shared): string
