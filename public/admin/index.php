@@ -28,6 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['action'] ?? ''), 
 
 // ===== Statistiche (scoped per azienda corrente) =====
 $__cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+
+// ===== Periodo di prova: apre alert e disattivazioni programmate (idempotente) =====
+if (class_exists('Probation')) {
+    Probation::runChecks($__cid);
+}
+
 $employeeCount = Employee::count(true);
 $documentCount = Document::count();
 $unreadComms   = (int) Database::fetchColumn(
@@ -278,6 +284,16 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 
 <?php include dirname(__DIR__) . '/includes/widget-tenant-wizard.php'; ?>
 <?php include dirname(__DIR__) . '/includes/widget-birthday-banner.php'; ?>
+
+<?php if (($_GET['probation'] ?? '') === 'confirmed'): ?>
+    <div class="alert alert-success">Periodo di prova confermato. Il consulente è stato avvisato.</div>
+<?php elseif (($_GET['probation'] ?? '') === 'not_confirmed'): ?>
+    <div class="alert alert-success">Decisione registrata: prova non superata. Il consulente è stato avvisato; la disattivazione avverrà alla data di fine prova.</div>
+<?php elseif (($_GET['probation'] ?? '') === 'err'): ?>
+    <div class="alert alert-danger">Impossibile registrare la decisione sul periodo di prova.</div>
+<?php endif; ?>
+
+<?php include dirname(__DIR__) . '/includes/widget-probation-alerts.php'; ?>
 
 <!-- Welcome card -->
 <div class="welcome-card">

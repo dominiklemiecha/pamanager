@@ -1039,6 +1039,29 @@ class HireRequest
             return ['success' => false, 'error' => 'Errore upload: ' . $e->getMessage()];
         }
 
+        // Assist auto periodo di prova: leggi la fine prova dal contratto e proponila
+        // all'admin (solo se il dipendente non ha gia' una data impostata; mai applicata
+        // in automatico senza conferma umana — l'admin verifica nella scheda dipendente).
+        if (!empty($hr['employee_id']) && class_exists('ProbationParser') && class_exists('Probation')) {
+            try {
+                $__cRow = Database::fetchOne(
+                    "SELECT * FROM hire_request_files WHERE hire_request_id = ? AND category = 'contract' ORDER BY id DESC LIMIT 1",
+                    [$hireRequestId]
+                );
+                if ($__cRow) {
+                    $__cFs = self::fileFsPath($__cRow);
+                    if (is_file($__cFs)) {
+                        $__parsed = ProbationParser::parse($__cFs, $hr['start_date'] ?? null);
+                        if (!empty($__parsed['end_date'])) {
+                            Probation::applyContractSuggestion((int)$hr['employee_id'], $__parsed['end_date'], (int)$hr['company_id']);
+                        }
+                    }
+                }
+            } catch (Throwable $e) {
+                error_log('[HireRequest::addContract] probation assist: ' . $e->getMessage());
+            }
+        }
+
         // Traccia sullo step Wrike (commento sul task della richiesta)
         if (class_exists('Wrike') && !empty($hr['assigned_consulente_user_id'])) {
             try {

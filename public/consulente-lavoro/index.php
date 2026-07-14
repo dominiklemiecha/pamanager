@@ -44,6 +44,11 @@ $recentDocuments = Database::fetchAll(
     [$user['id'], $__cid]
 );
 
+// Notifiche recenti (in-app) del consulente — surface dei messaggi come esiti prova assunzione
+$__notifs = class_exists('Notification') ? Notification::getByUser('consulente_lavoro', (int)$user['id'], false, 8) : [];
+$__notifUnread = 0;
+foreach ($__notifs as $__n) { if (empty($__n['is_read'])) $__notifUnread++; }
+
 $pageTitle = 'Dashboard';
 include dirname(__DIR__) . '/includes/header-admin.php';
 ?>
@@ -254,6 +259,37 @@ $__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 
     @media (max-width: 1000px) { .cl-kpis { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 480px) { .cl-kpis { grid-template-columns: 1fr; } }
     </style>
+
+    <section id="notifiche-card" class="dashboard-card dashboard-card-full" style="margin-top:1rem;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h3>Notifiche recenti<?php if ($__notifUnread > 0): ?> <span class="badge badge-warning" style="vertical-align:middle;"><?= $__notifUnread ?> non lette</span><?php endif; ?></h3>
+        </div>
+        <?php if (empty($__notifs)): ?>
+            <p style="padding:2rem;text-align:center;color:var(--muted);">Nessuna notifica.</p>
+        <?php else: ?>
+            <div style="display:flex;flex-direction:column;">
+            <?php foreach ($__notifs as $__n):
+                $__unread = empty($__n['is_read']);
+                $__href = !empty($__n['link']) ? ($baseUrl . $__n['link']) : null;
+                $__isProbation = ($__n['type'] ?? '') === 'probation_decision';
+            ?>
+                <<?= $__href ? 'a href="' . htmlspecialchars($__href) . '"' : 'div' ?> style="display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid #f1f5f9;text-decoration:none;color:inherit;<?= $__unread ? 'background:rgba(11,58,164,0.035);' : '' ?>">
+                    <span style="width:34px;height:34px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;background:<?= $__isProbation ? 'rgba(217,119,6,0.12);color:#b45309' : 'rgba(11,58,164,0.10);color:#0b3aa4' ?>;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    </span>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:13.5px;color:#1e1e2f;">
+                            <?= e($__n['title']) ?>
+                            <?php if ($__unread): ?><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#0b3aa4;margin-left:6px;vertical-align:middle;"></span><?php endif; ?>
+                        </div>
+                        <div style="font-size:12.5px;color:#6e7191;line-height:1.45;margin-top:2px;"><?= e($__n['message']) ?></div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:3px;"><?= e(formatDateTime($__n['created_at'])) ?></div>
+                    </div>
+                </<?= $__href ? 'a' : 'div' ?>>
+            <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
 
     <section class="dashboard-card dashboard-card-full" style="margin-top:1rem;">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">

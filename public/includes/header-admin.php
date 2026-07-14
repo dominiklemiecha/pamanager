@@ -52,6 +52,12 @@ if (class_exists('HireRequest')) {
     } catch (Throwable $e) {}
 }
 
+// Periodi di prova in scadenza/scaduti senza decisione (solo admin) — badge sul menu Dipendenti
+$probationPending = 0;
+if ($isAdmin && class_exists('Probation')) {
+    try { $probationPending = Probation::pendingCount($__cid); } catch (Throwable $e) {}
+}
+
 // Sublabel data per sidebar (admin)
 $__sb = ['emp' => '', 'comm' => '', 'pres' => '', 'dept' => ''];
 if ($isAdmin) {
@@ -160,8 +166,9 @@ if (!empty($__currentTenant['name'])) {
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     <span class="nav-content">
                         <span class="nav-title">Dipendenti</span>
-                        <span class="nav-sub"><?php echo $__sb['emp'] ?: 'Anagrafica'; ?></span>
+                        <span class="nav-sub"><?php echo $probationPending > 0 ? $probationPending . ' ' . ($probationPending === 1 ? 'prova da decidere' : 'prove da decidere') : ($__sb['emp'] ?: 'Anagrafica'); ?></span>
                     </span>
+                    <?php if ($probationPending > 0): ?><span class="nav-pulse" title="<?php echo $probationPending; ?> periodi di prova da decidere"></span><?php endif; ?>
                 </a>
                 <a href="<?php echo $baseUrl; ?>/admin/hire-requests.php" class="nav-item <?php echo $currentPage === 'hire-requests' ? 'active' : ''; ?>" data-tooltip="Assunzioni">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
