@@ -184,6 +184,8 @@ class Employee
                 'department_id' => $nullIfEmpty($data['department_id'] ?? null),
                 'position' => $nullIfEmpty($data['position'] ?? null),
                 'hire_date' => $nullIfEmpty($data['hire_date'] ?? null),
+                // Periodo di prova (migration 053): fine prova, il resto lo gestisce Probation
+                'probation_end_date' => $nullIfEmpty($data['probation_end_date'] ?? null),
                 // Dati personali ed economici (migration 013)
                 'address'        => $nullIfEmpty($data['address'] ?? null),
                 'birth_date'     => $nullIfEmpty($data['birth_date'] ?? null),
@@ -336,6 +338,23 @@ class Employee
 
         if (isset($data['hire_date'])) {
             $updateData['hire_date'] = $data['hire_date'] ?: null;
+        }
+
+        // Periodo di prova (migration 053). Cambiando la data si riapre il monitoraggio:
+        // si azzera il flag alert (l'avviso si ricalcola sulla nuova data) e, se la fine
+        // prova viene spostata IN AVANTI dopo una decisione, la decisione si resetta.
+        if (array_key_exists('probation_end_date', $data)) {
+            $newVal = $data['probation_end_date'] ?: null;
+            $oldVal = $employee['probation_end_date'] ?? null;
+            $updateData['probation_end_date'] = $newVal;
+            if ((string)$newVal !== (string)$oldVal) {
+                $updateData['probation_alert_notified_at'] = null;
+                if (!empty($employee['probation_decision']) && $newVal !== null && (string)$newVal > (string)$oldVal) {
+                    $updateData['probation_decision'] = null;
+                    $updateData['probation_decided_at'] = null;
+                    $updateData['probation_decided_by_user_id'] = null;
+                }
+            }
         }
 
         // Nuovi campi (migration 013) — non validati strict, salvati cosi come sono

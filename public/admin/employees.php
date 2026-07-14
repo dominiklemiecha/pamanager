@@ -30,10 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $__eid = (int)($_POST['id'] ?? 0);
             $__field = $_POST['field'] ?? '';
             $__value = trim($_POST['value'] ?? '');
-            $__allowed = ['first_name','last_name','position','email','phone','birth_date','address','hire_date','job_level','iban','ral_amount','monthly_salary','department_id','nfc_uid'];
+            $__allowed = ['first_name','last_name','position','email','phone','birth_date','address','hire_date','probation_end_date','job_level','iban','ral_amount','monthly_salary','department_id','nfc_uid'];
             if ($__eid > 0 && in_array($__field, $__allowed, true)) {
                 $__upd = [];
-                if (in_array($__field, ['birth_date','hire_date'], true)) {
+                if (in_array($__field, ['birth_date','hire_date','probation_end_date'], true)) {
                     $__upd[$__field] = $__value !== '' ? $__value : null;
                 } elseif (in_array($__field, ['ral_amount','monthly_salary'], true)) {
                     $__upd[$__field] = $__value !== '' ? (float)str_replace(',', '.', $__value) : null;
@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'department_id' => !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null,
                 'position' => $_POST['position'] ?? '',
                 'hire_date' => $_POST['hire_date'] ?? null,
+                'probation_end_date' => $_POST['probation_end_date'] ?? null,
                 // Dati personali ed economici
                 'address'        => $_POST['address'] ?? null,
                 'birth_date'     => $_POST['birth_date'] ?? null,
@@ -153,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'department_id' => !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null,
                     'position' => $_POST['position'] ?? '',
                     'hire_date' => $_POST['hire_date'] ?? null,
+                    'probation_end_date' => $_POST['probation_end_date'] ?? null,
                     // Nuovi campi (migration 013)
                     'address'        => $_POST['address'] ?? null,
                     'birth_date'     => $_POST['birth_date'] ?? null,
@@ -230,6 +232,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $action = 'edit';
             }
             break;
+
+        case 'read_probation_contract':
+            // Caricamento ad-hoc del contratto sulla scheda dipendente: legge il periodo
+            // di prova dal PDF, archivia il contratto tra i documenti e PROPONE la data
+            // (l'admin poi la corregge se serve). Funziona per qualsiasi dipendente.
+            $__eid = (int)($_POST['id'] ?? 0);
+            $__emp = $__eid ? Employee::getById($__eid) : null;
+            if (!$__emp) { $error = 'Dipendente non trovato'; break; }
+            $__file = $_FILES['contract_pdf'] ?? null;
+            if (!$__file || !is_array($__file) || (int)($__file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE || empty($__file['tmp_name'])) {
+                header('Location: employees.php?action=view&id=' . $__eid . '&probc=nofile'); exit;
+            }
+            if (strtolower(pathinfo($__file['name'] ?? '', PATHINFO_EXTENSION)) !== 'pdf') {
+                header('Location: employees.php?action=view&id=' . $__eid . '&probc=notpdf'); exit;
+            }
+            // 1) leggi PRIMA di spostare il file (Document::upload muove il tmp_name)
+            $__parsed = ['end_date' => null, 'raw' => null, 'months' => null, 'days' => null, 'weeks' => null];
+            if (class_exists('ProbationParser') && is_uploaded_file($__file['tmp_name'])) {
+                try { $__parsed = ProbationParser::parse($__file['tmp_name'], $__emp['hire_date'] ?? null); } catch (Throwable $e) {}
+            }
+            // 2) archivia il contratto tra i documenti del dipendente
+            $__now = new DateTime();
+            $__doc = Document::upload($__file, [
+                'employee_id' => $__eid,
+                'type'        => 'other',
+                'month'       => (int)$__now->format('n'),
+                'year'        => (int)$__now->format('Y'),
+                'title'       => 'Contratto di lavoro',
+                'description' => 'Caricato per la lettura del periodo di prova',
+            ]);
+            if (empty($__doc['success'])) {
+                header('Location: employees.php?action=view&id=' . $__eid . '&probc=err'); exit;
+            }
+            // 3) esito lettura
+            if (!empty($__parsed['end_date'])) {
+                if (empty($__emp['probation_decision'])) {
+                    Employee::update($__eid, ['probation_end_date' => $__parsed['end_date']]);
+                    header('Location: employees.php?action=view&id=' . $__eid . '&probc=found&d=' . urlencode($__parsed['end_date'])); exit;
+                }
+                header('Location: employees.php?action=view&id=' . $__eid . '&probc=locked&d=' . urlencode($__parsed['end_date'])); exit;
+            }
+            if (!empty($__parsed['months']) || !empty($__parsed['days']) || !empty($__parsed['weeks'])) {
+                header('Location: employees.php?action=view&id=' . $__eid . '&probc=nostart&raw=' . urlencode((string)$__parsed['raw'])); exit;
+            }
+            header('Location: employees.php?action=view&id=' . $__eid . '&probc=notfound'); exit;
 
         case 'update_balance_inline':
             if ($id) {
@@ -881,6 +928,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                            value="<?php echo htmlspecialchars($employee['hire_date'] ?? $_POST['hire_date'] ?? ''); ?>">
                 </div>
 
+                <div class="form-group">
+                    <label for="probation_end_date">Fine periodo di prova</label>
+                    <input type="date" id="probation_end_date" name="probation_end_date"
+                           value="<?php echo htmlspecialchars($employee['probation_end_date'] ?? $_POST['probation_end_date'] ?? ''); ?>">
+                    <small style="color:#94a3b8;">14 giorni prima riceverai un alert per confermare o meno l'assunzione.</small>
+                </div>
+
                 <!-- Dati personali estesi -->
                 <h3 style="grid-column: 1 / -1; margin-top: 1.5rem; font-size: 1rem; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 1rem;">Dati personali</h3>
                 <div class="form-group">
@@ -1216,6 +1270,22 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         // Lista reparti per select inline
         $__deptsForInline = [];
         try { $__deptsForInline = Database::fetchAll("SELECT id, name FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY name", [(int)$employee['company_id']]); } catch (Throwable $e) {}
+        ?>
+
+        <?php
+        $__pc  = $_GET['probc'] ?? '';
+        $__pcd = (isset($_GET['d']) && strtotime((string)$_GET['d'])) ? date('d/m/Y', strtotime((string)$_GET['d'])) : '';
+        $__pcRaw = htmlspecialchars((string)($_GET['raw'] ?? ''));
+        $__pcBanner = function($bg, $bd, $col, $html) {
+            echo '<div style="padding:12px 16px;margin-bottom:16px;border-radius:10px;background:' . $bg . ';border:1px solid ' . $bd . ';border-left:4px solid ' . $bd . ';color:' . $col . ';font-size:13.5px;line-height:1.45;">' . $html . '</div>';
+        };
+        if ($__pc === 'found')        $__pcBanner('#f0fdf4', '#16a34a', '#166534', 'Periodo di prova <strong>rilevato dal contratto</strong>: fine prova <strong>' . htmlspecialchars($__pcd) . '</strong>. Inserito nel campo qui sotto — verifica e correggi se necessario.');
+        elseif ($__pc === 'locked')   $__pcBanner('#fffbeb', '#d97706', '#92400e', 'Rilevato dal contratto <strong>' . htmlspecialchars($__pcd) . '</strong>, ma esiste già una decisione sul periodo di prova: la data non è stata sovrascritta. Correggi manualmente se serve.');
+        elseif ($__pc === 'nostart')  $__pcBanner('#fffbeb', '#d97706', '#92400e', 'Periodo di prova rilevato (<strong>' . $__pcRaw . '</strong>) ma manca la <strong>Data di assunzione</strong>: impostala e ricarica il contratto, oppure inserisci la data a mano.');
+        elseif ($__pc === 'notfound') $__pcBanner('#fffbeb', '#d97706', '#92400e', 'Nessun periodo di prova rilevato nel contratto. Inseriscilo manualmente nel campo "Fine periodo di prova".');
+        elseif ($__pc === 'notpdf')   $__pcBanner('#fef2f2', '#dc2626', '#991b1b', 'Il contratto deve essere un file PDF.');
+        elseif ($__pc === 'nofile')   $__pcBanner('#fef2f2', '#dc2626', '#991b1b', 'Nessun file caricato.');
+        elseif ($__pc === 'err')      $__pcBanner('#fef2f2', '#dc2626', '#991b1b', 'Errore durante il caricamento del contratto.');
         ?>
 
         <div class="emp-c-layout">
@@ -1568,7 +1638,49 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             <div class="fact"><div class="l">Posizione</div><div class="v"><?php $renderEdit('position', 'text', $employee['position'] ?? '', $employee['position'] ? htmlspecialchars($employee['position']) : '<span style="color:var(--muted);">—</span>'); ?></div></div>
                             <div class="fact"><div class="l">Data assunzione</div><div class="v"><?php $renderEdit('hire_date', 'date', $employee['hire_date'] ?? '', $employee['hire_date'] ? $fmtDate($employee['hire_date']) : '<span style="color:var(--muted);">—</span>'); ?></div></div>
                             <div class="fact"><div class="l">Inquadramento</div><div class="v"><?php $renderEdit('job_level', 'text', $employee['job_level'] ?? '', $employee['job_level'] ? htmlspecialchars($employee['job_level']) : '<span style="color:var(--muted);">—</span>'); ?></div></div>
+                            <div class="fact"><div class="l">Fine periodo di prova</div><div class="v"><?php $renderEdit('probation_end_date', 'date', $employee['probation_end_date'] ?? '', $employee['probation_end_date'] ? $fmtDate($employee['probation_end_date']) : '<span style="color:var(--muted);">—</span>'); ?></div></div>
+                            <div class="fact"><div class="l">Stato prova</div><div class="v">
+                                <?php
+                                $__pDec = $employee['probation_decision'] ?? null;
+                                $__pEnd = $employee['probation_end_date'] ?? null;
+                                if ($__pDec === 'confirmed') {
+                                    echo '<span class="badge badge-success">Prova superata</span>';
+                                } elseif ($__pDec === 'not_confirmed') {
+                                    $__deact = !empty($employee['probation_deactivated_at']);
+                                    echo '<span class="badge badge-danger">Non superata' . ($__deact ? ' · disattivato' : '') . '</span>';
+                                } elseif ($__pEnd) {
+                                    $__dl = (int) floor((strtotime($__pEnd) - strtotime(date('Y-m-d'))) / 86400);
+                                    if ($__dl < 0) {
+                                        echo '<span class="badge badge-warning">Scaduta · da decidere</span>';
+                                    } elseif ($__dl <= Probation::ALERT_LEAD_DAYS) {
+                                        echo '<span class="badge badge-warning">In scadenza · ' . $__dl . ($__dl === 1 ? ' giorno' : ' giorni') . '</span>';
+                                    } else {
+                                        echo '<span class="badge badge-primary">In prova · ' . $__dl . ' giorni</span>';
+                                    }
+                                } else {
+                                    echo '<span style="color:var(--muted);">—</span>';
+                                }
+                                ?>
+                            </div></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ===== Periodo di prova dal contratto ===== -->
+                <div class="emp-c-card">
+                    <div class="emp-c-card-h"><h3>Periodo di prova dal contratto</h3><span class="hint">Solo admin</span></div>
+                    <div class="emp-c-card-b">
+                        <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.5;">
+                            Carica il PDF del contratto: il sistema legge il periodo di prova e <strong>propone</strong> la data di fine (sempre modificabile qui sopra). Il contratto viene archiviato tra i documenti del dipendente.
+                        </p>
+                        <form method="POST" action="employees.php" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="read_probation_contract">
+                            <input type="hidden" name="id" value="<?= (int)$employee['id'] ?>">
+                            <input type="file" name="contract_pdf" accept="application/pdf,.pdf" required
+                                   style="font-size:13px;max-width:100%;">
+                            <button type="submit" class="btn btn-sm">Carica e leggi periodo di prova</button>
+                        </form>
                     </div>
                 </div>
 
