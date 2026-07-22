@@ -48,10 +48,12 @@ $__cfgCurrentSub   = $__cfgSubs[$__cfgPage]   ?? '';
        class="cd-tab <?= $__cfgPage === 'punch-settings' ? 'active' : '' ?>">
         Timbrature
     </a>
+    <?php if (Tenant::isCurrentUserTrueGlobalAdmin()): ?>
     <a href="<?= $__cfgBaseUrl ?>/door-settings.php"
        class="cd-tab <?= in_array($__cfgPage, ['door-settings', 'door-log']) ? 'active' : '' ?>">
         Apertura porta
     </a>
+    <?php endif; ?>
     <a href="<?= $__cfgBaseUrl ?>/password-resets.php"
        class="cd-tab <?= $__cfgPage === 'password-resets' ? 'active' : '' ?>">
         Reset Password
