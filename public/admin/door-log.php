@@ -8,6 +8,11 @@ Auth::init();
 setSecurityHeaders();
 Auth::requireUser('admin');
 
+// Modulo riservato: solo l'admin globale (nessun tenant) può vedere il log porta.
+if (!Tenant::isCurrentUserTrueGlobalAdmin()) {
+    header('Location: ' . PUBLIC_URL . '/admin/'); exit;
+}
+
 $companyId = Tenant::currentCompanyId();
 
 $filterEsito = $_GET['esito'] ?? 'all';
