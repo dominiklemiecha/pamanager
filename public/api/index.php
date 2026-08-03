@@ -137,7 +137,20 @@ class JWT
      */
     public static function getTokenFromHeader(): ?string
     {
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        // Apache (mod_php) non esporta sempre l'header Authorization in $_SERVER:
+        // controlla anche la variante REDIRECT_ e, in ultima istanza, getallheaders().
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? '';
+
+        if ($authHeader === '' && function_exists('getallheaders')) {
+            foreach (getallheaders() as $name => $value) {
+                if (strcasecmp($name, 'Authorization') === 0) {
+                    $authHeader = $value;
+                    break;
+                }
+            }
+        }
 
         if (preg_match('/Bearer\s+(.+)$/i', $authHeader, $matches)) {
             return $matches[1];
@@ -225,7 +238,8 @@ if ($endpoint === '' || $endpoint === 'status') {
         'endpoints' => [
             'POST /api/auth.php' => 'Autenticazione',
             'GET /api/documents.php' => 'Lista documenti',
-            'GET /api/communications.php' => 'Lista comunicazioni'
+            'GET /api/communications.php' => 'Lista comunicazioni',
+            'GET /api/attendance.php' => 'Presenze/assenze per integrazione CRM (?from=&to=|?range=week)'
         ]
     ]);
 }
