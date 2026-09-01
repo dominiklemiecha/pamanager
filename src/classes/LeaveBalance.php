@@ -307,6 +307,15 @@ class LeaveBalance
         $month = (int) $now->format('n');
         $monthKey = sprintf('%04d-%02d', $year, $month);
 
+        // Chi e' stato assunto quest'anno matura solo dal mese di assunzione in
+        // poi: senza questo, un neoassunto si ritroverebbe tutti i ratei da
+        // gennaio come se fosse in azienda da inizio anno.
+        $hireDate = Database::fetchColumn("SELECT hire_date FROM employees WHERE id = ?", [$employeeId]);
+        $hiredThisYear = $hireDate && (int) substr((string) $hireDate, 0, 4) === $year;
+        $accrualMonths = $hiredThisYear
+            ? max(0, $month - (int) substr((string) $hireDate, 5, 2))
+            : $month;
+
         foreach (self::TYPES as $type) {
             $annual = self::getAnnualForEmployee($employeeId, $type);
             if ($annual <= 0) continue;
@@ -322,15 +331,19 @@ class LeaveBalance
             if (!$row) {
                 $prev = self::getOne($employeeId, $year - 1, $type);
                 $prevResidual = max(0, $prev['residual']);
-                $targetEntitled = round(($annual / 12.0) * $month, 2);
+                $targetEntitled = round(($annual / 12.0) * $accrualMonths, 2);
                 Database::insert('employee_leave_balances', [
                     'employee_id'        => $employeeId,
                     'company_id'         => $companyId,
                     'year'               => $year,
                     'leave_type'         => $type,
                     'entitled'           => $targetEntitled,
-                    'carried_over'       => $prevResidual,
+                    // Il neoassunto non porta residui dall'anno prima
+                    'carried_over'       => $hiredThisYear ? 0 : $prevResidual,
                     'manual_used'        => 0,
+                    // Marca la partenza dalla data di assunzione: ferie e
+                    // permessi presi prima non hanno senso da conteggiare
+                    'balance_set_at'     => $hiredThisYear ? $hireDate : null,
                     'accrual_last_month' => $monthKey,
                 ]);
                 continue;
@@ -347,7 +360,7 @@ class LeaveBalance
                 $monthsSince = max(0, (($year - (int) $snap->format('Y')) * 12 + ($month - (int) $snap->format('n'))));
                 $targetEntitled = round(($annual / 12.0) * $monthsSince, 2);
             } else {
-                $targetEntitled = round(($annual / 12.0) * $month, 2);
+                $targetEntitled = round(($annual / 12.0) * $accrualMonths, 2);
             }
 
             Database::update('employee_leave_balances', [
@@ -371,7 +384,7 @@ class LeaveBalance
         string $type,
         float $residual,
         string $setAt,
-        int $updatedBy
+        ?int $updatedBy = null
     ): void {
         if (!in_array($type, self::TYPES, true)) return;
         $existing = Database::fetchOne(

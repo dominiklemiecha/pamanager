@@ -212,6 +212,34 @@ class Employee
             // Crea directory per documenti
             self::createDocumentDirectory($id);
 
+            // Nuovo assunto: ferie e permessi partono da zero e maturano dal mese
+            // di assunzione in poi. Senza questo snapshot l'accrual proporzionale
+            // gli accrediterebbe tutti i ratei da gennaio, come se fosse in
+            // azienda da inizio anno.
+            if (class_exists('LeaveBalance')) {
+                try {
+                    $hireDate = $nullIfEmpty($data['hire_date'] ?? null) ?: date('Y-m-d');
+                    $currentYear = (int) date('Y');
+                    // Solo per chi viene assunto quest'anno: per un'assunzione
+                    // retroattiva vale il calcolo normale sull'intero anno.
+                    if ((int) substr($hireDate, 0, 4) === $currentYear) {
+                        foreach (LeaveBalance::TYPES as $balanceType) {
+                            LeaveBalance::setSnapshotResidual(
+                                $id,
+                                (int) $cid,
+                                $currentYear,
+                                $balanceType,
+                                0.0,
+                                $hireDate,
+                                $user['id'] ?? null
+                            );
+                        }
+                    }
+                } catch (Throwable $e) {
+                    error_log('[Employee::create] azzeramento saldi iniziali fallito (employee #' . $id . '): ' . $e->getMessage());
+                }
+            }
+
             self::logAction('employee_created', $id, null, [
                 'username' => $data['username'],
                 'fiscal_code' => $fiscalCode,
