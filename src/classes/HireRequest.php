@@ -911,6 +911,7 @@ class HireRequest
             'employee_id' => $empId,
             'email_sent'  => !empty($res['email_sent']),
             'email_error' => $res['email_error'] ?? null,
+            'temp_password' => $res['temp_password'] ?? null,
         ];
     }
 
@@ -1019,6 +1020,7 @@ class HireRequest
             'employee_id' => $empId,
             'email_sent'  => !empty($res['email_sent']),
             'email_error' => $res['email_error'] ?? null,
+            'temp_password' => $res['temp_password'] ?? null,
         ];
     }
 
@@ -1078,6 +1080,9 @@ class HireRequest
 
         $emailSent = !empty($created['email_sent']);
         $emailError = $created['email_error'] ?? null;
+        // Serve mostrarla all'admin se l'email non parte: e' l'unico momento
+        // in cui la password temporanea e' leggibile in chiaro.
+        $tempPassword = $created['temp_password'] ?? null;
 
         // Aggiorna working_days e hours_per_day (non gestiti da Employee::create direttamente)
         try {
@@ -1131,7 +1136,7 @@ class HireRequest
             }
         }
 
-        return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError];
+        return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError, 'temp_password' => $tempPassword];
     }
 
     /**
@@ -1215,6 +1220,7 @@ class HireRequest
         $empId = (int)$__emp['employee_id'];
         $emailSent = !empty($__emp['email_sent']);
         $emailError = $__emp['email_error'] ?? null;
+        $tempPassword = $__emp['temp_password'] ?? null;
 
         // Aggiorna richiesta
         Database::update('hire_requests', [
@@ -1238,7 +1244,7 @@ class HireRequest
             }
         } catch (Throwable $e) {}
 
-        return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError];
+        return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError, 'temp_password' => $tempPassword];
     }
 
     /**

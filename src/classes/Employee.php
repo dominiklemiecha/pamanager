@@ -253,6 +253,11 @@ class Employee
             } else {
                 $emailError = 'SMTP non configurato';
             }
+            // Traccia nei log: senza questa riga un mancato invio in produzione
+            // e' invisibile una volta chiusa la pagina di conferma.
+            if (!$emailSent) {
+                error_log('[Employee::create] credenziali NON inviate a ' . $data['email'] . ' (employee #' . $id . '): ' . $emailError);
+            }
 
             return [
                 'success'        => true,

@@ -60,7 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'appro
     $res = HireRequest::approveProspects($reqId, $extra, $_POST, $files);
     if ($res['success']) {
         $qs = 'approved=1';
-        if (!$res['email_sent']) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Email non inviata');
+        if (!$res['email_sent']) {
+            $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Email non inviata');
+            if (!empty($res['temp_password'])) $qs .= '&pwd=' . urlencode($res['temp_password']);
+        }
         header('Location: hire-requests.php?id=' . $reqId . '&' . $qs);
         exit;
     }
@@ -110,7 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'hire_
     $res = HireRequest::hireDirectExisting($bpId, $_POST, $extra);
     if ($res['success']) {
         $qs = 'hired=1';
-        if (empty($res['email_sent'])) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Credenziali non inviate via email');
+        if (empty($res['email_sent'])) {
+            $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Credenziali non inviate via email');
+            if (!empty($res['temp_password'])) $qs .= '&pwd=' . urlencode($res['temp_password']);
+        }
         header('Location: hire-requests.php?id=' . $bpId . '&' . $qs);
         exit;
     }
@@ -138,7 +144,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'hire_
     $res = HireRequest::hireDirect($_POST, $files, $extra);
     if ($res['success']) {
         $qs = 'hired=1';
-        if (empty($res['email_sent'])) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Credenziali non inviate via email');
+        if (empty($res['email_sent'])) {
+            $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Credenziali non inviate via email');
+            if (!empty($res['temp_password'])) $qs .= '&pwd=' . urlencode($res['temp_password']);
+        }
         header('Location: hire-requests.php?id=' . $res['id'] . '&' . $qs);
         exit;
     }
@@ -282,7 +291,17 @@ if ($id > 0 && !in_array($action, ['new', 'edit', 'direct'], true)) {
     <?php endif; ?>
     <?php if (!empty($_GET['email_err'])): ?>
         <div class="alert alert-warning" style="margin-bottom:1rem;">
-            Credenziali NON inviate via email (<?= htmlspecialchars($_GET['email_err']) ?>). Comunicale manualmente al dipendente dal suo profilo.
+            <strong>Credenziali NON inviate via email</strong> (<?= htmlspecialchars($_GET['email_err']) ?>).
+            <?php if (!empty($_GET['pwd'])): ?>
+                Consegnale tu al dipendente, questa e' l'unica volta che la password e' visibile:
+                <div style="margin-top:.5rem; font-family:monospace; font-size:.95rem;">
+                    Username: <strong><?= htmlspecialchars((string)($hr['generated_username'] ?? '')) ?></strong><br>
+                    Password: <strong><?= htmlspecialchars($_GET['pwd']) ?></strong>
+                </div>
+                <div style="margin-top:.4rem; font-size:.8rem;">Al primo accesso gli verra' chiesto di cambiarla. Se la perdi, puoi generarne una nuova dal profilo del dipendente.</div>
+            <?php else: ?>
+                Puoi generare una nuova password dal profilo del dipendente e comunicargliela.
+            <?php endif; ?>
         </div>
     <?php endif; ?>
     <?php if (!empty($_GET['sent'])): ?>
