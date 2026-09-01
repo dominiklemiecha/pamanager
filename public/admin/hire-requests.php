@@ -95,6 +95,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     exit;
 }
 
+// === POST: bypass su richiesta gia' avviata (assumi subito, salta il consulente) ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'hire_direct_existing') {
+    CSRF::verifyOrDie();
+    $bpId = (int)($_POST['id'] ?? 0);
+    $toFloat = static function($v) { if ($v === '' || $v === null) return null; return (float)str_replace(',', '.', (string)$v); };
+    $extra = [
+        'department_id'  => !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null,
+        'position'       => trim($_POST['position'] ?? ''),
+        'job_level'      => trim($_POST['job_level'] ?? ''),
+        'monthly_salary' => $toFloat($_POST['monthly_salary'] ?? null),
+        'ral_amount'     => $toFloat($_POST['ral_amount'] ?? null),
+    ];
+    $res = HireRequest::hireDirectExisting($bpId, $_POST, $extra);
+    if ($res['success']) {
+        $qs = 'hired=1';
+        if (empty($res['email_sent'])) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Credenziali non inviate via email');
+        header('Location: hire-requests.php?id=' . $bpId . '&' . $qs);
+        exit;
+    }
+    header('Location: hire-requests.php?id=' . $bpId . '&bypass_err=' . urlencode($res['error'] ?? 'Errore assunzione diretta'));
+    exit;
+}
+
+// === POST: assunzione diretta (bypass flusso consulente) ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'hire_direct') {
+    CSRF::verifyOrDie();
+    $toFloat = static function($v) { if ($v === '' || $v === null) return null; return (float)str_replace(',', '.', (string)$v); };
+    $extra = [
+        'department_id'  => !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null,
+        'position'       => trim($_POST['position'] ?? ''),
+        'job_level'      => trim($_POST['job_level'] ?? ''),
+        'monthly_salary' => $toFloat($_POST['monthly_salary'] ?? null),
+        'ral_amount'     => $toFloat($_POST['ral_amount'] ?? null),
+    ];
+    $files = [
+        'id_doc'          => $_FILES['id_doc']          ?? [],
+        'fiscal_code_doc' => $_FILES['fiscal_code_doc'] ?? [],
+        'permit'          => $_FILES['permit']          ?? [],
+        'c2'              => $_FILES['c2']              ?? [],
+    ];
+    $res = HireRequest::hireDirect($_POST, $files, $extra);
+    if ($res['success']) {
+        $qs = 'hired=1';
+        if (empty($res['email_sent'])) $qs .= '&email_err=' . urlencode($res['email_error'] ?? 'Credenziali non inviate via email');
+        header('Location: hire-requests.php?id=' . $res['id'] . '&' . $qs);
+        exit;
+    }
+    $error = $res['error'] ?? 'Errore assunzione diretta';
+    $action = 'direct';
+    $form = $_POST;
+}
+
 // === POST: creazione nuova richiesta (bozza o invio diretto) ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create') {
     CSRF::verifyOrDie();
@@ -177,7 +229,7 @@ $pageTitle = 'Richieste di assunzione';
 include dirname(__DIR__) . '/includes/header-admin.php';
 
 // === Dettaglio richiesta ===
-if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
+if ($id > 0 && !in_array($action, ['new', 'edit', 'direct'], true)) {
     $hr = HireRequest::getById($id);
     if (!$hr) {
         echo '<div class="alert alert-error">Richiesta non trovata.</div>';
@@ -195,6 +247,7 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
         'approved'           => '#16a34a',
         'contract_pending'   => '#044bff',
         'contract_signed'    => '#16a34a',
+        'direct_hire'        => '#16a34a',
         'rejected'           => '#dc2626',
         'cancelled'          => '#64748b',
     ];
@@ -221,6 +274,16 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
     <?php endif; ?>
     <?php if (!empty($_GET['saved'])): ?>
         <div class="alert alert-success" style="margin-bottom:1rem;"><?= $isDraft ? 'Bozza salvata. Puoi completarla e inviarla al consulente quando vuoi.' : 'Modifiche salvate.' ?></div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['hired'])): ?>
+        <div class="alert alert-success" style="margin-bottom:1rem;">
+            <strong>Assunzione diretta completata.</strong> Dipendente e utenza creati<?= !empty($hr['employee_id']) ? ' — <a href="employees.php?action=view&id=' . (int)$hr['employee_id'] . '"><strong>vedi profilo</strong></a>' : '' ?>.
+        </div>
+    <?php endif; ?>
+    <?php if (!empty($_GET['email_err'])): ?>
+        <div class="alert alert-warning" style="margin-bottom:1rem;">
+            Credenziali NON inviate via email (<?= htmlspecialchars($_GET['email_err']) ?>). Comunicale manualmente al dipendente dal suo profilo.
+        </div>
     <?php endif; ?>
     <?php if (!empty($_GET['sent'])): ?>
         <?php if (isset($_GET['notified']) && $_GET['notified'] === '0'): ?>
@@ -266,6 +329,15 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
     $__currentIdx = array_search($hr['status'], $__order, true);
     $__isRejected = in_array($hr['status'], ['rejected','cancelled'], true);
     ?>
+    <?php if ($hr['status'] === 'direct_hire'): ?>
+    <div class="card" style="margin-bottom:1.5rem; border-left:4px solid #16a34a;">
+        <div class="card-body" style="padding:1rem 1.25rem;">
+            <div style="font-weight:700; color:#16a34a;">Assunzione diretta</div>
+            <div style="font-size:.85rem; color:#475569;">Dipendente e utenza creati senza passare dal flusso consulente (prospetti, approvazione, firma contratto).
+            <?php if (!empty($hr['employee_id'])): ?><a href="employees.php?action=view&id=<?= (int)$hr['employee_id'] ?>">Vedi profilo dipendente</a>.<?php endif; ?></div>
+        </div>
+    </div>
+    <?php else: ?>
     <div class="hr-progress" style="display:flex; align-items:center; gap:0; margin:0 0 1.5rem; padding:1rem 1.25rem; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
         <?php foreach ($__order as $i => $stepKey):
             [$lbl, $icon] = $__steps[$stepKey];
@@ -286,6 +358,7 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
             <?php endif; ?>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
     <?php if ($__isRejected): ?>
         <div class="alert alert-error" style="margin-bottom:1rem;">Stato: <strong><?= htmlspecialchars($statusLabel) ?></strong></div>
     <?php endif; ?>
@@ -322,6 +395,100 @@ if ($id > 0 && !in_array($action, ['new', 'edit'], true)) {
                     <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
                     <button type="submit" class="btn btn-primary">Invia di nuovo al consulente</button>
                 </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if (in_array($hr['status'], HireRequest::BYPASSABLE_STATUSES, true)):
+        $__bpDepts = Database::fetchAll("SELECT id, name FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY name", [(int)$hr['company_id']]);
+    ?>
+        <style>
+            .hr-bypass .hr-field label { display:block; font-size:.78rem; font-weight:600; color:#334155; margin-bottom:5px; }
+            .hr-bypass .hr-field input,
+            .hr-bypass .hr-field select { width:100%; padding:.5rem .65rem; border:1px solid #e2e8f0; border-radius:8px; font-size:.88rem; background:#fff; }
+            .hr-bypass summary::-webkit-details-marker { display:none; }
+            .hr-bypass summary::before { content:'▸'; margin-right:6px; }
+            .hr-bypass details[open] summary::before { content:'▾'; }
+        </style>
+        <div class="card hr-bypass" style="margin-bottom:1rem; border:1px solid #fcd34d; background:#fffbeb;">
+            <div class="card-body" style="padding:1rem 1.25rem;">
+                <details<?= !empty($_GET['bypass_err']) ? ' open' : '' ?>>
+                    <summary style="cursor:pointer; font-weight:700; color:#92400e; list-style:none;">
+                        Non aspettare il consulente — assumi subito (bypass)
+                    </summary>
+                    <p style="font-size:.85rem; color:#78350f; margin:.6rem 0 1rem;">
+                        Crea immediatamente dipendente e utenza con i dati di questa richiesta, saltando prospetti, approvazione e firma del contratto. La richiesta passa in stato "Assunzione diretta" e il consulente viene avvisato.
+                    </p>
+                    <?php if (!empty($_GET['bypass_err'])): ?>
+                        <div class="alert alert-error" style="margin-bottom:1rem;"><?= htmlspecialchars($_GET['bypass_err']) ?></div>
+                    <?php endif; ?>
+                    <?php if (empty($__bpDepts)): ?>
+                        <div class="alert alert-error" style="margin-bottom:1rem;">Nessun reparto attivo: <a href="departments.php">creane uno</a> prima di assumere.</div>
+                    <?php endif; ?>
+                    <form method="POST" action="hire-requests.php" onsubmit="return confirm('Assumere subito senza attendere il consulente? La richiesta verra\' chiusa come assunzione diretta.');">
+                        <?= CSRF::field() ?>
+                        <input type="hidden" name="action" value="hire_direct_existing">
+                        <input type="hidden" name="id" value="<?= (int)$hr['id'] ?>">
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:.85rem; margin-bottom:1rem;">
+                            <div class="hr-field">
+                                <label>Nome <span style="color:#dc2626;">*</span></label>
+                                <input type="text" name="employee_first_name" required value="<?= htmlspecialchars($hr['employee_first_name'] ?? '') ?>">
+                            </div>
+                            <div class="hr-field">
+                                <label>Cognome <span style="color:#dc2626;">*</span></label>
+                                <input type="text" name="employee_last_name" required value="<?= htmlspecialchars($hr['employee_last_name'] ?? '') ?>">
+                            </div>
+                            <div class="hr-field">
+                                <label>Codice fiscale <span style="color:#dc2626;">*</span></label>
+                                <input type="text" name="fiscal_code" maxlength="16" required style="text-transform:uppercase;" value="<?= htmlspecialchars($hr['fiscal_code'] ?? '') ?>">
+                            </div>
+                            <div class="hr-field">
+                                <label>Email account <span style="color:#dc2626;">*</span></label>
+                                <input type="email" name="employee_email" required value="<?= htmlspecialchars($hr['employee_email'] ?? '') ?>">
+                            </div>
+                            <div class="hr-field">
+                                <label>Data inizio <span style="color:#dc2626;">*</span></label>
+                                <input type="date" name="start_date" required value="<?= htmlspecialchars($hr['start_date'] ?? date('Y-m-d')) ?>">
+                            </div>
+                            <div class="hr-field">
+                                <label>Reparto <span style="color:#dc2626;">*</span></label>
+                                <select name="department_id" required>
+                                    <option value="">— Scegli reparto —</option>
+                                    <?php foreach ($__bpDepts as $d): ?>
+                                        <option value="<?= (int)$d['id'] ?>"><?= htmlspecialchars($d['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="hr-field">
+                                <label>Posizione</label>
+                                <input type="text" name="position" value="<?= htmlspecialchars($hr['role_description'] ?? '') ?>">
+                            </div>
+                            <div class="hr-field">
+                                <label>Livello CCNL</label>
+                                <input type="text" name="job_level" placeholder="es: 5° livello">
+                            </div>
+                            <div class="hr-field">
+                                <label>RAL annuale (€)</label>
+                                <input type="number" step="0.01" name="ral_amount">
+                            </div>
+                            <div class="hr-field">
+                                <label>Stipendio mensile (€)</label>
+                                <input type="number" step="0.01" name="monthly_salary">
+                            </div>
+                            <div class="hr-field">
+                                <label>Username</label>
+                                <input type="text" name="username" pattern="[A-Za-z0-9_.]{3,}" value="<?= htmlspecialchars($hr['generated_username'] ?? '') ?>" placeholder="lascia vuoto: nome.cognome">
+                            </div>
+                            <div class="hr-field">
+                                <label>Password</label>
+                                <input type="text" name="password" placeholder="lascia vuoto: generata e inviata via email">
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end;">
+                            <button type="submit" class="btn btn-primary" style="background:#b45309; border-color:#b45309;" <?= empty($__bpDepts) ? 'disabled style="opacity:.5; cursor:not-allowed;"' : '' ?>>Assumi subito e crea utenza</button>
+                        </div>
+                    </form>
+                </details>
             </div>
         </div>
     <?php endif; ?>
@@ -1102,6 +1269,190 @@ if ($action === 'new' || $action === 'edit') {
     exit;
 }
 
+// === Form assunzione diretta (bypass flusso consulente) ===
+if ($action === 'direct') {
+    $form = $form ?? [];
+    if (empty($form['employer_name'])) {
+        $__cc = class_exists('Tenant') ? Tenant::currentCompany() : null;
+        if ($__cc && !empty($__cc['name'])) $form['employer_name'] = $__cc['name'];
+    }
+    $__cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+    $__depts = Database::fetchAll("SELECT id, name FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY name", [$__cid]);
+?>
+<style>
+    .dh-field label { display:block; font-size:.85rem; font-weight:600; margin-bottom:4px; }
+    .dh-field input, .dh-field select, .dh-field textarea { width:100%; padding:.55rem; border:1px solid #e2e8f0; border-radius:8px; font-size:.9rem; }
+    .dh-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1rem; margin-bottom:1rem; }
+    .dh-sec { margin-top:1.5rem; font-size:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0; }
+</style>
+<div style="width:100%; margin:1.5rem 0;">
+    <a href="hire-requests.php" class="btn-back" style="margin-bottom:1rem;">Indietro</a>
+    <h1 style="font-size:1.5rem; margin:0 0 .25rem;">Assunzione diretta</h1>
+    <p style="color:#64748b; margin:0 0 .75rem;">Crea subito dipendente e utenza, senza prospetti del consulente, approvazione o firma del contratto. Obbligatori solo <strong>nome, cognome, codice fiscale, email e data inizio</strong> (piu' il reparto). Le credenziali vengono inviate via email al dipendente.</p>
+
+    <?php if ($error): ?>
+        <div class="alert alert-error" style="margin-bottom:1rem;"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+    <?php if (empty($__depts)): ?>
+        <div class="alert alert-error" style="margin-bottom:1rem;">Nessun reparto attivo: <a href="departments.php">creane uno</a> prima di assumere.</div>
+    <?php endif; ?>
+
+    <form method="POST" action="hire-requests.php" enctype="multipart/form-data" class="card">
+        <?= CSRF::field() ?>
+        <input type="hidden" name="action" value="hire_direct">
+        <input type="hidden" name="employer_name" value="<?= htmlspecialchars($form['employer_name'] ?? '') ?>">
+        <div class="card-body" style="padding:1.5rem;">
+            <h3 class="dh-sec" style="margin-top:0;">Anagrafica</h3>
+            <div class="dh-grid">
+                <div class="dh-field">
+                    <label>Codice fiscale <span style="color:#dc2626;">*</span></label>
+                    <input type="text" name="fiscal_code" maxlength="16" required style="text-transform:uppercase;" value="<?= htmlspecialchars($form['fiscal_code'] ?? '') ?>" placeholder="RSSMRA85M01H501Z">
+                </div>
+                <div class="dh-field">
+                    <label>Nome <span style="color:#dc2626;">*</span></label>
+                    <input type="text" name="employee_first_name" required value="<?= htmlspecialchars($form['employee_first_name'] ?? '') ?>">
+                </div>
+                <div class="dh-field">
+                    <label>Cognome <span style="color:#dc2626;">*</span></label>
+                    <input type="text" name="employee_last_name" required value="<?= htmlspecialchars($form['employee_last_name'] ?? '') ?>">
+                </div>
+                <div class="dh-field">
+                    <label>Data di nascita</label>
+                    <input type="date" name="employee_birth_date" value="<?= htmlspecialchars($form['employee_birth_date'] ?? '') ?>">
+                </div>
+                <div class="dh-field">
+                    <label>Stato di nascita</label>
+                    <input type="text" name="birth_state" value="<?= htmlspecialchars($form['birth_state'] ?? 'Italia') ?>">
+                </div>
+                <div class="dh-field">
+                    <label>Comune di nascita</label>
+                    <input type="text" name="birth_city" value="<?= htmlspecialchars($form['birth_city'] ?? '') ?>">
+                </div>
+            </div>
+
+            <h3 class="dh-sec">Residenza <span style="font-weight:500; color:#94a3b8; font-size:.8rem;">(opzionale)</span></h3>
+            <div class="dh-grid">
+                <div class="dh-field"><label>Indirizzo</label><input type="text" name="residence_address" value="<?= htmlspecialchars($form['residence_address'] ?? '') ?>"></div>
+                <div class="dh-field"><label>CAP</label><input type="text" name="residence_cap" maxlength="10" value="<?= htmlspecialchars($form['residence_cap'] ?? '') ?>"></div>
+                <div class="dh-field"><label>Comune</label><input type="text" name="residence_city" value="<?= htmlspecialchars($form['residence_city'] ?? '') ?>"></div>
+                <div class="dh-field"><label>Provincia</label><input type="text" name="residence_province" maxlength="80" value="<?= htmlspecialchars($form['residence_province'] ?? '') ?>"></div>
+            </div>
+
+            <h3 class="dh-sec">Contratto</h3>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Tipologia <span style="font-weight:500; color:#94a3b8;">(opzionale)</span></label>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:.5rem;">
+                    <?php foreach (['contract_indeterminato'=>'Tempo indeterminato','contract_determinato'=>'Tempo determinato','contract_apprendistato'=>'Apprendistato','contract_tirocinio'=>'Tirocinio/Stage','contract_agevolata'=>'Agevolata'] as $k=>$lbl): ?>
+                        <label style="display:flex; gap:6px; align-items:center; padding:.5rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
+                            <input type="checkbox" name="<?= $k ?>" value="1" <?= !empty($form[$k]) ? 'checked' : '' ?>>
+                            <?= $lbl ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="dh-grid">
+                <div class="dh-field"><label>Data inizio <span style="color:#dc2626;">*</span></label><input type="date" name="start_date" required value="<?= htmlspecialchars($form['start_date'] ?? date('Y-m-d')) ?>"></div>
+                <div class="dh-field"><label>Data fine</label><input type="date" name="end_date" value="<?= htmlspecialchars($form['end_date'] ?? '') ?>"></div>
+                <div class="dh-field"><label>Ore settimanali</label><input type="number" step="0.5" min="1" max="60" name="weekly_hours" value="<?= htmlspecialchars($form['weekly_hours'] ?? '40') ?>"></div>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:.85rem; font-weight:600; margin-bottom:6px;">Giorni di lavoro</label>
+                <div style="display:flex; flex-wrap:wrap; gap:.5rem;">
+                    <?php foreach (['mon'=>'Lun','tue'=>'Mar','wed'=>'Mer','thu'=>'Gio','fri'=>'Ven','sat'=>'Sab','sun'=>'Dom'] as $k=>$lbl): ?>
+                        <label style="display:flex; gap:4px; align-items:center; padding:.4rem .7rem; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:.85rem;">
+                            <input type="checkbox" name="work_days[]" value="<?= $k ?>" <?= in_array($k, (array)($form['work_days'] ?? ['mon','tue','wed','thu','fri']), true) ? 'checked' : '' ?>>
+                            <?= $lbl ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="dh-grid">
+                <div class="dh-field"><label>Mansioni</label><input type="text" name="role_description" value="<?= htmlspecialchars($form['role_description'] ?? '') ?>"></div>
+                <div class="dh-field"><label>Sede di lavoro</label><input type="text" name="workplace" value="<?= htmlspecialchars($form['workplace'] ?? '') ?>"></div>
+                <div class="dh-field"><label>IBAN</label><input type="text" name="iban" maxlength="34" value="<?= htmlspecialchars($form['iban'] ?? '') ?>"></div>
+            </div>
+
+            <h3 class="dh-sec">Inquadramento</h3>
+            <div class="dh-grid">
+                <div class="dh-field">
+                    <label>Reparto <span style="color:#dc2626;">*</span></label>
+                    <select name="department_id" required>
+                        <option value="">— Scegli reparto —</option>
+                        <?php foreach ($__depts as $d): ?>
+                            <option value="<?= (int)$d['id'] ?>" <?= ((int)($form['department_id'] ?? 0) === (int)$d['id']) ? 'selected' : '' ?>><?= htmlspecialchars($d['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="dh-field"><label>Posizione</label><input type="text" name="position" value="<?= htmlspecialchars($form['position'] ?? '') ?>"></div>
+                <div class="dh-field"><label>Livello CCNL</label><input type="text" name="job_level" placeholder="es: 5° livello" value="<?= htmlspecialchars($form['job_level'] ?? '') ?>"></div>
+                <div class="dh-field"><label>RAL annuale (€)</label><input type="number" step="0.01" name="ral_amount" value="<?= htmlspecialchars($form['ral_amount'] ?? '') ?>"></div>
+                <div class="dh-field"><label>Stipendio mensile (€)</label><input type="number" step="0.01" name="monthly_salary" value="<?= htmlspecialchars($form['monthly_salary'] ?? '') ?>"></div>
+            </div>
+
+            <h3 class="dh-sec">Account</h3>
+            <div class="dh-grid">
+                <div class="dh-field">
+                    <label>Email account <span style="color:#dc2626;">*</span></label>
+                    <input type="email" name="employee_email" required value="<?= htmlspecialchars($form['employee_email'] ?? '') ?>">
+                </div>
+                <div class="dh-field">
+                    <label>Username</label>
+                    <input type="text" name="username" pattern="[A-Za-z0-9_.]{3,}" value="<?= htmlspecialchars($form['username'] ?? '') ?>" placeholder="lascia vuoto: nome.cognome">
+                </div>
+                <div class="dh-field">
+                    <label>Password</label>
+                    <input type="text" name="password" value="<?= htmlspecialchars($form['password'] ?? '') ?>" placeholder="lascia vuoto: generata e inviata via email">
+                </div>
+            </div>
+
+            <h3 class="dh-sec">Allegati <span style="font-weight:500; color:#94a3b8; font-size:.8rem;">(tutti opzionali)</span></h3>
+            <div class="dh-grid">
+                <?php foreach ([['id_doc','Documento di riconoscimento'],['fiscal_code_doc','Codice fiscale'],['permit','Permesso di soggiorno'],['c2','Modello C2']] as $u2): ?>
+                    <div class="dh-field">
+                        <label><?= htmlspecialchars($u2[1]) ?></label>
+                        <input type="file" name="<?= $u2[0] ?>[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="dh-field" style="margin-bottom:1rem;">
+                <label>Note</label>
+                <textarea name="notes" rows="2"><?= htmlspecialchars($form['notes'] ?? '') ?></textarea>
+            </div>
+
+            <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.5rem;">
+                <a href="hire-requests.php" class="btn btn-secondary">Annulla</a>
+                <button type="submit" class="btn btn-primary" <?= empty($__depts) ? 'disabled style="opacity:.5; cursor:not-allowed;"' : '' ?>>Assumi e crea utenza</button>
+            </div>
+        </div>
+    </form>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const cfInput = document.querySelector('input[name="fiscal_code"]');
+    if (!cfInput) return;
+    const fill = (name, val) => { const el = document.querySelector('[name="' + name + '"]'); if (el && !el.value && val) el.value = val; };
+    const lookup = async () => {
+        const cf = cfInput.value.toUpperCase().replace(/\s/g, '');
+        if (cf.length !== 16) return;
+        try {
+            const r = await fetch('<?= PUBLIC_URL ?>/api/lookup.php?action=cf&cf=' + encodeURIComponent(cf), {credentials:'same-origin'});
+            const d = await r.json();
+            if (d.error) return;
+            fill('employee_birth_date', d.birth_date);
+            fill('birth_state', d.birth_state || 'Italia');
+            fill('birth_city', d.birth_city);
+        } catch (e) {}
+    };
+    cfInput.addEventListener('blur', lookup);
+    cfInput.addEventListener('input', () => { if (cfInput.value.length === 16) lookup(); });
+});
+</script>
+<?php
+    include dirname(__DIR__) . '/includes/footer-admin.php';
+    exit;
+}
+
 // === Lista richieste ===
 $rows = HireRequest::listForCurrent();
 $statusFilter = $_GET['status'] ?? '';
@@ -1141,10 +1492,15 @@ $statusFilter = $_GET['status'] ?? '';
                 <p style="margin-top:2px;"><strong><?= $__drafts ?> bozz<?= $__drafts === 1 ? 'a' : 'e' ?></strong> da completare e inviare.</p>
             <?php endif; ?>
         </div>
-        <a href="hire-requests.php?action=new" class="btn btn-lg lp-hero-btn">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Nuova assunzione
-        </a>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+            <a href="hire-requests.php?action=direct" class="btn btn-lg lp-hero-btn" style="background:#fff; color:#0b3aa4; border:1px solid #cbd5e1;" title="Crea dipendente e utenza senza passare dal consulente">
+                Assunzione diretta
+            </a>
+            <a href="hire-requests.php?action=new" class="btn btn-lg lp-hero-btn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                Nuova assunzione
+            </a>
+        </div>
     </div>
 
     <?php if (empty($rows)): ?>
@@ -1152,6 +1508,7 @@ $statusFilter = $_GET['status'] ?? '';
             <h3 style="margin:0 0 .5rem;">Nessuna richiesta</h3>
             <p style="color:#64748b; margin:0 0 1rem;">Avvia una nuova assunzione per iniziare il flusso.</p>
             <a href="hire-requests.php?action=new" class="btn btn-primary">Nuova assunzione</a>
+            <a href="hire-requests.php?action=direct" class="btn btn-secondary">Assunzione diretta</a>
         </div></div>
     <?php else: ?>
         <div class="card">
@@ -1174,6 +1531,7 @@ $statusFilter = $_GET['status'] ?? '';
                         'approved'           => '#16a34a',
                         'contract_pending'   => '#044bff',
                         'contract_signed'    => '#16a34a',
+                        'direct_hire'        => '#16a34a',
                         'rejected'           => '#dc2626',
                         'cancelled'          => '#64748b',
                     ];

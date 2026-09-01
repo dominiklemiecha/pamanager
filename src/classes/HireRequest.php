@@ -23,6 +23,7 @@ class HireRequest
             'approved'           => 'Da contrattualizzare',
             'contract_pending'   => 'Contratto da firmare',
             'contract_signed'    => 'Contratto firmato',
+            'direct_hire'        => 'Assunzione diretta',
             'rejected'           => 'Rifiutata',
             'cancelled'          => 'Annullata',
         ];
@@ -801,6 +802,338 @@ class HireRequest
         return ['success' => true];
     }
 
+    /** Stati da cui l'admin puo' forzare l'assunzione diretta saltando l'attesa del consulente. */
+    public const BYPASSABLE_STATUSES = ['draft', 'awaiting_prospects', 'prospects_review'];
+
+    /**
+     * BYPASS su una richiesta gia' avviata: l'admin assume subito senza aspettare
+     * prospetti/approvazione. Completa i dati mancanti con quelli del form
+     * (i campi non compilati NON sovrascrivono quelli gia' salvati), crea
+     * dipendente + utenza e porta la richiesta in stato 'direct_hire'.
+     *
+     * @return array ['success','error','employee_id','email_sent','email_error']
+     */
+    public static function hireDirectExisting(int $hireRequestId, array $data = [], array $extra = [], array $files = []): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') return ['success' => false, 'error' => 'Solo admin puo assumere direttamente'];
+        $hr = self::getById($hireRequestId);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta non trovata'];
+        if (!in_array($hr['status'], self::BYPASSABLE_STATUSES, true)) {
+            return ['success' => false, 'error' => 'Bypass non disponibile in stato "' . self::statusLabel($hr['status']) . '"'];
+        }
+
+        // Il form del bypass manda solo alcuni campi: applica i valori compilati
+        // sulla richiesta esistente senza azzerare il resto.
+        if (!empty($data)) {
+            $err = self::validateOptionalFormats($data);
+            if ($err !== null) return ['success' => false, 'error' => $err];
+            $payload = self::buildPayload($data);
+            $patch = [];
+            foreach ($payload as $k => $v) {
+                if (strpos($k, 'contract_') === 0 && !array_key_exists($k, $data)) continue;
+                if ($v === null || $v === '') continue;
+                $patch[$k] = $v;
+            }
+            if (!empty($patch)) {
+                try {
+                    Database::beginTransaction();
+                    Database::update('hire_requests', $patch, 'id = ?', [$hireRequestId]);
+                    if (!empty($files)) self::saveAdminFiles($hireRequestId, $files);
+                    Database::commit();
+                } catch (Throwable $e) {
+                    Database::rollBack();
+                    return ['success' => false, 'error' => 'Errore salvataggio dati: ' . $e->getMessage()];
+                }
+                $hr = self::getById($hireRequestId);
+            }
+        }
+
+        // Minimi indispensabili per creare il dipendente
+        $req = [
+            'employee_first_name' => 'Nome',
+            'employee_last_name'  => 'Cognome',
+            'fiscal_code'         => 'Codice fiscale',
+            'employee_email'      => 'Email account',
+            'start_date'          => 'Data inizio',
+        ];
+        $missing = [];
+        foreach ($req as $k => $lbl) {
+            if (trim((string)($hr[$k] ?? '')) === '') $missing[] = $lbl;
+        }
+        if (!empty($missing)) return ['success' => false, 'error' => 'Campi obbligatori mancanti: ' . implode(', ', $missing)];
+        if (!Employee::validateFiscalCode((string)$hr['fiscal_code'])) {
+            return ['success' => false, 'error' => 'Codice fiscale non valido (carattere di controllo errato)'];
+        }
+        $dupErr = self::checkFiscalCodeDuplicate((string)$hr['fiscal_code'], (int)$hr['company_id'], $hireRequestId);
+        if ($dupErr !== null) return ['success' => false, 'error' => $dupErr];
+
+        $username = trim((string)($data['username'] ?? '')) ?: (string)($hr['generated_username'] ?? '');
+        if ($username === '') {
+            $username = self::generateUsername($hr['employee_first_name'], $hr['employee_last_name'], (int)$hr['company_id']);
+        }
+        if ($username !== ($hr['generated_username'] ?? null)) {
+            Database::update('hire_requests', ['generated_username' => $username], 'id = ?', [$hireRequestId]);
+            $hr['generated_username'] = $username;
+        }
+
+        $extra['password'] = trim((string)($data['password'] ?? '')) ?: null;
+
+        $res = self::createEmployeeFromRequest($hireRequestId, $hr, $extra);
+        if (!$res['success']) return $res;
+        $empId = (int)$res['employee_id'];
+
+        Database::update('hire_requests', [
+            'status'             => 'direct_hire',
+            'employee_id'        => $empId,
+            'decided_at'         => date('Y-m-d H:i:s'),
+            'decided_by_user_id' => (int)$u['id'],
+        ], 'id = ?', [$hireRequestId]);
+
+        // Il consulente stava lavorando su questa richiesta: avvisalo che e' stata chiusa in bypass
+        try {
+            if (!empty($hr['assigned_consulente_user_id'])) {
+                Notification::create([
+                    'recipient_type' => 'consulente_lavoro',
+                    'recipient_id'   => (int)$hr['assigned_consulente_user_id'],
+                    'type'           => 'hire_direct',
+                    'title'          => 'Assunzione diretta',
+                    'message'        => 'L\'azienda ha assunto direttamente ' . $hr['employee_first_name'] . ' ' . $hr['employee_last_name']
+                        . ': la richiesta non attende piu\' i prospetti.',
+                    'link'           => '/consulente-lavoro/hire-requests.php?id=' . $hireRequestId,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return [
+            'success'     => true,
+            'id'          => $hireRequestId,
+            'employee_id' => $empId,
+            'email_sent'  => !empty($res['email_sent']),
+            'email_error' => $res['email_error'] ?? null,
+        ];
+    }
+
+    /**
+     * ASSUNZIONE DIRETTA: l'admin crea dipendente + utenza saltando l'intero flusso
+     * consulente (prospetti, approvazione, contratto da firmare) e gli allegati
+     * obbligatori. Viene comunque registrata una hire_request (stato 'direct_hire')
+     * per tracciabilita' e per riusare l'archiviazione documenti.
+     *
+     * Obbligatori: nome, cognome, codice fiscale, email account, data inizio.
+     * @return array ['success','error','id','employee_id','email_sent','email_error']
+     */
+    public static function hireDirect(array $data, array $files = [], array $extra = []): array
+    {
+        $u = Auth::getUser();
+        if (!$u || ($u['role'] ?? '') !== 'admin') return ['success' => false, 'error' => 'Solo admin puo assumere direttamente'];
+        $companyId = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        if ($companyId <= 0) return ['success' => false, 'error' => 'Azienda non valida'];
+
+        $req = [
+            'employee_first_name' => 'Nome',
+            'employee_last_name'  => 'Cognome',
+            'fiscal_code'         => 'Codice fiscale',
+            'employee_email'      => 'Email account',
+            'start_date'          => 'Data inizio',
+        ];
+        $missing = [];
+        foreach ($req as $k => $lbl) {
+            if (trim((string)($data[$k] ?? '')) === '') $missing[] = $lbl;
+        }
+        if (!empty($missing)) return ['success' => false, 'error' => 'Campi obbligatori mancanti: ' . implode(', ', $missing)];
+        $err = self::validateOptionalFormats($data);
+        if ($err !== null) return ['success' => false, 'error' => $err];
+        // Employee::create rifiuta i CF con checksum errato: verificalo subito,
+        // prima di scrivere la richiesta a DB.
+        if (!Employee::validateFiscalCode((string)$data['fiscal_code'])) {
+            return ['success' => false, 'error' => 'Codice fiscale non valido (carattere di controllo errato)'];
+        }
+
+        $payload = self::buildPayload($data);
+        $dupErr = self::checkFiscalCodeDuplicate((string)$payload['fiscal_code'], $companyId);
+        if ($dupErr !== null) return ['success' => false, 'error' => $dupErr];
+
+        $username = trim((string)($data['username'] ?? ''));
+        if ($username === '') {
+            $username = self::generateUsername($payload['employee_first_name'], $payload['employee_last_name'], $companyId);
+        }
+
+        $consulenteId = self::findConsulenteForCompany($companyId);
+        $now = date('Y-m-d H:i:s');
+
+        try {
+            Database::beginTransaction();
+            $id = Database::insert('hire_requests', array_merge($payload, [
+                'company_id'                  => $companyId,
+                'status'                      => 'direct_hire',
+                'created_by_user_id'          => (int)$u['id'],
+                'assigned_consulente_user_id' => $consulenteId,
+                'employer_name'               => trim((string)($data['employer_name'] ?? '')),
+                'generated_username'          => $username,
+                'decided_at'                  => $now,
+                'decided_by_user_id'          => (int)$u['id'],
+            ]));
+            self::saveAdminFiles($id, $files);
+            Database::commit();
+        } catch (Throwable $e) {
+            Database::rollBack();
+            error_log('[HireRequest::hireDirect] ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Errore creazione assunzione: ' . $e->getMessage()];
+        }
+
+        $hr = self::getById($id);
+        if (!$hr) return ['success' => false, 'error' => 'Richiesta creata ma non leggibile'];
+
+        // Password manuale opzionale: se vuota Employee::create ne genera una sicura
+        $extra['password'] = trim((string)($data['password'] ?? '')) ?: null;
+
+        $res = self::createEmployeeFromRequest($id, $hr, $extra);
+        if (!$res['success']) {
+            // Non lasciare richieste orfane che bloccherebbero il riuso del codice fiscale
+            Database::update('hire_requests', ['status' => 'cancelled'], 'id = ?', [$id]);
+            return ['success' => false, 'error' => $res['error'] ?? 'Errore creazione dipendente', 'id' => $id];
+        }
+        $empId = (int)$res['employee_id'];
+
+        Database::update('hire_requests', ['employee_id' => $empId], 'id = ?', [$id]);
+
+        // Informa il consulente (se collegato): assunzione fatta senza passare dal suo flusso
+        try {
+            if ($consulenteId) {
+                Notification::create([
+                    'recipient_type' => 'consulente_lavoro',
+                    'recipient_id'   => (int)$consulenteId,
+                    'type'           => 'hire_direct',
+                    'title'          => 'Assunzione diretta',
+                    'message'        => 'Nuovo dipendente assunto direttamente dall\'azienda: '
+                        . $hr['employee_first_name'] . ' ' . $hr['employee_last_name'],
+                    'link'           => '/consulente-lavoro/hire-requests.php?id=' . $id,
+                ]);
+            }
+        } catch (Throwable $e) {}
+
+        return [
+            'success'     => true,
+            'id'          => $id,
+            'employee_id' => $empId,
+            'email_sent'  => !empty($res['email_sent']),
+            'email_error' => $res['email_error'] ?? null,
+        ];
+    }
+
+    /**
+     * Crea il dipendente (+ utenza e credenziali) a partire dai dati della richiesta.
+     * Condiviso tra approvazione prospetti e assunzione diretta.
+     * @return array ['success','error','employee_id','email_sent','email_error']
+     */
+    private static function createEmployeeFromRequest(int $hireRequestId, array $hr, array $extra = []): array
+    {
+        // Setta tenant corrente sul company_id della richiesta (per Employee::create)
+        $_SESSION['tenant_company_id'] = (int)$hr['company_id'];
+
+        // Map work_days SET (es. "mon,tue,wed,thu,fri")
+        $workDays = (string)($hr['work_days'] ?? '');
+        $weeklyHours = (float)$hr['weekly_hours'];
+        $daysCount = count(array_filter(explode(',', $workDays)));
+        $hoursPerDay = $daysCount > 0 ? round($weeklyHours / $daysCount, 2) : null;
+
+        $payload = [
+            'username'      => $hr['generated_username'],
+            'first_name'    => $hr['employee_first_name'],
+            'last_name'     => $hr['employee_last_name'],
+            'fiscal_code'   => $hr['fiscal_code'],
+            'email'         => $hr['employee_email'],
+            'birth_date'    => $hr['employee_birth_date'],
+            'address'       => self::composeAddress($hr),
+            'iban'          => $hr['iban'] ?? null,
+            'hire_date'     => $hr['start_date'],
+            'position'      => $extra['position'] ?? $hr['role_description'],
+            'department_id' => $extra['department_id'] ?? null,
+            'job_level'     => $extra['job_level'] ?? null,
+            'ral_amount'    => $extra['ral_amount'] ?? null,
+            'monthly_salary'=> $extra['monthly_salary'] ?? null,
+            // Password manuale opzionale (assunzione diretta): se null Employee::create la genera
+            'password'      => $extra['password'] ?? null,
+        ];
+
+        // department_id puo' essere obbligatorio per Employee::create. Se manca, prendi il primo attivo dell'azienda
+        if (empty($payload['department_id'])) {
+            $dept = Database::fetchOne(
+                "SELECT id FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY id LIMIT 1",
+                [(int)$hr['company_id']]
+            );
+            if ($dept) $payload['department_id'] = (int)$dept['id'];
+        }
+        if (empty($payload['department_id'])) {
+            return ['success' => false, 'error' => 'Devi prima creare almeno un reparto nell\'azienda'];
+        }
+
+        $created = Employee::create($payload);
+        if (!$created['success']) {
+            return ['success' => false, 'error' => 'Errore creazione dipendente: ' . ($created['error'] ?? 'sconosciuto')];
+        }
+        $empId = (int)($created['id'] ?? 0);
+        if ($empId <= 0) return ['success' => false, 'error' => 'Creazione dipendente fallita'];
+
+        $emailSent = !empty($created['email_sent']);
+        $emailError = $created['email_error'] ?? null;
+
+        // Aggiorna working_days e hours_per_day (non gestiti da Employee::create direttamente)
+        try {
+            Database::update('employees', [
+                'working_days'  => $workDays,
+                'hours_per_day' => $hoursPerDay,
+            ], 'id = ?', [$empId]);
+        } catch (Throwable $e) {}
+
+        // Wrike PRIMA del trasferimento: i documenti vengono SPOSTATI (rename) al profilo
+        // dipendente qui sotto, quindi vanno caricati su Wrike finche' i file esistono ancora.
+        if (class_exists('Wrike') && !empty($hr['assigned_consulente_user_id'])) {
+            try {
+                $__docs = [];
+                foreach (['id_doc','fiscal_code_doc','permit','c2'] as $__cat) {
+                    foreach (self::getFiles($hireRequestId, $__cat) as $__f) $__docs[] = $__f;
+                }
+                Wrike::hireApproved((int)$hr['assigned_consulente_user_id'], $hireRequestId, $hr, $__docs);
+            } catch (Throwable $e) {}
+        }
+
+        // Trasferisci gli allegati admin (id_doc, fiscal_code_doc, permit, c2) come documenti del dipendente
+        $now = new DateTime();
+        $month = (int)$now->format('n');
+        $year  = (int)$now->format('Y');
+        $labelMap = [
+            'id_doc'          => 'Documento di riconoscimento',
+            'fiscal_code_doc' => 'Codice fiscale',
+            'permit'          => 'Permesso di soggiorno',
+            'c2'              => 'Modello C2',
+        ];
+        foreach ($labelMap as $cat => $label) {
+            $rows = self::getFiles($hireRequestId, $cat);
+            foreach ($rows as $f) {
+                $src = self::fileFsPath($f);
+                if (!is_file($src)) continue;
+                try {
+                    $created = Document::uploadFromPath($src, [
+                        'employee_id'   => $empId,
+                        'type'          => 'other',
+                        'month'         => $month,
+                        'year'          => $year,
+                        'title'         => $label,
+                        'description'   => 'Caricato in fase di assunzione (richiesta #' . $hireRequestId . ')',
+                        'original_name' => $f['original_name'],
+                    ]);
+                    if (!empty($created['id'])) {
+                        Database::update('documents', ['notify_employee' => 0], 'id = ?', [(int)$created['id']]);
+                    }
+                } catch (Throwable $e) {}
+            }
+        }
+
+        return ['success' => true, 'employee_id' => $empId, 'email_sent' => $emailSent, 'email_error' => $emailError];
+    }
+
     /**
      * Admin approva i prospetti: completa i dati anagrafici/contratto e gli allegati
      * (modulo assunzione completo), crea l'employee, trasferisce i documenti, sblocca fase contratto.
@@ -877,105 +1210,11 @@ class HireRequest
             $hr['generated_username'] = $__un;
         }
 
-        // Setta tenant corrente sul company_id della richiesta (per Employee::create)
-        $_SESSION['tenant_company_id'] = (int)$hr['company_id'];
-
-        // Map work_days SET (es. "mon,tue,wed,thu,fri")
-        $workDays = (string)($hr['work_days'] ?? '');
-        $weeklyHours = (float)$hr['weekly_hours'];
-        $daysCount = count(array_filter(explode(',', $workDays)));
-        $hoursPerDay = $daysCount > 0 ? round($weeklyHours / $daysCount, 2) : null;
-
-        $payload = [
-            'username'      => $hr['generated_username'],
-            'first_name'    => $hr['employee_first_name'],
-            'last_name'     => $hr['employee_last_name'],
-            'fiscal_code'   => $hr['fiscal_code'],
-            'email'         => $hr['employee_email'],
-            'birth_date'    => $hr['employee_birth_date'],
-            'address'       => self::composeAddress($hr),
-            'iban'          => $hr['iban'] ?? null,
-            'hire_date'     => $hr['start_date'],
-            'position'      => $extra['position'] ?? $hr['role_description'],
-            'department_id' => $extra['department_id'] ?? null,
-            'job_level'     => $extra['job_level'] ?? null,
-            'ral_amount'    => $extra['ral_amount'] ?? null,
-            'monthly_salary'=> $extra['monthly_salary'] ?? null,
-        ];
-
-        // department_id puo' essere obbligatorio per Employee::create. Se manca, prendi il primo attivo dell'azienda
-        if (empty($payload['department_id'])) {
-            $dept = Database::fetchOne(
-                "SELECT id FROM departments WHERE company_id = ? AND is_active = TRUE ORDER BY id LIMIT 1",
-                [(int)$hr['company_id']]
-            );
-            if ($dept) $payload['department_id'] = (int)$dept['id'];
-        }
-        if (empty($payload['department_id'])) {
-            return ['success' => false, 'error' => 'Devi prima creare almeno un reparto nell\'azienda'];
-        }
-
-        $created = Employee::create($payload);
-        if (!$created['success']) {
-            return ['success' => false, 'error' => 'Errore creazione dipendente: ' . ($created['error'] ?? 'sconosciuto')];
-        }
-        $empId = (int)($created['id'] ?? 0);
-        if ($empId <= 0) return ['success' => false, 'error' => 'Creazione dipendente fallita'];
-
-        $emailSent = !empty($created['email_sent']);
-        $emailError = $created['email_error'] ?? null;
-
-        // Aggiorna working_days e hours_per_day (non gestiti da Employee::create direttamente)
-        try {
-            Database::update('employees', [
-                'working_days'  => $workDays,
-                'hours_per_day' => $hoursPerDay,
-            ], 'id = ?', [$empId]);
-        } catch (Throwable $e) {}
-
-        // Wrike PRIMA del trasferimento: i documenti vengono SPOSTATI (rename) al profilo
-        // dipendente qui sotto, quindi vanno caricati su Wrike finche' i file esistono ancora.
-        if (class_exists('Wrike') && !empty($hr['assigned_consulente_user_id'])) {
-            try {
-                $__docs = [];
-                foreach (['id_doc','fiscal_code_doc','permit','c2'] as $__cat) {
-                    foreach (self::getFiles($hireRequestId, $__cat) as $__f) $__docs[] = $__f;
-                }
-                Wrike::hireApproved((int)$hr['assigned_consulente_user_id'], $hireRequestId, $hr, $__docs);
-            } catch (Throwable $e) {}
-        }
-
-        // Trasferisci gli allegati admin (id_doc, fiscal_code_doc, permit, c2) come documenti del dipendente
-        $now = new DateTime();
-        $month = (int)$now->format('n');
-        $year  = (int)$now->format('Y');
-        $labelMap = [
-            'id_doc'          => 'Documento di riconoscimento',
-            'fiscal_code_doc' => 'Codice fiscale',
-            'permit'          => 'Permesso di soggiorno',
-            'c2'              => 'Modello C2',
-        ];
-        foreach ($labelMap as $cat => $label) {
-            $rows = self::getFiles($hireRequestId, $cat);
-            foreach ($rows as $f) {
-                $src = self::fileFsPath($f);
-                if (!is_file($src)) continue;
-                try {
-                    $created = Document::uploadFromPath($src, [
-                        'employee_id'   => $empId,
-                        'type'          => 'other',
-                        'month'         => $month,
-                        'year'          => $year,
-                        'title'         => $label,
-                        'description'   => 'Caricato in fase di assunzione (richiesta #' . $hireRequestId . ')',
-                        'original_name' => $f['original_name'],
-                    ]);
-                    if (!empty($created['id'])) {
-                        Database::update('documents', ['notify_employee' => 0], 'id = ?', [(int)$created['id']]);
-                    }
-                } catch (Throwable $e) {}
-            }
-        }
+        $__emp = self::createEmployeeFromRequest($hireRequestId, $hr, $extra);
+        if (!$__emp['success']) return $__emp;
+        $empId = (int)$__emp['employee_id'];
+        $emailSent = !empty($__emp['email_sent']);
+        $emailError = $__emp['email_error'] ?? null;
 
         // Aggiorna richiesta
         Database::update('hire_requests', [
