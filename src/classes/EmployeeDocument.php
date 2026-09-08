@@ -119,6 +119,191 @@ class EmployeeDocument
         }
     }
 
+    /**
+     * Carica un documento e lo aggancia a tutti i dipendenti attivi dell'azienda
+     * corrente. Il file viene salvato una sola volta su disco: le righe generate
+     * condividono file_path e sono raggruppate da bulk_group.
+     *
+     * @param array $data name, visible_to_employee, expires_on, send_email
+     * @return array success, count, bulk_group oppure error
+     */
+    public static function uploadForAllEmployees(array $file, array $data): array
+    {
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            return ['success' => false, 'error' => 'Nome documento obbligatorio'];
+        }
+        if (mb_strlen($name) > 255) {
+            $name = mb_substr($name, 0, 255);
+        }
+
+        $fileValidation = self::validateFile($file);
+        if (!$fileValidation['valid']) {
+            return ['success' => false, 'error' => $fileValidation['error']];
+        }
+
+        $expiresOn = !empty($data['expires_on']) ? $data['expires_on'] : null;
+        if ($expiresOn !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiresOn)) {
+            return ['success' => false, 'error' => 'Data scadenza non valida'];
+        }
+
+        $visible = array_key_exists('visible_to_employee', $data)
+            ? (!empty($data['visible_to_employee']) ? 1 : 0)
+            : 1;
+        $sendEmail = !empty($data['send_email']);
+
+        $companyId = (int) (class_exists('Tenant') ? Tenant::currentCompanyId() : 1);
+        $employees = Employee::getAll(true);
+        if (empty($employees)) {
+            return ['success' => false, 'error' => 'Nessun dipendente attivo a cui agganciare il documento'];
+        }
+
+        $user = Auth::getUser();
+        if (!$user) {
+            return ['success' => false, 'error' => 'Autenticazione richiesta'];
+        }
+
+        $group = bin2hex(random_bytes(8));
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $fileName = bin2hex(random_bytes(16)) . '.' . $extension;
+
+        $directory = DOCUMENTS_PATH . '/employee-docs/_bulk/' . $companyId;
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            return ['success' => false, 'error' => 'Impossibile creare la cartella di destinazione'];
+        }
+
+        $filePath = $directory . '/' . $fileName;
+        if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+            return ['success' => false, 'error' => 'Errore durante il salvataggio del file'];
+        }
+
+        $inserted = [];
+        try {
+            foreach ($employees as $employee) {
+                $inserted[] = Database::insert('employee_documents', [
+                    'company_id' => $companyId,
+                    'bulk_group' => $group,
+                    'employee_id' => (int) $employee['id'],
+                    'name' => $name,
+                    'file_path' => $filePath,
+                    'file_name' => $fileName,
+                    'original_name' => $file['name'],
+                    'file_size' => $file['size'],
+                    'mime_type' => $fileValidation['mime_type'],
+                    'visible_to_employee' => $visible,
+                    'expires_on' => $expiresOn,
+                    'uploaded_by' => $user['id']
+                ]);
+            }
+        } catch (Exception $e) {
+            foreach ($inserted as $rowId) {
+                try { Database::delete('employee_documents', 'id = ?', [$rowId]); } catch (Throwable $ignored) {}
+            }
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            return ['success' => false, 'error' => 'Errore durante il salvataggio: ' . $e->getMessage()];
+        }
+
+        self::logAction('employee_document_bulk_uploaded', (int) ($inserted[0] ?? 0), null, [
+            'bulk_group' => $group,
+            'name' => $name,
+            'employees' => count($inserted),
+            'visible' => $visible
+        ]);
+
+        if ($visible) {
+            foreach ($employees as $employee) {
+                self::notifyEmployee($employee, $name, $sendEmail);
+            }
+        }
+
+        return [
+            'success' => true,
+            'count' => count($inserted),
+            'bulk_group' => $group
+        ];
+    }
+
+    /**
+     * Elenco delle distribuzioni massive dell'azienda corrente.
+     */
+    public static function getBulkGroups(): array
+    {
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        return Database::fetchAll(
+            "SELECT ed.bulk_group,
+                    MIN(ed.name) AS name,
+                    MIN(ed.original_name) AS original_name,
+                    MIN(ed.file_size) AS file_size,
+                    MIN(ed.mime_type) AS mime_type,
+                    MIN(ed.expires_on) AS expires_on,
+                    MAX(ed.visible_to_employee) AS visible_to_employee,
+                    MIN(ed.created_at) AS created_at,
+                    MIN(ed.id) AS sample_id,
+                    COUNT(*) AS employee_count,
+                    COUNT(DISTINCT dd.user_id) AS downloaded_count,
+                    MIN(u.name) AS uploaded_by_name
+             FROM employee_documents ed
+             JOIN users u ON ed.uploaded_by = u.id
+             LEFT JOIN employee_document_downloads dd
+                    ON dd.employee_document_id = ed.id AND dd.user_type = 'employee'
+             WHERE ed.company_id = ? AND ed.bulk_group IS NOT NULL
+             GROUP BY ed.bulk_group
+             ORDER BY MIN(ed.created_at) DESC",
+            [$cid]
+        );
+    }
+
+    /**
+     * Elimina tutte le righe di una distribuzione massiva (e il file condiviso).
+     */
+    public static function deleteBulkGroup(string $group): array
+    {
+        $group = trim($group);
+        if ($group === '') {
+            return ['success' => false, 'error' => 'Gruppo non valido'];
+        }
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $rows = Database::fetchAll(
+            "SELECT id, file_path FROM employee_documents WHERE company_id = ? AND bulk_group = ?",
+            [$cid, $group]
+        );
+        if (empty($rows)) {
+            return ['success' => false, 'error' => 'Distribuzione non trovata'];
+        }
+        try {
+            Database::delete('employee_documents', 'company_id = ? AND bulk_group = ?', [$cid, $group]);
+            $filePath = $rows[0]['file_path'];
+            if (!self::filePathStillUsed($filePath) && file_exists($filePath)) {
+                unlink($filePath);
+            }
+            self::logAction('employee_document_bulk_deleted', (int) $rows[0]['id'], null, [
+                'bulk_group' => $group,
+                'rows' => count($rows)
+            ]);
+            return ['success' => true, 'count' => count($rows)];
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => 'Errore durante l\'eliminazione'];
+        }
+    }
+
+    /**
+     * True se il file su disco e ancora referenziato da almeno una riga.
+     */
+    private static function filePathStillUsed(string $filePath, int $excludeId = 0): bool
+    {
+        try {
+            return (int) Database::fetchColumn(
+                "SELECT COUNT(*) FROM employee_documents WHERE file_path = ? AND id <> ?",
+                [$filePath, $excludeId]
+            ) > 0;
+        } catch (Throwable $e) {
+            // In caso di dubbio non cancelliamo il file
+            return true;
+        }
+    }
+
     public static function update(int $id, array $data): array
     {
         $document = self::getById($id);
@@ -185,10 +370,10 @@ class EmployeeDocument
             return ['success' => false, 'error' => 'Documento non trovato'];
         }
         try {
-            if (file_exists($document['file_path'])) {
+            Database::delete('employee_documents', 'id = ?', [$id]);
+            if (!self::filePathStillUsed($document['file_path'], $id) && file_exists($document['file_path'])) {
                 unlink($document['file_path']);
             }
-            Database::delete('employee_documents', 'id = ?', [$id]);
             self::logAction('employee_document_deleted', $id, $document, null);
             return ['success' => true];
         } catch (Exception $e) {
@@ -342,7 +527,7 @@ class EmployeeDocument
         }
     }
 
-    private static function notifyEmployee(array $employee, string $documentName): void
+    private static function notifyEmployee(array $employee, string $documentName, bool $sendEmail = true): void
     {
         try {
             if (class_exists('PushNotification')) {
@@ -357,7 +542,7 @@ class EmployeeDocument
         }
 
         try {
-            if (class_exists('Mailer') && Mailer::isConfigured()) {
+            if ($sendEmail && class_exists('Mailer') && Mailer::isConfigured()) {
                 $loginUrl = function_exists('buildPublicUrl')
                     ? buildPublicUrl('/auth/login.php')
                     : (defined('PUBLIC_URL') ? PUBLIC_URL . '/auth/login.php' : '');

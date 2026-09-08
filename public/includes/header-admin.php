@@ -193,6 +193,13 @@ if (!empty($__currentTenant['name'])) {
                         <span class="nav-sub"><?php echo $__sb['comm'] ?: 'Bacheca aziendale'; ?></span>
                     </span>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/admin/documenti-aziendali.php" class="nav-item <?php echo $currentPage === 'documenti-aziendali' ? 'active' : ''; ?>" data-tooltip="Documenti aziendali">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Documenti aziendali</span>
+                        <span class="nav-sub">Invio a tutti i dipendenti</span>
+                    </span>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/admin/chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>" data-tooltip="Chat">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <span class="nav-content">
