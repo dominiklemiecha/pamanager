@@ -191,6 +191,8 @@ class EmployeeDocument
                     'file_size' => $file['size'],
                     'mime_type' => $fileValidation['mime_type'],
                     'visible_to_employee' => $visible,
+                    'notify_pending' => $visible,
+                    'notify_email' => $sendEmail ? 1 : 0,
                     'expires_on' => $expiresOn,
                     'uploaded_by' => $user['id']
                 ]);
@@ -212,17 +214,93 @@ class EmployeeDocument
             'visible' => $visible
         ]);
 
-        if ($visible) {
-            foreach ($employees as $employee) {
-                self::notifyEmployee($employee, $name, $sendEmail);
+        // Le notifiche NON partono qui: sarebbero N invii SMTP dentro la request
+        // dell'upload. Restano in coda (notify_pending) e vengono processate a
+        // batch da processNotificationBatch().
+
+        return [
+            'success' => true,
+            'count' => count($inserted),
+            'pending_notifications' => $visible ? count($inserted) : 0,
+            'bulk_group' => $group
+        ];
+    }
+
+    /**
+     * Processa un blocco di notifiche in coda per una distribuzione massiva.
+     * Chiamato in loop dal browser (AJAX) cosi l'upload resta immediato.
+     *
+     * @return array success, sent, remaining
+     */
+    public static function processNotificationBatch(string $group, int $limit = 4): array
+    {
+        $group = trim($group);
+        if ($group === '') {
+            return ['success' => false, 'error' => 'Gruppo non valido'];
+        }
+        $limit = max(1, min(20, $limit));
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+
+        $rows = Database::fetchAll(
+            "SELECT id, employee_id, name, notify_email
+             FROM employee_documents
+             WHERE company_id = ? AND bulk_group = ? AND notify_pending = 1
+             ORDER BY id
+             LIMIT " . (int) $limit,
+            [$cid, $group]
+        );
+
+        $sent = 0;
+        foreach ($rows as $row) {
+            // Prima sblocco la riga: se l'invio va in timeout non resta in loop
+            Database::update('employee_documents', ['notify_pending' => 0], 'id = ?', [$row['id']]);
+            $employee = Employee::getById((int) $row['employee_id']);
+            if ($employee) {
+                self::notifyEmployee($employee, $row['name'], !empty($row['notify_email']));
+                $sent++;
             }
         }
 
         return [
             'success' => true,
-            'count' => count($inserted),
-            'bulk_group' => $group
+            'sent' => $sent,
+            'remaining' => self::countPendingNotifications($group)
         ];
+    }
+
+    /**
+     * Notifiche ancora in coda: per un gruppo, o per tutta l'azienda.
+     */
+    public static function countPendingNotifications(?string $group = null): int
+    {
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        if ($group !== null && trim($group) !== '') {
+            return (int) Database::fetchColumn(
+                "SELECT COUNT(*) FROM employee_documents
+                 WHERE company_id = ? AND bulk_group = ? AND notify_pending = 1",
+                [$cid, trim($group)]
+            );
+        }
+        return (int) Database::fetchColumn(
+            "SELECT COUNT(*) FROM employee_documents
+             WHERE company_id = ? AND bulk_group IS NOT NULL AND notify_pending = 1",
+            [$cid]
+        );
+    }
+
+    /**
+     * Primo gruppo con notifiche ancora da smaltire (per riprendere il lavoro).
+     */
+    public static function getPendingNotificationGroup(): ?string
+    {
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $group = Database::fetchColumn(
+            "SELECT bulk_group FROM employee_documents
+             WHERE company_id = ? AND bulk_group IS NOT NULL AND notify_pending = 1
+             ORDER BY id LIMIT 1",
+            [$cid]
+        );
+        return $group !== null && $group !== false ? (string) $group : null;
     }
 
     /**
@@ -243,6 +321,7 @@ class EmployeeDocument
                     MIN(ed.id) AS sample_id,
                     COUNT(*) AS employee_count,
                     COUNT(DISTINCT dd.user_id) AS downloaded_count,
+                    SUM(ed.notify_pending) AS pending_notifications,
                     MIN(u.name) AS uploaded_by_name
              FROM employee_documents ed
              JOIN users u ON ed.uploaded_by = u.id
