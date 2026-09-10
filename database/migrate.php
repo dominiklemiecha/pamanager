@@ -6,7 +6,7 @@
  * Esegue tutte le migrazioni SQL in ordine
  *
  * USO:
- * - Da browser: http://localhost/gestionalepa/public/migrate.php?token=xxx
+ * - Da browser: https://<host>/migrate.php?token=<MIGRATION_TOKEN>
  * - Da CLI: php migrate.php
  *
  * ATTENZIONE: Eseguire solo una volta in produzione!
@@ -17,10 +17,10 @@ $isCli = php_sapi_name() === 'cli';
 
 if (!$isCli && !defined('MIGRATION_AUTHORIZED')) {
     // Verifica token di sicurezza per esecuzione da browser
-    $expectedToken = getenv('MIGRATION_TOKEN') ?: '***RIMOSSO***';
-    $providedToken = $_GET['token'] ?? '';
+    $expectedToken = (string) (getenv('MIGRATION_TOKEN') ?: '');
+    $providedToken = (string) ($_GET['token'] ?? '');
 
-    if ($providedToken !== $expectedToken) {
+    if ($expectedToken === '' || !hash_equals($expectedToken, $providedToken)) {
         http_response_code(403);
         die('Accesso negato. Fornire token: ?token=xxx');
     }

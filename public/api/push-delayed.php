@@ -8,6 +8,15 @@ require_once dirname(__DIR__, 2) . '/config/config.php';
 
 header('Content-Type: application/json');
 
+// --- Guard: solo admin autenticato (endpoint di debug) ---
+Auth::init();
+$__u = Auth::getUser();
+if (!$__u || ($__u['role'] ?? '') !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Accesso riservato agli amministratori']);
+    exit;
+}
+
 $delay = isset($_GET['delay']) ? (int)$_GET['delay'] : 10;
 $delay = min(max($delay, 5), 60); // Min 5s, max 60s
 

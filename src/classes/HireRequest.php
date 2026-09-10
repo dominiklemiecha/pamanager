@@ -502,6 +502,9 @@ class HireRequest
                 throw new RuntimeException("Impossibile creare directory: $dir");
             }
         }
+        // Radice hire-requests non raggiungibile via URL: i file passano da pagine autenticate.
+        $base = defined('UPLOAD_PATH') ? UPLOAD_PATH : (dirname(__DIR__, 2) . '/public/uploads');
+        UploadGuard::denyDirectAccess($base . '/' . self::UPLOAD_BASE);
         $orig = $file['name'] ?? 'file';
         $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
         $allowedExt = ['pdf','jpg','jpeg','png','webp','heic','heif','doc','docx'];

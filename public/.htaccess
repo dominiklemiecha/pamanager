@@ -19,7 +19,7 @@ RewriteEngine On
 # ====================================
 
 # Blocca accesso a file sensibili
-<FilesMatch "\.(env|log|sql|bak|config|ini)$">
+<FilesMatch "\.(env|log|sql|bak|config|ini|sh|yml|yaml|lock|md)$">
     Order allow,deny
     Deny from all
 </FilesMatch>
@@ -60,6 +60,10 @@ Options -Indexes
 
     # Permissions Policy
     Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+    # HSTS: attivo solo quando la richiesta arriva davvero in HTTPS
+    # (in locale su http non viene emesso, dietro Traefik si legge X-Forwarded-Proto)
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on' || %{HTTP:X-Forwarded-Proto} == 'https'"
 
     # Rimuovi header server info
     Header unset X-Powered-By

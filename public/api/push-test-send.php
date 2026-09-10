@@ -8,6 +8,15 @@ require_once dirname(__DIR__, 2) . '/config/config.php';
 
 header('Content-Type: application/json');
 
+// --- Guard: solo admin autenticato (endpoint di debug) ---
+Auth::init();
+$__u = Auth::getUser();
+if (!$__u || ($__u['role'] ?? '') !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Accesso riservato agli amministratori']);
+    exit;
+}
+
 try {
     // Ottieni l'utente corrente (se loggato)
     $user = Auth::getUser();
@@ -35,12 +44,7 @@ try {
         }
     }
 
-    // Se ancora nessuna subscription, cerca l'ultima registrata
-    if (!$subscription) {
-        $subscription = Database::fetchOne(
-            "SELECT * FROM push_subscriptions ORDER BY created_at DESC LIMIT 1"
-        );
-    }
+    // Nessun fallback su subscription altrui: il test va sempre all'utente corrente.
 
     if (!$subscription) {
         echo json_encode([

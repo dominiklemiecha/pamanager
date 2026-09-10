@@ -18,8 +18,11 @@ services:
       DB_USER: ${DB_USER:-pamanager}
       DB_PASS: ${DB_PASS}
       APP_URL: ${APP_URL:-http://localhost}
-      MIGRATION_TOKEN: ${MIGRATION_TOKEN:-***RIMOSSO***}
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      # Nessun default: vanno impostati dal pannello Dokploy (App > Environment).
+      # Senza MIGRATION_TOKEN l'endpoint web /migrate.php resta chiuso (le migrazioni
+      # girano comunque da CLI nell'entrypoint). Senza JWT_SECRET le API rispondono 500.
+      MIGRATION_TOKEN: ${MIGRATION_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRY: "${JWT_EXPIRY:-3600}"
       # Azienda esposta all'endpoint presenze/assenze per il CRM (slug o nome)
       CRM_COMPANY_SLUG: ${CRM_COMPANY_SLUG:-connecteed}

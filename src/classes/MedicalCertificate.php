@@ -13,6 +13,7 @@ class MedicalCertificate
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
         $dir = ROOT_PATH . '/public/uploads/co-' . $cid . '/medical_certificates';
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
+        UploadGuard::denyDirectAccess($dir);
         return $dir;
     }
 

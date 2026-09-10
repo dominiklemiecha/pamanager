@@ -547,13 +547,15 @@ AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
 GROUP BY DATE(created_at), user_type, status;
 
 -- =====================================================================
--- ADMIN CONNECTEED (password: ***RIMOSSO*** - bcrypt cost 12)
+-- ADMIN CONNECTEED (password impostata al primo avvio dall'entrypoint)
 -- =====================================================================
 
 INSERT INTO users (username, password_hash, role, name, email, is_active)
 VALUES (
     'connecteed',
-    '***RIMOSSO***',
+    -- Hash segnaposto non utilizzabile: la password reale viene impostata dall'entrypoint
+    -- (SEED_ADMIN_PASSWORD, oppure una password casuale stampata nei log al primo avvio).
+    '$2y$12$Bacdg.oneFbIYpDxJ5RzfOSSWF4ShTHh0OY13fk.D2vA.0mP9/Cxu',
     'admin',
     'Connecteed Admin',
     'admin@connecteed.it',
