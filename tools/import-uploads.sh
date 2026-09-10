@@ -41,7 +41,7 @@ docker compose exec -T app bash -c '
 '
 
 echo "[3/3] Verifica DB <-> file:"
-docker compose exec -T db mariadb --skip-ssl -upamanager -p***RIMOSSO*** pamanager -e "
+docker compose exec -T db mariadb --skip-ssl -upamanager -p"${DB_PASS:?imposta DB_PASS}" pamanager -e "
     SELECT COUNT(*) AS dipendenti_con_foto FROM employees WHERE photo_path IS NOT NULL AND photo_path <> '';
     SELECT id, CONCAT(first_name,' ',last_name) AS nome, photo_path FROM employees WHERE photo_path IS NOT NULL AND photo_path <> '' LIMIT 5;
 " 2>&1 | grep -v "warning\|Using a password"

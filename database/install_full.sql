@@ -1,6 +1,6 @@
 -- =====================================================================
 -- PAManager - INSTALL FULL (schema + migrazioni 001..007 + admin connecteed)
--- Da importare via phpMyAdmin nel database ***RIMOSSO*** (vuoto).
+-- Da importare in un database vuoto (l'entrypoint Docker lo fa da solo al primo avvio).
 -- Compatibile con MySQL/MariaDB su hosting cPanel.
 -- NON contiene CREATE DATABASE / USE / DELIMITER / EVENT (incompatibili
 -- con shared hosting). Le procedure di cleanup sono OMESSE: si possono

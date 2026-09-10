@@ -20,8 +20,9 @@ set -e
 
 DUMP_FILE="${1:-prod-dump.sql}"
 DB_USER="${DB_USER:-pamanager}"
-DB_PASS="${DB_PASS:-***RIMOSSO***}"
-DB_ROOT_PASS="${DB_ROOT_PASS:-***RIMOSSO***}"
+# Password lette dall'ambiente (vedi docker-compose.override.yml, non versionato)
+DB_PASS="${DB_PASS:?imposta DB_PASS}"
+DB_ROOT_PASS="${DB_ROOT_PASS:?imposta DB_ROOT_PASS}"
 DB_NAME="${DB_NAME:-pamanager}"
 
 if [ ! -f "$DUMP_FILE" ]; then
