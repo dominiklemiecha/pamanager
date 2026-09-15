@@ -168,34 +168,110 @@ class Auth
     }
 
     /**
-     * Login utente (admin/commercialista)
+     * Trova gli account attivi che corrispondono all'identificativo digitato:
+     * username o email per lo staff (users), username, codice fiscale o email
+     * per i dipendenti. La stessa email puo' stare su piu' account (staff e
+     * dipendente, o dipendente in piu' aziende): login e recupero password usano
+     * entrambi questa ricerca, cosi' guardano sempre gli stessi account.
+     *
+     * @return array<int, array{table: string, row: array, by_email: bool}>
+     *         prima le corrispondenze su username/codice fiscale, poi quelle per email
      */
-    public static function loginUser(string $username, string $password): array
+    public static function findAccountsByIdentifier(string $identifier): array
     {
-        $user = Database::fetchOne(
-            "SELECT * FROM users WHERE username = ? AND is_active = TRUE",
-            [$username]
+        $identifier = trim($identifier);
+        if ($identifier === '') {
+            return [];
+        }
+
+        $accounts = [];
+
+        $users = Database::fetchAll(
+            "SELECT * FROM users WHERE (username = ? OR email = ?) AND is_active = TRUE
+             ORDER BY last_login DESC, id DESC",
+            [$identifier, $identifier]
         );
+        foreach ($users as $row) {
+            $accounts[] = [
+                'table' => 'users',
+                'row' => $row,
+                'by_email' => strcasecmp((string)$row['username'], $identifier) !== 0,
+            ];
+        }
 
-        if (!$user) {
-            AuditLog::logLoginFailed('unknown', 0, 'user_not_found', ['username' => $username]);
+        $employees = Database::fetchAll(
+            "SELECT * FROM employees WHERE (username = ? OR fiscal_code = ? OR email = ?) AND is_active = TRUE
+             ORDER BY last_login DESC, id DESC",
+            [$identifier, strtoupper($identifier), $identifier]
+        );
+        foreach ($employees as $row) {
+            $accounts[] = [
+                'table' => 'employees',
+                'row' => $row,
+                'by_email' => strcasecmp((string)$row['username'], $identifier) !== 0
+                    && strcasecmp((string)$row['fiscal_code'], $identifier) !== 0,
+            ];
+        }
+
+        // usort e' stabile da PHP 8: a parita' lo staff resta prima dei dipendenti
+        usort($accounts, fn($a, $b) => $a['by_email'] <=> $b['by_email']);
+
+        return $accounts;
+    }
+
+    /**
+     * Login unico per staff e dipendenti con username, email o codice fiscale.
+     * La password viene provata su ogni account attivo trovato ed entra il primo
+     * che corrisponde; se nessuno corrisponde il tentativo fallito viene contato
+     * su tutti gli account non bloccati.
+     */
+    public static function login(string $identifier, string $password): array
+    {
+        $accounts = self::findAccountsByIdentifier($identifier);
+
+        if (!$accounts) {
+            AuditLog::logLoginFailed('unknown', 0, 'user_not_found', ['username' => $identifier]);
             return ['success' => false, 'error' => 'Credenziali non valide'];
         }
 
-        // Verifica blocco account
-        if ($user['locked_until'] && strtotime($user['locked_until']) > time()) {
-            $remainingTime = ceil((strtotime($user['locked_until']) - time()) / 60);
-            AuditLog::logLoginFailed($user['role'], $user['id'], 'account_locked');
-            return ['success' => false, 'error' => "Account bloccato. Riprova tra {$remainingTime} minuti."];
+        $lockedMinutes = 0;
+        $failed = [];
+        foreach ($accounts as $account) {
+            $row = $account['row'];
+            $role = $account['table'] === 'users' ? $row['role'] : 'employee';
+
+            if ($row['locked_until'] && strtotime($row['locked_until']) > time()) {
+                $lockedMinutes = max($lockedMinutes, (int)ceil((strtotime($row['locked_until']) - time()) / 60));
+                AuditLog::logLoginFailed($role, $row['id'], 'account_locked');
+                continue;
+            }
+
+            if (password_verify($password, $row['password_hash'])) {
+                return $account['table'] === 'users'
+                    ? self::beginUserLogin($row)
+                    : self::completeEmployeeLogin($row);
+            }
+
+            $failed[] = [$account['table'], (int)$row['id'], $role];
         }
 
-        // Verifica password
-        if (!password_verify($password, $user['password_hash'])) {
-            self::incrementFailedAttempts('users', $user['id']);
-            AuditLog::logLoginFailed($user['role'], $user['id'], 'wrong_password');
-            return ['success' => false, 'error' => 'Credenziali non valide'];
+        foreach ($failed as [$table, $id, $role]) {
+            self::incrementFailedAttempts($table, $id);
+            AuditLog::logLoginFailed($role, $id, 'wrong_password');
         }
 
+        if ($lockedMinutes > 0 && !$failed) {
+            return ['success' => false, 'error' => "Account bloccato. Riprova tra {$lockedMinutes} minuti."];
+        }
+
+        return ['success' => false, 'error' => 'Credenziali non valide'];
+    }
+
+    /**
+     * Avvia la sessione staff dopo la verifica password, passando per l'MFA se richiesto
+     */
+    private static function beginUserLogin(array $user): array
+    {
         // Verifica se richiede MFA
         if (MFA_ENABLED && in_array($user['role'], MFA_REQUIRED_ROLES)) {
             if (!empty($user['mfa_secret']) && $user['mfa_enabled']) {
@@ -259,41 +335,10 @@ class Auth
     }
 
     /**
-     * Login dipendente con username/codice fiscale e password
+     * Avvia la sessione dipendente dopo la verifica password
      */
-    public static function loginEmployee(string $username, string $password): array
+    private static function completeEmployeeLogin(array $employee): array
     {
-        $usernameNormalized = trim($username);
-        $fiscalCodeNormalized = strtoupper(trim($username));
-
-        // Username/codice fiscale sono unici per azienda (migration 039). Se lo stesso
-        // valore esiste in piu' aziende dello stesso tenant, prendiamo il record con
-        // ultimo login piu' recente, poi id maggiore (deterministico).
-        $employee = Database::fetchOne(
-            "SELECT * FROM employees WHERE (username = ? OR fiscal_code = ?) AND is_active = TRUE
-             ORDER BY last_login DESC, id DESC LIMIT 1",
-            [$usernameNormalized, $fiscalCodeNormalized]
-        );
-
-        if (!$employee) {
-            AuditLog::logLoginFailed('employee', 0, 'employee_not_found', ['username' => $username]);
-            return ['success' => false, 'error' => 'Credenziali non valide'];
-        }
-
-        // Verifica blocco account
-        if ($employee['locked_until'] && strtotime($employee['locked_until']) > time()) {
-            $remainingTime = ceil((strtotime($employee['locked_until']) - time()) / 60);
-            AuditLog::logLoginFailed('employee', $employee['id'], 'account_locked');
-            return ['success' => false, 'error' => "Account bloccato. Riprova tra {$remainingTime} minuti."];
-        }
-
-        // Verifica password
-        if (!password_verify($password, $employee['password_hash'])) {
-            self::incrementFailedAttempts('employees', $employee['id']);
-            AuditLog::logLoginFailed('employee', $employee['id'], 'wrong_password');
-            return ['success' => false, 'error' => 'Credenziali non valide'];
-        }
-
         // Reset tentativi falliti e aggiorna ultimo login
         Database::update('employees', [
             'failed_attempts' => 0,
@@ -738,45 +783,44 @@ class Auth
      */
     public static function createPasswordResetRequest(string $identifier): array
     {
-        $userType = null;
-        $userId = null;
-        $userData = null;
+        // Stessa ricerca del login: il link reimposta sempre un account con cui si puo' entrare
+        $accounts = self::findAccountsByIdentifier($identifier);
 
-        // Prima cerca negli utenti (admin/commercialista)
-        $user = Database::fetchOne(
-            "SELECT id, username, email, role, name FROM users WHERE username = ? OR email = ?",
-            [$identifier, $identifier]
-        );
+        // Username o codice fiscale indicano un account preciso; un'email condivisa
+        // da piu' account riceve un link per ciascuno, con lo username nell'email.
+        $exact = array_values(array_filter($accounts, fn($a) => !$a['by_email']));
+        if ($exact) {
+            $accounts = $exact;
+        }
 
-        if ($user) {
-            $userType = $user['role'];
-            $userId = $user['id'];
-            $userData = $user;
-        } else {
-            // Cerca nei dipendenti (per username, email o codice fiscale)
-            $employee = Database::fetchOne(
-                "SELECT id, username, email, fiscal_code, first_name, last_name
-                 FROM employees
-                 WHERE username = ? OR email = ? OR fiscal_code = ?",
-                [$identifier, $identifier, strtoupper($identifier)]
-            );
-
-            if ($employee) {
-                $userType = 'employee';
-                $userId = $employee['id'];
-                $userData = [
-                    'id' => $employee['id'],
-                    'name' => $employee['first_name'] . ' ' . $employee['last_name'],
-                    'email' => $employee['email'],
-                    'username' => $employee['username'] ?? $employee['fiscal_code']
-                ];
+        try {
+            foreach ($accounts as $account) {
+                self::sendPasswordResetLink($account['table'], $account['row']);
             }
+        } catch (Exception $e) {
+            error_log('Password reset request failed: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Errore durante la richiesta. Riprova più tardi.'];
         }
 
-        if (!$userType) {
-            // Non rivelare se l'utente esiste o no
-            return ['success' => true, 'message' => 'Se l\'utente esiste, riceverai istruzioni via email'];
+        // Non rivelare se l'utente esiste o no
+        return ['success' => true, 'message' => 'Se l\'utente esiste, riceverai istruzioni via email'];
+    }
+
+    /**
+     * Crea il token di reset per un singolo account e prova a inviarlo via email
+     */
+    private static function sendPasswordResetLink(string $table, array $row): void
+    {
+        if ($table === 'users') {
+            $userType = $row['role'];
+            $name = (string)($row['name'] ?? '');
+            $username = (string)$row['username'];
+        } else {
+            $userType = 'employee';
+            $name = trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
+            $username = (string)($row['username'] ?: $row['fiscal_code']);
         }
+        $userId = $row['id'];
 
         // Verifica se esiste già una richiesta pending recente (ultimi 15 minuti)
         $existing = Database::fetchOne(
@@ -787,71 +831,56 @@ class Auth
         );
 
         if ($existing) {
-            return ['success' => true, 'message' => 'Richiesta già inviata. Controlla la tua email.'];
+            return;
         }
 
-        // Crea token
         $token = bin2hex(random_bytes(32));
         $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
-        try {
-            // Inserisci token
-            $tokenId = Database::insert('password_reset_tokens', [
-                'user_type' => $userType,
-                'user_id' => $userId,
-                'token' => $token,
-                'expires_at' => $expiresAt,
-                'ip_address' => getClientIp(),
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
-            ]);
+        $tokenId = Database::insert('password_reset_tokens', [
+            'user_type' => $userType,
+            'user_id' => $userId,
+            'token' => $token,
+            'expires_at' => $expiresAt,
+            'ip_address' => getClientIp(),
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+        ]);
 
-            // Tentativo di invio email automatico
-            $emailSent = false;
-            if (!empty($userData['email']) && class_exists('Mailer') && Mailer::isConfigured()) {
-                $resetUrl = buildPublicUrl('/auth/reset-password.php?token=' . urlencode($token));
-                $name = htmlspecialchars($userData['name'] ?? '');
-                $html = "<p>Ciao {$name},</p>" .
-                        "<p>Hai richiesto il reset della password per il tuo account Connecteed HR.</p>" .
-                        "<p><a href=\"{$resetUrl}\">Clicca qui per impostare una nuova password</a></p>" .
-                        "<p>Il link è valido per 1 ora. Se non hai effettuato tu la richiesta puoi ignorare questa email.</p>";
-                $text = "Ciao {$name},\n\nReset password Connecteed HR: {$resetUrl}\nLink valido 1 ora.";
-                $emailSent = Mailer::send($userData['email'], $userData['name'] ?? '', 'Recupero password Connecteed HR', $html, $text);
-            }
-
-            // Se l'email è partita la richiesta è già evasa (status 'sent'), altrimenti
-            // resta 'pending' in attesa di approvazione manuale dell'admin (fallback).
-            Database::insert('password_reset_requests', [
-                'user_type' => $userType,
-                'user_id' => $userId,
-                'token_id' => $tokenId,
-                'requested_ip' => getClientIp(),
-                'status' => $emailSent ? 'sent' : 'pending',
-                'resolved_at' => $emailSent ? date('Y-m-d H:i:s') : null,
-                'notes' => $emailSent ? 'Email inviata automaticamente' : null
-            ]);
-
-            // Log
-            AuditLog::log(
-                $emailSent ? 'password_reset_email_sent' : 'password_reset_requested',
-                $userType,
-                $userId,
-                null,
-                null,
-                null,
-                ['ip' => getClientIp(), 'email_sent' => $emailSent]
-            );
-
-            return [
-                'success' => true,
-                'message' => 'Se l\'utente esiste, riceverà istruzioni via email',
-                'token' => $token,
-                'user' => $userData,
-                'email_sent' => $emailSent
-            ];
-        } catch (Exception $e) {
-            error_log('Password reset request failed: ' . $e->getMessage());
-            return ['success' => false, 'error' => 'Errore durante la richiesta. Riprova più tardi.'];
+        // Tentativo di invio email automatico
+        $emailSent = false;
+        if (!empty($row['email']) && class_exists('Mailer') && Mailer::isConfigured()) {
+            $resetUrl = buildPublicUrl('/auth/reset-password.php?token=' . urlencode($token));
+            $safeName = htmlspecialchars($name);
+            $safeUsername = htmlspecialchars($username);
+            $html = "<p>Ciao {$safeName},</p>" .
+                    "<p>Hai richiesto il reset della password per il tuo account Connecteed HR <strong>{$safeUsername}</strong>.</p>" .
+                    "<p><a href=\"{$resetUrl}\">Clicca qui per impostare una nuova password</a></p>" .
+                    "<p>Il link è valido per 1 ora. Se non hai effettuato tu la richiesta puoi ignorare questa email.</p>";
+            $text = "Ciao {$name},\n\nReset password Connecteed HR (account {$username}): {$resetUrl}\nLink valido 1 ora.";
+            $emailSent = Mailer::send($row['email'], $name, 'Recupero password Connecteed HR', $html, $text);
         }
+
+        // Se l'email è partita la richiesta è già evasa (status 'sent'), altrimenti
+        // resta 'pending' in attesa di approvazione manuale dell'admin (fallback).
+        Database::insert('password_reset_requests', [
+            'user_type' => $userType,
+            'user_id' => $userId,
+            'token_id' => $tokenId,
+            'requested_ip' => getClientIp(),
+            'status' => $emailSent ? 'sent' : 'pending',
+            'resolved_at' => $emailSent ? date('Y-m-d H:i:s') : null,
+            'notes' => $emailSent ? 'Email inviata automaticamente' : null
+        ]);
+
+        AuditLog::log(
+            $emailSent ? 'password_reset_email_sent' : 'password_reset_requested',
+            $userType,
+            $userId,
+            null,
+            null,
+            null,
+            ['ip' => getClientIp(), 'email_sent' => $emailSent]
+        );
     }
 
     /**
@@ -866,7 +895,9 @@ class Auth
                     CASE WHEN prt.user_type <> 'employee'
                          THEN u.name ELSE e.first_name END as user_name,
                     CASE WHEN prt.user_type <> 'employee'
-                         THEN u.email ELSE e.email END as user_email
+                         THEN u.email ELSE e.email END as user_email,
+                    CASE WHEN prt.user_type <> 'employee'
+                         THEN u.username ELSE COALESCE(NULLIF(e.username, ''), e.fiscal_code) END as user_username
              FROM password_reset_tokens prt
              LEFT JOIN users u ON prt.user_type <> 'employee' AND prt.user_id = u.id
              LEFT JOIN employees e ON prt.user_type = 'employee' AND prt.user_id = e.id

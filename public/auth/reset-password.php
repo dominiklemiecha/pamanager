@@ -166,7 +166,7 @@ $pageTitle = 'Reimposta Password - Connecteed HR';
                 <?php endif; ?>
 
                 <p style="margin-bottom: 1rem; color: #4a5568; font-size: 0.9rem;">
-                    Ciao <strong><?= htmlspecialchars($tokenData['user_name'] ?? 'Utente') ?></strong>, inserisci la tua nuova password.
+                    Ciao <strong><?= htmlspecialchars($tokenData['user_name'] ?? 'Utente') ?></strong>, inserisci la nuova password per l'account <strong><?= htmlspecialchars($tokenData['user_username'] ?? '') ?></strong>.
                 </p>
 
                 <div class="password-requirements">

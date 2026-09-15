@@ -119,11 +119,7 @@ $pageTitle = 'Recupero Password - Connecteed HR';
 
                 <div class="reset-info">
                     <p>
-                        <?php if ($isEmployee): ?>
-                            Inserisci il tuo username, email o codice fiscale. Se l'account esiste, riceverai via email un link per reimpostare la password (valido 1 ora).
-                        <?php else: ?>
-                            Inserisci il tuo username o email. Se l'account esiste, riceverai via email un link per reimpostare la password (valido 1 ora).
-                        <?php endif; ?>
+                        Inserisci il tuo username, email o codice fiscale. Se l'account esiste, riceverai via email un link per reimpostare la password (valido 1 ora).
                     </p>
                 </div>
 
@@ -134,10 +130,11 @@ $pageTitle = 'Recupero Password - Connecteed HR';
                     <?php endif; ?>
 
                     <div class="form-group">
-                        <label for="identifier"><?= $isEmployee ? 'Username, Email o Codice Fiscale' : 'Username o Email' ?></label>
+                        <label for="identifier">Username, email o codice fiscale</label>
                         <input type="text" id="identifier" name="identifier" required
                                autocomplete="username" autofocus
-                               placeholder="<?= $isEmployee ? 'es. mario.rossi o RSSMRA80A01H501U' : 'Inserisci username o email' ?>"
+                               autocapitalize="none" autocorrect="off" spellcheck="false"
+                               placeholder="es. mario.rossi, mario@azienda.it o RSSMRA80A01H501U"
                                value="<?= htmlspecialchars($_POST['identifier'] ?? '') ?>">
                     </div>
 

@@ -50,41 +50,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = $_POST['password'] ?? '';
 
         if (empty($username) || empty($password)) {
-            $error = 'Inserisci username e password';
+            $error = 'Inserisci le credenziali di accesso';
         } else {
-            // Determina se l'username esiste in users o employees (priorita users)
-            $userRow = Database::fetchOne("SELECT id FROM users WHERE username = ? LIMIT 1", [$username]);
-            $empRow  = !$userRow ? Database::fetchOne(
-                "SELECT id FROM employees WHERE username = ? OR fiscal_code = ? LIMIT 1",
-                [$username, strtoupper($username)]
-            ) : null;
-
-            if ($userRow) {
-                $result = Auth::loginUser($username, $password);
-                if (!empty($result['success'])) {
-                    if (!empty($result['requires_mfa'])) {
-                        header('Location: ' . PUBLIC_URL . '/auth/mfa-verify.php');
-                        exit;
-                    }
+            // Username, email o codice fiscale: Auth::login cerca tra staff e dipendenti
+            $result = Auth::login($username, $password);
+            if (!empty($result['success'])) {
+                if (!empty($result['requires_mfa'])) {
+                    header('Location: ' . PUBLIC_URL . '/auth/mfa-verify.php');
+                    exit;
+                }
+                if (isset($result['user'])) {
                     header('Location: ' . login_redirect_for('user', $result['user']));
-                    exit;
-                }
-                $error = $result['error'] ?? 'Credenziali non valide';
-            } elseif ($empRow) {
-                $result = Auth::loginEmployee($username, $password);
-                if (!empty($result['success'])) {
-                    if (!empty($result['requires_mfa'])) {
-                        header('Location: ' . PUBLIC_URL . '/auth/mfa-verify.php');
-                        exit;
-                    }
+                } else {
                     header('Location: ' . login_redirect_for('employee', $result['employee'] ?? []));
-                    exit;
                 }
-                $error = $result['error'] ?? 'Credenziali non valide';
-            } else {
-                // Nessun account con questo username — risposta generica per non rivelare esistenza
-                $error = 'Credenziali non valide';
+                exit;
             }
+            $error = $result['error'] ?? 'Credenziali non valide';
         }
     }
 }
@@ -409,14 +391,15 @@ $usernameValue = htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')
                         <?php endif; ?>
 
                         <div class="login-fg">
-                            <label for="username">Username o codice fiscale</label>
+                            <label for="username">Username, email o codice fiscale</label>
                             <div class="login-input-wrap">
                                 <span class="ic">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 </span>
                                 <input type="text" id="username" name="username" required
                                        autocomplete="username" autofocus
-                                       placeholder="Inserisci il tuo username"
+                                       autocapitalize="none" autocorrect="off" spellcheck="false"
+                                       placeholder="Username, email o codice fiscale"
                                        value="<?php echo $usernameValue; ?>">
                             </div>
                         </div>
