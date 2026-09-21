@@ -120,6 +120,162 @@ class EmployeeDocument
     }
 
     /**
+     * Normalizza la struttura di $_FILES per un input multiplo e restituisce
+     * un array di file singoli. Accetta sia il formato multiplo
+     * (name => [..], tmp_name => [..]) sia quello di un input singolo.
+     *
+     * @return array<int, array> file nel formato classico di $_FILES
+     */
+    public static function normalizeUploadedFiles(array $input): array
+    {
+        if (!isset($input['name'])) {
+            return [];
+        }
+
+        if (!is_array($input['name'])) {
+            return $input['error'] === UPLOAD_ERR_NO_FILE ? [] : [$input];
+        }
+
+        $files = [];
+        foreach (array_keys($input['name']) as $i) {
+            if (($input['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            $files[] = [
+                'name' => $input['name'][$i],
+                'type' => $input['type'][$i] ?? '',
+                'tmp_name' => $input['tmp_name'][$i] ?? '',
+                'error' => $input['error'][$i],
+                'size' => $input['size'][$i] ?? 0,
+            ];
+        }
+
+        return $files;
+    }
+
+    /**
+     * Carica uno o piu file per lo stesso dipendente.
+     *
+     * Il nome indicato dall'utente e opzionale: se manca, ogni documento
+     * prende il nome del file caricato (senza estensione); se e presente e i
+     * file sono piu di uno, viene numerato progressivamente.
+     *
+     * @param array $input il nodo di $_FILES (singolo o multiplo)
+     * @param array $data  employee_id, name, visible_to_employee, expires_on
+     * @return array success, uploaded, ids, errors, status
+     */
+    public static function uploadMany(array $input, array $data): array
+    {
+        $files = self::normalizeUploadedFiles($input);
+        if (empty($files)) {
+            return ['success' => false, 'uploaded' => 0, 'ids' => [], 'errors' => [], 'status' => 'no_file'];
+        }
+
+        $baseName = trim($data['name'] ?? '');
+        $total = count($files);
+        $ids = [];
+        $errors = [];
+
+        foreach ($files as $i => $file) {
+            $name = self::documentNameFor($baseName, $file['name'], $i, $total);
+            $result = self::upload($file, ['name' => $name] + $data);
+            if (!empty($result['success'])) {
+                $ids[] = $result['id'];
+            } else {
+                $errors[] = $file['name'] . ': ' . ($result['error'] ?? 'errore sconosciuto');
+            }
+        }
+
+        $uploaded = count($ids);
+
+        if ($uploaded === 0) {
+            return [
+                'success' => false,
+                'uploaded' => 0,
+                'ids' => [],
+                'errors' => $errors,
+                'status' => 'error_' . ($errors[0] ?? 'upload fallito')
+            ];
+        }
+
+        $status = $uploaded === $total
+            ? 'uploaded_' . $uploaded
+            : 'partial_' . $uploaded . '_' . $total . '_' . ($errors[0] ?? '');
+
+        return [
+            'success' => true,
+            'uploaded' => $uploaded,
+            'ids' => $ids,
+            'errors' => $errors,
+            'status' => $status
+        ];
+    }
+
+    /**
+     * Nome del documento per il file in posizione $index di un upload multiplo.
+     */
+    private static function documentNameFor(string $baseName, string $originalName, int $index, int $total): string
+    {
+        if ($baseName === '') {
+            $stem = trim(pathinfo($originalName, PATHINFO_FILENAME));
+            return $stem !== '' ? $stem : $originalName;
+        }
+
+        return $total > 1 ? $baseName . ' ' . ($index + 1) : $baseName;
+    }
+
+    /**
+     * Traduce il codice di stato passato in querystring (ed_status) nel
+     * messaggio da mostrare. Restituisce null se il codice e vuoto o ignoto.
+     *
+     * @return array{type: string, text: string}|null
+     */
+    public static function statusMessage(?string $status): ?array
+    {
+        $status = (string) $status;
+        if ($status === '') {
+            return null;
+        }
+
+        if (strpos($status, 'uploaded') === 0) {
+            $count = (int) substr($status, strlen('uploaded_'));
+            $text = $count > 1 ? $count . ' documenti caricati.' : 'Documento caricato.';
+            return ['type' => 'success', 'text' => $text];
+        }
+
+        if (strpos($status, 'partial_') === 0) {
+            $parts = explode('_', substr($status, strlen('partial_')), 3);
+            $ok = (int) ($parts[0] ?? 0);
+            $total = (int) ($parts[1] ?? 0);
+            $first = trim((string) ($parts[2] ?? ''));
+            $text = "Caricati {$ok} documenti su {$total}.";
+            if ($first !== '') {
+                $text .= ' Primo errore: ' . $first;
+            }
+            return ['type' => 'warning', 'text' => $text];
+        }
+
+        if (strpos($status, 'error') === 0) {
+            return ['type' => 'danger', 'text' => 'Errore: ' . ltrim(substr($status, strlen('error')), '_')];
+        }
+
+        switch ($status) {
+            case 'updated':
+                return ['type' => 'success', 'text' => 'Documento aggiornato.'];
+            case 'deleted':
+                return ['type' => 'success', 'text' => 'Documento eliminato.'];
+            case 'no_file':
+                return ['type' => 'danger', 'text' => 'Nessun file selezionato.'];
+            case 'invalid':
+                return ['type' => 'danger', 'text' => 'Richiesta non valida.'];
+            case 'notfound':
+                return ['type' => 'danger', 'text' => 'Documento non trovato.'];
+        }
+
+        return null;
+    }
+
+    /**
      * Carica un documento e lo aggancia a tutti i dipendenti attivi dell'azienda
      * corrente. Il file viene salvato una sola volta su disco: le righe generate
      * condividono file_path e sono raggruppate da bulk_group.

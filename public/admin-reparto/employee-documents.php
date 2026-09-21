@@ -68,16 +68,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $status = '';
     if ($action === 'upload') {
-        if (!isset($_FILES['document']) || $_FILES['document']['error'] === UPLOAD_ERR_NO_FILE) {
+        $input = $_FILES['documents'] ?? $_FILES['document'] ?? null;
+        if (!$input) {
             $status = 'no_file';
         } else {
-            $result = EmployeeDocument::upload($_FILES['document'], [
+            $result = EmployeeDocument::uploadMany($input, [
                 'employee_id' => $employeeId,
                 'name' => $_POST['name'] ?? '',
                 'visible_to_employee' => !empty($_POST['visible_to_employee']) ? 1 : 0,
                 'expires_on' => $_POST['expires_on'] ?? null
             ]);
-            $status = $result['success'] ? 'uploaded' : 'error_' . $result['error'];
+            $status = $result['status'];
         }
     } elseif (in_array($action, ['rename', 'toggle_visibility', 'update_expiry', 'delete'], true)) {
         $docId = (int) ($_POST['document_id'] ?? 0);
@@ -134,14 +135,8 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
         </div>
 
         <div class="card-body">
-            <?php if ($edStatus === 'uploaded'): ?>
-                <div class="alert alert-success">Documento caricato.</div>
-            <?php elseif ($edStatus === 'updated'): ?>
-                <div class="alert alert-success">Documento aggiornato.</div>
-            <?php elseif ($edStatus === 'deleted'): ?>
-                <div class="alert alert-success">Documento eliminato.</div>
-            <?php elseif (strpos((string) $edStatus, 'error') === 0): ?>
-                <div class="alert alert-danger">Errore: <?= htmlspecialchars(substr((string) $edStatus, 6)) ?></div>
+            <?php if ($edMessage = EmployeeDocument::statusMessage($edStatus)): ?>
+                <div class="alert alert-<?= $edMessage['type'] ?>"><?= htmlspecialchars($edMessage['text']) ?></div>
             <?php endif; ?>
 
             <?php if (empty($documents)): ?>
@@ -209,18 +204,18 @@ include dirname(__DIR__) . '/includes/header-admin-reparto.php';
 <!-- Modale upload -->
 <div id="ed-upload-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:#fff;padding:2rem;border-radius:10px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.3);">
-        <h3 style="margin-top:0;">Carica documento</h3>
+        <h3 style="margin-top:0;">Carica documenti</h3>
         <form method="post" action="employee-documents.php" enctype="multipart/form-data">
             <?= CSRF::field() ?>
             <input type="hidden" name="action" value="upload">
             <input type="hidden" name="employee_id" value="<?= $employeeId ?>">
             <div style="margin-bottom:1rem;">
-                <label style="display:block;font-weight:600;margin-bottom:.25rem;">Nome documento *</label>
-                <input type="text" name="name" required maxlength="255" class="form-control" style="width:100%;" placeholder="es. Contratto 2026">
+                <label style="display:block;font-weight:600;margin-bottom:.25rem;">Nome documento (opzionale)</label>
+                <input type="text" name="name" maxlength="255" class="form-control" style="width:100%;" placeholder="Vuoto = nome del file">
             </div>
             <div style="margin-bottom:1rem;">
-                <label style="display:block;font-weight:600;margin-bottom:.25rem;">File *</label>
-                <input type="file" name="document" required class="form-control" style="width:100%;">
+                <label style="display:block;font-weight:600;margin-bottom:.25rem;">File * <span style="font-weight:400;color:#718096;">(puoi selezionarne più di uno)</span></label>
+                <input type="file" name="documents[]" multiple required class="form-control" style="width:100%;">
             </div>
             <div style="margin-bottom:1rem;">
                 <label style="display:block;font-weight:600;margin-bottom:.25rem;">Scadenza (opzionale)</label>

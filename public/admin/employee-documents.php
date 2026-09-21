@@ -53,16 +53,17 @@ if (!$employeeId) {
 }
 
 if ($action === 'upload') {
-    if (!isset($_FILES['document']) || $_FILES['document']['error'] === UPLOAD_ERR_NO_FILE) {
+    $input = $_FILES['documents'] ?? $_FILES['document'] ?? null;
+    if (!$input) {
         ed_redirect_back($employeeId, 'no_file');
     }
-    $result = EmployeeDocument::upload($_FILES['document'], [
+    $result = EmployeeDocument::uploadMany($input, [
         'employee_id' => $employeeId,
         'name' => $_POST['name'] ?? '',
         'visible_to_employee' => !empty($_POST['visible_to_employee']) ? 1 : 0,
         'expires_on' => $_POST['expires_on'] ?? null
     ]);
-    ed_redirect_back($employeeId, $result['success'] ? 'uploaded' : 'error_' . $result['error']);
+    ed_redirect_back($employeeId, $result['status']);
 }
 
 if ($action === 'rename' || $action === 'toggle_visibility' || $action === 'update_expiry') {

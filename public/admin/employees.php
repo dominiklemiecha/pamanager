@@ -1761,10 +1761,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <div class="ed-upload-row">
                     <label class="ed-upload-file">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span class="ed-upload-text">Scegli file…</span>
-                        <input type="file" name="document" required onchange="document.getElementById('edu-name').focus(); this.parentNode.querySelector('.ed-upload-text').textContent = this.files[0]?.name || 'Scegli file…';">
+                        <span class="ed-upload-text">Scegli uno o più file…</span>
+                        <input type="file" name="documents[]" multiple required onchange="var n = this.files.length; this.parentNode.querySelector('.ed-upload-text').textContent = n === 0 ? 'Scegli file…' : (n === 1 ? this.files[0].name : n + ' file selezionati'); if (n === 1) { document.getElementById('edu-name').focus(); }">
                     </label>
-                    <input id="edu-name" type="text" name="name" required maxlength="255" placeholder="Nome documento (es. Contratto 2026)" class="ed-upload-name">
+                    <input id="edu-name" type="text" name="name" maxlength="255" placeholder="Nome documento (vuoto = nome del file)" class="ed-upload-name">
                     <label class="ed-upload-vis" title="Rendi visibile al dipendente">
                         <input type="checkbox" name="visible_to_employee" value="1">
                         <span>Visibile al dip.</span>
@@ -1774,28 +1774,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                         Carica
                     </button>
                 </div>
-                <?php if ($_edStatus === 'uploaded'): ?>
-                    <div class="alert alert-success" style="margin: 12px 0 0;">Documento caricato.</div>
-                <?php elseif ($_edStatus === 'updated'): ?>
-                    <div class="alert alert-success" style="margin: 12px 0 0;">Documento aggiornato.</div>
-                <?php elseif ($_edStatus === 'deleted'): ?>
-                    <div class="alert alert-success" style="margin: 12px 0 0;">Documento eliminato.</div>
-                <?php elseif (strpos((string) $_edStatus, 'error') === 0): ?>
-                    <div class="alert alert-danger" style="margin: 12px 0 0;">Errore: <?= htmlspecialchars(substr((string) $_edStatus, 6)) ?></div>
+                <?php if ($_edMessage = EmployeeDocument::statusMessage($_edStatus)): ?>
+                    <div class="alert alert-<?= $_edMessage['type'] ?>" style="margin: 12px 0 0;"><?= htmlspecialchars($_edMessage['text']) ?></div>
                 <?php endif; ?>
             </form>
 
             <div id="docs" class="docs-section" style="margin-top:14px;">
-
-                <?php if ($_edStatus === 'uploaded'): ?>
-                    <div class="alert alert-success" style="margin:0.5rem 0;">Documento caricato.</div>
-                <?php elseif ($_edStatus === 'updated'): ?>
-                    <div class="alert alert-success" style="margin:0.5rem 0;">Documento aggiornato.</div>
-                <?php elseif ($_edStatus === 'deleted'): ?>
-                    <div class="alert alert-success" style="margin:0.5rem 0;">Documento eliminato.</div>
-                <?php elseif (strpos((string) $_edStatus, 'error') === 0): ?>
-                    <div class="alert alert-danger" style="margin:0.5rem 0;">Errore: <?= htmlspecialchars(substr((string) $_edStatus, 6)) ?></div>
-                <?php endif; ?>
 
                 <?php if (empty($_edDocs)): ?>
                     <div class="empty-msg">Nessun documento caricato</div>
@@ -2013,18 +1997,18 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             <!-- Modale upload documento dipendente -->
             <div id="ed-upload-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
                 <div style="background:#fff;padding:2rem;border-radius:10px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.3);">
-                    <h3 style="margin-top:0;">Carica documento</h3>
+                    <h3 style="margin-top:0;">Carica documenti</h3>
                     <form method="post" action="employee-documents.php" enctype="multipart/form-data">
                         <?= CSRF::field() ?>
                         <input type="hidden" name="action" value="upload">
                         <input type="hidden" name="employee_id" value="<?= (int) $employee['id'] ?>">
                         <div style="margin-bottom:1rem;">
-                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">Nome documento *</label>
-                            <input type="text" name="name" required maxlength="255" class="form-control" placeholder="es. Contratto 2026" style="width:100%;">
+                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">Nome documento (opzionale)</label>
+                            <input type="text" name="name" maxlength="255" class="form-control" placeholder="Vuoto = nome del file" style="width:100%;">
                         </div>
                         <div style="margin-bottom:1rem;">
-                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">File *</label>
-                            <input type="file" name="document" required class="form-control" style="width:100%;">
+                            <label style="display:block;font-weight:600;margin-bottom:.25rem;">File * <span style="font-weight:400;color:#718096;">(puoi selezionarne più di uno)</span></label>
+                            <input type="file" name="documents[]" multiple required class="form-control" style="width:100%;">
                         </div>
                         <div style="margin-bottom:1rem;">
                             <label style="display:block;font-weight:600;margin-bottom:.25rem;">Scadenza (opzionale)</label>
