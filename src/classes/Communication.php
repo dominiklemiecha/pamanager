@@ -197,8 +197,8 @@ class Communication
 
             // Invia push notifications se la comunicazione è pubblicata e data di pubblicazione è oggi o passata
             if ($insertData['is_published'] && $insertData['publish_date'] <= date('Y-m-d')) {
-                self::sendPushNotifications($id, $insertData['title'], $isGlobal, $departmentId);
-                self::sendEmailNotifications($id, $insertData['title'], $insertData['content'], $insertData['priority'], $isGlobal, $departmentId);
+                self::sendPushNotifications($id, (int) $insertData['company_id'], $insertData['title'], $isGlobal, $departmentId);
+                self::sendEmailNotifications($id, (int) $insertData['company_id'], $insertData['title'], $insertData['content'], $insertData['priority'], $isGlobal, $departmentId);
             }
 
             return ['success' => true, 'id' => $id];
@@ -514,7 +514,7 @@ class Communication
     /**
      * Invia push notifications per nuova comunicazione
      */
-    private static function sendPushNotifications(int $commId, string $title, bool $isGlobal, ?int $departmentId): void
+    private static function sendPushNotifications(int $commId, int $companyId, string $title, bool $isGlobal, ?int $departmentId): void
     {
         try {
             $payload = [
@@ -525,6 +525,11 @@ class Communication
                 'icon' => '/assets/images/icon.php?size=192'
             ];
 
+            // Destinatari: sempre e solo i dipendenti dell'azienda della comunicazione
+            if ($companyId <= 0) {
+                return;
+            }
+
             error_log('[Communication] Invio push - isGlobal: ' . ($isGlobal ? 'yes' : 'no') . ', dept: ' . ($departmentId ?? 'null'));
 
             if ($isGlobal) {
@@ -532,12 +537,16 @@ class Communication
                 $result = PushNotification::broadcastToEmployees(
                     $payload['title'],
                     $payload['body'],
-                    $payload['url']
+                    $payload['url'],
+                    $companyId
                 );
                 error_log('[Communication] Broadcast result: ' . json_encode($result));
             } elseif ($departmentId) {
                 // Invia solo ai dipendenti del reparto
-                $employees = Department::getEmployees($departmentId, true);
+                $employees = array_filter(
+                    Department::getEmployees($departmentId, true),
+                    fn($e) => (int) ($e['company_id'] ?? 0) === $companyId
+                );
                 error_log('[Communication] Invio a ' . count($employees) . ' dipendenti del reparto');
                 foreach ($employees as $emp) {
                     $result = PushNotification::sendToUser('employee', (int)$emp['id'], $payload);
@@ -554,24 +563,28 @@ class Communication
     /**
      * Invia email di notifica ai dipendenti destinatari della comunicazione
      */
-    private static function sendEmailNotifications(int $commId, string $title, string $content, string $priority, bool $isGlobal, ?int $departmentId): void
+    private static function sendEmailNotifications(int $commId, int $companyId, string $title, string $content, string $priority, bool $isGlobal, ?int $departmentId): void
     {
         try {
             if (!class_exists('Mailer') || !Mailer::isConfigured()) {
                 return;
             }
 
-            // Recupera destinatari
+            // Destinatari: sempre e solo i dipendenti dell'azienda della comunicazione
+            if ($companyId <= 0) {
+                return;
+            }
             if ($isGlobal) {
                 $recipients = Database::fetchAll(
                     "SELECT id, first_name, last_name, email FROM employees
-                     WHERE is_active = 1 AND email IS NOT NULL AND email <> ''"
+                     WHERE is_active = 1 AND email IS NOT NULL AND email <> '' AND company_id = ?",
+                    [$companyId]
                 );
             } elseif ($departmentId) {
                 $recipients = Database::fetchAll(
                     "SELECT id, first_name, last_name, email FROM employees
-                     WHERE is_active = 1 AND email IS NOT NULL AND email <> '' AND department_id = ?",
-                    [$departmentId]
+                     WHERE is_active = 1 AND email IS NOT NULL AND email <> '' AND department_id = ? AND company_id = ?",
+                    [$departmentId, $companyId]
                 );
             } else {
                 return;

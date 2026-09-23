@@ -1123,9 +1123,12 @@ class PushNotification
     /**
      * Notifica broadcast a tutti i dipendenti
      */
-    public static function broadcastToEmployees(string $title, string $body, string $url = '/'): array
+    public static function broadcastToEmployees(string $title, string $body, string $url = '/', ?int $companyId = null): array
     {
-        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $cid = $companyId ?? (class_exists('Tenant') ? Tenant::currentCompanyId() : 1);
+        if ($cid <= 0) {
+            return ['success' => false, 'sent' => 0];
+        }
         $subscriptions = Database::fetchAll(
             "SELECT * FROM push_subscriptions WHERE user_type = 'employee' AND company_id = ?",
             [$cid]
