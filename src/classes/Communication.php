@@ -78,8 +78,14 @@ class Communication
     {
         $sql = "SELECT c.*, u.name AS author_name,
                        d.name AS department_name, d.code AS department_code,
-                       (SELECT COUNT(*) FROM communication_reads cr WHERE cr.communication_id = c.id) AS read_count,
-                       (SELECT COUNT(*) FROM employees e WHERE e.is_active = TRUE) AS total_employees
+                       (SELECT COUNT(*) FROM communication_reads cr
+                          JOIN employees e ON e.id = cr.employee_id
+                         WHERE cr.communication_id = c.id
+                           AND e.company_id = c.company_id AND e.is_active = TRUE
+                           AND (c.is_global = TRUE OR e.department_id = c.department_id)) AS read_count,
+                       (SELECT COUNT(*) FROM employees e
+                         WHERE e.company_id = c.company_id AND e.is_active = TRUE
+                           AND (c.is_global = TRUE OR e.department_id = c.department_id)) AS total_employees
                 FROM communications c
                 JOIN users u ON c.created_by = u.id
                 LEFT JOIN departments d ON c.department_id = d.id
@@ -346,8 +352,29 @@ class Communication
      */
     public static function getReadStats(int $communicationId): array
     {
-        $totalEmployees = Employee::count(true);
-        $readCount = Database::count('communication_reads', 'communication_id = ?', [$communicationId]);
+        // Base del calcolo: dipendenti attivi dell'azienda della comunicazione
+        // (e del solo reparto, se non e' globale)
+        $comm = Database::fetchOne(
+            "SELECT company_id, is_global, department_id FROM communications WHERE id = ?",
+            [$communicationId]
+        );
+        $scope = 'e.company_id = ? AND e.is_active = TRUE';
+        $scopeParams = [(int) ($comm['company_id'] ?? 0)];
+        if ($comm && !$comm['is_global'] && !empty($comm['department_id'])) {
+            $scope .= ' AND e.department_id = ?';
+            $scopeParams[] = (int) $comm['department_id'];
+        }
+
+        $totalEmployees = (int) Database::fetchColumn(
+            "SELECT COUNT(*) FROM employees e WHERE {$scope}",
+            $scopeParams
+        );
+        $readCount = (int) Database::fetchColumn(
+            "SELECT COUNT(*) FROM communication_reads cr
+             JOIN employees e ON e.id = cr.employee_id
+             WHERE cr.communication_id = ? AND {$scope}",
+            array_merge([$communicationId], $scopeParams)
+        );
 
         $readers = Database::fetchAll(
             "SELECT e.id, e.first_name, e.last_name, cr.read_at
