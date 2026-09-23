@@ -805,7 +805,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                             </button>
                         </div>
                         <div id="cmEditor" class="cm-editable" contenteditable="true"><?= sanitizeRichHtml($communication['content'] ?? $_POST['content'] ?? '') ?></div>
-                        <textarea name="content" id="content" style="display:none;" required></textarea>
+                        <textarea name="content" id="content" style="display:none;"></textarea>
                     </div>
                     <?php if ($action === 'new'): ?>
                         <small class="cm-hint">💡 Per inserire immagini inline, salva prima la comunicazione: tornerai qui in modalità modifica.</small>
@@ -953,7 +953,17 @@ include dirname(__DIR__) . '/includes/header-admin.php';
             }
 
             // Sync editor → textarea on submit
-            form.addEventListener('submit', () => {
+            // (la textarea nascosta non puo' essere "required": il browser bloccherebbe
+            // l'invio senza mostrare alcun errore, quindi il controllo e' fatto qui)
+            form.addEventListener('submit', e => {
+                const hasText = ed.textContent.trim() !== '';
+                const hasImg = ed.querySelector('img') !== null;
+                if (!hasText && !hasImg) {
+                    e.preventDefault();
+                    alert('Scrivi il contenuto della comunicazione prima di pubblicarla.');
+                    ed.focus();
+                    return;
+                }
                 ta.value = ed.innerHTML.trim();
             });
 
