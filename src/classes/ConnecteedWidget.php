@@ -19,7 +19,9 @@ class ConnecteedWidget
     private static function env(string $key): string
     {
         foreach ([getenv($key), $_ENV[$key] ?? null, $_SERVER[$key] ?? null] as $v) {
-            if ($v !== false && $v !== null && trim((string) $v) !== '') return trim((string) $v);
+            // Spazi e virgolette incollati per sbaglio nelle env di Dokploy
+            // rompono la firma senza dare errori visibili.
+            if ($v !== false && $v !== null && trim((string) $v, " \t\n\r\"'") !== '') return trim((string) $v, " \t\n\r\"'");
         }
         return '';
     }
