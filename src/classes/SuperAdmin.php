@@ -4,7 +4,7 @@
  *
  * Credenziali in ENV (non in DB):
  *   SUPERADMIN_USER          username in chiaro
- *   SUPERADMIN_PASS_HASH     bcrypt della password
+ *   SUPERADMIN_PASS_HASH     bcrypt della password (anche in base64, per evitare i '$' in compose)
  *   SUPERADMIN_TOTP_SECRET   secret Base32 per TOTP (RFC 6238)
  *
  * Genera le credenziali con: php tools/superadmin-init.php
@@ -66,13 +66,53 @@ class SuperAdmin
             && self::env('SUPERADMIN_TOTP_SECRET') !== '';
     }
 
+    /**
+     * Tutti i valori non vuoti di una chiave: file persistente + env del container.
+     * Il login prova ognuno, cosi' un file persistente rimasto con credenziali
+     * vecchie non blocca quelle nuove messe nelle env Dokploy (e viceversa).
+     */
+    private static function envAll(string $key): array
+    {
+        $persist = self::loadPersistFile();
+        $values = [
+            $persist[$key] ?? null,
+            getenv($key),
+            $_ENV[$key] ?? null,
+            $_SERVER[$key] ?? null,
+        ];
+        $out = [];
+        foreach ($values as $v) {
+            if ($v === false || $v === null) continue;
+            $v = trim((string) $v);
+            if ($v !== '' && !in_array($v, $out, true)) $out[] = $v;
+        }
+        return $out;
+    }
+
+    /**
+     * L'hash bcrypt contiene '$', che docker compose interpreta come variabile
+     * e mangia. Si puo' quindi fornire l'hash in base64 (nessun '$'): se il valore
+     * non inizia con '$' viene decodificato.
+     */
+    private static function decodeHash(string $value): string
+    {
+        if ($value === '' || $value[0] === '$') return $value;
+        $decoded = base64_decode($value, true);
+        return ($decoded !== false && str_starts_with($decoded, '$2')) ? $decoded : $value;
+    }
+
     public static function checkPassword(string $username, string $password): bool
     {
-        $expectedUser = self::env('SUPERADMIN_USER');
-        $hash         = self::env('SUPERADMIN_PASS_HASH');
-        if ($expectedUser === '' || $hash === '') return false;
-        if (!hash_equals($expectedUser, $username)) return false;
-        return password_verify($password, $hash);
+        $username = trim($username);
+        $userOk = false;
+        foreach (self::envAll('SUPERADMIN_USER') as $expectedUser) {
+            if (hash_equals($expectedUser, $username)) { $userOk = true; break; }
+        }
+        if (!$userOk) return false;
+        foreach (self::envAll('SUPERADMIN_PASS_HASH') as $hash) {
+            if (password_verify($password, self::decodeHash($hash))) return true;
+        }
+        return false;
     }
 
     public static function checkTotp(string $code): bool
