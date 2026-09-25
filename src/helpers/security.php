@@ -101,7 +101,7 @@ function buildContentSecurityPolicy(string $nonce): string
 
         // Script: stesso dominio + unsafe-inline per compatibilità legacy
         // In futuro migrare a nonce-based
-        "script-src 'self' 'unsafe-inline'",
+        "script-src 'self' 'unsafe-inline' https://crm.connecteed.com",
 
         // Stili: stesso dominio + unsafe-inline per stili inline esistenti
         // + Google Fonts + rsms.me (Inter)
@@ -113,8 +113,9 @@ function buildContentSecurityPolicy(string $nonce): string
         // Font: stesso dominio + Google Fonts (Space Grotesk) + rsms.me (Inter)
         "font-src 'self' https://fonts.gstatic.com https://rsms.me",
 
-        // Connessioni (fetch, XHR): solo stesso dominio
-        "connect-src 'self'",
+        // Widget assistenza Connecteed: script, chiamate e iframe dal CRM
+        // Connessioni (fetch, XHR): stesso dominio + CRM
+        "connect-src 'self' https://crm.connecteed.com",
 
         // Media: disabilitato
         "media-src 'none'",
@@ -123,10 +124,10 @@ function buildContentSecurityPolicy(string $nonce): string
         "object-src 'none'",
 
         // Frame: disabilitato
-        "frame-src 'none'",
+        "frame-src https://crm.connecteed.com",
 
         // Child frame: disabilitato
-        "child-src 'none'",
+        "child-src https://crm.connecteed.com",
 
         // Worker: stesso dominio (per Service Worker)
         "worker-src 'self'",

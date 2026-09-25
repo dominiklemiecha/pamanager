@@ -52,5 +52,6 @@
     overlay?.addEventListener('click', () => sidebar?.classList.remove('open'));
 })();
 </script>
+<?php echo ConnecteedWidget::scriptTag(); ?>
 </body>
 </html>

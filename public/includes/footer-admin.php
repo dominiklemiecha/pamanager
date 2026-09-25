@@ -131,5 +131,6 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
     sheetClose?.addEventListener('click', closeSheet);
 })();
 </script>
+<?php echo ConnecteedWidget::scriptTag(); ?>
 </body>
 </html>
