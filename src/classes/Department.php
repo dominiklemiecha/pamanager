@@ -94,19 +94,21 @@ class Department
             return ['success' => false, 'error' => 'Codice può contenere solo lettere maiuscole, numeri e underscore'];
         }
 
-        // Verifica nome unico
-        if (Database::exists('departments', 'name = ?', [trim($data['name'])])) {
+        $companyId = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+
+        // Verifica nome unico (per azienda)
+        if (Database::exists('departments', 'name = ? AND company_id = ?', [trim($data['name']), $companyId])) {
             return ['success' => false, 'error' => 'Nome reparto già esistente'];
         }
 
-        // Verifica codice unico
-        if (Database::exists('departments', 'code = ?', [$code])) {
+        // Verifica codice unico (per azienda)
+        if (Database::exists('departments', 'code = ? AND company_id = ?', [$code, $companyId])) {
             return ['success' => false, 'error' => 'Codice reparto già esistente'];
         }
 
         try {
             $id = Database::insert('departments', [
-                'company_id' => class_exists('Tenant') ? Tenant::currentCompanyId() : 1,
+                'company_id' => $companyId,
                 'name' => trim($data['name']),
                 'code' => $code,
                 'description' => trim($data['description'] ?? '') ?: null,
@@ -134,7 +136,7 @@ class Department
         $updateData = [];
 
         if (isset($data['name']) && !empty($data['name'])) {
-            if (Database::exists('departments', 'name = ? AND id != ?', [trim($data['name']), $id])) {
+            if (Database::exists('departments', 'name = ? AND id != ? AND company_id = ?', [trim($data['name']), $id, (int)$department['company_id']])) {
                 return ['success' => false, 'error' => 'Nome reparto già esistente'];
             }
             $updateData['name'] = trim($data['name']);
@@ -145,7 +147,7 @@ class Department
             if (!preg_match('/^[A-Z0-9_]+$/', $code)) {
                 return ['success' => false, 'error' => 'Codice può contenere solo lettere maiuscole, numeri e underscore'];
             }
-            if (Database::exists('departments', 'code = ? AND id != ?', [$code, $id])) {
+            if (Database::exists('departments', 'code = ? AND id != ? AND company_id = ?', [$code, $id, (int)$department['company_id']])) {
                 return ['success' => false, 'error' => 'Codice reparto già esistente'];
             }
             $updateData['code'] = $code;
