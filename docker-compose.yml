@@ -30,6 +30,10 @@ services:
       CONNECTEED_APP_ID: ${CONNECTEED_APP_ID:-}
       CONNECTEED_APP_SECRET: ${CONNECTEED_APP_SECRET:-}
       RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
+      # Tenant demo per le presentazioni (database/seed_demo_tenant.php)
+      SEED_DEMO_TENANT: "${SEED_DEMO_TENANT:-true}"
+      SEED_DEMO_RESET: "${SEED_DEMO_RESET:-false}"
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
       PHP_TIMEZONE: "Europe/Rome"
       # SMTP globale SaaS (impostare i valori dal pannello Dokploy > Environment)
       SMTP_ENABLED: "${SMTP_ENABLED:-0}"
