@@ -129,6 +129,12 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     php database/migrate.php 2>&1 | tail -50 || echo "[entrypoint] migrazioni terminate (alcune gia applicate)"
 fi
 
+# === 3b. Tenant demo per le presentazioni commerciali ===
+# Idempotente (salta se l'azienda demo esiste). SEED_DEMO_TENANT=false lo disattiva,
+# SEED_DEMO_RESET=true lo ricrea con date aggiornate, DEMO_PASSWORD imposta la password.
+cd /var/www/html
+php database/seed_demo_tenant.php 2>&1 || echo "[entrypoint] WARN: seed tenant demo fallito" >&2
+
 # === 4. Avvia Apache (o comando passato) ===
 echo "[entrypoint] Starting Apache..."
 exec "$@"
