@@ -1446,6 +1446,10 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 <script>
                 function empOpenHrModal(mode) {
                     var revoke = mode === 'revoke_hr';
+                    // La sidebar sticky crea uno stacking context: fuori da li' il modale
+                    // finirebbe sotto i campi della colonna principale
+                    var modal = document.getElementById('empHrModal');
+                    if (modal.parentNode !== document.body) document.body.appendChild(modal);
                     document.getElementById('empHrAction').value = mode;
                     document.getElementById('empHrTitle').textContent = revoke ? 'Revoca accesso HR' : 'Rendi HR';
                     document.getElementById('empHrInfoGrant').style.display = revoke ? 'none' : '';
