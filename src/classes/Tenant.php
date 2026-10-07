@@ -322,6 +322,19 @@ class Tenant
                 foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
             }
         } catch (Throwable $e) {}
+        // Academy: completati senza attestato (azione di HR e consulente)
+        try {
+            if (in_array($u['role'] ?? '', ['admin', 'consulente_lavoro'], true)) {
+                $rows = Database::fetchAll(
+                    "SELECT a.company_id, COUNT(*) AS n FROM academy_assignments a
+                     LEFT JOIN academy_certificates ce ON ce.assignment_id = a.id
+                     WHERE a.company_id IN ($ph) AND a.completed_at IS NOT NULL AND ce.id IS NULL
+                     GROUP BY a.company_id",
+                    $cids
+                );
+                foreach ($rows as $r) $result[(int)$r['company_id']] = ($result[(int)$r['company_id']] ?? 0) + (int)$r['n'];
+            }
+        } catch (Throwable $e) {}
         return $result;
     }
 

@@ -35,6 +35,12 @@ if (!in_array($currentPage, ['contract-sign','change-password','logout'], true))
 
 $employeeDepartmentId = $currentEmployee['department_id'] ?? null;
 $unreadCommCount = Communication::countUnread($currentEmployee['id'], $employeeDepartmentId);
+$academyToDo = 0;
+$academyNewCerts = 0;
+try {
+    $academyToDo = Academy::countToDo((int) $currentEmployee['id']);
+    $academyNewCerts = Academy::countNewCertificates((int) $currentEmployee['id']);
+} catch (Throwable $__e) {}
 $unreadDocsCount = Document::getUnreadCountForEmployee($currentEmployee['id'])
     + (class_exists('EmployeeDocument') ? EmployeeDocument::getUnreadCountForEmployee($currentEmployee['id']) : 0);
 $unreadChats = class_exists('Chat') ? (int) Chat::countUnread('employee', $currentEmployee['id']) : 0;
@@ -178,6 +184,14 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
                     <span class="nav-sub"><?php echo $unreadCommCount > 0 ? $unreadCommCount . ' da leggere' : 'Avvisi e news'; ?></span>
                 </span>
                 <?php if ($unreadCommCount > 0): ?><span class="nav-pulse"></span><?php endif; ?>
+            </a>
+            <a href="<?php echo $baseUrl; ?>/employee/academy.php" class="nav-item <?php echo $currentPage === 'academy' ? 'active' : ''; ?>" data-tooltip="Academy">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                <span class="nav-content">
+                    <span class="nav-title">Academy</span>
+                    <span class="nav-sub"><?php echo $academyNewCerts > 0 ? ($academyNewCerts === 1 ? 'Nuovo attestato' : $academyNewCerts . ' nuovi attestati') : ($academyToDo > 0 ? $academyToDo . ' da completare' : 'I tuoi corsi'); ?></span>
+                </span>
+                <?php if ($academyToDo > 0 || $academyNewCerts > 0): ?><span class="nav-pulse"></span><?php endif; ?>
             </a>
             <a href="<?php echo $baseUrl; ?>/employee/calendar.php" class="nav-item <?php echo $currentPage === 'calendar' ? 'active' : ''; ?>" data-tooltip="Calendario">
                 <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>

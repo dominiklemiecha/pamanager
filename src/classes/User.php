@@ -109,6 +109,14 @@ class User
     }
 
     /**
+     * Lista dei responsabili formazione (utenze solo Academy, una sola azienda)
+     */
+    public static function getFormatori(): array
+    {
+        return self::getAll('formatore');
+    }
+
+    /**
      * Crea un nuovo utente
      */
     public static function create(array $data): array
@@ -126,7 +134,7 @@ class User
             return ['success' => false, 'error' => 'Nome obbligatorio'];
         }
 
-        if (!in_array($data['role'], ['admin', 'accountant', 'admin_reparto', 'consulente_lavoro'])) {
+        if (!in_array($data['role'], ['admin', 'accountant', 'admin_reparto', 'consulente_lavoro', 'formatore'])) {
             return ['success' => false, 'error' => 'Ruolo non valido'];
         }
 

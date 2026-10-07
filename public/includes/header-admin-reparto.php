@@ -106,6 +106,10 @@ $pendingInvites = class_exists('CalendarEvent') ? CalendarEvent::countPendingInv
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                 <span class="nav-label">Comunicazioni</span>
             </a>
+            <a href="<?php echo $baseUrl; ?>/admin-reparto/academy.php" class="nav-item <?php echo $currentPage === 'academy' ? 'active' : ''; ?>" data-tooltip="Academy">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                <span class="nav-label">Academy</span>
+            </a>
             <a href="<?php echo $baseUrl; ?>/admin-reparto/chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>" data-tooltip="Chat">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                 <span class="nav-label">Chat</span>

@@ -23,6 +23,7 @@ function login_redirect_for(string $type, array $entity): string
         'admin_reparto'     => PUBLIC_URL . '/admin-reparto/',
         'consulente_lavoro' => PUBLIC_URL . '/consulente-lavoro/',
         'accountant'        => PUBLIC_URL . '/accountant/',
+        'formatore'         => PUBLIC_URL . '/formatore/academy.php',
         default             => PUBLIC_URL . '/',
     };
 }

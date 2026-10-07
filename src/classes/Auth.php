@@ -86,6 +86,7 @@ class Auth
                 return SESSION_TIMEOUT_ADMIN;
             case 'accountant':
             case 'admin_reparto':
+            case 'formatore':
                 return SESSION_TIMEOUT_ACCOUNTANT;
             case 'employee':
                 return SESSION_TIMEOUT_EMPLOYEE;

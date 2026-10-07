@@ -9,7 +9,13 @@
  *   $SELF         string  — filename della pagina chiamante (es. 'accountant.php')
  *   $LIST_FN      callable — funzione che ritorna la lista utenti del ruolo
  *   $ICON_PATH    string  — path SVG dell'icona
+ *   $MULTI_COMPANY bool    — (opzionale, default true) false = utenza legata solo
+ *                            all'azienda corrente, senza scelta aziende (es. formatore)
+ *   $BACK_URL / $BACK_LABEL — (opzionali) link "torna a" sopra il titolo, per pagine
+ *                            raggiunte da un'altra sezione (es. Academy)
  */
+
+$MULTI_COMPANY = $MULTI_COMPANY ?? true;
 
 $user   = Auth::getUser();
 $action = $_GET['action'] ?? 'list';
@@ -91,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result['success']) {
                 $companyIds = $_POST['company_ids'] ?? [];
                 if (is_array($companyIds) && !empty($companyIds)) {
-                    Tenant::setUserCompanies((int)$result['id'], $companyIds);
+                    $MULTI_COMPANY && Tenant::setUserCompanies((int)$result['id'], $companyIds);
                 }
                 $emailRes = urm_send_credentials_email(
                     $_POST['email'] ?? '',
@@ -157,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         fn($v) => !isset($accessibleSet[$v])
                     ));
                     $merged = array_unique(array_merge($foreignLinks, $newAccessibleLinks));
-                    Tenant::setUserCompanies($id, $merged);
+                    $MULTI_COMPANY && Tenant::setUserCompanies($id, $merged);
                     header("Location: {$SELF}?message=updated");
                     exit;
                 }
@@ -170,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
                 if ($result['success']) {
                     $companyIds = $_POST['company_ids'] ?? [];
-                    Tenant::setUserCompanies($id, is_array($companyIds) ? $companyIds : []);
+                    $MULTI_COMPANY && Tenant::setUserCompanies($id, is_array($companyIds) ? $companyIds : []);
                     header("Location: {$SELF}?message=updated");
                     exit;
                 }
@@ -582,6 +588,9 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 <?php if ($action === 'list'): ?>
 <div class="welcome-card urm-hero">
     <div>
+        <?php if (!empty($BACK_URL)): ?>
+            <a href="<?= e($BACK_URL) ?>" style="font-size:0.82rem; color:#64748b; text-decoration:none; display:inline-block; margin-bottom:6px;">&larr; <?= e($BACK_LABEL ?? 'Indietro') ?></a>
+        <?php endif; ?>
         <h2><?= e($LABEL_PLURAL) ?></h2>
         <p>Gestisci gli accessi al portale per i <?= e(strtolower($LABEL_PLURAL)) ?>.
         <?php if (count($users) > 0): ?>
@@ -592,10 +601,12 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         </p>
     </div>
     <div style="display:flex; gap:8px;">
+        <?php if ($MULTI_COMPANY): ?>
         <a href="?action=link" class="urm-hero-btn" style="background:white; color:#0b3aa4; border:1px solid #0b3aa4;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             Aggiungi esistente
         </a>
+        <?php endif; ?>
         <a href="?action=new" class="urm-hero-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Nuovo <?= e($LABEL) ?>
@@ -865,7 +876,7 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 }
                 $assignedCompanyIds = $current ? Tenant::getUserCompanyIds((int)$current['id']) : [];
                 ?>
-                <?php if (!empty($allCompanies)): ?>
+                <?php if ($MULTI_COMPANY && !empty($allCompanies)): ?>
                     <div class="urm-field full">
                         <label>Aziende assegnate</label>
                         <small>L'utente potrà vedere i dipendenti SOLO delle aziende selezionate. Se non selezioni nulla vedrà tutte le aziende.</small>

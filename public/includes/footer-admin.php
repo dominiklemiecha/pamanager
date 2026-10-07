@@ -4,7 +4,8 @@
  * Chiude app-content/app-main/app, aggiunge bottom-nav mobile + sheet
  */
 $baseUrl = PUBLIC_URL;
-$__role = Auth::isAdmin() ? 'admin' : ((Auth::getUser()['role'] ?? '') === 'consulente_lavoro' ? 'consulente-lavoro' : 'accountant');
+$__roleRaw = Auth::getUser()['role'] ?? '';
+$__role = Auth::isAdmin() ? 'admin' : ($__roleRaw === 'consulente_lavoro' ? 'consulente-lavoro' : ($__roleRaw === 'formatore' ? 'formatore' : 'accountant'));
 $__currPage = basename($_SERVER['PHP_SELF'], '.php');
 ?>
         </main>
@@ -20,6 +21,21 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
 <!-- Bottom nav mobile -->
 <nav class="bottom-nav" aria-label="Menu principale">
     <div class="bottom-nav-grid">
+        <?php if ($__role === 'formatore'): ?>
+        <a class="bn-item <?php echo $__currPage === 'academy' ? 'active' : ''; ?>" href="<?php echo $baseUrl; ?>/formatore/academy.php">
+            <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
+            <span class="bn-label">Academy</span>
+            <?php if (!empty($academyToGenerate)): ?><span class="bn-badge"><?php echo (int) $academyToGenerate; ?></span><?php endif; ?>
+        </a>
+        <a class="bn-item <?php echo $__currPage === 'academy-templates' ? 'active' : ''; ?>" href="<?php echo $baseUrl; ?>/formatore/academy-templates.php">
+            <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg></div>
+            <span class="bn-label">Modelli</span>
+        </a>
+        <a class="bn-item <?php echo $__currPage === 'profile' ? 'active' : ''; ?>" href="<?php echo $baseUrl; ?>/formatore/profile.php">
+            <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></div>
+            <span class="bn-label">Profilo</span>
+        </a>
+        <?php else: ?>
         <a class="bn-item <?php echo $__currPage === 'index' ? 'active' : ''; ?>" href="<?php echo $baseUrl; ?>/<?php echo $__role; ?>/">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3v6h8V3h-8zM3 21h8V11H3v10zM3 9h8V3H3v6zm10 12h8V11h-8v10z"/></svg></div>
             <span class="bn-label">Home</span>
@@ -42,6 +58,7 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
                 <span class="bn-badge"><?php echo $unreadChats; ?></span>
             <?php endif; ?>
         </a>
+        <?php endif; ?>
         <button class="bn-item" id="bn-more" type="button">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg></div>
             <span class="bn-label">Altro</span>

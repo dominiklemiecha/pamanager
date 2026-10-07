@@ -10,7 +10,8 @@ $baseUrl = PUBLIC_URL;
 $isAdmin = Auth::isAdmin();
 $isConsulente = ($currentUser['role'] ?? '') === 'consulente_lavoro';
 $isAccountant = ($currentUser['role'] ?? '') === 'accountant';
-$area = $isAdmin ? 'admin' : ($isConsulente ? 'consulente-lavoro' : 'accountant');
+$isFormatore = ($currentUser['role'] ?? '') === 'formatore';
+$area = $isAdmin ? 'admin' : ($isConsulente ? 'consulente-lavoro' : ($isFormatore ? 'formatore' : 'accountant'));
 $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
 $userName = htmlspecialchars($currentUser['name']);
 
@@ -23,10 +24,11 @@ if ($isAdmin) {
         [$__cid]
     );
 }
-$unreadChats = class_exists('Chat')
+// Il responsabile formazione non ha chat ne calendario
+$unreadChats = class_exists('Chat') && !$isFormatore
     ? (int) Chat::countUnread($isAdmin ? 'admin' : ($isConsulente ? 'consulente_lavoro' : 'accountant'), $currentUser['id'])
     : 0;
-$pendingInvites = class_exists('CalendarEvent')
+$pendingInvites = class_exists('CalendarEvent') && !$isFormatore
     ? CalendarEvent::countPendingInvitations($isAdmin ? 'admin' : ($isConsulente ? 'consulente_lavoro' : 'accountant'), (int)$currentUser['id'])
     : 0;
 
@@ -50,6 +52,12 @@ if (class_exists('HireRequest')) {
             );
         }
     } catch (Throwable $e) {}
+}
+
+// Academy: corsi completati in attesa di attestato (HR e consulente)
+$academyToGenerate = 0;
+if (($isAdmin || $isConsulente || $isFormatore) && class_exists('Academy')) {
+    try { $academyToGenerate = Academy::countToGenerate(); } catch (Throwable $e) {}
 }
 
 // Periodi di prova in scadenza/scaduti senza decisione (solo admin) — badge sul menu Dipendenti
@@ -200,6 +208,14 @@ if (!empty($__currentTenant['name'])) {
                         <span class="nav-sub">Invio a tutti i dipendenti</span>
                     </span>
                 </a>
+                <a href="<?php echo $baseUrl; ?>/admin/academy.php" class="nav-item <?php echo in_array($currentPage, ['academy', 'academy-templates', 'formatori'], true) ? 'active' : ''; ?>" data-tooltip="Academy">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Academy</span>
+                        <span class="nav-sub"><?php echo $academyToGenerate > 0 ? $academyToGenerate . ' ' . ($academyToGenerate === 1 ? 'attestato' : 'attestati') . ' da generare' : 'Corsi e attestati'; ?></span>
+                    </span>
+                    <?php if ($academyToGenerate > 0): ?><span class="nav-pulse" title="<?php echo $academyToGenerate; ?> attestati da generare"></span><?php endif; ?>
+                </a>
                 <a href="<?php echo $baseUrl; ?>/admin/chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>" data-tooltip="Chat">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <span class="nav-content">
@@ -252,6 +268,29 @@ if (!empty($__currentTenant['name'])) {
                         <span class="nav-sub">Sistema, email, orario</span>
                     </span>
                 </a>
+            <?php elseif ($isFormatore): ?>
+                <a href="<?php echo $baseUrl; ?>/formatore/academy.php" class="nav-item <?php echo $currentPage === 'academy' ? 'active' : ''; ?>" data-tooltip="Academy">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Academy</span>
+                        <span class="nav-sub"><?php echo $academyToGenerate > 0 ? $academyToGenerate . ' ' . ($academyToGenerate === 1 ? 'attestato' : 'attestati') . ' da generare' : 'Corsi e partecipanti'; ?></span>
+                    </span>
+                    <?php if ($academyToGenerate > 0): ?><span class="nav-pulse" title="<?php echo $academyToGenerate; ?> attestati da generare"></span><?php endif; ?>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/formatore/academy-templates.php" class="nav-item <?php echo $currentPage === 'academy-templates' ? 'active' : ''; ?>" data-tooltip="Modelli attestato">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Modelli attestato</span>
+                        <span class="nav-sub">Grafica degli attestati</span>
+                    </span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/formatore/profile.php" class="nav-item <?php echo $currentPage === 'profile' ? 'active' : ''; ?>" data-tooltip="Profilo">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Profilo</span>
+                        <span class="nav-sub">Le mie info</span>
+                    </span>
+                </a>
             <?php elseif ($isConsulente): ?>
                 <a href="<?php echo $baseUrl; ?>/consulente-lavoro/" class="nav-item <?php echo $currentPage === 'index' ? 'active' : ''; ?>" data-tooltip="Dashboard">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
@@ -288,6 +327,14 @@ if (!empty($__currentTenant['name'])) {
                         <span class="nav-title">Documenti</span>
                         <span class="nav-sub">Caricati dal dipendente</span>
                     </span>
+                </a>
+                <a href="<?php echo $baseUrl; ?>/consulente-lavoro/academy.php" class="nav-item <?php echo in_array($currentPage, ['academy', 'academy-templates'], true) ? 'active' : ''; ?>" data-tooltip="Academy">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                    <span class="nav-content">
+                        <span class="nav-title">Academy</span>
+                        <span class="nav-sub"><?php echo $academyToGenerate > 0 ? $academyToGenerate . ' ' . ($academyToGenerate === 1 ? 'attestato' : 'attestati') . ' da generare' : 'Corsi e attestati'; ?></span>
+                    </span>
+                    <?php if ($academyToGenerate > 0): ?><span class="nav-pulse" title="<?php echo $academyToGenerate; ?> attestati da generare"></span><?php endif; ?>
                 </a>
                 <a href="<?php echo $baseUrl; ?>/consulente-lavoro/leave-requests.php" class="nav-item <?php echo $currentPage === 'leave-requests' ? 'active' : ''; ?>" data-tooltip="Ferie e Permessi">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>

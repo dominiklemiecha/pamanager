@@ -11,6 +11,9 @@ setSecurityHeaders();
 Auth::requireEmployee();
 
 $employee = Auth::getEmployee();
+if (class_exists('Academy')) {
+    Academy::runDueReminders((int) $employee['company_id']);
+}
 $employeeDeptId = $employee['department_id'] ?? null;
 
 $allDocs = Document::getByEmployee($employee['id']);
@@ -459,6 +462,18 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 <?= $unreadCount ?> da leggere
             </span>
+        <?php endif; ?>
+        <?php if (!empty($academyToDo)): ?>
+            <a class="eh-banner-chip warn" href="<?= PUBLIC_URL ?>/employee/academy.php" style="text-decoration:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                <?= (int) $academyToDo ?> cors<?= (int) $academyToDo === 1 ? 'o' : 'i' ?> da completare
+            </a>
+        <?php endif; ?>
+        <?php if (!empty($academyNewCerts)): ?>
+            <a class="eh-banner-chip" href="<?= PUBLIC_URL ?>/employee/academy.php" style="text-decoration:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg>
+                <?= (int) $academyNewCerts === 1 ? 'Nuovo attestato disponibile' : (int) $academyNewCerts . ' nuovi attestati' ?>
+            </a>
         <?php endif; ?>
     </div>
 </div>

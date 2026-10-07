@@ -7,7 +7,7 @@ require_once dirname(__DIR__, 2) . '/config/config.php';
 
 Auth::init();
 setSecurityHeaders();
-Auth::requireUser(['admin', 'accountant', 'consulente_lavoro']);
+Auth::requireUser(['admin', 'accountant', 'consulente_lavoro', 'formatore']);
 
 $user = Auth::getUser();
 $userId = (int) $user['id'];

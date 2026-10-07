@@ -34,6 +34,11 @@ if (class_exists('Probation')) {
     Probation::runChecks($__cid);
 }
 
+// ===== Academy: promemoria automatici dei corsi in scadenza (idempotente) =====
+if (class_exists('Academy')) {
+    Academy::runDueReminders($__cid);
+}
+
 $employeeCount = Employee::count(true);
 $documentCount = Document::count();
 $unreadComms   = (int) Database::fetchColumn(

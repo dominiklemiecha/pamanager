@@ -46,6 +46,12 @@ switch ($action) {
             apiError('Credenziali non valide', 401);
         }
 
+        // Il responsabile formazione vede solo l'Academy: niente token per le API
+        // (documenti, buste paga, presenze)
+        if (($user['role'] ?? '') === 'formatore') {
+            apiError('Questo profilo non ha accesso alle API', 403);
+        }
+
         // Verifica blocco
         if ($user['locked_until'] && strtotime($user['locked_until']) > time()) {
             apiError('Account bloccato temporaneamente', 403);

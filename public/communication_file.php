@@ -11,6 +11,11 @@ if (!$user && !$employee) {
     http_response_code(401);
     exit('Non autorizzato');
 }
+// Il responsabile formazione vede solo l'Academy
+if ($user && ($user['role'] ?? '') === 'formatore') {
+    http_response_code(403);
+    exit('Non autorizzato');
+}
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 if (!$id) { http_response_code(400); exit('id mancante'); }

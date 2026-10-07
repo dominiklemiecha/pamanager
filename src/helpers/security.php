@@ -117,17 +117,17 @@ function buildContentSecurityPolicy(string $nonce): string
         // Connessioni (fetch, XHR): stesso dominio + CRM
         "connect-src 'self' https://crm.connecteed.com",
 
-        // Media: disabilitato
-        "media-src 'none'",
+        // Media: solo stesso dominio (video/audio dei corsi Academy)
+        "media-src 'self'",
 
         // Object/embed: disabilitato (previene Flash, PDF embedding)
         "object-src 'none'",
 
-        // Frame: disabilitato
-        "frame-src https://crm.connecteed.com",
+        // Frame: stesso dominio (anteprima PDF materiali Academy) + widget CRM
+        "frame-src 'self' https://crm.connecteed.com",
 
-        // Child frame: disabilitato
-        "child-src https://crm.connecteed.com",
+        // Child frame: come frame-src
+        "child-src 'self' https://crm.connecteed.com",
 
         // Worker: stesso dominio (per Service Worker)
         "worker-src 'self'",
