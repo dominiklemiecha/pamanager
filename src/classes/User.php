@@ -310,6 +310,99 @@ class User
     }
 
     /**
+     * Utenza HR (ruolo admin) nata da un dipendente, se esiste
+     */
+    public static function getHrAccountForEmployee(int $employeeId): ?array
+    {
+        return Database::fetchOne(
+            "SELECT id, username, email, is_active, last_login, created_at
+             FROM users WHERE employee_id = ? AND role = 'admin'
+             ORDER BY id DESC LIMIT 1",
+            [$employeeId]
+        );
+    }
+
+    /**
+     * Rende HR un dipendente: crea un'utenza admin legata alla sua azienda
+     * (username <username>.hr, password temporanea) o riattiva quella revocata.
+     * Il chiamante deve aver gia' verificato che il dipendente sia del tenant corrente.
+     *
+     * @return array{success: bool, error?: string, username?: string, password?: string, reactivated?: bool}
+     */
+    public static function grantHrToEmployee(array $employee): array
+    {
+        $employeeId = (int)$employee['id'];
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        if ($cid <= 0 || (int)$employee['company_id'] !== $cid) {
+            return ['success' => false, 'error' => 'Dipendente non appartenente all\'azienda corrente'];
+        }
+        if (empty($employee['is_active'])) {
+            return ['success' => false, 'error' => 'Il dipendente non e\' attivo'];
+        }
+
+        $existing = self::getHrAccountForEmployee($employeeId);
+        if ($existing && $existing['is_active']) {
+            return ['success' => false, 'error' => 'Il dipendente ha gia\' un accesso HR'];
+        }
+
+        if ($existing) {
+            $reset = self::resetPassword((int)$existing['id']);
+            if (!$reset['success']) {
+                return $reset;
+            }
+            Database::update('users', ['is_active' => 1], 'id = ?', [(int)$existing['id']]);
+            self::logAction('hr_granted_to_employee', (int)$existing['id'], null, ['employee_id' => $employeeId, 'reactivated' => true]);
+            return ['success' => true, 'username' => $existing['username'], 'password' => $reset['password'], 'reactivated' => true];
+        }
+
+        // Username distinto da quello del dipendente: due account, due accessi separati
+        $base = substr((string)$employee['username'], 0, 45) . '.hr';
+        $username = $base;
+        for ($i = 2; Database::exists('users', 'username = ?', [$username]); $i++) {
+            $username = $base . $i;
+        }
+
+        $password = self::generatePassword();
+        $result = self::create([
+            'username' => $username,
+            'password' => $password,
+            'name'     => trim($employee['first_name'] . ' ' . $employee['last_name']),
+            'email'    => $employee['email'] ?? '',
+            'role'     => 'admin',
+        ]);
+        if (!$result['success']) {
+            if ($result['error'] === 'EMAIL_EXISTS') {
+                $result['error'] = 'L\'email del dipendente e\' gia\' usata da un altro utente staff: cambiala prima di renderlo HR';
+            }
+            return $result;
+        }
+
+        Database::update('users', ['employee_id' => $employeeId], 'id = ?', [(int)$result['id']]);
+        self::logAction('hr_granted_to_employee', (int)$result['id'], null, ['employee_id' => $employeeId]);
+
+        return ['success' => true, 'username' => $username, 'password' => $password, 'reactivated' => false];
+    }
+
+    /**
+     * Revoca l'accesso HR di un dipendente (disattiva l'utenza, resta lo storico)
+     */
+    public static function revokeHrFromEmployee(int $employeeId, int $actingUserId): array
+    {
+        $account = self::getHrAccountForEmployee($employeeId);
+        if (!$account || !$account['is_active']) {
+            return ['success' => false, 'error' => 'Il dipendente non ha un accesso HR attivo'];
+        }
+        if ((int)$account['id'] === $actingUserId) {
+            return ['success' => false, 'error' => 'Non puoi revocare il tuo stesso accesso HR'];
+        }
+
+        Database::update('users', ['is_active' => 0], 'id = ?', [(int)$account['id']]);
+        self::logAction('hr_revoked_from_employee', (int)$account['id'], null, ['employee_id' => $employeeId]);
+
+        return ['success' => true];
+    }
+
+    /**
      * Valida la forza della password
      */
     private static function validatePasswordStrength(string $password): bool

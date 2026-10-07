@@ -339,6 +339,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             break;
 
+        case 'grant_hr':
+        case 'revoke_hr':
+            $action = 'view';
+            $__target = $id ? Employee::getById($id) : null;
+            if (!$__target || (int)$__target['company_id'] !== (int)Tenant::currentCompanyId()) {
+                $error = 'Dipendente non trovato';
+                break;
+            }
+
+            // Conferma con la password di chi sta facendo l'operazione
+            $__tries = $_SESSION['hr_confirm_fail'] ?? ['n' => 0, 't' => time()];
+            if (time() - $__tries['t'] > 900) $__tries = ['n' => 0, 't' => time()];
+            if ($__tries['n'] >= 5) {
+                $error = 'Troppi tentativi con password errata. Riprova tra qualche minuto.';
+                break;
+            }
+            $__hash = Database::fetchColumn("SELECT password_hash FROM users WHERE id = ?", [(int)$user['id']]);
+            if (!$__hash || !password_verify((string)($_POST['confirm_password'] ?? ''), $__hash)) {
+                $__tries['n']++;
+                $_SESSION['hr_confirm_fail'] = $__tries;
+                $error = 'Password non corretta: operazione annullata.';
+                break;
+            }
+            unset($_SESSION['hr_confirm_fail']);
+
+            if ($postAction === 'revoke_hr') {
+                $result = User::revokeHrFromEmployee($id, (int)$user['id']);
+                if ($result['success']) {
+                    header('Location: employees.php?action=view&id=' . $id . '&message=hr_revoked');
+                    exit;
+                }
+                $error = $result['error'];
+                break;
+            }
+
+            $result = User::grantHrToEmployee($__target);
+            if (!$result['success']) {
+                $error = $result['error'];
+                break;
+            }
+            $__mailSent = false;
+            if (!empty($__target['email']) && class_exists('Mailer') && Mailer::isConfigured()) {
+                $__name = trim($__target['first_name'] . ' ' . $__target['last_name']);
+                $__login = function_exists('buildPublicUrl') ? buildPublicUrl('/auth/login.php') : PUBLIC_URL . '/auth/login.php';
+                $__html = '<p>Ciao ' . e($__name) . ',</p>'
+                    . '<p>Ti e\' stato dato l\'accesso <strong>HR</strong> al portale Connecteed HR. E\' un account separato da quello da dipendente, che resta invariato.</p>'
+                    . '<ul><li><strong>Username:</strong> ' . e($result['username']) . '</li>'
+                    . '<li><strong>Password temporanea:</strong> <code>' . e($result['password']) . '</code></li></ul>'
+                    . '<p><a href="' . e($__login) . '">Accedi al portale</a></p>'
+                    . '<p style="font-size:13px;color:#718096;">Cambia la password al primo accesso e non condividerla.</p>';
+                $__text = "Ciao {$__name},\n\nTi e' stato dato l'accesso HR al portale Connecteed HR (account separato da quello da dipendente).\n\n"
+                    . "Username: {$result['username']}\nPassword temporanea: {$result['password']}\n\nLogin: {$__login}\n";
+                $__mailSent = Mailer::send($__target['email'], $__name, 'Accesso HR al portale Connecteed HR', $__html, $__text);
+            }
+            $message = 'Accesso HR ' . ($result['reactivated'] ? 'riattivato' : 'creato')
+                . '. Username: <strong><code>' . e($result['username']) . '</code></strong>'
+                . ' &mdash; password temporanea: <strong><code>' . e($result['password']) . '</code></strong>'
+                . ($__mailSent
+                    ? ' (inviate anche via email a ' . e($__target['email']) . ').'
+                    : ' &mdash; <strong>email non inviata, comunicale tu: non saranno piu\' visibili.</strong>');
+            break;
+
         case 'reset_password':
             if ($id) {
                 $result = Employee::resetPassword($id);
@@ -372,6 +434,7 @@ if (isset($_GET['message'])) {
             'updated' => 'Dipendente aggiornato con successo',
             'deleted' => 'Dipendente eliminato con successo',
             'balance_updated' => 'Saldi ferie/permessi aggiornati',
+            'hr_revoked' => 'Accesso HR revocato. Il dipendente mantiene il suo account da dipendente.',
         ];
         $message = $messages[$_GET['message']] ?? '';
     }
@@ -449,6 +512,7 @@ if ($action === 'list') {
     }
     // Carica documenti del dipendente
     $documents = Document::getByEmployee($id);
+    $hrAccount = User::getHrAccountForEmployee($id);
 }
 
 $pageTitle = $action === 'new' ? 'Nuovo Dipendente'
@@ -1332,7 +1396,69 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 
                 <div class="emp-side-acts">
                     <a href="?action=edit&id=<?= $employee['id'] ?>" class="btn-c btn-c-primary">Modifica avanzata</a>
+                    <?php $__hrActive = !empty($hrAccount['is_active']); ?>
+                    <?php if ($__hrActive): ?>
+                        <div class="emp-hr-badge">
+                            <span class="emp-hr-dot"></span>
+                            <span>Accesso HR attivo &middot; <code><?= htmlspecialchars($hrAccount['username']) ?></code></span>
+                        </div>
+                        <?php if ((int)$hrAccount['id'] !== (int)$user['id']): ?>
+                            <button type="button" class="btn-c" onclick="empOpenHrModal('revoke_hr')">Revoca accesso HR</button>
+                        <?php endif; ?>
+                    <?php elseif ($employee['is_active']): ?>
+                        <button type="button" class="btn-c" onclick="empOpenHrModal('grant_hr')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Rendi HR
+                        </button>
+                    <?php endif; ?>
                 </div>
+
+                <div class="emp-balance-modal-overlay" id="empHrModal" onclick="if(event.target===this) empCloseHrModal()">
+                    <div class="emp-balance-modal" style="max-width:460px;">
+                        <div class="emp-balance-modal-h">
+                            <h3 id="empHrTitle">Rendi HR</h3>
+                            <button type="button" class="emp-balance-modal-close" onclick="empCloseHrModal()">&times;</button>
+                        </div>
+                        <form method="POST" action="employees.php?action=view&id=<?= (int)$employee['id'] ?>" autocomplete="off">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" id="empHrAction" value="grant_hr">
+                            <input type="hidden" name="id" value="<?= (int)$employee['id'] ?>">
+                            <div class="emp-balance-modal-b">
+                                <div class="emp-balance-info" id="empHrInfoGrant">
+                                    <strong><?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?></strong> avrà un secondo accesso come <strong>HR</strong>, con gli stessi permessi del tuo: dipendenti, presenze, ferie, documenti e configurazione.
+                                    Il suo account da dipendente resta com'è. Le credenziali HR vengono mostrate qui e inviate alla sua email.
+                                </div>
+                                <div class="emp-balance-info" id="empHrInfoRevoke" style="display:none;">
+                                    <strong><?= htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name']) ?></strong> non potrà più entrare come HR. Il suo account da dipendente resta attivo.
+                                </div>
+                                <div class="emp-balance-fg">
+                                    <label for="empHrPwd">Conferma con la tua password</label>
+                                    <input type="password" name="confirm_password" id="empHrPwd" required autocomplete="current-password">
+                                </div>
+                            </div>
+                            <div class="emp-balance-modal-f">
+                                <button type="button" class="emp-balance-btn emp-balance-btn-ghost" onclick="empCloseHrModal()">Annulla</button>
+                                <button type="submit" class="emp-balance-btn emp-balance-btn-primary" id="empHrSubmit">Conferma</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <script>
+                function empOpenHrModal(mode) {
+                    var revoke = mode === 'revoke_hr';
+                    document.getElementById('empHrAction').value = mode;
+                    document.getElementById('empHrTitle').textContent = revoke ? 'Revoca accesso HR' : 'Rendi HR';
+                    document.getElementById('empHrInfoGrant').style.display = revoke ? 'none' : '';
+                    document.getElementById('empHrInfoRevoke').style.display = revoke ? '' : 'none';
+                    document.getElementById('empHrSubmit').textContent = revoke ? 'Revoca accesso' : 'Rendi HR';
+                    document.getElementById('empHrModal').classList.add('show');
+                    setTimeout(function () { document.getElementById('empHrPwd').focus(); }, 50);
+                }
+                function empCloseHrModal() {
+                    document.getElementById('empHrModal').classList.remove('show');
+                    document.getElementById('empHrPwd').value = '';
+                }
+                </script>
 
                 <div class="emp-side-tip">💡 Clicca <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> per modificare i campi inline.</div>
             </aside>
@@ -2104,6 +2230,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
         }
         .emp-side-acts .btn-c { width: 100%; justify-content: center; }
         .emp-side-acts form { margin: 0; }
+        .emp-hr-badge {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 12px; color: var(--ink-2);
+            padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px;
+        }
+        .emp-hr-badge code { font-size: 11.5px; }
+        .emp-hr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
         .emp-side-tip {
             font-size: 11px; color: var(--muted);
             margin-top: 14px; padding-top: 14px;
