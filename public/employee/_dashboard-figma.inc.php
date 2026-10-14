@@ -159,9 +159,10 @@ a { color: inherit; text-decoration: none; }
 p { margin: 0; }
 img { display: block; max-width: none; }
 
-.fd-stage { position: relative; width: 1408px; height: 1056px; margin: 0 auto; }
+/* Altezza compatta: margini verticali ridotti rispetto al frame Figma (1056) per stare in viewport */
+.fd-stage { position: relative; width: 1408px; height: 852px; margin: 0 auto; }
 .fd-stage::before {
-    content: ''; position: absolute; left: 24px; top: 18px; width: 1360px; height: 867px;
+    content: ''; position: absolute; left: 24px; top: 12px; width: 1360px; height: 828px;
     background: rgba(234,234,234,0.4); border-radius: 18px;
 }
 .fd-card {
@@ -173,7 +174,7 @@ img { display: block; max-width: none; }
 .fd-abs { position: absolute; white-space: nowrap; line-height: normal; }
 
 /* Saldi */
-.fd-widget { top: 40px; height: 273px; }
+.fd-widget { top: 28px; height: 273px; }
 .fd-ferie { left: 62px; width: 634px; }
 .fd-permessi { left: 710px; width: 636px; }
 .fd-h23 { font-size: 23px; color: #111; }
@@ -198,7 +199,7 @@ img { display: block; max-width: none; }
 .fd-watermark img { width: 220px; height: 233px; transform: rotate(16.68deg); flex: none; }
 
 /* Azioni */
-.fd-row2 { top: 331px; height: 118px; }
+.fd-row2 { top: 313px; height: 118px; }
 .fd-act-ferie { left: 62px; width: 435px; }
 .fd-act-perm { left: 510px; width: 387px; }
 .fd-presenze { left: 912px; width: 434px; }
@@ -225,7 +226,7 @@ img { display: block; max-width: none; }
 .fd-legend-txt { font-size: 15px; color: #111; }
 
 /* Row 3 */
-.fd-row3 { top: 465px; height: 299px; }
+.fd-row3 { top: 443px; height: 299px; }
 .fd-comm { left: 62px; width: 435px; }
 .fd-docs { left: 510px; width: 387px; }
 .fd-reqs { left: 913px; width: 433px; }
@@ -266,7 +267,7 @@ img { display: block; max-width: none; }
 
 /* Menu dock */
 .fd-dock {
-    position: absolute; left: 50%; top: 791px; transform: translateX(-50%);
+    position: absolute; left: 50%; top: 756px; transform: translateX(-50%);
     width: 560px; height: 72px; background: #fff;
     border: 1px solid #e2eae9; border-radius: 20px;
     box-shadow: inset 0 1px 1px 0 rgba(0,0,0,0.1), inset 0 -1px 1px 0 rgba(255,255,255,0.8);
@@ -486,10 +487,15 @@ img { display: block; max-width: none; }
     var stage = document.getElementById('fdStage');
     var fits = document.querySelectorAll('.fd-fit');
     var dock = document.querySelector('.fd-dock');
+    var STAGE_W = 1408, STAGE_H = 852, MIN_ZOOM = 0.75;
     function layout() {
         var w = document.documentElement.clientWidth || window.innerWidth;
         if (w >= 900) {
-            stage.style.zoom = w < 1408 ? (w / 1408) : '';
+            // Scala per stare sia in larghezza sia in altezza; sotto MIN_ZOOM i testi
+            // diventerebbero illeggibili e si lascia lo scroll verticale.
+            var h = window.innerHeight;
+            var z = Math.min(1, w / STAGE_W, Math.max(h / STAGE_H, MIN_ZOOM));
+            stage.style.zoom = z < 1 ? z.toFixed(4) : '';
             fits.forEach(function (el) { el.style.zoom = ''; });
             dock.style.zoom = '';
         } else {
@@ -516,7 +522,9 @@ img { display: block; max-width: none; }
         var FILL = 1100, BACK = 900, PAUSE = 150, t0 = null;
         var easeInOut = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
         var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); };
-        arcs.forEach(function (el) { setArc(el, 0); });
+        // I valori reali restano quelli renderizzati dal server finche' il primo frame
+        // non parte davvero: se l'animazione non viene eseguita (scheda in background,
+        // rAF sospeso) gli anelli non restano azzerati.
         var step = function (ts) {
             if (t0 === null) t0 = ts;
             var t = ts - t0;
@@ -528,7 +536,17 @@ img { display: block; max-width: none; }
             });
             if (t < FILL + PAUSE + BACK) requestAnimationFrame(step);
         };
-        requestAnimationFrame(step);
+        var start = function () { requestAnimationFrame(step); };
+        if (document.visibilityState === 'hidden') {
+            var onVis = function () {
+                if (document.visibilityState !== 'visible') return;
+                document.removeEventListener('visibilitychange', onVis);
+                start();
+            };
+            document.addEventListener('visibilitychange', onVis);
+        } else {
+            start();
+        }
     } else {
         arcs.forEach(function (el) { setArc(el, parseFloat(el.getAttribute('data-pct')) || 0); });
     }
