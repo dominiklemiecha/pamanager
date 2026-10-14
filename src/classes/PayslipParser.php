@@ -184,17 +184,32 @@ class PayslipParser
         }
         if (count($colPos) < 3) return $out;
 
-        // 3) Scansiona righe successive in cerca di marker g (ferie) / h (permesso)
+        // 3) Scansiona righe successive in cerca di marker g (ferie, giorni) / h (ore).
+        // Le righe in ore sono gli istituti di permesso (PERMESSI, R.O.L., EX FEST.):
+        // il saldo permessi della piattaforma e' la loro somma.
+        $hourRows = [];
         for ($i = $headerIdx + 1; $i < min($headerIdx + 30, count($lines)); $i++) {
             $ln = $lines[$i];
-            // Marker: una sola lettera g/h preceduta da spazi e seguita da numeri
-            if (!preg_match('/^(\s*)([gh])\s+(\d)/', $ln, $m)) continue;
-            $marker = $m[2];
+            // Marker: una sola lettera g/h preceduta da spazi e seguita da numeri (anche negativi)
+            if (!preg_match('/^(\s*)([gh])\s+(-?\d)/', $ln, $m)) continue;
             $row = self::parseBalanceRow($ln, $colPos);
-            $key = ($marker === 'g') ? 'ferie' : 'permesso';
-            $out[$key] = $row;
+            if ($m[2] === 'g') $out['ferie'] = $row;
+            else $hourRows[] = $row;
         }
+        if (!empty($hourRows)) $out['permesso'] = self::sumBalanceRows($hourRows);
         return $out;
+    }
+
+    /** Somma campo per campo piu' righe di saldo (null resta null se assente ovunque). */
+    private static function sumBalanceRows(array $rows): array
+    {
+        $sum = ['anno_prec' => null, 'maturato' => null, 'goduto' => null, 'residuo' => null, 'proiezione' => null];
+        foreach ($rows as $r) {
+            foreach ($sum as $k => $v) {
+                if (isset($r[$k]) && $r[$k] !== null) $sum[$k] = round(($v ?? 0) + (float) $r[$k], 2);
+            }
+        }
+        return $sum;
     }
 
     /** Estrae i numeri dalla riga, ognuno mappato alla colonna piu' vicina per X. */
@@ -245,8 +260,9 @@ class PayslipParser
         }
         if ($row1 < 0) return null;
 
-        $res = []; // istituto => residuo (float)
-        $grab = function (int $hdrIdx, array $labels, array $resMap) use ($lines, &$res) {
+        $res = [];  // istituto => residuo (float)
+        $full = []; // istituto => [anno_prec, maturato, goduto, residuo]
+        $grab = function (int $hdrIdx, array $labels, array $resMap) use ($lines, &$res, &$full) {
             if ($hdrIdx < 0) return;
             $valLine = self::gridValueLine($lines, $hdrIdx);
             if ($valLine === null) return;
@@ -254,7 +270,16 @@ class PayslipParser
             if (count($cols) < 2) return;
             $assigned = self::assignByColumn($valLine, $cols); // label => float
             foreach ($resMap as $resLabel => $istituto) {
-                if (isset($assigned[$resLabel])) $res[$istituto] = $assigned[$resLabel];
+                if (!isset($assigned[$resLabel])) continue;
+                $res[$istituto] = $assigned[$resLabel];
+                // Le altre sotto-colonne dello stesso istituto stanno nelle 3 label precedenti
+                $idx = array_search($resLabel, $labels, true);
+                $full[$istituto] = [
+                    'anno_prec' => $assigned[$labels[$idx - 3]] ?? null,
+                    'maturato'  => $assigned[$labels[$idx - 2]] ?? null,
+                    'goduto'    => $assigned[$labels[$idx - 1]] ?? null,
+                    'residuo'   => $assigned[$resLabel],
+                ];
             }
         };
 
@@ -272,21 +297,17 @@ class PayslipParser
 
         if (empty($res)) return null;
 
-        $mk = fn(float $v) => [
-            'anno_prec' => null, 'maturato' => null, 'goduto' => null,
-            'residuo' => round($v, 2), 'proiezione' => null,
-        ];
+        $ferie = isset($full['ferie']) ? $full['ferie'] + ['proiezione' => null] : null;
 
-        $ferie = isset($res['ferie']) ? $mk($res['ferie']) : null;
-
-        // permesso = somma residui valorizzati di PERM + ROL + EX FEST
+        // permesso = somma dei valori di PERM + ROL + EX FEST (colonne vuote escluse)
         $components = [];
+        $rows = [];
         foreach (['perm', 'rol', 'exfest'] as $k) {
-            if (isset($res[$k])) $components[$k] = $res[$k];
+            if (isset($res[$k])) { $components[$k] = $res[$k]; $rows[] = $full[$k]; }
         }
         $permesso = null;
-        if (!empty($components)) {
-            $permesso = $mk(array_sum($components));
+        if (!empty($rows)) {
+            $permesso = self::sumBalanceRows($rows);
             $permesso['components'] = $components; // dettaglio per debug/UI futura
         }
 

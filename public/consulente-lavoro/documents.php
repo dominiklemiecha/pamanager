@@ -115,6 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk
                 'error'    => UPLOAD_ERR_OK,
                 'size'     => @filesize($stagePath) ?: 0,
             ];
+            // Saldi completi (maturato/goduto/residuo) letti prima che il file venga spostato
+            $parsedBalances = null;
+            if (!empty($r['apply_balance'])) {
+                try { $parsedBalances = PayslipParser::parse($stagePath)['balances'] ?? null; } catch (Throwable $e) { $parsedBalances = null; }
+            }
             // Document::upload usa move_uploaded_file; lo bypasso copiando via apposita variante.
             $res = Document::uploadFromPath($stagePath, [
                 'employee_id' => $empId,
@@ -132,23 +137,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'bulk
                 $errors[] = ['filename' => $name, 'error' => $res['error'] ?? 'Errore upload'];
             }
 
-            // Aggiornamento saldi opt-in: se la riga ha apply_balance=true, scrive snapshot
+            // Aggiornamento saldi opt-in: allinea ferie e permessi alla busta (totale, goduto,
+            // residuo) con partenza dal 1 del mese successivo, vedi LeaveBalance::applyFromPayslip
             if (!empty($r['apply_balance'])) {
-                // balance_set_at = OGGI: il residuo letto dal PDF e' il valore che
-                // l'utente deve vedere ADESSO. Niente rateo retroattivo (altrimenti
-                // il sistema sommerebbe i mesi tra il PDF e oggi).
-                // Year viene riallineato all'anno corrente per coerenza con accrual.
-                $setAt = date('Y-m-d');
-                $balYear = (int) date('Y');
                 $user = Auth::getUser();
                 $uid = $user['id'] ?? 0;
+                $num = fn($v) => ($v === '' || $v === null) ? null : (float) $v;
                 try {
-                    if (isset($r['ferie_residuo']) && $r['ferie_residuo'] !== '' && $r['ferie_residuo'] !== null) {
-                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $balYear, 'ferie', (float)$r['ferie_residuo'], $setAt, $uid);
-                    }
-                    if (isset($r['perm_residuo']) && $r['perm_residuo'] !== '' && $r['perm_residuo'] !== null) {
-                        LeaveBalance::setSnapshotResidual($empId, (int)Tenant::currentCompanyId(), $balYear, 'permesso', (float)$r['perm_residuo'], $setAt, $uid);
-                    }
+                    LeaveBalance::applyFromPayslip(
+                        $empId, (int)Tenant::currentCompanyId(),
+                        $parsedBalances ?? ['ferie' => null, 'permesso' => null],
+                        $year, $month, $uid,
+                        ['ferie' => $num($r['ferie_residuo'] ?? null), 'permesso' => $num($r['perm_residuo'] ?? null)]
+                    );
                 } catch (Throwable $e) {
                     $errors[] = ['filename' => $name, 'error' => 'Saldo non aggiornato: ' . $e->getMessage()];
                 }

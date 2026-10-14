@@ -412,6 +412,56 @@ class LeaveBalance
     }
 
     /**
+     * Allinea ferie e permessi ai saldi letti da una busta paga (PayslipParser).
+     * La busta fotografa la situazione a fine mese, quindi il saldo parte dal
+     * 1 del mese successivo: le richieste approvate da quella data in poi si
+     * sommano agli utilizzati, i ratei maturano dal mese dopo.
+     *   - utilizzati (manual_used) = goduto in busta
+     *   - totale (carried_over)    = residuo + goduto  => residuo identico alla busta
+     * Se la busta e' di dicembre il saldo riparte nel nuovo anno dal solo residuo.
+     * Se il goduto non c'e' (o il residuo e' stato corretto a mano) resta il solo residuo.
+     *
+     * @param array $balances ['ferie' => ?array, 'permesso' => ?array] come da PayslipParser
+     * @param array $residualOverride residui corretti a mano ['ferie' => ?float, 'permesso' => ?float]
+     * @return array tipo => ['total' => float, 'used' => float, 'residual' => float, 'set_at' => string]
+     */
+    public static function applyFromPayslip(
+        int $employeeId,
+        int $companyId,
+        array $balances,
+        int $periodYear,
+        int $periodMonth,
+        ?int $updatedBy = null,
+        array $residualOverride = []
+    ): array {
+        $setAt = (new DateTime(sprintf('%04d-%02d-01', $periodYear, $periodMonth)))->modify('+1 month');
+        $setAtStr = $setAt->format('Y-m-d');
+        $balYear = (int) $setAt->format('Y');
+        $sameYear = $balYear === $periodYear;
+        $done = [];
+        foreach (self::TYPES as $type) {
+            $b = $balances[$type] ?? null;
+            $residual = $b['residuo'] ?? null;
+            $used = $sameYear && isset($b['goduto']) ? (float) $b['goduto'] : 0.0;
+            if (isset($residualOverride[$type]) && $residualOverride[$type] !== null
+                && ($residual === null || abs((float) $residualOverride[$type] - (float) $residual) > 0.005)) {
+                $residual = (float) $residualOverride[$type];
+                $used = 0.0;
+            }
+            if ($residual === null) continue;
+            $residual = round((float) $residual, 2);
+            $total = round($residual + $used, 2);
+            self::setSnapshotResidual($employeeId, $companyId, $balYear, $type, $total, $setAtStr, $updatedBy);
+            Database::update('employee_leave_balances', [
+                'manual_used' => $used,
+                'notes'       => sprintf('Allineato alla busta paga %02d/%d', $periodMonth, $periodYear),
+            ], 'employee_id = ? AND year = ? AND leave_type = ?', [$employeeId, $balYear, $type]);
+            $done[$type] = ['total' => $total, 'used' => $used, 'residual' => $residual, 'set_at' => $setAtStr];
+        }
+        return $done;
+    }
+
+    /**
      * Esegue ensureCurrentYearAccrual per tutti i dipendenti attivi della tenant.
      * Idempotente.
      */

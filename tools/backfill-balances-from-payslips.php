@@ -1,7 +1,7 @@
 <?php
 /**
- * Ricostruisce i saldi ferie/permessi leggendoli dall'ULTIMA busta paga
- * caricata nel sistema per ogni dipendente.
+ * Allinea i saldi ferie/permessi all'ULTIMA busta paga caricata nel sistema
+ * per ogni dipendente.
  *
  * USO (dal container app):
  *   php tools/backfill-balances-from-payslips.php                # dry-run (default)
@@ -11,10 +11,10 @@
  *
  * Per ogni dipendente:
  *   - prende il documento type='payslip' piu' recente (year DESC, month DESC)
- *   - estrae i residui ferie/permessi con PayslipParser
- *   - se OK e --apply, scrive snapshot via LeaveBalance::setSnapshotResidual
- *     con balance_set_at = OGGI (vedi feedback_leave_balance: snapshot=oggi
- *     evita rateo retroattivo).
+ *   - legge maturato / goduto / residuo di ferie e permessi con PayslipParser
+ *   - con --apply scrive via LeaveBalance::applyFromPayslip: utilizzati = goduto,
+ *     totale = residuo + goduto, saldo dal 1 del mese successivo alla busta
+ *     (le richieste approvate da quella data si sommano agli utilizzati).
  *
  * Sicurezza: di default e' DRY-RUN. Stampa la tabella di cio' che farebbe.
  */
@@ -31,7 +31,7 @@ foreach ($argsList as $a) {
     if (preg_match('/^--employee-id=(\d+)$/', $a, $m)) $employeeId = (int) $m[1];
 }
 
-echo "=== Backfill saldi da ultime buste paga ===\n";
+echo "=== Allineamento saldi alle ultime buste paga ===\n";
 echo $apply ? "Modalita': APPLY (scrittura DB)\n" : "Modalita': DRY-RUN (nessuna scrittura, usa --apply per scrivere)\n";
 if ($companyId)  echo "Filtro company_id = $companyId\n";
 if ($employeeId) echo "Filtro employee_id = $employeeId\n";
@@ -62,23 +62,20 @@ if (empty($latestPerEmployee)) {
     exit;
 }
 
-$today = date('Y-m-d');
-$year  = (int) date('Y');
-$updates = 0; $skipped = 0; $missing = 0; $partial = 0;
-$systemUserId = 0; // CLI: nessun utente loggato
+$fmt = fn($v) => $v === null ? '-' : number_format((float) $v, 2, ',', '');
+$cell = fn($b) => $b === null ? '-' : ($fmt($b['maturato_tot'] ?? null) . '/' . $fmt($b['goduto'] ?? null) . '/' . $fmt($b['residuo'] ?? null));
+$updates = 0; $skipped = 0; $missing = 0;
 
-printf("%-4s %-30s %-7s %-12s %-12s %-12s %s\n",
-    'EID', 'Dipendente', 'Periodo', 'Ferie res.', 'Perm. res.', 'Esito', 'File');
+printf("%-4s %-28s %-7s %-24s %-24s %s\n", 'EID', 'Dipendente', 'Busta', 'Ferie tot/god/res (gg)', 'Perm. tot/god/res (h)', 'Esito');
 echo str_repeat('-', 110) . "\n";
 
 foreach ($latestPerEmployee as $eid => $r) {
-    $name = trim($r['last_name'] . ' ' . $r['first_name']);
+    $name = mb_strimwidth(trim($r['last_name'] . ' ' . $r['first_name']), 0, 27, '');
     $period = sprintf('%02d/%d', (int)$r['month'], (int)$r['year']);
     $file = $r['file_path'];
 
     if (!is_file($file)) {
-        printf("%-4d %-30s %-7s %-12s %-12s %-12s %s\n",
-            $eid, mb_strimwidth($name, 0, 29, ''), $period, '-', '-', 'NO FILE', basename($file));
+        printf("%-4d %-28s %-7s %-24s %-24s %s\n", $eid, $name, $period, '-', '-', 'NO FILE ' . basename($file));
         $missing++;
         continue;
     }
@@ -86,50 +83,42 @@ foreach ($latestPerEmployee as $eid => $r) {
     try {
         $parsed = PayslipParser::parse($file);
     } catch (Throwable $e) {
-        printf("%-4d %-30s %-7s %-12s %-12s %-12s %s\n",
-            $eid, mb_strimwidth($name, 0, 29, ''), $period, '-', '-', 'PARSE FAIL', $e->getMessage());
+        printf("%-4d %-28s %-7s %-24s %-24s %s\n", $eid, $name, $period, '-', '-', 'PARSE FAIL: ' . $e->getMessage());
         $skipped++;
         continue;
     }
 
-    $fr = $parsed['balances']['ferie']['residuo']    ?? null;
-    $pr = $parsed['balances']['permesso']['residuo'] ?? null;
-    $frStr = $fr !== null ? number_format($fr, 2, ',', '') . ' gg' : '-';
-    $prStr = $pr !== null ? number_format($pr, 2, ',', '') . ' h'  : '-';
-
-    if ($fr === null && $pr === null) {
-        printf("%-4d %-30s %-7s %-12s %-12s %-12s\n",
-            $eid, mb_strimwidth($name, 0, 29, ''), $period, $frStr, $prStr, 'NO BALANCES');
+    $bal = $parsed['balances'] ?? ['ferie' => null, 'permesso' => null];
+    foreach (['ferie', 'permesso'] as $t) {
+        if (!empty($bal[$t]) && isset($bal[$t]['residuo'])) {
+            $bal[$t]['maturato_tot'] = round((float)$bal[$t]['residuo'] + (float)($bal[$t]['goduto'] ?? 0), 2);
+        }
+    }
+    if (!isset($bal['ferie']['residuo']) && !isset($bal['permesso']['residuo'])) {
+        printf("%-4d %-28s %-7s %-24s %-24s %s\n", $eid, $name, $period, '-', '-', 'NESSUN SALDO NELLA BUSTA');
         $skipped++;
         continue;
     }
 
-    $esito = $apply ? 'APPLY' : 'WOULD APPLY';
-    if ($fr === null || $pr === null) $esito = ($apply ? 'APPLY P' : 'WOULD APPLY P'); // partial
+    // Il periodo della busta: quello letto dal PDF, altrimenti quello del documento
+    $pYear  = (int)($parsed['period']['year']  ?? $r['year']);
+    $pMonth = (int)($parsed['period']['month'] ?? $r['month']);
+
+    $esito = $apply ? 'AGGIORNATO' : 'DA AGGIORNARE';
     if ($apply) {
         try {
-            if ($fr !== null) {
-                LeaveBalance::setSnapshotResidual($eid, (int)$r['company_id'], $year, 'ferie', (float)$fr, $today, $systemUserId);
-            }
-            if ($pr !== null) {
-                LeaveBalance::setSnapshotResidual($eid, (int)$r['company_id'], $year, 'permesso', (float)$pr, $today, $systemUserId);
-            }
-            $updates++;
-            if ($fr === null || $pr === null) $partial++;
+            LeaveBalance::applyFromPayslip($eid, (int)$r['company_id'], $bal, $pYear, $pMonth, null);
         } catch (Throwable $e) {
-            $esito = 'ERR: ' . $e->getMessage();
+            $esito = 'ERRORE: ' . $e->getMessage();
             $skipped++;
+            printf("%-4d %-28s %-7s %-24s %-24s %s\n", $eid, $name, $period, $cell($bal['ferie']), $cell($bal['permesso']), $esito);
+            continue;
         }
-    } else {
-        $updates++;
-        if ($fr === null || $pr === null) $partial++;
     }
-
-    printf("%-4d %-30s %-7s %-12s %-12s %-12s %s\n",
-        $eid, mb_strimwidth($name, 0, 29, ''), $period, $frStr, $prStr, $esito, basename($file));
+    $updates++;
+    printf("%-4d %-28s %-7s %-24s %-24s %s\n", $eid, $name, $period, $cell($bal['ferie']), $cell($bal['permesso']), $esito);
 }
 
 echo str_repeat('-', 110) . "\n";
-echo sprintf("Riepilogo: %d aggiornati (%d parziali), %d saltati, %d file mancanti.\n",
-    $updates, $partial, $skipped, $missing);
+echo sprintf("Riepilogo: %d %s, %d saltati, %d file mancanti.\n", $updates, $apply ? 'aggiornati' : 'da aggiornare', $skipped, $missing);
 if (!$apply) echo "\nDRY-RUN: nessuna scrittura. Rilancia con --apply per scrivere davvero.\n";
