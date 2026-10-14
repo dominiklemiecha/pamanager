@@ -135,7 +135,7 @@ $fdName = htmlspecialchars($employee['first_name'] . ' ' . $employee['last_name'
     <link rel="apple-touch-icon" href="<?= $baseUrl ?>/assets/images/icon.php?size=180&v=4">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#82a6ba">
+    <meta name="theme-color" content="#e9ece6">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@700&display=swap" rel="stylesheet">
@@ -147,24 +147,42 @@ body {
     font-family: 'Urbanist', sans-serif;
     font-weight: 700;
     color: #111;
-    background: #db3804;
+    background: #fff;
 }
 body::before {
-    content: ''; position: fixed; inset: 0; z-index: -1;
-    background: linear-gradient(180deg, rgb(130,166,186) 0%, rgb(199,184,178) 27%, rgb(250,178,122) 55%, rgb(255,122,31) 76%, rgb(219,56,4) 100%);
-    background-size: 100% 137.12%;
-    background-position: 0 -10px;
+    content: ''; position: fixed; z-index: -1;
+    /* Sfondo Figma (nodo 43:467): immagine sfocata 32px, opacita' 0.7 x 0.5 su bianco;
+       allargata oltre i bordi perche' la sfocatura non schiarisca i margini */
+    inset: -64px;
+    background: url('<?= $__img ?>/bg-sfondo.jpg') center / cover no-repeat;
+    filter: blur(32px);
+    opacity: 0.35;
 }
 a { color: inherit; text-decoration: none; }
 p { margin: 0; }
 img { display: block; max-width: none; }
 
-/* Altezza compatta: margini verticali ridotti rispetto al frame Figma (1056) per stare in viewport */
-.fd-stage { position: relative; width: 1408px; height: 852px; margin: 0 auto; }
-.fd-stage::before {
-    content: ''; position: absolute; left: 24px; top: 12px; width: 1360px; height: 828px;
-    background: rgba(234,234,234,0.4); border-radius: 18px;
+/* Desktop: il pannello riempie la finestra con margini uguali (24px) su tutti i lati.
+   Righe ad altezza fissa del design, colonne in proporzione al Figma che si allargano
+   con la finestra; lo stage e' scalato via JS (zoom) in base allo spazio disponibile. */
+.fd-stage { position: relative; width: 1408px; height: 876px; margin: 0 auto; }
+.fd-panel {
+    position: absolute; inset: 24px;
+    border-radius: 18px;
+    padding: 16px 38px 12px;
+    display: flex; flex-direction: column; gap: 14px;
 }
+.fd-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+/* Lato del menu (scelto trascinandolo, come nel CRM): sotto di default */
+.fd-panel.dock-top { flex-direction: column-reverse; }
+.fd-panel.dock-left { flex-direction: row-reverse; }
+.fd-panel.dock-right { flex-direction: row; }
+.fd-row { display: grid; gap: 14px; flex: none; }
+.fd-row-1 { grid-template-columns: 634fr 636fr; height: 273px; }
+.fd-row-2 { grid-template-columns: 435fr 387fr 434fr; height: 118px; }
+.fd-row-3 { grid-template-columns: 435fr 387fr 434fr; flex: 1 0 299px; }
+.fd-row .fd-fit { position: relative; min-width: 0; }
+.fd-row .fd-card { position: relative; width: 100%; height: 100%; }
 .fd-card {
     position: absolute; overflow: hidden; display: block;
     background: rgba(255,255,255,0.84);
@@ -174,9 +192,7 @@ img { display: block; max-width: none; }
 .fd-abs { position: absolute; white-space: nowrap; line-height: normal; }
 
 /* Saldi */
-.fd-widget { top: 28px; height: 273px; }
-.fd-ferie { left: 62px; width: 634px; }
-.fd-permessi { left: 710px; width: 636px; }
+.fd-widget { height: 273px; }
 .fd-h23 { font-size: 23px; color: #111; }
 .fd-ring { position: absolute; left: 46px; top: 64px; width: 188px; height: 188px; }
 .fd-ring svg { position: absolute; inset: 0; overflow: visible; }
@@ -195,22 +211,19 @@ img { display: block; max-width: none; }
 }
 .fd-chip.is-used { border-color: #ff9400; }
 .fd-empty-bal { position: absolute; left: 294px; top: 120px; font-size: 18px; color: #6b666b; }
-.fd-watermark { position: absolute; left: 423px; top: -60px; width: 277.62px; height: 286.342px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.fd-watermark { position: absolute; right: -68.62px; top: -60px; width: 277.62px; height: 286.342px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.fd-permessi .fd-watermark { right: -66.62px; }
 .fd-watermark img { width: 220px; height: 233px; transform: rotate(16.68deg); flex: none; }
 
 /* Azioni */
-.fd-row2 { top: 313px; height: 118px; }
-.fd-act-ferie { left: 62px; width: 435px; }
-.fd-act-perm { left: 510px; width: 387px; }
-.fd-presenze { left: 912px; width: 434px; }
+.fd-row2 { height: 118px; }
 .fd-act-title { left: 28px; top: 13px; font-size: 21px; color: #111; }
 .fd-act-sub { left: 28px; top: 51px; font-size: 16px; color: #69636a; }
 .fd-act-btn { position: absolute; width: 54px; height: 54px; }
 .fd-act-btn .bg { position: absolute; inset: 0; width: 54px; height: 54px; }
 .fd-act-btn .ic { position: absolute; left: 10px; top: 9px; width: 34px; height: 35px; color: #6d6d6d; transform: rotate(0deg); transition: transform 1s ease-in-out, color .3s ease; }
-.fd-act-btn:hover .ic { transform: rotate(360deg); color: #ff9400; }
-.fd-card.is-link { transition: transform .15s ease, box-shadow .15s ease; }
-.fd-card.is-link:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+/* Hover sul box: niente sollevamento, l'icona del pulsante gira e diventa arancione */
+.fd-card.is-link:hover .fd-act-btn .ic, .fd-card.is-link:focus-visible .fd-act-btn .ic { transform: rotate(360deg); color: #ff9400; }
 
 /* Presenze */
 .fd-avatars { position: absolute; left: 18px; top: 42px; display: flex; }
@@ -223,20 +236,18 @@ img { display: block; max-width: none; }
 }
 .fd-av-img img { width: 64px; height: 64px; object-fit: cover; }
 .fd-av-state { position: absolute; left: 47px; top: 40px; width: 22px; height: 22px; }
+.fd-legend { position: absolute; left: calc(100% - 115px); top: 0; bottom: 0; right: 0; }
 .fd-legend-dot { position: absolute; width: 13px; height: 13px; }
 .fd-legend-txt { font-size: 15px; color: #111; }
 
 /* Row 3 */
-.fd-row3 { top: 443px; height: 299px; }
-.fd-comm { left: 62px; width: 435px; }
-.fd-docs { left: 510px; width: 387px; }
-.fd-reqs { left: 913px; width: 433px; }
+.fd-row3 { height: 299px; }
 .fd-h21 { left: 24px; top: 18px; font-size: 21px; color: #111; }
 .fd-comm-box {
-    position: absolute; left: 24px; width: 387px; height: 103px; overflow: hidden;
+    position: absolute; left: 24px; right: 22px; height: 103px; overflow: hidden;
     background: #efefef; border-radius: 4px; display: block;
 }
-.fd-comm-box .wm { position: absolute; left: 274px; top: -50px; width: 175.124px; height: 180.625px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.fd-comm-box .wm { position: absolute; right: -62.12px; top: -50px; width: 175.124px; height: 180.625px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .fd-comm-box .wm img { width: 138.777px; height: 146.977px; transform: rotate(16.68deg); flex: none; }
 .fd-comm-t { position: absolute; left: 16px; right: 16px; top: 26px; text-align: center; font-size: 20px; color: #4c4c4c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fd-comm-s { position: absolute; left: 16px; right: 16px; top: 60px; text-align: center; font-size: 14px; color: #898589; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -275,7 +286,6 @@ img { display: block; max-width: none; }
 .fd-doc:hover .fd-doc-ic, .fd-req:hover .fd-req-ic,
 .fd-doc:focus-visible .fd-doc-ic, .fd-req:focus-visible .fd-req-ic { background: #ff9400; color: #fff; }
 .fd-doc:focus-visible::before, .fd-req:focus-visible::before { box-shadow: 0 0 0 2px #ff9400; }
-@media (prefers-reduced-motion: reduce) { .fd-doc::before, .fd-req::before, .fd-doc-ic, .fd-req-ic, .fd-act-btn .ic { transition: none; } }
 .fd-req-t { position: absolute; left: 61px; top: 3px; font-size: 15px; color: #111; white-space: nowrap; }
 .fd-req-s { position: absolute; left: 61px; top: 26px; font-size: 12px; color: #666166; white-space: nowrap; }
 .fd-pill {
@@ -285,12 +295,32 @@ img { display: block; max-width: none; }
 }
 
 /* Menu dock */
+.fd-dock-wrap { position: relative; flex: none; align-self: center; width: 580px; height: 72px; }
+.dock-left .fd-dock-wrap, .dock-right .fd-dock-wrap { width: 72px; height: 580px; }
 .fd-dock {
-    position: absolute; left: 50%; top: 756px; transform: translateX(-50%);
-    width: 560px; height: 72px; background: #fff;
+    position: absolute; left: 0; top: 0;
+    width: 580px; height: 72px; background: #fff;
     border: 1px solid #e2eae9; border-radius: 20px;
     box-shadow: inset 0 1px 1px 0 rgba(0,0,0,0.1), inset 0 -1px 1px 0 rgba(255,255,255,0.8);
 }
+.dock-left .fd-dock, .dock-right .fd-dock { left: -254px; top: 254px; transform: rotate(90deg); }
+.dock-left .fd-nav, .dock-right .fd-nav { transform: rotate(-90deg); }
+.fd-dock-items { position: absolute; left: 20px; top: 0; width: 560px; height: 72px; }
+.fd-grip {
+    position: absolute; left: 6px; top: 16px; width: 16px; height: 40px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(17,17,17,0.25); cursor: grab; touch-action: none;
+}
+.fd-grip:hover { color: rgba(17,17,17,0.6); background: rgba(234,234,234,0.7); }
+.fd-dock-wrap.is-dragging { z-index: 60; }
+.fd-dock-wrap.is-dragging .fd-dock { opacity: .9; box-shadow: 0 8px 24px rgba(0,0,0,0.18); cursor: grabbing; }
+.fd-dock-wrap.is-dragging .fd-grip { cursor: grabbing; }
+.fd-drop { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+.fd-drop-slot {
+    position: absolute; border-radius: 20px; border: 2px dashed rgba(17,17,17,0.2);
+    background: rgba(255,255,255,0.45); transition: background-color .15s ease, border-color .15s ease;
+}
+.fd-drop-slot.is-on { border-color: #ff9400; background: rgba(255,148,0,0.16); }
 .fd-nav { position: absolute; top: 15px; width: 48px; height: 40px; background: #fff; display: block; }
 .fd-nav.is-dim { opacity: .55; }
 .fd-nav.is-off { opacity: .2; cursor: default; }
@@ -303,19 +333,28 @@ img { display: block; max-width: none; }
 
 /* Mobile: card impilate, ciascuna scalata sulla larghezza disponibile */
 @media (max-width: 899px) {
-    .fd-stage { width: auto; height: auto; padding: 12px 12px 110px; }
-    .fd-stage::before { display: none; }
-    .fd-panel { background: rgba(234,234,234,0.4); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+    .fd-stage { width: auto !important; height: auto !important; padding: 12px 12px 110px; }
+    .fd-panel { position: static; padding: 14px; gap: 14px; }
+    .fd-row { display: contents; }
     .fd-fit { position: relative; }
-    .fd-card { position: relative; left: auto !important; top: auto !important; }
-    .fd-dock { position: fixed; top: auto; bottom: 14px; left: 0; right: 0; margin: 0 auto; transform: none; z-index: 10; }
+    .fd-row .fd-card.fd-ferie { width: 634px; } .fd-row .fd-card.fd-permessi { width: 636px; }
+    .fd-row .fd-card.fd-act-ferie { width: 435px; } .fd-row .fd-card.fd-act-perm { width: 387px; } .fd-row .fd-card.fd-presenze { width: 434px; }
+    .fd-row .fd-card.fd-comm { width: 435px; } .fd-row .fd-card.fd-docs { width: 387px; } .fd-row .fd-card.fd-reqs { width: 433px; }
+    .fd-row .fd-card.fd-widget { height: 273px; } .fd-row .fd-card.fd-row2 { height: 118px; } .fd-row .fd-card.fd-row3 { height: 299px; }
+    .fd-main { display: contents; }
+    .fd-dock-wrap { position: fixed; bottom: 14px; left: 0; right: 0; margin: 0 auto; z-index: 10; width: 560px; height: 72px; }
+    .fd-dock { width: 560px; }
+    .fd-dock-items { left: 0; }
+    .fd-grip { display: none; }
 }
 </style>
 </head>
 <body>
 <div class="fd-stage" id="fdStage">
-    <div class="fd-panel">
+    <div class="fd-panel" id="fdPanel">
+        <div class="fd-main">
 
+        <div class="fd-row fd-row-1">
         <?php // ===== Ferie =====
         $__f = $fdBal['ferie']; ?>
         <div class="fd-fit" data-w="634"><div class="fd-card fd-widget fd-ferie">
@@ -323,9 +362,15 @@ img { display: block; max-width: none; }
             <div class="fd-watermark"><img src="<?= $__img ?>/watermark.svg" alt=""></div>
             <?php if ($__f['total'] > 0): ?>
                 <div class="fd-ring">
+                    <img class="fd-ring-bg" src="<?= $__img ?>/bg-segment.png" width="188" height="188" alt="">
                     <svg width="188" height="188" viewBox="0 0 188 188">
-                        <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="#FF9400" stroke-opacity="0.13" stroke-width="26.32"/>
-                        <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="#FF9400" stroke-width="26.32"
+                        <defs>
+                            <linearGradient id="fdFerieGrad" x1="0" y1="0" x2="0" y2="188" gradientUnits="userSpaceOnUse">
+                                <stop offset="0.120192" stop-color="white"/>
+                                <stop offset="0.947115" stop-color="#FF9400"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="url(#fdFerieGrad)" stroke-width="26.32" stroke-linecap="round"<?= $__f['pct'] > 0 ? '' : ' style="visibility:hidden"' ?>
                                 class="fd-arc" data-pct="<?= round($__f['pct'], 4) ?>" data-circ="<?= round($fdCirc, 2) ?>"
                                 stroke-dasharray="<?= round($fdCirc * $__f['pct'], 2) ?> <?= round($fdCirc, 2) ?>"
                                 transform="rotate(-90 94 94)"/>
@@ -374,11 +419,14 @@ img { display: block; max-width: none; }
             <?php endif; ?>
         </div></div>
 
+        </div>
+
+        <div class="fd-row fd-row-2">
         <?php // ===== Azioni rapide ===== ?>
         <div class="fd-fit" data-w="435"><a class="fd-card fd-row2 fd-act-ferie is-link" href="<?= $baseUrl ?>/employee/leave-requests.php?action=new&type=ferie">
             <p class="fd-abs fd-act-title">Richiedi ferie</p>
             <p class="fd-abs fd-act-sub">Crea una nuova richiesta</p>
-            <span class="fd-act-btn" style="left:357px;top:28px;">
+            <span class="fd-act-btn" style="right:22px;top:28px;">
                 <img class="bg" src="<?= $__img ?>/pulsante.svg" alt="">
                 <svg class="ic" width="34" height="35" viewBox="0 0 34 35" fill="currentColor" aria-hidden="true"><path d="M19.1589 0V9.86759C19.1589 11.8611 18.5838 13.7296 17.5873 15.281C16.8663 16.4071 15.9266 17.3746 14.833 18.117C13.3262 19.143 11.5197 19.7352 9.57541 19.7352H0V15.281H14.3388C14.6143 15.281 14.833 15.0558 14.833 14.7722V0H19.1589Z"/><path d="M34 19.7273H19.6531C19.3776 19.7273 19.1589 19.9525 19.1589 20.2278V35H14.833V25.1407C14.833 23.1389 15.4081 21.2788 16.4046 19.7273C17.1256 18.6013 18.0653 17.6337 19.1589 16.8913C20.6657 15.8737 22.4722 15.2815 24.4165 15.2815H34C34 15.2815 33.919 19.6106 34 19.7357V19.7273Z"/></svg>
             </span>
@@ -387,7 +435,7 @@ img { display: block; max-width: none; }
         <div class="fd-fit" data-w="387"><a class="fd-card fd-row2 fd-act-perm is-link" href="<?= $baseUrl ?>/employee/leave-requests.php?action=new&type=permesso">
             <p class="fd-abs fd-act-title" style="left:30px;font-size:20px;">Richiedi permesso</p>
             <p class="fd-abs fd-act-sub" style="left:30px;top:52px;">Ore o intera giornata</p>
-            <span class="fd-act-btn" style="left:315px;top:31px;">
+            <span class="fd-act-btn" style="right:16px;top:31px;">
                 <img class="bg" src="<?= $__img ?>/pulsante.svg" alt="">
                 <svg class="ic" width="34" height="35" viewBox="0 0 34 35" fill="currentColor" aria-hidden="true"><path d="M19.1589 0V9.86759C19.1589 11.8611 18.5838 13.7296 17.5873 15.281C16.8663 16.4071 15.9266 17.3746 14.833 18.117C13.3262 19.143 11.5197 19.7352 9.57541 19.7352H0V15.281H14.3388C14.6143 15.281 14.833 15.0558 14.833 14.7722V0H19.1589Z"/><path d="M34 19.7273H19.6531C19.3776 19.7273 19.1589 19.9525 19.1589 20.2278V35H14.833V25.1407C14.833 23.1389 15.4081 21.2788 16.4046 19.7273C17.1256 18.6013 18.0653 17.6337 19.1589 16.8913C20.6657 15.8737 22.4722 15.2815 24.4165 15.2815H34C34 15.2815 33.919 19.6106 34 19.7357V19.7273Z"/></svg>
             </span>
@@ -411,12 +459,17 @@ img { display: block; max-width: none; }
                     </div>
                 <?php endforeach; ?>
             </div>
-            <img class="fd-legend-dot" style="left:317px;top:52px;" src="<?= $__img ?>/dot-disponibili.svg" alt="">
-            <p class="fd-abs fd-legend-txt" style="left:339px;top:50px;"><?= (int)$fdAvailable ?> disp.</p>
-            <img class="fd-legend-dot" style="left:317px;top:83px;" src="<?= $__img ?>/dot-occupati.svg" alt="">
-            <p class="fd-abs fd-legend-txt" style="left:339px;top:80px;"><?= (int)$fdAbsent ?> assent<?= $fdAbsent === 1 ? 'e' : 'i' ?></p>
+            <div class="fd-legend">
+                <img class="fd-legend-dot" style="left:0;top:52px;" src="<?= $__img ?>/dot-disponibili.svg" alt="">
+                <p class="fd-abs fd-legend-txt" style="left:22px;top:50px;"><?= (int)$fdAvailable ?> disp.</p>
+                <img class="fd-legend-dot" style="left:0;top:83px;" src="<?= $__img ?>/dot-occupati.svg" alt="">
+                <p class="fd-abs fd-legend-txt" style="left:22px;top:80px;"><?= (int)$fdAbsent ?> assent<?= $fdAbsent === 1 ? 'e' : 'i' ?></p>
+            </div>
         </div></div>
 
+        </div>
+
+        <div class="fd-row fd-row-3">
         <?php // ===== Comunicazioni ===== ?>
         <div class="fd-fit" data-w="435"><div class="fd-card fd-row3 fd-comm">
             <p class="fd-abs fd-h21">Comunicazioni</p>
@@ -469,8 +522,17 @@ img { display: block; max-width: none; }
             <?php endforeach; endif; ?>
         </div></div>
 
-        <?php // ===== Menu dipendente ===== ?>
+        </div>
+
+        </div>
+
+        <?php // ===== Menu dipendente (spostabile su un lato trascinandolo dalla maniglia) ===== ?>
+        <div class="fd-dock-wrap" id="fdDockWrap">
         <nav class="fd-dock" aria-label="Menu">
+            <span class="fd-grip" id="fdGrip" title="Trascina per spostare il menu" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+            </span>
+            <div class="fd-dock-items">
             <a class="fd-nav fd-nav-home" style="left:13px;" href="<?= $baseUrl ?>/employee/" title="Home" aria-current="page">
                 <img class="ic" src="<?= $__img ?>/nav-home.svg" alt="Home">
                 <span class="fd-nav-dot"></span>
@@ -497,40 +559,137 @@ img { display: block; max-width: none; }
             <a class="fd-nav" style="left:481px;" href="<?= $baseUrl ?>/auth/logout.php" title="Esci">
                 <img class="ic" src="<?= $__img ?>/nav-esci.svg" alt="Esci">
             </a>
+            </div>
         </nav>
+        </div>
     </div>
 </div>
 <script>
 (function () {
     var stage = document.getElementById('fdStage');
     var fits = document.querySelectorAll('.fd-fit');
-    var dock = document.querySelector('.fd-dock');
-    var STAGE_W = 1408, STAGE_H = 852, MIN_ZOOM = 0.75;
+    var panel = document.getElementById('fdPanel');
+    var dock = document.getElementById('fdDockWrap');
+    var grip = document.getElementById('fdGrip');
+    // Ingombro minimo del design (pannello + margini 24px) e limiti di scala:
+    // sotto MIN_ZOOM i testi diventerebbero illeggibili e si lascia lo scroll.
+    // Con il menu a lato la larghezza minima cresce e l'altezza minima cala (72 + 14 di spazio).
+    var STAGE_W = 1408, STAGE_H = 876, DOCK_SPACE = 86, MIN_ZOOM = 0.75, MAX_ZOOM = 1.2;
+    var SIDES = ['bottom', 'top', 'left', 'right'];
+    var sideKey = 'fd_dock_side_<?= (int)$employee['id'] ?>';
+    var side = 'bottom';
+    try { var saved = localStorage.getItem(sideKey); if (SIDES.indexOf(saved) !== -1) side = saved; } catch (e) {}
+    var lastW = 0, zoom = 1;
+    function isVertical() { return side === 'left' || side === 'right'; }
     function layout() {
         var w = document.documentElement.clientWidth || window.innerWidth;
+        lastW = w;
+        SIDES.forEach(function (sd) { panel.classList.toggle('dock-' + sd, w >= 900 && sd === side); });
         if (w >= 900) {
+            var STAGE_W = isVertical() ? 1408 + DOCK_SPACE : 1408;
+            var STAGE_H = isVertical() ? 876 - DOCK_SPACE : 876;
             // Scala per stare sia in larghezza sia in altezza; sotto MIN_ZOOM i testi
             // diventerebbero illeggibili e si lascia lo scroll verticale.
             var h = window.innerHeight;
-            var z = Math.min(1, w / STAGE_W, Math.max(h / STAGE_H, MIN_ZOOM));
-            stage.style.zoom = z < 1 ? z.toFixed(4) : '';
+            var z = Math.min(MAX_ZOOM, w / STAGE_W, Math.max(h / STAGE_H, MIN_ZOOM));
+            zoom = z;
+            stage.style.zoom = String(z);
+            stage.style.width = (w / z) + 'px';
+            stage.style.height = Math.max(h / z, STAGE_H) + 'px';
             fits.forEach(function (el) { el.style.zoom = ''; });
             dock.style.zoom = '';
         } else {
             stage.style.zoom = '';
+            stage.style.width = '';
+            stage.style.height = '';
             var avail = w - 24 - 28;
             fits.forEach(function (el) {
                 el.style.zoom = Math.min(1, avail / parseFloat(el.getAttribute('data-w')));
             });
             dock.style.zoom = Math.min(1, (w - 24) / 560);
+            zoom = 1;
         }
     }
     layout();
+    // La prima misura puo' includere la barra di scorrimento della pagina non ancora scalata
+    if (document.documentElement.clientWidth !== lastW) layout();
     window.addEventListener('resize', layout);
+
+    // Spostamento del menu: si prende dalla maniglia (o dal bordo), compaiono i quattro
+    // posti possibili e al rilascio il menu va su quello piu' vicino. Il lato resta salvato.
+    var drag = null, overlay = null;
+    function slotRects() {
+        var p = panel.getBoundingClientRect(), z = zoom;
+        var hLen = 580 * z, th = 72 * z, vLen = Math.min(580 * z, p.height - 40 * z);
+        return {
+            bottom: { x: p.left + p.width / 2 - hLen / 2, y: p.bottom - (12 + 72) * z, w: hLen, h: th },
+            top:    { x: p.left + p.width / 2 - hLen / 2, y: p.top + 16 * z, w: hLen, h: th },
+            left:   { x: p.left + 38 * z, y: p.top + p.height / 2 - vLen / 2, w: th, h: vLen },
+            right:  { x: p.right - (38 + 72) * z, y: p.top + p.height / 2 - vLen / 2, w: th, h: vLen }
+        };
+    }
+    function nearest(x, y, rects) {
+        var best = side, bestD = Infinity;
+        SIDES.forEach(function (sd) {
+            var r = rects[sd], d = Math.hypot(x - (r.x + r.w / 2), y - (r.y + r.h / 2));
+            if (d < bestD) { bestD = d; best = sd; }
+        });
+        return best;
+    }
+    function showOverlay(rects) {
+        overlay = document.createElement('div');
+        overlay.className = 'fd-drop';
+        SIDES.forEach(function (sd) {
+            var r = rects[sd], el = document.createElement('div');
+            el.className = 'fd-drop-slot';
+            el.setAttribute('data-side', sd);
+            el.style.cssText = 'left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w + 'px;height:' + r.h + 'px;';
+            overlay.appendChild(el);
+        });
+        document.body.appendChild(overlay);
+    }
+    dock.addEventListener('pointerdown', function (e) {
+        if (window.innerWidth < 900 || e.button !== 0 || e.target.closest('.fd-nav')) return;
+        e.preventDefault();
+        dock.setPointerCapture(e.pointerId);
+        drag = { x: e.clientX, y: e.clientY, moving: false, zone: side };
+    });
+    dock.addEventListener('pointermove', function (e) {
+        if (!drag) return;
+        var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (!drag.moving) {
+            if (Math.hypot(dx, dy) < 5) return;
+            drag.moving = true;
+            drag.rects = slotRects();
+            showOverlay(drag.rects);
+            dock.classList.add('is-dragging');
+        }
+        dock.style.transform = 'translate(' + (dx / zoom) + 'px,' + (dy / zoom) + 'px)';
+        drag.zone = nearest(e.clientX, e.clientY, drag.rects);
+        overlay.querySelectorAll('.fd-drop-slot').forEach(function (el) {
+            el.classList.toggle('is-on', el.getAttribute('data-side') === drag.zone);
+        });
+    });
+    function endDrag() {
+        if (!drag) return;
+        if (drag.moving && drag.zone !== side) {
+            side = drag.zone;
+            try { localStorage.setItem(sideKey, side); } catch (e) {}
+            layout();
+        }
+        dock.style.transform = '';
+        dock.classList.remove('is-dragging');
+        if (overlay) { overlay.remove(); overlay = null; }
+        drag = null;
+    }
+    dock.addEventListener('pointerup', endDrag);
+    dock.addEventListener('pointercancel', endDrag);
 
     // Anelli saldi: all'accesso si riempiono fino al 100% e poi tornano al valore reale
     var arcs = document.querySelectorAll('.fd-arc');
-    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Nessun blocco su prefers-reduced-motion: con le animazioni di Windows disattivate
+    // il browser lo segnala e le animazioni (richieste esplicitamente) sparivano del tutto.
+    var reduce = false;
     function setArc(el, frac) {
         var c = parseFloat(el.getAttribute('data-circ'));
         el.setAttribute('stroke-dasharray', (c * frac).toFixed(2) + ' ' + c);
