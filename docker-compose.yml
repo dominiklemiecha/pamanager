@@ -34,6 +34,8 @@ services:
       SEED_DEMO_TENANT: "${SEED_DEMO_TENANT:-true}"
       SEED_DEMO_RESET: "${SEED_DEMO_RESET:-false}"
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+      # Email dei dipendenti con la dashboard grafica dedicata (separate da virgola)
+      EMPLOYEE_FIGMA_DASHBOARD_EMAILS: ${EMPLOYEE_FIGMA_DASHBOARD_EMAILS:-dominik.lemiecha25@gmail.com}
       PHP_TIMEZONE: "Europe/Rome"
       # SMTP globale SaaS (impostare i valori dal pannello Dokploy > Environment)
       SMTP_ENABLED: "${SMTP_ENABLED:-0}"
