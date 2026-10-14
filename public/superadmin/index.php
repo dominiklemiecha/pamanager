@@ -100,7 +100,10 @@ form.inline{display:inline-block;margin:0;}
 <div class="wrap">
 <header>
     <h1>PAManager — Superadmin</h1>
-    <a href="logout.php" class="logout">Logout</a>
+    <div style="display:flex;gap:16px;">
+        <a href="clic.php" class="logout">Clic utenza HR</a>
+        <a href="logout.php" class="logout">Logout</a>
+    </div>
 </header>
 
 <?php if ($message): ?><div class="alert ok"><?= $message ?></div><?php endif; ?>

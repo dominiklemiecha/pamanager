@@ -87,6 +87,9 @@ $__currPage = basename($_SERVER['PHP_SELF'], '.php');
 <script src="<?php echo $baseUrl; ?>/assets/js/app.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo $baseUrl; ?>/assets/js/push.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo $baseUrl; ?>/assets/js/availability-heatmap.js?v=<?php echo time(); ?>"></script>
+<?php if (Auth::isAdmin()): ?>
+<script src="<?php echo $baseUrl; ?>/assets/js/click-log.js?v=<?php echo time(); ?>" data-endpoint="<?php echo $baseUrl; ?>/api/ui-click.php"></script>
+<?php endif; ?>
 <script>
 // Sidebar collapse (desktop) + open su mobile
 (function(){
