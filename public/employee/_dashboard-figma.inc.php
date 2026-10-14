@@ -349,7 +349,8 @@ img { display: block; max-width: none; }
 .fd-ring-big { font-size: 40px; color: #000; line-height: normal; }
 .fd-ring-lbl { font-size: 14px; color: #666266; line-height: normal; margin-top: -4px; }
 .fd-chip {
-    position: absolute; height: 33px; min-width: 129px; padding: 0 16px;
+    /* Larghezza fissa: Utilizzati e Totale di ferie e permessi sempre uguali */
+    position: absolute; height: 33px; width: 160px; padding: 0 6px;
     border: 2px solid #6b666b; border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; color: #111; white-space: nowrap;
@@ -533,8 +534,8 @@ img { display: block; max-width: none; }
                         <span class="fd-ring-lbl">giorni residui</span>
                     </div>
                 </div>
-                <div class="fd-chip is-used" style="left:294px;top:99px;">Utilizzati : <?= $fdNum($__f['used']) ?></div>
-                <div class="fd-chip" style="left:294px;top:146px;">Totale : <?= $fdNum($__f['total']) ?></div>
+                <div class="fd-chip is-used" style="left:256px;top:99px;">Utilizzati : <?= $fdNum($__f['used']) ?></div>
+                <div class="fd-chip" style="left:256px;top:146px;">Totale : <?= $fdNum($__f['total']) ?></div>
             <?php else: ?>
                 <p class="fd-empty-bal">Saldo non configurato</p>
             <?php endif; ?>
@@ -565,8 +566,8 @@ img { display: block; max-width: none; }
                         <span class="fd-ring-lbl">ore residue</span>
                     </div>
                 </div>
-                <div class="fd-chip is-used" style="left:297px;top:102px;">Utilizzati : <?= $fdNum($__p['used']) ?></div>
-                <div class="fd-chip" style="left:297px;top:145px;">Totale : <?= $fdNum($__p['total']) ?></div>
+                <div class="fd-chip is-used" style="left:256px;top:99px;">Utilizzati : <?= $fdNum($__p['used']) ?></div>
+                <div class="fd-chip" style="left:256px;top:146px;">Totale : <?= $fdNum($__p['total']) ?></div>
             <?php else: ?>
                 <p class="fd-empty-bal">Saldo non configurato</p>
             <?php endif; ?>
