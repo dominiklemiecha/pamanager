@@ -306,6 +306,7 @@ img { display: block; max-width: none; }
                     <svg width="188" height="188" viewBox="0 0 188 188">
                         <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="#FF9400" stroke-opacity="0.13" stroke-width="26.32"/>
                         <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="#FF9400" stroke-width="26.32"
+                                class="fd-arc" data-pct="<?= round($__f['pct'], 4) ?>" data-circ="<?= round($fdCirc, 2) ?>"
                                 stroke-dasharray="<?= round($fdCirc * $__f['pct'], 2) ?> <?= round($fdCirc, 2) ?>"
                                 transform="rotate(-90 94 94)"/>
                     </svg>
@@ -336,11 +337,10 @@ img { display: block; max-width: none; }
                                 <stop offset="0.947115" stop-color="#FF9400"/>
                             </linearGradient>
                         </defs>
-                        <?php if ($__p['pct'] > 0): ?>
-                        <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="url(#fdPermGrad)" stroke-width="26.32" stroke-linecap="round"
+                        <circle cx="94" cy="94" r="<?= $fdR ?>" fill="none" stroke="url(#fdPermGrad)" stroke-width="26.32" stroke-linecap="round"<?= $__p['pct'] > 0 ? '' : ' style="visibility:hidden"' ?>
+                                class="fd-arc" data-pct="<?= round($__p['pct'], 4) ?>" data-circ="<?= round($fdCirc, 2) ?>"
                                 stroke-dasharray="<?= round($fdCirc * $__p['pct'], 2) ?> <?= round($fdCirc, 2) ?>"
                                 transform="rotate(-90 94 94)"/>
-                        <?php endif; ?>
                     </svg>
                     <div class="fd-ring-center">
                         <span class="fd-ring-big"><?= $fdNum($__p['resid']) ?></span>
@@ -503,6 +503,35 @@ img { display: block; max-width: none; }
     }
     layout();
     window.addEventListener('resize', layout);
+
+    // Anelli saldi: all'accesso si riempiono fino al 100% e poi tornano al valore reale
+    var arcs = document.querySelectorAll('.fd-arc');
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function setArc(el, frac) {
+        var c = parseFloat(el.getAttribute('data-circ'));
+        el.setAttribute('stroke-dasharray', (c * frac).toFixed(2) + ' ' + c);
+        el.style.visibility = frac > 0.001 ? '' : 'hidden';
+    }
+    if (!reduce && window.requestAnimationFrame) {
+        var FILL = 1100, BACK = 900, PAUSE = 150, t0 = null;
+        var easeInOut = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+        var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); };
+        arcs.forEach(function (el) { setArc(el, 0); });
+        var step = function (ts) {
+            if (t0 === null) t0 = ts;
+            var t = ts - t0;
+            arcs.forEach(function (el) {
+                var pct = parseFloat(el.getAttribute('data-pct')) || 0;
+                if (t < FILL) setArc(el, easeInOut(t / FILL));
+                else if (t < FILL + PAUSE) setArc(el, 1);
+                else setArc(el, 1 - (1 - pct) * easeOut(Math.min(1, (t - FILL - PAUSE) / BACK)));
+            });
+            if (t < FILL + PAUSE + BACK) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    } else {
+        arcs.forEach(function (el) { setArc(el, parseFloat(el.getAttribute('data-pct')) || 0); });
+    }
 })();
 </script>
 </body>
