@@ -64,53 +64,22 @@ $allCompanies = SuperAdmin::allCompanies();
 <meta name="robots" content="noindex, nofollow">
 <title>Superadmin — Tenant</title>
 <?= CSRF::metaTag() ?>
-<style>
-*{box-sizing:border-box;}
-body{font-family:'Inter',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:24px;}
-.wrap{max-width:1200px;margin:0 auto;}
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
-h1{margin:0;font-size:20px;color:#fff;}
-.logout{color:#94a3b8;text-decoration:none;font-size:13px;}
-.logout:hover{color:#fff;}
-.alert{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;}
-.alert.ok{background:#064e3b;border:1px solid #047857;color:#a7f3d0;}
-.alert.err{background:#7f1d1d;border:1px solid #b91c1c;color:#fecaca;}
-.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;}
-.card h2{margin:0 0 14px;font-size:15px;color:#fff;}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
-label{display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;}
-input{width:100%;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;}
-input:focus{outline:none;border-color:#0b3aa4;}
-button.primary{background:#0b3aa4;color:white;border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;}
-button.primary:hover{background:#082b7b;}
-button.icon{background:transparent;border:1px solid #334155;color:#cbd5e1;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;}
-button.icon:hover{background:#334155;color:#fff;}
-button.icon.danger{border-color:#7f1d1d;color:#fca5a5;}
-button.icon.danger:hover{background:#7f1d1d;color:#fff;}
-table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:left;padding:10px;background:#0f172a;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.04em;border-bottom:1px solid #334155;}
-td{padding:12px 10px;border-bottom:1px solid #334155;color:#e2e8f0;}
-tr:hover td{background:#0f172a;}
-.status{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;}
-.status.on{background:#064e3b;color:#a7f3d0;}
-.status.off{background:#7f1d1d;color:#fecaca;}
-.tiny{font-size:11px;color:#94a3b8;}
-form.inline{display:inline-block;margin:0;}
-</style></head><body>
+<?php include __DIR__ . '/_ui.php'; ?></head><body>
 <div class="wrap">
 <header>
-    <h1>PAManager — Superadmin</h1>
-    <div style="display:flex;gap:16px;">
-        <a href="clic.php" class="logout">Clic utenza HR</a>
-        <a href="logout.php" class="logout">Logout</a>
-    </div>
+    <h1>Superadmin</h1>
+    <nav class="nav">
+        <a href="index.php" class="on">Tenant</a>
+        <a href="clic.php" class="">Utilizzo HR</a>
+        <a href="logout.php">Esci</a>
+    </nav>
 </header>
 
 <?php if ($message): ?><div class="alert ok"><?= $message ?></div><?php endif; ?>
 <?php if ($error): ?><div class="alert err"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
 <div class="card">
-    <h2>Crea nuovo tenant</h2>
+    <h2>Nuovo tenant</h2>
     <form method="POST">
         <?= CSRF::field() ?>
         <input type="hidden" name="action" value="create">
@@ -133,19 +102,19 @@ form.inline{display:inline-block;margin:0;}
             </div>
         </div>
         <div style="margin-top:14px;display:flex;justify-content:flex-end;">
-            <button class="primary" type="submit">Crea tenant + invia email</button>
+            <button class="primary" type="submit">Crea</button>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <h2>Tenant esistenti (<?= count($tenants) ?>)</h2>
+    <h2>Tenant · <?= count($tenants) ?></h2>
     <?php if (empty($tenants)): ?>
-        <p class="tiny">Nessun tenant ancora creato.</p>
+        <p class="empty">—</p>
     <?php else: ?>
-    <table>
+    <div class="scroll"><table>
         <thead><tr>
-            <th>Admin tenant</th><th>Email</th><th>Aziende</th><th>Dipendenti</th><th>Ultimo login</th><th>Stato</th><th></th>
+            <th>Admin</th><th>Email</th><th>Aziende</th><th>Dipendenti</th><th>Ultimo login</th><th>Stato</th><th></th>
         </tr></thead>
         <tbody>
         <?php foreach ($tenants as $t):
@@ -164,7 +133,7 @@ form.inline{display:inline-block;margin:0;}
                         <div class="tiny"><?= htmlspecialchars(implode(', ', $companyNames)) ?></div>
                     <?php endif; ?>
                     <details style="margin-top:6px;">
-                        <summary class="tiny" style="cursor:pointer;color:#60a5fa;">Assegna aziende</summary>
+                        <summary class="tiny">Aziende</summary>
                         <form method="POST" style="margin-top:8px;">
                             <?= CSRF::field() ?>
                             <input type="hidden" name="action" value="set_companies">
@@ -173,14 +142,13 @@ form.inline{display:inline-block;margin:0;}
                                 $ownedIds = array_map(fn($c) => (int)$c['id'], $companies);
                                 foreach ($allCompanies as $co):
                             ?>
-                                <label style="display:block;font-size:12px;margin:3px 0;color:#e2e8f0;">
+                                <label style="display:block;font-size:12px;margin:3px 0;text-transform:none;letter-spacing:0;">
                                     <input type="checkbox" name="company_ids[]" value="<?= (int)$co['id'] ?>"
                                         <?= in_array((int)$co['id'], $ownedIds, true) ? 'checked' : '' ?>>
                                     <?= htmlspecialchars($co['name']) ?><?= $co['is_active'] ? '' : ' (disatt.)' ?>
                                 </label>
                             <?php endforeach; ?>
                             <button class="icon" type="submit" style="margin-top:6px;">Salva aziende</button>
-                            <div class="tiny" style="margin-top:4px;">Vuoto = admin globale (vede tutto). Selezionate = solo quelle.</div>
                         </form>
                     </details>
                 </td>
@@ -197,7 +165,7 @@ form.inline{display:inline-block;margin:0;}
                             <?= CSRF::field() ?>
                             <input type="hidden" name="action" value="resend_welcome">
                             <input type="hidden" name="user_id" value="<?= (int)$t['id'] ?>">
-                            <button class="icon" title="Reinvia email primo accesso">↻ email</button>
+                            <button class="icon" title="Reinvia email primo accesso">Reinvia email</button>
                         </form>
                     <?php endif; ?>
 
@@ -228,7 +196,7 @@ form.inline{display:inline-block;margin:0;}
             </tr>
         <?php endforeach; ?>
         </tbody>
-    </table>
+    </table></div>
     <?php endif; ?>
 </div>
 

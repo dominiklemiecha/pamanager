@@ -56,6 +56,7 @@ $actionLabels = [
     'password_reset_approved' => 'Approva reset password', 'password_reset_rejected' => 'Rifiuta reset password',
     'password_change' => 'Cambia la propria password',
     'smtp_settings_updated' => 'Salva impostazioni email', 'hire_request_deleted' => 'Elimina richiesta assunzione',
+    'leave_sick_cert_waived' => 'Esonera documenti malattia', 'leave_sick_cert_required' => 'Richiedi documenti malattia',
     'hr_granted_to_employee' => 'Rendi HR', 'hr_revoked_from_employee' => 'Revoca HR', 'user_left_company' => 'Esci da azienda',
 ];
 $actionLabel = fn(string $a): string => $actionLabels[$a] ?? ucfirst(str_replace('_', ' ', $a));
@@ -191,44 +192,16 @@ $dt = fn($v) => $v ? date('d/m/Y H:i', strtotime($v)) : '';
 <html lang="it"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Superadmin — Clic utenza HR</title>
-<style>
-*{box-sizing:border-box;}
-body{font-family:'Inter',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:24px;}
-.wrap{max-width:1200px;margin:0 auto;}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px;}
-h1{margin:0;font-size:20px;color:#fff;}
-.nav{display:flex;gap:16px;}
-.nav a{color:#94a3b8;text-decoration:none;font-size:13px;}
-.nav a:hover{color:#fff;}
-.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;}
-.card h2{margin:0 0 4px;font-size:15px;color:#fff;}
-.card .sub{margin:0 0 14px;font-size:12px;color:#94a3b8;}
-.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
-label{display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;}
-select{padding:9px 10px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;min-width:160px;}
-button.primary,a.btn{background:#0b3aa4;color:white;border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;text-decoration:none;display:inline-block;}
-a.btn.ghost{background:transparent;border:1px solid #334155;color:#cbd5e1;}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
-.kpi{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;}
-.kpi b{display:block;font-size:24px;color:#fff;}
-.kpi span{font-size:12px;color:#94a3b8;}
-.scroll{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:left;padding:10px;background:#0f172a;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.04em;border-bottom:1px solid #334155;white-space:nowrap;}
-td{padding:10px;border-bottom:1px solid #334155;color:#e2e8f0;vertical-align:top;}
-td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.bar{height:6px;border-radius:3px;background:#0b3aa4;margin-top:6px;min-width:2px;}
-.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:#0f172a;border:1px solid #334155;color:#cbd5e1;white-space:nowrap;}
-.tiny{font-size:11px;color:#94a3b8;}
-.empty{color:#94a3b8;font-size:13px;padding:8px 0;}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-@media (max-width:900px){.two{grid-template-columns:1fr;}body{padding:16px;}}
-</style></head><body>
+<title>Superadmin — Utilizzo HR</title>
+<?php include __DIR__ . '/_ui.php'; ?></head><body>
 <div class="wrap">
 <header>
-    <h1>Clic utenza HR</h1>
-    <div class="nav"><a href="index.php">Tenant</a><a href="logout.php">Logout</a></div>
+    <h1>Superadmin</h1>
+    <nav class="nav">
+        <a href="index.php" class="">Tenant</a>
+        <a href="clic.php" class="on">Utilizzo HR</a>
+        <a href="logout.php">Esci</a>
+    </nav>
 </header>
 
 <div class="card">
@@ -273,10 +246,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 </div>
 
 <div class="card">
-    <h2>Storico: pulsanti che salvano qualcosa</h2>
-    <p class="sub">Dal registro attività, disponibile dal <?= $auditSince ? date('d/m/Y', strtotime($auditSince)) : '—' ?>. Contiene solo i pulsanti che salvano un'azione (approva, crea, carica, elimina…): i clic di navigazione fatti prima dell'attivazione del tracciamento non sono mai stati registrati. Accessi e uscite esclusi.</p>
+    <h2>Azioni salvate · dal <?= $auditSince ? date('d/m/Y', strtotime($auditSince)) : '—' ?></h2>
     <?php if (empty($auditButtons)): ?>
-        <p class="empty">Nessuna azione nel periodo.</p>
+        <p class="empty">—</p>
     <?php else: ?>
     <div class="two">
         <div class="scroll"><table>
@@ -298,7 +270,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
             <tbody>
             <?php foreach ($auditPerUser as $u): ?>
                 <tr>
-                    <td><a style="color:#93c5fd;text-decoration:none;" href="<?= $h($qs(['user' => (int) $u['user_id']])) ?>"><?= $h($u['user_name'] ?: ($u['username'] ?: '#' . $u['user_id'])) ?></a></td>
+                    <td><a class="plain" href="<?= $h($qs(['user' => (int) $u['user_id']])) ?>"><?= $h($u['user_name'] ?: ($u['username'] ?: 'Utente eliminato #' . $u['user_id'])) ?></a></td>
                     <td class="tiny"><?= $h($u['company'] ?: '—') ?></td>
                     <td class="num"><?= (int) $u['n'] ?></td>
                     <td class="tiny" style="white-space:nowrap;"><?= $dt($u['last_at']) ?></td>
@@ -311,10 +283,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 </div>
 
 <div class="card">
-    <h2>Pulsanti più premuti (tutti i clic, da oggi)</h2>
-    <p class="sub">Stesso pulsante su pagine diverse conta separato. I link dentro le righe delle tabelle sono registrati per destinazione, senza nomi di persone.</p>
+    <h2>Pulsanti più premuti</h2>
     <?php if (empty($topButtons)): ?>
-        <p class="empty">Nessun clic nel periodo.</p>
+        <p class="empty">—</p>
     <?php else: ?>
     <div class="scroll"><table>
         <thead><tr><th>#</th><th>Pulsante</th><th>Pagina</th><th>Zona</th><th>Clic</th><th>Utenti</th><th>Ultimo</th></tr></thead>
@@ -323,7 +294,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
             <tr>
                 <td class="tiny"><?= $i + 1 ?></td>
                 <td style="min-width:220px;">
-                    <?= $h($b['label']) ?> <span class="tiny"><?= $b['kind'] === 'link' ? 'link' : 'pulsante' ?></span>
+                    <?= $h($b['label']) ?> 
                     <div class="bar" style="width:<?= round((int) $b['n'] / $maxN * 100, 1) ?>%"></div>
                 </td>
                 <td><?= $h($pageName($b['page'])) ?></td>
@@ -341,8 +312,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 <div class="two">
     <div class="card">
         <h2>Pagine con più clic</h2>
-        <p class="sub">Dove l'utenza HR lavora di più.</p>
-        <?php if (empty($topPages)): ?><p class="empty">Nessun dato.</p><?php else: ?>
+        <?php if (empty($topPages)): ?><p class="empty">—</p><?php else: ?>
         <div class="scroll"><table>
             <thead><tr><th>Pagina</th><th>Clic</th><th>Utenti</th></tr></thead>
             <tbody>
@@ -355,14 +325,13 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
     </div>
     <div class="card">
         <h2>Per utente</h2>
-        <p class="sub">Clic per utente HR; clicca il nome per filtrare.</p>
-        <?php if (empty($perUser)): ?><p class="empty">Nessun dato.</p><?php else: ?>
+        <?php if (empty($perUser)): ?><p class="empty">—</p><?php else: ?>
         <div class="scroll"><table>
             <thead><tr><th>Utente</th><th>Azienda</th><th>Clic</th><th>Ultimo</th></tr></thead>
             <tbody>
             <?php foreach ($perUser as $u): ?>
                 <tr>
-                    <td><a style="color:#93c5fd;text-decoration:none;" href="<?= $h($qs(['user' => (int) $u['user_id']])) ?>"><?= $h($u['user_name'] ?: ($u['username'] ?: '#' . $u['user_id'])) ?></a></td>
+                    <td><a class="plain" href="<?= $h($qs(['user' => (int) $u['user_id']])) ?>"><?= $h($u['user_name'] ?: ($u['username'] ?: 'Utente eliminato #' . $u['user_id'])) ?></a></td>
                     <td class="tiny"><?= $h($u['company'] ?: '—') ?></td>
                     <td class="num"><?= (int) $u['n'] ?></td>
                     <td class="tiny" style="white-space:nowrap;"><?= $dt($u['last_at']) ?></td>
@@ -376,8 +345,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 
 <div class="card">
     <h2>Ultimi clic</h2>
-    <p class="sub">Gli ultimi 100 nel filtro. Il CSV contiene tutto il periodo.</p>
-    <?php if (empty($recent)): ?><p class="empty">Nessun clic nel periodo.</p><?php else: ?>
+    <?php if (empty($recent)): ?><p class="empty">—</p><?php else: ?>
     <div class="scroll"><table>
         <thead><tr><th>Quando</th><th>Utente</th><th>Azienda</th><th>Pagina</th><th>Pulsante</th><th>Destinazione</th></tr></thead>
         <tbody>

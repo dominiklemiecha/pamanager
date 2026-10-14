@@ -63,17 +63,7 @@ $pageTitle = 'Superadmin Login';
 <meta name="robots" content="noindex, nofollow">
 <title><?= $pageTitle ?></title>
 <?= CSRF::metaTag() ?>
-<style>
-body{font-family:'Inter',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
-.box{background:#1e293b;border:1px solid #334155;padding:32px;border-radius:12px;width:340px;}
-h1{margin:0 0 24px;font-size:18px;color:#fff;}
-label{display:block;font-size:12px;margin:14px 0 6px;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;}
-input{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;box-sizing:border-box;}
-input:focus{outline:none;border-color:#0b3aa4;}
-button{margin-top:20px;width:100%;padding:12px;background:#0b3aa4;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;}
-button:hover{background:#082b7b;}
-.err{margin-top:14px;padding:10px 12px;background:#7f1d1d;border-radius:8px;color:#fecaca;font-size:13px;}
-</style></head><body>
+<?php include __DIR__ . '/_ui.php'; ?></head><body class="auth">
 <form method="POST" class="box" autocomplete="off">
     <?= CSRF::field() ?>
     <h1>Superadmin</h1>
