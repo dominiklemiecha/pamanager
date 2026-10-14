@@ -100,6 +100,18 @@ foreach ($allDocs as $d) {
 $__hour = (int) date('H');
 $__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 'Buonasera');
 
+// Variante grafica dedicata (design Figma) per le email in EMPLOYEE_FIGMA_DASHBOARD_EMAILS
+$__figmaEmails = array_filter(array_map('trim', explode(',', strtolower(
+    (string) (getenv('EMPLOYEE_FIGMA_DASHBOARD_EMAILS') ?: 'dominik.lemiecha25@gmail.com')
+))));
+try {
+    $__empEmail = strtolower(trim((string) Database::fetchColumn("SELECT email FROM employees WHERE id = ?", [(int) $employee['id']])));
+} catch (Throwable $__e) { $__empEmail = ''; }
+if ($__empEmail !== '' && in_array($__empEmail, $__figmaEmails, true)) {
+    include __DIR__ . '/_dashboard-figma.inc.php';
+    exit;
+}
+
 $pageTitle = 'Home';
 include dirname(__DIR__) . '/includes/header-employee.php';
 ?>
