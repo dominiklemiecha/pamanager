@@ -113,7 +113,7 @@ if (class_exists('EmployeeDocument')) {
 usort($fdDocs, static fn($a, $b) => strcmp((string)$b['date'], (string)$a['date']));
 $fdDocs = array_slice($fdDocs, 0, 3);
 
-$fdComms = array_slice($communications, 0, 2);
+$fdComms = array_slice($communications, 0, 3);
 
 $fdStatus = [
     'approved'  => ['#c5edc6', 'APPROVATA'],
@@ -207,7 +207,8 @@ img { display: block; max-width: none; }
 .fd-act-sub { left: 28px; top: 51px; font-size: 16px; color: #69636a; }
 .fd-act-btn { position: absolute; width: 54px; height: 54px; }
 .fd-act-btn .bg { position: absolute; inset: 0; width: 54px; height: 54px; }
-.fd-act-btn .ic { position: absolute; left: 10px; top: 9px; width: 34px; height: 35px; }
+.fd-act-btn .ic { position: absolute; left: 10px; top: 9px; width: 34px; height: 35px; color: #6d6d6d; transform: rotate(0deg); transition: transform 1s ease-in-out, color .3s ease; }
+.fd-act-btn:hover .ic { transform: rotate(360deg); color: #ff9400; }
 .fd-card.is-link { transition: transform .15s ease, box-shadow .15s ease; }
 .fd-card.is-link:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
 
@@ -239,6 +240,10 @@ img { display: block; max-width: none; }
 .fd-comm-box .wm img { width: 138.777px; height: 146.977px; transform: rotate(16.68deg); flex: none; }
 .fd-comm-t { position: absolute; left: 16px; right: 16px; top: 26px; text-align: center; font-size: 20px; color: #4c4c4c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fd-comm-s { position: absolute; left: 16px; right: 16px; top: 60px; text-align: center; font-size: 14px; color: #898589; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Comunicazioni presenti: righe semplici (il box grigio resta solo per lo stato vuoto) */
+.fd-comm-item { position: absolute; left: 24px; right: 20px; height: 58px; display: block; }
+.fd-comm-item .t { position: absolute; left: 0; right: 0; top: 9px; font-size: 15px; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fd-comm-item .d { position: absolute; left: 0; top: 35px; font-size: 14px; color: #6b666b; white-space: nowrap; }
 
 .fd-more { right: 20px; top: 21px; font-size: 16px; color: #6b666b; white-space: pre; }
 .fd-doc { position: absolute; left: 24px; right: 20px; height: 58px; display: block; }
@@ -246,7 +251,7 @@ img { display: block; max-width: none; }
     position: absolute; left: 0; top: 0; width: 58px; height: 58px;
     background: #fff; border: 2px solid #ff9400; border-radius: 15px;
 }
-.fd-doc-ic img { position: absolute; left: 12px; top: 12px; width: 30px; height: 30px; }
+.fd-doc-ic svg { position: absolute; left: 12px; top: 12px; width: 30px; height: 30px; }
 .fd-doc-t { position: absolute; left: 76px; right: 0; top: 9px; font-size: 15px; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fd-doc-d { position: absolute; left: 76px; top: 35px; font-size: 14px; color: #6b666b; white-space: nowrap; }
 .fd-none { position: absolute; left: 24px; top: 70px; font-size: 15px; color: #6b666b; }
@@ -256,7 +261,21 @@ img { display: block; max-width: none; }
     position: absolute; left: 0; top: 0; width: 44px; height: 45px;
     background: #fff; border: 2px solid #ff9400; border-radius: 12px;
 }
-.fd-req-ic img { position: absolute; left: 8px; top: 8px; width: 24px; height: 24px; }
+.fd-req-ic svg { position: absolute; left: 8px; top: 8px; width: 24px; height: 24px; }
+/* Hover righe documenti/richieste: fondo arancio leggero + icona piena (proposta A) */
+.fd-doc, .fd-req { isolation: isolate; outline: none; }
+.fd-doc::before, .fd-req::before {
+    content: ''; position: absolute; inset: -6px; z-index: -1; border-radius: 14px;
+    background: transparent; transition: background-color .2s ease;
+}
+.fd-req::before { inset: -5px -6px; }
+.fd-doc-ic, .fd-req-ic { color: #ff9400; transition: background-color .2s ease, color .2s ease; }
+.fd-doc:hover::before, .fd-req:hover::before,
+.fd-doc:focus-visible::before, .fd-req:focus-visible::before { background: rgba(255,148,0,0.09); }
+.fd-doc:hover .fd-doc-ic, .fd-req:hover .fd-req-ic,
+.fd-doc:focus-visible .fd-doc-ic, .fd-req:focus-visible .fd-req-ic { background: #ff9400; color: #fff; }
+.fd-doc:focus-visible::before, .fd-req:focus-visible::before { box-shadow: 0 0 0 2px #ff9400; }
+@media (prefers-reduced-motion: reduce) { .fd-doc::before, .fd-req::before, .fd-doc-ic, .fd-req-ic, .fd-act-btn .ic { transition: none; } }
 .fd-req-t { position: absolute; left: 61px; top: 3px; font-size: 15px; color: #111; white-space: nowrap; }
 .fd-req-s { position: absolute; left: 61px; top: 26px; font-size: 12px; color: #666166; white-space: nowrap; }
 .fd-pill {
@@ -361,7 +380,7 @@ img { display: block; max-width: none; }
             <p class="fd-abs fd-act-sub">Crea una nuova richiesta</p>
             <span class="fd-act-btn" style="left:357px;top:28px;">
                 <img class="bg" src="<?= $__img ?>/pulsante.svg" alt="">
-                <img class="ic" src="<?= $__img ?>/pulsante-icon.svg" alt="">
+                <svg class="ic" width="34" height="35" viewBox="0 0 34 35" fill="currentColor" aria-hidden="true"><path d="M19.1589 0V9.86759C19.1589 11.8611 18.5838 13.7296 17.5873 15.281C16.8663 16.4071 15.9266 17.3746 14.833 18.117C13.3262 19.143 11.5197 19.7352 9.57541 19.7352H0V15.281H14.3388C14.6143 15.281 14.833 15.0558 14.833 14.7722V0H19.1589Z"/><path d="M34 19.7273H19.6531C19.3776 19.7273 19.1589 19.9525 19.1589 20.2278V35H14.833V25.1407C14.833 23.1389 15.4081 21.2788 16.4046 19.7273C17.1256 18.6013 18.0653 17.6337 19.1589 16.8913C20.6657 15.8737 22.4722 15.2815 24.4165 15.2815H34C34 15.2815 33.919 19.6106 34 19.7357V19.7273Z"/></svg>
             </span>
         </a></div>
 
@@ -370,7 +389,7 @@ img { display: block; max-width: none; }
             <p class="fd-abs fd-act-sub" style="left:30px;top:52px;">Ore o intera giornata</p>
             <span class="fd-act-btn" style="left:315px;top:31px;">
                 <img class="bg" src="<?= $__img ?>/pulsante.svg" alt="">
-                <img class="ic" src="<?= $__img ?>/pulsante-icon.svg" alt="">
+                <svg class="ic" width="34" height="35" viewBox="0 0 34 35" fill="currentColor" aria-hidden="true"><path d="M19.1589 0V9.86759C19.1589 11.8611 18.5838 13.7296 17.5873 15.281C16.8663 16.4071 15.9266 17.3746 14.833 18.117C13.3262 19.143 11.5197 19.7352 9.57541 19.7352H0V15.281H14.3388C14.6143 15.281 14.833 15.0558 14.833 14.7722V0H19.1589Z"/><path d="M34 19.7273H19.6531C19.3776 19.7273 19.1589 19.9525 19.1589 20.2278V35H14.833V25.1407C14.833 23.1389 15.4081 21.2788 16.4046 19.7273C17.1256 18.6013 18.0653 17.6337 19.1589 16.8913C20.6657 15.8737 22.4722 15.2815 24.4165 15.2815H34C34 15.2815 33.919 19.6106 34 19.7357V19.7273Z"/></svg>
             </span>
         </a></div>
 
@@ -408,10 +427,9 @@ img { display: block; max-width: none; }
                     <p class="fd-comm-s">Qui troverai i nuovi aggiornamenti aziendali</p>
                 </div>
             <?php else: foreach ($fdComms as $__i => $__c): ?>
-                <a class="fd-comm-box" style="top:<?= 62 + $__i * 117 ?>px;" href="<?= $baseUrl ?>/employee/communications.php?id=<?= (int)$__c['id'] ?>">
-                    <div class="wm"><img src="<?= $__img ?>/watermark-small.svg" alt=""></div>
-                    <p class="fd-comm-t"><?= htmlspecialchars($__c['title']) ?></p>
-                    <p class="fd-comm-s"><?= htmlspecialchars($fdDate($__c['created_at'] ?? $__c['publish_date'] ?? null)) ?></p>
+                <a class="fd-comm-item" style="top:<?= [61, 138, 214][$__i] ?>px;" href="<?= $baseUrl ?>/employee/communications.php?id=<?= (int)$__c['id'] ?>">
+                    <span class="t"><?= htmlspecialchars($__c['title']) ?></span>
+                    <span class="d"><?= htmlspecialchars($fdDate($__c['created_at'] ?? $__c['publish_date'] ?? null)) ?></span>
                 </a>
             <?php endforeach; endif; ?>
         </div></div>
@@ -424,7 +442,7 @@ img { display: block; max-width: none; }
                 <p class="fd-none">Nessun documento disponibile</p>
             <?php else: foreach ($fdDocs as $__i => $__d): ?>
                 <a class="fd-doc" style="top:<?= [61, 138, 214][$__i] ?>px;" href="<?= htmlspecialchars($__d['url']) ?>">
-                    <span class="fd-doc-ic"><img src="<?= $__img ?>/ic-doc-box.svg" alt=""></span>
+                    <span class="fd-doc-ic"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M3.75 8.75C3.75 8.08696 4.01339 7.45107 4.48223 6.98223C4.95107 6.51339 5.58696 6.25 6.25 6.25H12.5L15 8.75H23.75C24.413 8.75 25.0489 9.01339 25.5178 9.48223C25.9866 9.95107 26.25 10.587 26.25 11.25V23.75C26.25 24.413 25.9866 25.0489 25.5178 25.5178C25.0489 25.9866 24.413 26.25 23.75 26.25H6.25C5.58696 26.25 4.95107 25.9866 4.48223 25.5178C4.01339 25.0489 3.75 24.413 3.75 23.75V8.75Z" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                     <span class="fd-doc-t"><?= htmlspecialchars($__d['title']) ?></span>
                     <span class="fd-doc-d"><?= htmlspecialchars($fdDate($__d['date'])) ?></span>
                 </a>
@@ -443,7 +461,7 @@ img { display: block; max-width: none; }
                 $__period = $__s === $__e ? $__s : $__s . ' – ' . $__e;
             ?>
                 <a class="fd-req" style="top:<?= 60 + $__i * 58 ?>px;" href="<?= $baseUrl ?>/employee/leave-requests.php">
-                    <span class="fd-req-ic"><img src="<?= $__img ?>/ic-req-ferie.svg" alt=""></span>
+                    <span class="fd-req-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5Z"/><path d="M7 3V7M17 3V7M3 10H21"/><path d="M9 16L11 18L15 14"/></svg></span>
                     <span class="fd-req-t"><?= htmlspecialchars($__typeLabel[$__lr['leave_type']] ?? ucfirst((string)$__lr['leave_type'])) ?></span>
                     <span class="fd-req-s"><?= htmlspecialchars($__period) ?> – creata <?= htmlspecialchars(emp_time_ago($__lr['created_at'])) ?></span>
                     <span class="fd-pill" style="background:<?= $__st[0] ?>;"><?= htmlspecialchars($__st[1]) ?></span>
