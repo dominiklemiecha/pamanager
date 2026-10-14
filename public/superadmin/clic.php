@@ -2,6 +2,8 @@
 /**
  * Report dei clic dell'utenza HR (ruolo admin) su pulsanti e link, tutti i tenant.
  * Dati raccolti da assets/js/click-log.js -> api/ui-click.php (tabella ui_click_logs).
+ * Lo storico precedente al tracciamento viene dal registro attivita' (audit_log):
+ * le azioni salvate dall'HR (approva ferie, crea dipendente, carica documento...).
  */
 require_once dirname(__DIR__, 2) . '/config/config.php';
 Auth::init();
@@ -10,15 +12,53 @@ if (!SuperAdmin::configured()) { http_response_code(503); die('Superadmin non co
 SuperAdmin::requireAuth();
 
 $days = (int) ($_GET['days'] ?? 30);
-if (!in_array($days, [1, 7, 30, 90, 365], true)) $days = 30;
+if (!in_array($days, [0, 1, 7, 30, 90, 365], true)) $days = 30; // 0 = tutto
 $companyId = (int) ($_GET['company'] ?? 0);
 $userId = (int) ($_GET['user'] ?? 0);
 
-$where = ['l.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)'];
-$params = [$days];
+$where = ['1=1'];
+$params = [];
+if ($days > 0)      { $where[] = 'l.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)'; $params[] = $days; }
 if ($companyId > 0) { $where[] = 'l.company_id = ?'; $params[] = $companyId; }
 if ($userId > 0)    { $where[] = 'l.user_id = ?';    $params[] = $userId; }
 $w = implode(' AND ', $where);
+
+// Storico dal registro attivita': solo azioni dell'HR, senza accessi/sessioni/sicurezza
+$auditNoise = ['login_success', 'login_failed', 'logout', 'session_expired', 'session_hijack_attempt',
+    'unauthorized_access', 'suspicious_activity', 'mfa_verify'];
+$aWhere = ["a.user_type = 'admin'", 'a.action NOT IN (' . implode(',', array_fill(0, count($auditNoise), '?')) . ')'];
+$aParams = $auditNoise;
+if ($days > 0)      { $aWhere[] = 'a.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)'; $aParams[] = $days; }
+if ($companyId > 0) { $aWhere[] = 'u.company_id = ?'; $aParams[] = $companyId; }
+if ($userId > 0)    { $aWhere[] = 'a.user_id = ?';    $aParams[] = $userId; }
+$aw = implode(' AND ', $aWhere);
+
+// Azione registrata -> pulsante che l'HR ha premuto per farla
+$actionLabels = [
+    'employee_created' => 'Nuovo dipendente', 'employee_updated' => 'Salva dipendente',
+    'employee_deleted' => 'Elimina dipendente', 'employee_assigned' => 'Assegna dipendente',
+    'leave_request_approved' => 'Approva ferie/permesso', 'leave_request_rejected' => 'Rifiuta ferie/permesso',
+    'leave_request_cancelled' => 'Annulla ferie/permesso', 'leave_request_deleted' => 'Elimina ferie/permesso',
+    'leave_request_admin_update' => 'Modifica ferie/permesso', 'leave_request_created' => 'Inserisci ferie/permesso',
+    'leave_sick_docs_admin_updated' => 'Documenti malattia', 'leave_sick_docs_updated' => 'Documenti malattia',
+    'document_upload' => 'Carica documento', 'document_uploaded' => 'Carica documento',
+    'document_updated' => 'Modifica documento', 'document_deleted' => 'Elimina documento',
+    'document_download' => 'Scarica documento',
+    'employee_document_uploaded' => 'Carica documento dipendente', 'employee_document_updated' => 'Modifica documento dipendente',
+    'employee_document_deleted' => 'Elimina documento dipendente', 'employee_document_downloaded' => 'Scarica documento dipendente',
+    'employee_document_bulk_uploaded' => 'Carica documenti aziendali', 'employee_document_bulk_deleted' => 'Elimina documenti aziendali',
+    'communication_created' => 'Nuova comunicazione', 'communication_updated' => 'Modifica comunicazione',
+    'communication_deleted' => 'Elimina comunicazione', 'communication_toggled' => 'Attiva/disattiva comunicazione',
+    'department_created' => 'Nuovo reparto', 'department_updated' => 'Modifica reparto', 'department_deleted' => 'Elimina reparto',
+    'admin_assigned' => 'Assegna responsabile reparto', 'admin_removed' => 'Rimuovi responsabile reparto',
+    'user_created' => 'Nuovo utente (consulente/commercialista)', 'user_updated' => 'Modifica utente', 'user_deleted' => 'Elimina utente',
+    'password_reset' => 'Reimposta password', 'admin_password_reset' => 'Reimposta password',
+    'password_reset_approved' => 'Approva reset password', 'password_reset_rejected' => 'Rifiuta reset password',
+    'password_change' => 'Cambia la propria password',
+    'smtp_settings_updated' => 'Salva impostazioni email', 'hire_request_deleted' => 'Elimina richiesta assunzione',
+    'hr_granted_to_employee' => 'Rendi HR', 'hr_revoked_from_employee' => 'Revoca HR', 'user_left_company' => 'Esci da azienda',
+];
+$actionLabel = fn(string $a): string => $actionLabels[$a] ?? ucfirst(str_replace('_', ' ', $a));
 
 // Nome pagina leggibile: /admin/employees.php -> employees, /admin/ -> dashboard
 $pageName = function (string $p): string {
@@ -26,6 +66,26 @@ $pageName = function (string $p): string {
     if ($b === '' || $b === 'index' || $b === 'admin') return 'dashboard';
     return $b;
 };
+
+if (($_GET['export'] ?? '') === 'storico') {
+    $rows = Database::fetchAll(
+        "SELECT a.created_at, c.name AS company, u.name AS user_name, u.username, a.action, a.entity_type, a.entity_id
+         FROM audit_log a
+         LEFT JOIN users u ON u.id = a.user_id
+         LEFT JOIN companies c ON c.id = u.company_id
+         WHERE $aw ORDER BY a.created_at DESC LIMIT 50000",
+        $aParams
+    );
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="azioni-hr-' . date('Ymd') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, ['Data', 'Azienda', 'Utente', 'Username', 'Pulsante', 'Azione registrata', 'Oggetto', 'ID oggetto'], ';');
+    foreach ($rows as $r) {
+        fputcsv($out, [$r['created_at'], $r['company'], $r['user_name'], $r['username'], $actionLabel($r['action']), $r['action'], $r['entity_type'], $r['entity_id']], ';');
+    }
+    exit;
+}
 
 if (($_GET['export'] ?? '') === 'csv') {
     $rows = Database::fetchAll(
@@ -88,6 +148,35 @@ $recent = Database::fetchAll(
     $params
 );
 
+$auditTop = Database::fetchAll(
+    "SELECT a.action, COUNT(*) AS n, COUNT(DISTINCT a.user_id) AS users, MAX(a.created_at) AS last_at
+     FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+     WHERE $aw GROUP BY a.action ORDER BY n DESC LIMIT 80",
+    $aParams
+);
+// Azioni diverse possono avere lo stesso pulsante (es. document_upload/document_uploaded): si sommano
+$auditButtons = [];
+foreach ($auditTop as $r) {
+    $k = $actionLabel($r['action']);
+    if (!isset($auditButtons[$k])) $auditButtons[$k] = ['label' => $k, 'n' => 0, 'users' => 0, 'last_at' => $r['last_at']];
+    $auditButtons[$k]['n'] += (int) $r['n'];
+    $auditButtons[$k]['users'] = max($auditButtons[$k]['users'], (int) $r['users']);
+    if ($r['last_at'] > $auditButtons[$k]['last_at']) $auditButtons[$k]['last_at'] = $r['last_at'];
+}
+$auditButtons = array_values($auditButtons);
+usort($auditButtons, fn($x, $y) => $y['n'] - $x['n']);
+$auditMax = max(1, (int) ($auditButtons[0]['n'] ?? 1));
+$auditTotal = array_sum(array_column($auditButtons, 'n'));
+$auditSince = Database::fetchColumn("SELECT MIN(created_at) FROM audit_log WHERE user_type = 'admin'");
+$auditPerUser = Database::fetchAll(
+    "SELECT a.user_id, u.name AS user_name, u.username, c.name AS company, COUNT(*) AS n, MAX(a.created_at) AS last_at
+     FROM audit_log a
+     LEFT JOIN users u ON u.id = a.user_id
+     LEFT JOIN companies c ON c.id = u.company_id
+     WHERE $aw GROUP BY a.user_id, u.name, u.username, c.name ORDER BY n DESC LIMIT 50",
+    $aParams
+);
+
 $companies = Database::fetchAll("SELECT id, name FROM companies ORDER BY name");
 $hrUsers = Database::fetchAll("SELECT id, name, username FROM users WHERE role = 'admin' ORDER BY name");
 $maxN = max(1, (int) ($topButtons[0]['n'] ?? 1));
@@ -147,7 +236,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
         <div>
             <label for="f-days">Periodo</label>
             <select id="f-days" name="days">
-                <?php foreach ([1 => 'Ultime 24 ore', 7 => 'Ultimi 7 giorni', 30 => 'Ultimi 30 giorni', 90 => 'Ultimi 90 giorni', 365 => 'Ultimo anno'] as $k => $v): ?>
+                <?php foreach ([0 => 'Tutto lo storico', 1 => 'Ultime 24 ore', 7 => 'Ultimi 7 giorni', 30 => 'Ultimi 30 giorni', 90 => 'Ultimi 90 giorni', 365 => 'Ultimo anno'] as $k => $v): ?>
                 <option value="<?= $k ?>" <?= $days === $k ? 'selected' : '' ?>><?= $v ?></option>
                 <?php endforeach; ?>
             </select>
@@ -171,7 +260,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
             </select>
         </div>
         <button class="primary" type="submit">Filtra</button>
-        <a class="btn ghost" href="<?= $h($qs(['export' => 'csv'])) ?>">Scarica CSV</a>
+        <a class="btn ghost" href="<?= $h($qs(['export' => 'csv'])) ?>">CSV clic</a>
+        <a class="btn ghost" href="<?= $h($qs(['export' => 'storico'])) ?>">CSV storico azioni</a>
     </form>
 </div>
 
@@ -179,10 +269,49 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
     <div class="kpi"><b><?= number_format((int) $totals['clicks'], 0, ',', '.') ?></b><span>Clic registrati</span></div>
     <div class="kpi"><b><?= (int) $totals['users'] ?></b><span>Utenti HR attivi</span></div>
     <div class="kpi"><b><?= (int) $totals['pages'] ?></b><span>Pagine usate</span></div>
+    <div class="kpi"><b><?= number_format($auditTotal, 0, ',', '.') ?></b><span>Azioni salvate (storico)</span></div>
 </div>
 
 <div class="card">
-    <h2>Pulsanti più premuti</h2>
+    <h2>Storico: pulsanti che salvano qualcosa</h2>
+    <p class="sub">Dal registro attività, disponibile dal <?= $auditSince ? date('d/m/Y', strtotime($auditSince)) : '—' ?>. Contiene solo i pulsanti che salvano un'azione (approva, crea, carica, elimina…): i clic di navigazione fatti prima dell'attivazione del tracciamento non sono mai stati registrati. Accessi e uscite esclusi.</p>
+    <?php if (empty($auditButtons)): ?>
+        <p class="empty">Nessuna azione nel periodo.</p>
+    <?php else: ?>
+    <div class="two">
+        <div class="scroll"><table>
+            <thead><tr><th>#</th><th>Pulsante</th><th>Volte</th><th>Utenti</th><th>Ultima</th></tr></thead>
+            <tbody>
+            <?php foreach ($auditButtons as $i => $b): ?>
+                <tr>
+                    <td class="tiny"><?= $i + 1 ?></td>
+                    <td style="min-width:200px;"><?= $h($b['label']) ?><div class="bar" style="width:<?= round($b['n'] / $auditMax * 100, 1) ?>%"></div></td>
+                    <td class="num"><?= (int) $b['n'] ?></td>
+                    <td class="num"><?= (int) $b['users'] ?></td>
+                    <td class="tiny" style="white-space:nowrap;"><?= $dt($b['last_at']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+        <div class="scroll"><table>
+            <thead><tr><th>Utente</th><th>Azienda</th><th>Azioni</th><th>Ultima</th></tr></thead>
+            <tbody>
+            <?php foreach ($auditPerUser as $u): ?>
+                <tr>
+                    <td><a style="color:#93c5fd;text-decoration:none;" href="<?= $h($qs(['user' => (int) $u['user_id']])) ?>"><?= $h($u['user_name'] ?: ($u['username'] ?: '#' . $u['user_id'])) ?></a></td>
+                    <td class="tiny"><?= $h($u['company'] ?: '—') ?></td>
+                    <td class="num"><?= (int) $u['n'] ?></td>
+                    <td class="tiny" style="white-space:nowrap;"><?= $dt($u['last_at']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+    </div>
+    <?php endif; ?>
+</div>
+
+<div class="card">
+    <h2>Pulsanti più premuti (tutti i clic, da oggi)</h2>
     <p class="sub">Stesso pulsante su pagine diverse conta separato. I link dentro le righe delle tabelle sono registrati per destinazione, senza nomi di persone.</p>
     <?php if (empty($topButtons)): ?>
         <p class="empty">Nessun clic nel periodo.</p>
