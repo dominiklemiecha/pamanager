@@ -408,8 +408,8 @@ img { display: block; max-width: none; }
     background: #fff; border: 2px solid #ff9400; border-radius: 15px;
 }
 .fd-doc-ic svg { position: absolute; left: 12px; top: 12px; width: 30px; height: 30px; }
-.fd-doc-t { position: absolute; left: 76px; right: 0; top: 9px; font-size: 15px; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fd-doc-d { position: absolute; left: 76px; top: 35px; font-size: 14px; color: #6b666b; white-space: nowrap; }
+.fd-doc-t { position: absolute; left: 0; right: 0; top: 9px; font-size: 15px; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fd-doc-d { position: absolute; left: 0; top: 35px; font-size: 14px; color: #6b666b; white-space: nowrap; }
 .fd-none { position: absolute; left: 24px; top: 70px; font-size: 15px; color: #6b666b; }
 
 .fd-req { position: absolute; left: 23px; right: 20px; height: 45px; }
@@ -421,18 +421,18 @@ img { display: block; max-width: none; }
 /* Hover righe documenti/richieste: fondo arancio leggero + icona piena (proposta A) */
 .fd-doc, .fd-req { isolation: isolate; outline: none; }
 .fd-doc::before, .fd-req::before {
-    content: ''; position: absolute; inset: -6px; z-index: -1; border-radius: 14px;
+    content: ''; position: absolute; inset: -6px -10px; z-index: -1; border-radius: 14px;
     background: transparent; transition: background-color .2s ease;
 }
-.fd-req::before { inset: -5px -6px; }
+.fd-req::before { inset: -5px -10px; }
 .fd-doc-ic, .fd-req-ic { color: #ff9400; transition: background-color .2s ease, color .2s ease; }
 .fd-doc:hover::before, .fd-req:hover::before,
 .fd-doc:focus-visible::before, .fd-req:focus-visible::before { background: rgba(255,148,0,0.09); }
 .fd-doc:hover .fd-doc-ic, .fd-req:hover .fd-req-ic,
 .fd-doc:focus-visible .fd-doc-ic, .fd-req:focus-visible .fd-req-ic { background: #ff9400; color: #fff; }
 .fd-doc:focus-visible::before, .fd-req:focus-visible::before { box-shadow: 0 0 0 2px #ff9400; }
-.fd-req-t { position: absolute; left: 61px; top: 3px; font-size: 15px; color: #111; white-space: nowrap; }
-.fd-req-s { position: absolute; left: 61px; top: 26px; font-size: 12px; color: #666166; white-space: nowrap; }
+.fd-req-t { position: absolute; left: 0; top: 3px; font-size: 15px; color: #111; white-space: nowrap; }
+.fd-req-s { position: absolute; left: 0; top: 26px; font-size: 12px; color: #666166; white-space: nowrap; }
 .fd-pill {
     position: absolute; right: 0; top: 2px; width: 112px; height: 36px; border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
@@ -470,8 +470,16 @@ img { display: block; max-width: none; }
 .fd-nav.is-dim { opacity: .55; }
 .fd-nav.is-off { opacity: .2; cursor: default; }
 .fd-nav .ic { position: absolute; left: 12px; top: 8px; width: 24px; height: 24px; }
-.fd-nav-home { top: 16px; height: 54px; }
-.fd-nav-dot { position: absolute; left: 21px; top: 34px; width: 5px; height: 5px; border-radius: 5px; background: #ff9400; }
+/* Voce attiva (e voce appena cliccata): tondo arancione glass, proposta A */
+.fd-nav::before {
+    content: ''; position: absolute; left: 2px; top: -2px; width: 44px; height: 44px; border-radius: 50%;
+    background: radial-gradient(120% 120% at 30% 20%, rgba(255,255,255,0.75) 0%, rgba(255,148,0,0.18) 45%, rgba(255,148,0,0.28) 100%);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -2px 6px rgba(255,148,0,0.18), 0 4px 14px rgba(255,148,0,0.22);
+    opacity: 0; transform: scale(.85); transition: opacity .25s ease, transform .25s ease;
+}
+.fd-nav.is-on { opacity: 1; background: transparent; }
+.fd-nav.is-on::before { opacity: 1; transform: scale(1); }
+.fd-nav .ic { z-index: 1; }
 .fd-nav-avatar { background: transparent; }
 .fd-nav-avatar .bg { position: absolute; inset: 0; width: 48px; height: 40px; }
 .fd-nav-avatar .ph { position: absolute; left: 12px; top: 8px; width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
@@ -649,7 +657,6 @@ img { display: block; max-width: none; }
                 $__period = $__s === $__e ? $__s : $__s . ' – ' . $__e;
             ?>
                 <a class="fd-req" style="top:<?= 60 + $__i * 58 ?>px;" href="<?= $baseUrl ?>/employee/leave-requests.php">
-                    <span class="fd-req-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5Z"/><path d="M7 3V7M17 3V7M3 10H21"/><path d="M9 16L11 18L15 14"/></svg></span>
                     <span class="fd-req-t"><?= htmlspecialchars($__typeLabel[$__lr['leave_type']] ?? ucfirst((string)$__lr['leave_type'])) ?></span>
                     <span class="fd-req-s"><?= htmlspecialchars($__period) ?> – creata <?= htmlspecialchars(emp_time_ago($__lr['created_at'])) ?></span>
                     <span class="fd-pill" style="background:<?= $__st[0] ?>;"><?= htmlspecialchars($__st[1]) ?></span>
@@ -665,7 +672,6 @@ img { display: block; max-width: none; }
                 <p class="fd-none">Nessun documento disponibile</p>
             <?php else: foreach ($fdDocs as $__i => $__d): ?>
                 <a class="fd-doc" style="top:<?= [61, 138, 214][$__i] ?>px;" href="<?= htmlspecialchars($__d['url']) ?>">
-                    <span class="fd-doc-ic"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true"><path d="M3.75 8.75C3.75 8.08696 4.01339 7.45107 4.48223 6.98223C4.95107 6.51339 5.58696 6.25 6.25 6.25H12.5L15 8.75H23.75C24.413 8.75 25.0489 9.01339 25.5178 9.48223C25.9866 9.95107 26.25 10.587 26.25 11.25V23.75C26.25 24.413 25.9866 25.0489 25.5178 25.5178C25.0489 25.9866 24.413 26.25 23.75 26.25H6.25C5.58696 26.25 4.95107 25.9866 4.48223 25.5178C4.01339 25.0489 3.75 24.413 3.75 23.75V8.75Z" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                     <span class="fd-doc-t"><?= htmlspecialchars($__d['title']) ?></span>
                     <span class="fd-doc-d"><?= htmlspecialchars($fdDate($__d['date'])) ?></span>
                 </a>
@@ -683,7 +689,6 @@ img { display: block; max-width: none; }
                 </div>
             <?php else: foreach ($fdComms as $__i => $__c): ?>
                 <a class="fd-doc" style="top:<?= [61, 138, 214][$__i] ?>px;" href="<?= $baseUrl ?>/employee/communications.php?id=<?= (int)$__c['id'] ?>">
-                    <span class="fd-doc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 21H14M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 15 3 17H21C21 15 18 15 18 8Z"/></svg></span>
                     <span class="fd-doc-t"><?= htmlspecialchars($__c['title']) ?></span>
                     <span class="fd-doc-d"><?= htmlspecialchars($fdDate($__c['created_at'] ?? $__c['publish_date'] ?? null)) ?></span>
                 </a>
@@ -699,9 +704,8 @@ img { display: block; max-width: none; }
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
             </span>
             <div class="fd-dock-items">
-            <a class="fd-nav fd-nav-home" style="left:13px;" href="<?= $baseUrl ?>/employee/" title="Home" aria-current="page">
+            <a class="fd-nav is-on" style="left:13px;" href="<?= $baseUrl ?>/employee/" title="Home" aria-current="page">
                 <img class="ic" src="<?= $__img ?>/nav-home.svg" alt="Home">
-                <span class="fd-nav-dot"></span>
             </a>
             <a class="fd-nav is-dim" style="left:79px;" href="<?= $baseUrl ?>/employee/leave-requests.php" title="Ferie">
                 <img class="ic" src="<?= $__img ?>/nav-ferie.svg" alt="Ferie">
@@ -888,6 +892,14 @@ img { display: block; max-width: none; }
         if (overlay) { overlay.remove(); overlay = null; }
         drag = null;
     }
+    // Menu: il tondo glass si sposta sulla voce cliccata
+    document.querySelectorAll('a.fd-nav').forEach(function (a) {
+        a.addEventListener('click', function () {
+            document.querySelectorAll('.fd-nav.is-on').forEach(function (x) { x.classList.remove('is-on'); });
+            a.classList.add('is-on');
+        });
+    });
+
     // Modal presenze della settimana
     var weekModal = document.getElementById('fdWeekModal');
     var weekClose = document.getElementById('fdWeekClose');
