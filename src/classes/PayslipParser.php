@@ -201,7 +201,8 @@ class PayslipParser
     private static function parseBalanceRow(string $line, array $colPos): array
     {
         $row = ['anno_prec' => null, 'maturato' => null, 'goduto' => null, 'residuo' => null, 'proiezione' => null];
-        if (!preg_match_all('/(\d+(?:[\.,]\d+)?)/u', $line, $matches, PREG_OFFSET_CAPTURE)) return $row;
+        // Il segno meno va tenuto: un residuo ferie negativo (es. -11,49) e' frequente
+        if (!preg_match_all('/(-?\d+(?:[\.,]\d+)?)/u', $line, $matches, PREG_OFFSET_CAPTURE)) return $row;
         foreach ($matches[1] as $match) {
             [$val, $pos] = $match;
             $rightEdge = $pos + strlen($val) - 1;
