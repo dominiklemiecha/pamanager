@@ -484,7 +484,7 @@ include dirname(__DIR__) . '/includes/header-employee.php';
     }
     ?>
     <!-- Filtri tab -->
-    <div class="cm-filters">
+    <div class="cm-filters" data-tour="comms-filters">
         <div class="cm-tabs">
             <a href="communications.php" class="cm-tab <?= !$filterPriority ? 'active' : '' ?>">
                 Tutte<span class="tab-count"><?= array_sum($__byPri) ?></span>

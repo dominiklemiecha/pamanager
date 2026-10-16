@@ -202,7 +202,7 @@ $buildWeekUrl = function(string $w) use ($heatmapBaseUrl, $scopeQS) {
 
 $currentScope = $_GET['scope'] ?? $heatmapDefaultScope;
 ?>
-<section class="card heatmap-card">
+<section class="card heatmap-card" data-tour="heatmap">
     <div class="heatmap-header">
         <div class="heatmap-title-block">
             <h3>Presenze settimanali</h3>

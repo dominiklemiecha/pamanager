@@ -644,7 +644,7 @@ foreach ($documents as $__d) { if (empty($__d['is_downloaded'])) $__unreadDocs++
 </style>
 
 <!-- Filtri minimal -->
-<div class="docs-filters">
+<div class="docs-filters" data-tour="docs-filters">
     <div class="docs-tabs">
         <?php
         $__tabs = [['','Tutti']];
@@ -894,7 +894,7 @@ foreach ($documents as $__d) { if (empty($__d['is_downloaded'])) $__unreadDocs++
 
 <!-- Modal Info Documenti -->
 <div class="modal-overlay" id="infoModal">
-    <div class="modal">
+    <div class="modal" data-tour="docs-info">
         <div class="modal-header">
             <h3>Informazioni sui Documenti</h3>
             <button class="modal-close" onclick="closeInfoModal()">

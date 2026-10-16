@@ -154,7 +154,7 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
             </div>
         </div>
 
-        <nav class="nav">
+        <nav class="nav" data-tour="nav-desktop">
             <a href="<?php echo $baseUrl; ?>/employee/" class="nav-item <?php echo $currentPage === 'index' ? 'active' : ''; ?>" data-tooltip="Home">
                 <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
                 <span class="nav-content">
@@ -220,7 +220,7 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
             </a>
             <div class="header-spacer" style="flex:1;"></div>
             <div class="header-actions">
-                <div class="availability-toggle" data-availability-toggle data-current="<?php echo htmlspecialchars($employeeAvailability); ?>">
+                <div class="availability-toggle" data-tour="availability" data-availability-toggle data-current="<?php echo htmlspecialchars($employeeAvailability); ?>">
                     <button type="button" class="availability-pill" aria-haspopup="true" aria-expanded="false" title="Cambia stato">
                         <span class="availability-dot"></span>
                         <span class="availability-label"><?php echo htmlspecialchars($availabilityLabels[$employeeAvailability] ?? 'Operativo'); ?></span>
@@ -235,7 +235,7 @@ $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
                 <button id="enableNotifications" class="header-btn" title="Attiva notifiche" style="display:none;">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
                 </button>
-                <a href="<?php echo $baseUrl; ?>/employee/profile.php" class="user-chip user-chip-photo-only" title="<?php echo $employeeName; ?>">
+                <a href="<?php echo $baseUrl; ?>/employee/profile.php" class="user-chip user-chip-photo-only" data-tour="profile-link" title="<?php echo $employeeName; ?>">
                     <div class="user-chip-avatar">
                         <?php if (!empty($employeePhoto)): ?>
                             <img src="<?php echo htmlspecialchars($employeePhoto); ?>" alt="<?php echo $employeeName; ?>" loading="lazy" decoding="async">

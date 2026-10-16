@@ -538,7 +538,7 @@ foreach ($requests as $__r) {
         'altro'         => ['label' => 'Altro',         'days_default' => true],
     ];
     ?>
-    <div class="lr-form-card">
+    <div class="lr-form-card" data-tour="leave-form">
         <div class="lr-form-h">
             <h2>Nuova richiesta</h2>
             <p>Seleziona il tipo, scegli il periodo e invia.</p>
@@ -549,7 +549,7 @@ foreach ($requests as $__r) {
             <input type="hidden" id="leave_type" name="leave_type" value="<?= e($__presetType) ?>" required>
 
             <!-- Type chips -->
-            <div class="lr-fg">
+            <div class="lr-fg" data-tour="leave-types">
                 <label class="lr-lbl">Tipo di richiesta <span class="req">*</span></label>
                 <div class="lr-type-chips">
                     <?php foreach ($__quickTypes as $key => $cfg): ?>
@@ -943,7 +943,7 @@ foreach ($requests as $__r) {
     </script>
 
     <!-- Sezione Le mie richieste -->
-    <div class="lr-list-card">
+    <div class="lr-list-card" data-tour="leave-list">
         <div class="lr-list-h">
             <h2>Le mie richieste</h2>
             <span class="lr-count"><?= count($requests) ?></span>

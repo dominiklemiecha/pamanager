@@ -10,7 +10,7 @@
 
 <!-- Bottom nav (mobile only) -->
 <?php $__baseUrl = PUBLIC_URL; $__cp = basename($_SERVER['PHP_SELF'], '.php'); ?>
-<nav class="bottom-nav emp-bottom-nav" aria-label="Menu principale">
+<nav class="bottom-nav emp-bottom-nav" data-tour="nav-mobile" aria-label="Menu principale">
     <div class="bottom-nav-grid">
         <a class="bn-item <?php echo $__cp === 'index' ? 'active' : ''; ?>" href="<?php echo $__baseUrl; ?>/employee/">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></div>
@@ -42,6 +42,22 @@
 <script src="<?php echo $__baseUrl; ?>/assets/js/push.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo $__baseUrl; ?>/assets/js/availability-toggle.js?v=<?php echo time(); ?>"></script>
 <script src="<?php echo $__baseUrl; ?>/assets/js/availability-heatmap.js?v=<?php echo time(); ?>"></script>
+<?php
+// Guida interattiva (solo dipendente): stato salvato + pagina corrente
+$__tourEmpId = (int) ($currentEmployee['id'] ?? 0);
+$__tourCfg = [
+    'employeeId' => $__tourEmpId,
+    'session'    => (string) ($_SESSION['login_time'] ?? ''),
+    'status'     => EmployeeTour::getStatus($__tourEmpId),
+    'page'       => $__cp,
+    'figmaHome'  => EmployeeTour::usesFigmaDashboard($__tourEmpId),
+    'api'        => $__baseUrl . '/api/employee-tour.php',
+    'baseUrl'    => $__baseUrl . '/employee/',
+];
+?>
+<link rel="stylesheet" href="<?php echo $__baseUrl; ?>/assets/css/employee-tour.css?v=<?php echo time(); ?>">
+<script>window.PAM_TOUR = <?php echo json_encode($__tourCfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+<script src="<?php echo $__baseUrl; ?>/assets/js/employee-tour.js?v=<?php echo time(); ?>"></script>
 
 <script>
 (function() {

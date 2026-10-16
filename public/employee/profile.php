@@ -277,7 +277,7 @@ input[type=file] { font-size: 0.85rem; }
         </form>
     </div>
 
-    <div class="profile-card">
+    <div class="profile-card" data-tour="profile-notify">
         <h2>Notifiche</h2>
         <form method="POST">
             <?= CSRF::field() ?>
@@ -296,6 +296,14 @@ input[type=file] { font-size: 0.85rem; }
                 <button type="submit" class="btn-inline btn-primary">Salva preferenze</button>
             </div>
         </form>
+    </div>
+
+    <div class="profile-card" data-tour="profile-guide">
+        <h2>Guida interattiva</h2>
+        <p style="font-size: 13px; color: #6e7191; margin: 0 0 14px;">
+            Rivedi passo per passo come usare Cora: menu, richieste di ferie e permessi, documenti, calendario e chat.
+        </p>
+        <button type="button" class="btn-inline btn-secondary" data-tour-restart>Rivedi la guida</button>
     </div>
 
     <div class="profile-card">

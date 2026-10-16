@@ -1,0 +1,190 @@
+/* Guida interattiva dipendente (employee-tour.js) — design system ConnecteedHR/Cora */
+
+.pt-root {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    pointer-events: none;   /* lo scroll della pagina resta libero; i click li filtra il JS */
+    display: none;
+}
+.pt-root.is-open { display: block; }
+
+/* Riquadro evidenziato: il box-shadow enorme oscura tutto il resto */
+.pt-spot {
+    position: fixed;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    border-radius: 12px;
+    box-shadow:
+        0 0 0 2px var(--accent, #0b3aa4),
+        0 0 0 6px rgba(11, 58, 164, 0.18),
+        0 0 0 200vmax rgba(15, 23, 42, 0.55);
+    transition: top .24s cubic-bezier(.2,.7,.2,1), left .24s cubic-bezier(.2,.7,.2,1),
+                width .24s cubic-bezier(.2,.7,.2,1), height .24s cubic-bezier(.2,.7,.2,1),
+                border-radius .24s ease, opacity .2s ease;
+}
+.pt-spot.is-none {
+    top: 50%; left: 50%; width: 0; height: 0;
+    box-shadow: 0 0 0 200vmax rgba(15, 23, 42, 0.55);
+}
+.pt-spot.is-hidden {
+    box-shadow: 0 0 0 200vmax rgba(15, 23, 42, 0.55);
+    width: 0; height: 0;
+}
+.pt-root.is-tracking .pt-spot,
+.pt-root.is-tracking .pt-tip { transition: none; }
+
+/* Scheda */
+.pt-tip {
+    position: fixed;
+    pointer-events: auto;
+    box-sizing: border-box;
+    width: min(360px, calc(100vw - 24px));
+    background: #fff;
+    color: var(--ink, #0f172a);
+    border: 1px solid #e6e8f0;
+    border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22), 0 2px 6px rgba(15, 23, 42, 0.08);
+    padding: 16px 18px 14px;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .18s ease, transform .18s ease, top .24s cubic-bezier(.2,.7,.2,1), left .24s cubic-bezier(.2,.7,.2,1);
+}
+.pt-tip.is-ready { opacity: 1; transform: none; }
+.pt-root.is-moving .pt-tip { opacity: 0; }
+
+.pt-tip.is-center {
+    top: 50%; left: 50%;
+    transform: translate(-50%, calc(-50% + 6px));
+    width: min(420px, calc(100vw - 32px));
+}
+.pt-tip.is-center.is-ready { transform: translate(-50%, -50%); }
+
+/* Mobile: scheda a tutta larghezza, sempre dal lato opposto all'elemento */
+.pt-tip.is-sheet {
+    left: 12px; right: 12px;
+    width: auto;
+    max-height: 46vh;
+    overflow-y: auto;
+}
+.pt-tip.is-sheet.is-bottom { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); top: auto; }
+.pt-tip.is-sheet.is-top { top: calc(10px + env(safe-area-inset-top, 0px)); bottom: auto; }
+.pt-tip.is-sheet:not(.is-top):not(.is-bottom) { bottom: 10px; }
+
+.pt-tip-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; margin-bottom: 6px;
+}
+.pt-chapter {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent, #0b3aa4);
+}
+.pt-x {
+    width: 30px; height: 30px; margin: -6px -8px -6px 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 8px; background: transparent;
+    color: var(--slate-500, #64748b); cursor: pointer;
+}
+.pt-x:hover { background: var(--slate-100, #f1f5f9); color: var(--ink, #0f172a); }
+
+.pt-title {
+    font-family: 'Host Grotesk', 'Inter', sans-serif;
+    font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+    color: #1e1e2f; margin: 0 0 6px;
+}
+.pt-body {
+    font-size: 13.5px; line-height: 1.55;
+    color: #4a4f6a; margin: 0;
+}
+
+.pt-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+.pt-progress { display: flex; align-items: center; gap: 10px; }
+.pt-bar {
+    flex: 1; height: 4px; border-radius: 999px;
+    background: var(--primary-50, #eef3fb); overflow: hidden;
+}
+.pt-bar span {
+    display: block; height: 100%; width: 0;
+    background: var(--accent, #0b3aa4); border-radius: 999px;
+    transition: width .3s ease;
+}
+.pt-count { font-size: 12px; font-weight: 600; color: var(--slate-500, #64748b); white-space: nowrap; }
+
+.pt-actions { display: flex; align-items: center; gap: 8px; }
+.pt-btn {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    border-radius: 9px; padding: 9px 16px;
+    border: 1px solid transparent; cursor: pointer;
+    min-height: 38px;
+}
+.pt-btn[hidden] { display: none; }
+.pt-btn-primary { background: var(--accent, #0b3aa4); color: #fff; margin-left: auto; }
+.pt-btn-primary:hover { background: var(--accent-hover, #082b7b); }
+.pt-btn-ghost { background: #fff; color: #1e1e2f; border-color: #e2e8f0; }
+.pt-btn-ghost:hover { background: var(--slate-50, #f8fafc); }
+.pt-btn-link { background: transparent; color: var(--slate-500, #64748b); padding-left: 0; padding-right: 4px; }
+.pt-btn-link:hover { color: var(--ink, #0f172a); text-decoration: underline; }
+.pt-btn:focus, .pt-x:focus, .pt-pill button:focus { outline: none; }
+.pt-btn:focus-visible, .pt-x:focus-visible, .pt-pill button:focus-visible {
+    box-shadow: 0 0 0 3px rgba(11, 58, 164, 0.25);
+}
+
+/* Click fuori dalla guida: piccolo richiamo */
+.pt-tip.pt-nudge { animation: pt-nudge .32s ease; }
+@keyframes pt-nudge {
+    0%, 100% { translate: 0 0; }
+    25% { translate: -4px 0; }
+    75% { translate: 4px 0; }
+}
+
+/* Guida in pausa */
+.pt-pill {
+    position: fixed;
+    left: 50%; transform: translateX(-50%);
+    bottom: 24px;
+    z-index: 100000;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 6px 6px 6px 14px;
+    background: #fff;
+    border: 1px solid #e6e8f0;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px; font-weight: 600; color: #1e1e2f;
+    max-width: calc(100vw - 32px);
+    white-space: nowrap;
+}
+.pt-pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #0b3aa4); flex-shrink: 0; }
+.pt-pill-resume {
+    border: 0; border-radius: 999px; cursor: pointer;
+    background: var(--accent, #0b3aa4); color: #fff;
+    font: inherit; padding: 7px 14px;
+}
+.pt-pill-x {
+    width: 30px; height: 30px; border: 0; border-radius: 50%;
+    background: transparent; color: var(--slate-500, #64748b); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.pt-pill-x:hover { background: var(--slate-100, #f1f5f9); }
+
+@media (max-width: 639px) {
+    .pt-title { font-size: 16px; }
+    .pt-body { font-size: 13px; }
+    .pt-btn { padding: 9px 14px; }
+}
+
+/* Schermi bassi (smartphone in orizzontale): scheda compatta su una riga di comandi */
+@media (max-height: 520px) {
+    .pt-tip { padding: 10px 14px 10px; }
+    .pt-tip.is-sheet { max-height: 62vh; }
+    .pt-tip-head { margin-bottom: 2px; }
+    .pt-title { font-size: 15px; margin-bottom: 2px; }
+    .pt-body { font-size: 12.5px; line-height: 1.45; }
+    .pt-foot { margin-top: 8px; flex-direction: row; align-items: center; gap: 10px; }
+    .pt-progress { flex: 0 0 auto; }
+    .pt-bar { display: none; }
+    .pt-actions { flex: 1; }
+    .pt-btn { min-height: 34px; padding: 6px 12px; }
+}

@@ -1090,7 +1090,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 
 <div class="cal-wrap">
     <div class="cal-sticky-head">
-    <div class="cal-toolbar">
+    <div class="cal-toolbar" data-tour="cal-toolbar">
         <div class="cal-nav">
             <a href="?view=<?= e($__view) ?>&d=<?= $__prevDate ?>" class="cal-nav-btn" aria-label="Precedente">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1255,7 +1255,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 <!-- Modal Add/Detail Event -->
 <div class="cal-date-backdrop" id="calDateBackdrop" onclick="closePops()"></div>
 <div class="cal-modal-overlay" id="calModal" onclick="if(event.target === this) calCloseModal()">
-    <div class="cal-modal">
+    <div class="cal-modal" data-tour="cal-modal">
         <div class="cal-modal-h">
             <h3 id="calModalTitle">Nuovo evento</h3>
             <button type="button" class="cal-modal-close" onclick="calCloseModal()">&times;</button>

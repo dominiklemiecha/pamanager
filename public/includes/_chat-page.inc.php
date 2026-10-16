@@ -1123,7 +1123,7 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
 <div class="chat-shell <?= $selectedConvId ? 'has-active' : '' ?>">
     <!-- Sidebar: Conversazioni + Contatti -->
     <div class="chat-panel chat-sidebar-panel">
-        <div class="chat-search">
+        <div class="chat-search" data-tour="chat-search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="search" id="chatSearch" placeholder="Cerca persone o messaggi…">
         </div>
@@ -1145,7 +1145,7 @@ include __DIR__ . '/header-' . $__chatLayout . '.php';
                 }
             ?>
                 <?php if (!empty($__pinned)): ?>
-                <div class="chat-sidebar-section" data-section="pinned">
+                <div class="chat-sidebar-section" data-section="pinned" data-tour="chat-pinned">
                     <div class="chat-group-title"><span>In evidenza</span></div>
                     <?php foreach ($__pinned as $__pc):
                         $__pcConv = $__convByOther[$__pc['type'] . ':' . $__pc['id']] ?? null;

@@ -101,13 +101,7 @@ $__hour = (int) date('H');
 $__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 'Buonasera');
 
 // Variante grafica dedicata (design Figma) per le email in EMPLOYEE_FIGMA_DASHBOARD_EMAILS
-$__figmaEmails = array_filter(array_map('trim', explode(',', strtolower(
-    (string) (getenv('EMPLOYEE_FIGMA_DASHBOARD_EMAILS') ?: 'dominik.lemiecha25@gmail.com')
-))));
-try {
-    $__empEmail = strtolower(trim((string) Database::fetchColumn("SELECT email FROM employees WHERE id = ?", [(int) $employee['id']])));
-} catch (Throwable $__e) { $__empEmail = ''; }
-if ($__empEmail !== '' && in_array($__empEmail, $__figmaEmails, true)) {
+if (EmployeeTour::usesFigmaDashboard((int) $employee['id'])) {
     include __DIR__ . '/_dashboard-figma.inc.php';
     exit;
 }
@@ -521,7 +515,7 @@ $__compRow = $__empCompanyId
 $__cSlug = $__compRow['slug'] ?? '';
 $__punchUrl = PUBLIC_URL . '/punch.php' . ($__cSlug ? '?c=' . urlencode($__cSlug) : '');
 ?>
-<button type="button" class="eh-punch-btn <?= $__nextKind ?>" onclick="ehPunchOpen()">
+<button type="button" class="eh-punch-btn <?= $__nextKind ?>" data-tour="punch" onclick="ehPunchOpen()">
     <span class="eh-punch-ic">
         <?php if ($__nextKind === 'in'): ?>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
@@ -770,7 +764,7 @@ function ehPunchClose() {
 <?php endif; /* $__punchEnabled */ ?>
 
 <!-- ======== Quick actions ======== -->
-<div class="eh-actions">
+<div class="eh-actions" data-tour="quick-actions">
     <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php?action=new&type=ferie" class="eh-action">
         <div class="eh-action-ic">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v4M10 16h4"/></svg>
@@ -812,7 +806,7 @@ function ehPunchClose() {
 </div>
 
 <!-- ======== Saldo ferie/permessi (gauge) ======== -->
-<div class="eh-balance-card">
+<div class="eh-balance-card" data-tour="balance">
     <div class="eh-balance-h">
         <h3>Il tuo saldo <?= $__year ?></h3>
         <a href="<?= PUBLIC_URL ?>/employee/leave-requests.php">Vedi richieste →</a>
