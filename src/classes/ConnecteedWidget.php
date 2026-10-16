@@ -13,8 +13,10 @@
  */
 class ConnecteedWidget
 {
-    public const SCRIPT_URL = 'https://crm.connecteed.com/api/v1/widget/v1.js';
-    public const ORIGIN     = 'https://crm.connecteed.com';
+    // Il CRM e' passato da crm.connecteed.com (ora 404) a fase.adichub.com.
+    // CONNECTEED_WIDGET_ORIGIN permette di spostarlo di nuovo senza toccare il codice.
+    public const DEFAULT_ORIGIN = 'https://fase.adichub.com';
+    public const SCRIPT_PATH    = '/api/v1/widget/v1.js';
 
     private static function env(string $key): string
     {
@@ -24,6 +26,13 @@ class ConnecteedWidget
             if ($v !== false && $v !== null && trim((string) $v, " \t\n\r\"'") !== '') return trim((string) $v, " \t\n\r\"'");
         }
         return '';
+    }
+
+    /** Origine del CRM che serve il widget (schema + host, senza slash finale). */
+    public static function origin(): string
+    {
+        $o = rtrim(self::env('CONNECTEED_WIDGET_ORIGIN'), '/');
+        return preg_match('#^https://[a-z0-9.-]+(:\d+)?$#i', $o) ? $o : self::DEFAULT_ORIGIN;
     }
 
     public static function appId(): string
@@ -40,7 +49,7 @@ class ConnecteedWidget
     public static function scriptTag(): string
     {
         if (!self::configured() || !Auth::isLoggedIn()) return '';
-        return '<script src="' . self::SCRIPT_URL . '"'
+        return '<script src="' . htmlspecialchars(self::origin() . self::SCRIPT_PATH, ENT_QUOTES) . '"'
             . ' data-app-id="' . htmlspecialchars(self::appId(), ENT_QUOTES) . '"'
             . ' data-session-url="' . htmlspecialchars(PUBLIC_URL . '/api/assistenza-sessione.php', ENT_QUOTES) . '"'
             . ' async></script>';

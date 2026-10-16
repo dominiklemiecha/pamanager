@@ -29,6 +29,7 @@ services:
       # Widget assistenza del CRM Connecteed (la chiave resta sul server)
       CONNECTEED_APP_ID: ${CONNECTEED_APP_ID:-}
       CONNECTEED_APP_SECRET: ${CONNECTEED_APP_SECRET:-}
+      CONNECTEED_WIDGET_ORIGIN: ${CONNECTEED_WIDGET_ORIGIN:-}
       RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
       # Tenant demo per le presentazioni (database/seed_demo_tenant.php)
       SEED_DEMO_TENANT: "${SEED_DEMO_TENANT:-true}"

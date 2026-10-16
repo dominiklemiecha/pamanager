@@ -95,13 +95,14 @@ function setSecurityHeaders(?string $nonce = null): void
  */
 function buildContentSecurityPolicy(string $nonce): string
 {
+    $crm = class_exists('ConnecteedWidget') ? ConnecteedWidget::origin() : 'https://fase.adichub.com';
     $csp = [
         // Default: blocca tutto tranne stesso dominio
         "default-src 'self'",
 
         // Script: stesso dominio + unsafe-inline per compatibilità legacy
         // In futuro migrare a nonce-based
-        "script-src 'self' 'unsafe-inline' https://crm.connecteed.com",
+        "script-src 'self' 'unsafe-inline' " . $crm,
 
         // Stili: stesso dominio + unsafe-inline per stili inline esistenti
         // + Google Fonts + rsms.me (Inter)
@@ -115,7 +116,7 @@ function buildContentSecurityPolicy(string $nonce): string
 
         // Widget assistenza Connecteed: script, chiamate e iframe dal CRM
         // Connessioni (fetch, XHR): stesso dominio + CRM
-        "connect-src 'self' https://crm.connecteed.com",
+        "connect-src 'self' " . $crm,
 
         // Media: solo stesso dominio (video/audio dei corsi Academy)
         "media-src 'self'",
@@ -124,10 +125,10 @@ function buildContentSecurityPolicy(string $nonce): string
         "object-src 'none'",
 
         // Frame: stesso dominio (anteprima PDF materiali Academy) + widget CRM
-        "frame-src 'self' https://crm.connecteed.com",
+        "frame-src 'self' " . $crm,
 
         // Child frame: come frame-src
-        "child-src 'self' https://crm.connecteed.com",
+        "child-src 'self' " . $crm,
 
         // Worker: stesso dominio (per Service Worker)
         "worker-src 'self'",
