@@ -270,7 +270,7 @@ $__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 
             <div style="display:flex;flex-direction:column;">
             <?php foreach ($__notifs as $__n):
                 $__unread = empty($__n['is_read']);
-                $__href = !empty($__n['link']) ? ($baseUrl . $__n['link']) : null;
+                $__href = !empty($__n['link']) ? Notification::url($__n['link']) : null;
                 $__isProbation = ($__n['type'] ?? '') === 'probation_decision';
             ?>
                 <<?= $__href ? 'a href="' . htmlspecialchars($__href) . '"' : 'div' ?> style="display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid #f1f5f9;text-decoration:none;color:inherit;<?= $__unread ? 'background:rgba(11,58,164,0.035);' : '' ?>">

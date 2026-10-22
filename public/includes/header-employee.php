@@ -69,6 +69,12 @@ $availabilityLabels = [
     'in_meeting' => 'In riunione',
 ];
 
+// Interfaccia Cora (ENV EMPLOYEE_CORA_UI): shell con dock al posto della sidebar
+if (class_exists('CoraUi') && CoraUi::enabled()) {
+    include __DIR__ . '/cora/header.inc.php';
+    return;
+}
+
 $pageTitle = isset($pageTitle) ? htmlspecialchars($pageTitle) : 'PAManager';
 ?>
 <!DOCTYPE html>

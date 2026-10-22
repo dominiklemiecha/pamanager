@@ -188,3 +188,76 @@
     .pt-actions { flex: 1; }
     .pt-btn { min-height: 34px; padding: 6px 12px; }
 }
+
+/* Vista Cora: stessi caratteri, colori e forme della shell (cora.css) */
+.cora-body .pt-spot {
+    box-shadow:
+        0 0 0 2px var(--cora-accent, #ff9400),
+        0 0 0 6px rgba(255, 148, 0, 0.2),
+        0 0 0 200vmax rgba(8, 8, 8, 0.45);
+}
+.cora-body .pt-spot.is-none,
+.cora-body .pt-spot.is-hidden { box-shadow: 0 0 0 200vmax rgba(8, 8, 8, 0.45); }
+.cora-body .pt-tip,
+.cora-body .pt-pill {
+    font-family: var(--cora-font, 'Satoshi', system-ui, sans-serif);
+    color: var(--cora-ink, #080808);
+    border-color: var(--cora-line, #e2eae9);
+}
+.cora-body .pt-tip {
+    border: 0;
+    border-radius: 24px;
+    padding: 20px 20px 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .05), 0 24px 48px -12px rgba(0, 0, 0, .25);
+}
+.cora-body .pt-chapter {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--cora-accent-ink, #c25a0c);
+    letter-spacing: .04em;
+}
+.cora-body .pt-chapter::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cora-accent, #ff9400);
+}
+.cora-body .pt-x { border-radius: 999px; color: var(--cora-ink-3, #8a9794); }
+.cora-body .pt-x:hover { background: var(--cora-surface-soft, #f6f8f7); color: var(--cora-ink, #080808); }
+.cora-body .pt-title {
+    font-family: inherit;
+    font-size: 20px; line-height: 26px; font-weight: 700; letter-spacing: -0.01em;
+    color: var(--cora-ink, #080808);
+}
+.cora-body .pt-body { font-size: 14px; line-height: 21px; color: var(--cora-ink-2, #4f5c59); }
+.cora-body .pt-bar { background: var(--cora-sage-soft, #e2eae9); }
+.cora-body .pt-bar span { background: var(--cora-accent, #ff9400); }
+.cora-body .pt-count { color: var(--cora-ink-3, #8a9794); }
+.cora-body .pt-btn {
+    border-radius: 999px; min-height: 40px; padding: 0 18px;
+    font-size: 14px; font-weight: 600;
+    transition: transform .12s ease, background .15s ease;
+}
+.cora-body .pt-btn:active { transform: scale(.98); }
+.cora-body .pt-btn-primary { background: var(--cora-ink, #080808); color: #fff; }
+.cora-body .pt-btn-primary:hover { background: #262626; }
+.cora-body .pt-btn-ghost { background: #fff; color: var(--cora-ink, #080808); border-color: var(--cora-line, #e2eae9); }
+.cora-body .pt-btn-ghost:hover { background: var(--cora-surface-soft, #f6f8f7); }
+.cora-body .pt-btn-link { color: var(--cora-ink-2, #4f5c59); padding: 0 4px 0 0; }
+.cora-body .pt-btn-link:hover { color: var(--cora-ink, #080808); }
+.cora-body .pt-btn:focus-visible,
+.cora-body .pt-x:focus-visible,
+.cora-body .pt-pill button:focus-visible { box-shadow: 0 0 0 3px rgba(255, 148, 0, 0.35); }
+.cora-body .pt-tip.is-sheet { border-radius: 24px; left: 16px; right: 16px; }
+.cora-body .pt-pill { border: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .05), 0 12px 32px -6px rgba(0, 0, 0, .18); font-size: 14px; }
+.cora-body .pt-pill-dot { background: var(--cora-accent, #ff9400); }
+.cora-body .pt-pill-resume { background: var(--cora-ink, #080808); }
+.cora-body .pt-pill-x { color: var(--cora-ink-3, #8a9794); }
+.cora-body .pt-pill-x:hover { background: var(--cora-surface-soft, #f6f8f7); }
+
+@media (max-width: 639px) {
+    .cora-body .pt-title { font-size: 18px; line-height: 24px; }
+    .cora-body .pt-body { font-size: 14px; }
+}
+@media (max-height: 520px) {
+    .cora-body .pt-tip { padding: 10px 14px; }
+    .cora-body .pt-title { font-size: 16px; line-height: 22px; }
+    .cora-body .pt-btn { min-height: 34px; }
+}

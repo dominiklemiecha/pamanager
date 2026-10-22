@@ -1,0 +1,21 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="15" height="18.6345" viewBox="0 0 15 18.6345" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Tail">
+<path id="Tail_2" d="M7.5 4L7.5 0H9.53674e-07V14C3.65938 17.2528 10.6252 17.8604 13.1 17.9739C13.4071 17.988 13.5646 17.6021 13.3479 17.3841C11.7002 15.727 7.5 10.8328 7.5 4Z" fill="white"/>
+<mask id="mask0_0_633" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="1" y="2" width="14" height="18">
+<path id="mask" d="M15 20H1.5V17.1445C3.76587 15.9247 5.60993 14.044 6.78027 11.7471C7.90406 9.54121 8.10979 6.77999 8.14844 2H15V20Z" fill="#8B1A1A"/>
+</mask>
+<g mask="url(#mask0_0_633)">
+<g id="Tail_3">
+<use xlink:href="#stroke0_0_633" fill="white"/>
+<mask id="stroke1_0_633" maskUnits="userSpaceOnUse" x="-0.999999" y="-1" width="16" height="20" fill="black">
+<rect fill="white" x="-0.999999" y="-1" width="16" height="20"/>
+<use xlink:href="#stroke0_0_633"/>
+</mask>
+<path d="M7.5 0L7.5 4C7.5 10.8328 11.7002 15.727 13.3479 17.3841C13.5646 17.6021 13.4071 17.988 13.1 17.9739C10.6252 17.8604 3.65938 17.2528 9.53674e-07 14V0H7.5Z" stroke-width="1.32" stroke="black" stroke-opacity="0.06" mask="url(#stroke1_0_633)"/>
+</g>
+</g>
+</g>
+<defs>
+<path id="stroke0_0_633" d="M7.5 4L7.5 0H9.53674e-07V14C3.65938 17.2528 10.6252 17.8604 13.1 17.9739C13.4071 17.988 13.5646 17.6021 13.3479 17.3841C11.7002 15.727 7.5 10.8328 7.5 4Z"/>
+</defs>
+</svg>

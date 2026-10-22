@@ -23,6 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Calendario';
+if (CoraUi::enabled()) {
+    // Vista Cora: stessa logica del calendario, aspetto della nuova shell
+    $coraPage = true;
+    $coraExtraCss = ['cora-calendar.css'];
+}
 include dirname(__DIR__) . '/includes/header-employee.php';
+if (!empty($coraPage)) {
+    echo CoraUi::topbar('Calendario', 'I tuoi impegni e gli inviti dei colleghi');
+}
 include dirname(__DIR__) . '/includes/_calendar.inc.php';
 include dirname(__DIR__) . '/includes/footer-employee.php';

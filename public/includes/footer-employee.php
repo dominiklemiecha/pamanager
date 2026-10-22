@@ -1,3 +1,9 @@
+<?php
+if (class_exists('CoraUi') && CoraUi::enabled()) {
+    include __DIR__ . '/cora/footer.inc.php';
+    return;
+}
+?>
         </main>
         <div class="powered">
             Powered by

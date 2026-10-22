@@ -37,6 +37,15 @@ services:
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
       # Email dei dipendenti con la dashboard grafica dedicata (separate da virgola)
       EMPLOYEE_FIGMA_DASHBOARD_EMAILS: ${EMPLOYEE_FIGMA_DASHBOARD_EMAILS:-dominik.lemiecha25@gmail.com}
+      # Vista dipendente Cora: 1/all = tutti, email separate da virgola = solo loro, vuota = classica
+      EMPLOYEE_CORA_UI: ${EMPLOYEE_CORA_UI:-1}
+      # Chat in tempo reale: servizio "realtime" (Socket.IO) raggiunto da Apache su /realtime/.
+      # Stesso segreto nei due servizi. REALTIME_ENABLED=false spegne il socket: la chat torna al polling.
+      REALTIME_SECRET: ${REALTIME_SECRET:-}
+      REALTIME_URL: ${REALTIME_URL:-http://realtime:3001}
+      REALTIME_ENABLED: "${REALTIME_ENABLED:-true}"
+      # GIF e sticker della chat (Giphy). Vuota: il selettore lo dice e non mostra niente.
+      GIPHY_API_KEY: ${GIPHY_API_KEY:-}
       PHP_TIMEZONE: "Europe/Rome"
       # SMTP globale SaaS (impostare i valori dal pannello Dokploy > Environment)
       SMTP_ENABLED: "${SMTP_ENABLED:-0}"
@@ -64,6 +73,17 @@ services:
     # In standalone (docker compose up) decommenta la riga ports per accedere su http://localhost:8080
     # ports:
     #   - "8080:80"
+
+  realtime:
+    build:
+      context: ./realtime
+    restart: unless-stopped
+    environment:
+      REALTIME_SECRET: ${REALTIME_SECRET:-}
+      REALTIME_ENABLED: "${REALTIME_ENABLED:-true}"
+      PORT: "3001"
+    networks:
+      - pamanager
 
   db:
     image: mariadb:10.11

@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
         pdo_mysql mysqli zip intl mbstring gd gmp bcmath opcache \
-    && a2enmod rewrite headers expires deflate
+    && a2enmod rewrite headers expires deflate proxy proxy_http proxy_wstunnel
 
 # --- Composer ---
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

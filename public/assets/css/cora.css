@@ -1,0 +1,464 @@
+/*
+ * Cora — vista dipendente (Figma "Modulo Cora HR", sezione 913:5639).
+ * Token dal file Figma (variabili color/*). Font: Satoshi, ospitato in locale
+ * (non e' su Google Fonts e la CSP non ammette altri CDN di font).
+ */
+@font-face { font-family: "Satoshi"; src: url("../fonts/satoshi/Satoshi-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Satoshi"; src: url("../fonts/satoshi/Satoshi-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Satoshi"; src: url("../fonts/satoshi/Satoshi-Bold.woff2") format("woff2"); font-weight: 600 700; font-style: normal; font-display: swap; }
+
+:root {
+    --cora-ink: #080808;
+    --cora-ink-2: #4f5c59;
+    --cora-ink-3: #8a9794;
+    --cora-surface: #ffffff;
+    --cora-surface-soft: #f6f8f7;
+    --cora-line: #e2eae9;
+    --cora-sage-soft: #e2eae9;
+    --cora-accent: #ff9400;
+    --cora-accent-soft: #fff1de;
+    --cora-accent-ink: #c25a0c;
+    --cora-warning: #ae6b00;
+    --cora-warning-soft: #fff1e5;
+    --cora-success: #008753;
+    --cora-success-soft: #e5fff5;
+    --cora-error: #c9123b;
+    --cora-error-soft: #ffedec;
+    --cora-type-ferie: #22a9b8;
+    --cora-type-permesso: #6a3fd1;
+    --cora-type-malattia: #c9123b;
+    --cora-type-sw: #ff9400;
+    --cora-type-altro: #8a9794;
+    --cora-font: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* dock: 16px dal fondo + 76px di altezza + 24px di respiro (come in alto) */
+    --cora-dock-space: 116px;
+}
+
+/* ---------- Shell ---------- */
+html, body.cora-body { height: 100%; }
+body.cora-body {
+    margin: 0;
+    background: var(--cora-surface-soft);
+    color: var(--cora-ink);
+    font-family: var(--cora-font);
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+}
+.cora-body *, .cora-body *::before, .cora-body *::after { box-sizing: border-box; }
+.cora-body h1, .cora-body h2, .cora-body h3, .cora-body p { margin: 0; }
+.cora-body button { font-family: inherit; }
+.cora-body [hidden] { display: none !important; }
+
+/* Barre di scorrimento: sottili, arrotondate, colori della piattaforma (tutte).
+   Le proprieta' standard solo dove manca ::-webkit-scrollbar (Firefox): in
+   Chrome 121+ farebbero ignorare la forma arrotondata qui sotto. */
+@supports not selector(::-webkit-scrollbar) {
+    .cora-body, .cora-body * { scrollbar-width: thin; scrollbar-color: #cfd9d7 transparent; }
+}
+.cora-body ::-webkit-scrollbar { width: 10px; height: 10px; }
+.cora-body ::-webkit-scrollbar-track { background: transparent; }
+.cora-body ::-webkit-scrollbar-thumb {
+    background: #cfd9d7; border-radius: 999px;
+    border: 3px solid transparent; background-clip: padding-box;
+}
+.cora-body ::-webkit-scrollbar-thumb:hover { background-color: var(--cora-ink-3); }
+.cora-body ::-webkit-scrollbar-corner { background: transparent; }
+.cora-body ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.cora-body a { color: inherit; text-decoration: none; }
+
+.cora-main {
+    position: fixed;
+    inset: 0 0 var(--cora-dock-space) 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px 32px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.cora-legacy .cora-main { gap: 0; }
+.cora-legacy-content { padding: 16px 0 0; }
+
+/* ---------- Topbar ---------- */
+.cora-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 50px;
+    flex-shrink: 0;
+}
+.cora-topbar-title { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cora-topbar-title h1 { font-size: 24px; font-weight: 500; line-height: normal; color: var(--cora-ink); }
+.cora-topbar-title p { font-size: 14px; font-weight: 400; color: var(--cora-ink-2); }
+.cora-topbar-center { flex: 0 0 auto; }
+.cora-topbar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.cora-topbar-user { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+.cora-icon-btn {
+    position: relative;
+    width: 42px; height: 42px;
+    border-radius: 999px;
+    background: var(--cora-surface);
+    border: 1px solid var(--cora-line);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background .15s ease;
+}
+.cora-icon-btn:hover { background: var(--cora-surface-soft); }
+.cora-icon-btn svg { width: 20px; height: 20px; }
+.cora-bell { position: relative; }
+.cora-bell-dot {
+    position: absolute; top: 9px; right: 10px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cora-accent);
+    box-shadow: 0 0 0 2px var(--cora-surface);
+}
+.cora-bell-menu {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    width: 340px; max-height: 420px; overflow-y: auto;
+    background: var(--cora-surface);
+    border-radius: 16px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, .12);
+    padding: 8px;
+    display: none;
+    z-index: 60;
+}
+.cora-bell.is-open .cora-bell-menu { display: block; animation: cora-pop .16s ease-out; }
+.cora-bell-head { font-size: 15px; font-weight: 600; padding: 8px 10px 10px; }
+.cora-bell-empty { font-size: 14px; color: var(--cora-ink-3); padding: 18px 10px; text-align: center; }
+.cora-bell-item { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; }
+.cora-bell-item:hover { background: var(--cora-surface-soft); }
+.cora-bell-item .t { font-size: 14px; font-weight: 600; color: var(--cora-ink); }
+.cora-bell-item .m { font-size: 13px; font-weight: 400; color: var(--cora-ink-2); }
+.cora-bell-item .d { font-size: 12px; color: var(--cora-ink-3); }
+.cora-bell-item.is-unread .t::before {
+    content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cora-accent); margin-right: 7px; vertical-align: 2px;
+}
+
+.cora-avatar {
+    width: 40px; height: 40px; border-radius: 999px; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cora-accent-soft); color: var(--cora-warning);
+    font-size: 14px; font-weight: 600;
+    flex-shrink: 0;
+}
+.cora-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------- Bottoni ---------- */
+.cora-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 40px; padding: 0 18px 0 14px;
+    border-radius: 999px; border: 0;
+    font-family: var(--cora-font); font-size: 14px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: transform .12s ease, background .15s ease, opacity .15s ease;
+}
+.cora-btn:active { transform: scale(.98); }
+.cora-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.cora-btn-primary { background: var(--cora-ink); color: var(--cora-surface); }
+.cora-btn-primary:hover { background: #262626; }
+.cora-btn-primary[disabled] { opacity: .5; cursor: default; }
+.cora-btn-secondary { background: var(--cora-surface); color: var(--cora-ink); border: 1px solid var(--cora-line); padding: 0 16px; }
+.cora-btn-secondary:hover { background: var(--cora-surface-soft); }
+.cora-btn-ghost { background: transparent; color: var(--cora-ink-2); padding: 0 16px; }
+.cora-btn-ghost:hover { color: var(--cora-ink); }
+.cora-btn-danger-text { color: var(--cora-error); }
+.cora-btn-danger { background: var(--cora-error-soft); color: var(--cora-error); padding: 0 18px 0 16px; }
+.cora-btn-danger svg { width: 17px; height: 17px; }
+
+/* ---------- Card ---------- */
+.cora-card {
+    background: var(--cora-surface);
+    border-radius: 16px;
+}
+.cora-card-h { display: flex; align-items: center; gap: 8px; }
+.cora-card-h h2 { flex: 1; font-size: 20px; font-weight: 500; color: var(--cora-ink); }
+.cora-see-all {
+    display: inline-flex; align-items: center; gap: 4px; padding: 4px 0;
+    font-size: 14px; line-height: 20px; font-weight: 500; color: var(--cora-ink-2);
+}
+.cora-see-all svg { width: 16px; height: 16px; }
+.cora-see-all:hover { color: var(--cora-ink); }
+
+/* ---------- Tab filtro ---------- */
+.cora-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cora-filters-spacer { flex: 1; }
+.cora-tab {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 36px; padding: 0 14px; border-radius: 999px;
+    font-size: 14px; font-weight: 500; color: var(--cora-ink-2);
+    background: transparent; border: 0; cursor: pointer; white-space: nowrap;
+}
+.cora-tab:hover { background: var(--cora-surface-soft); }
+.cora-tab.is-active { background: var(--cora-ink); color: var(--cora-surface); font-weight: 600; }
+.cora-tab-count {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px;
+    background: var(--cora-accent-soft); color: var(--cora-warning);
+    font-size: 12px; font-weight: 600;
+}
+.cora-tab.is-active .cora-tab-count { background: var(--cora-accent); color: var(--cora-surface); }
+
+.cora-search {
+    display: flex; align-items: center; gap: 8px;
+    width: 240px; height: 36px; padding: 0 14px; border-radius: 999px;
+    background: var(--cora-surface-soft);
+}
+.cora-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+.cora-search input {
+    flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    font-family: var(--cora-font); font-size: 14px; font-weight: 400; color: var(--cora-ink);
+}
+.cora-search input::placeholder { color: var(--cora-ink-3); }
+
+/* ---------- Badge stato ---------- */
+.cora-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+.cora-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cora-status.is-pending   { background: var(--cora-warning-soft); color: var(--cora-warning); }
+.cora-status.is-approved  { background: var(--cora-success-soft); color: var(--cora-success); }
+.cora-status.is-rejected  { background: var(--cora-error-soft);   color: var(--cora-error); }
+.cora-status.is-cancelled { background: var(--cora-surface-soft); color: var(--cora-ink-3); }
+
+/* ---------- Stato vuoto ---------- */
+.cora-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    text-align: center; padding: 24px;
+}
+.cora-empty-ic {
+    width: 64px; height: 64px; border-radius: 999px;
+    border: 1px solid var(--cora-line); background: var(--cora-surface);
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.cora-empty-ic svg { width: 26px; height: 26px; }
+.cora-empty h3 { font-size: 18px; font-weight: 600; color: var(--cora-ink); }
+.cora-empty p { font-size: 14px; font-weight: 500; color: var(--cora-ink-3); }
+.cora-empty-page { min-height: 560px; }
+
+/* ---------- Alert e toast ---------- */
+.cora-alert {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-radius: 12px;
+    font-size: 14px; font-weight: 500;
+}
+.cora-alert.is-error { background: var(--cora-error-soft); color: var(--cora-error); }
+.cora-alert.is-info { background: var(--cora-accent-soft); color: var(--cora-warning); }
+
+.cora-toast-host {
+    position: fixed; top: 14px; right: 32px; z-index: 200;
+    display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+}
+.cora-toast {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: 16px;
+    background: var(--cora-surface);
+    filter: drop-shadow(0 14px 16px rgba(0, 0, 0, .12));
+    pointer-events: auto;
+    animation: cora-toast-in .28s cubic-bezier(.2, .9, .3, 1.2);
+}
+.cora-toast.is-leaving { animation: cora-toast-out .22s ease-in forwards; }
+.cora-toast-ic {
+    width: 36px; height: 36px; border-radius: 999px; flex-shrink: 0;
+    background: var(--cora-success);
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.cora-toast.is-error .cora-toast-ic { background: var(--cora-error); }
+.cora-toast-ic svg { width: 18px; height: 18px; }
+.cora-toast-t { font-size: 15px; font-weight: 600; color: var(--cora-ink); }
+.cora-toast-m { font-size: 13px; font-weight: 400; color: var(--cora-ink-2); margin-top: 2px; }
+@keyframes cora-toast-in { from { opacity: 0; transform: translateY(-12px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes cora-toast-out { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes cora-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ---------- Dock ---------- */
+.cora-dock {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 50;
+    display: flex; align-items: center; gap: 2px;
+    padding: 8px; border-radius: 24px;
+    background: var(--cora-surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .05), 0 12px 32px -6px rgba(0, 0, 0, .1);
+}
+.cora-dock-items { display: flex; align-items: center; gap: 2px; }
+.cora-dock-item {
+    position: relative;
+    width: 76px; height: 60px; border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    color: var(--cora-ink-2);
+    background: transparent; border: 0; padding: 0; cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+.cora-dock-item:hover { background: var(--cora-surface-soft); }
+.cora-dock-item.is-active { background: var(--cora-accent-soft); color: var(--cora-accent-ink); }
+.cora-dock-icon { display: inline-flex; width: 22px; height: 22px; }
+.cora-dock-icon svg { width: 22px; height: 22px; }
+.cora-dock-logo, .cora-dock-logo svg { width: 24px; height: 24px; }
+.cora-dock-label { font-size: 11px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.cora-dock-item.is-active .cora-dock-label { font-weight: 700; }
+.cora-dock-dot {
+    position: absolute; left: 46px; top: 18px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cora-accent);
+    box-shadow: 0 0 0 2px var(--cora-surface);
+}
+.cora-dock-item.is-active .cora-dock-dot { box-shadow: 0 0 0 2px var(--cora-accent-soft); }
+.cora-dock-badge {
+    position: absolute; left: 44px; top: 13px;
+    min-width: 16px; height: 16px; padding: 0 3px; border-radius: 999px;
+    background: var(--cora-error); color: var(--cora-surface);
+    border: 2px solid var(--cora-surface);
+    box-sizing: content-box;
+    font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+    transform: translate(-2px, -2px);
+}
+.cora-dock-sep { width: 1px; height: 40px; background: var(--cora-line); margin: 0 4px; flex-shrink: 0; }
+
+/* Anello dei moduli */
+.cora-dock-cora { position: relative; }
+.cora-modules {
+    position: absolute; left: 50%; bottom: calc(100% + 24px);
+    width: 300px; height: 300px; margin-left: -150px;
+    pointer-events: none;
+}
+.cora-module {
+    position: absolute; left: 50%; top: 50%;
+    width: 68px; height: 68px; margin: -34px 0 0 -34px;
+    border-radius: 20px; background: var(--cora-surface);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    opacity: 0;
+    transform: rotate(var(--a)) translate(0) rotate(calc(-1 * var(--a))) scale(.4);
+    transition: transform .32s cubic-bezier(.2, .9, .3, 1.15), opacity .2s ease;
+}
+.cora-module.is-cora { filter: drop-shadow(0 4px 6px rgba(255, 148, 0, .18)); }
+.cora-module.is-fase { filter: drop-shadow(0 4px 6px rgba(153, 191, 26, .22)); }
+.cora-module.is-lock {
+    width: 56px; height: 56px; margin: -28px 0 0 -28px;
+    border-radius: 16px; background: var(--cora-sage-soft);
+}
+.cora-module-ic { display: flex; align-items: center; justify-content: center; height: 45px; }
+.cora-module.is-lock .cora-module-ic { height: 36px; }
+.cora-module-name { font-size: 11px; font-weight: 600; color: var(--cora-ink); line-height: normal; }
+.cora-module.is-lock .cora-module-name { font-size: 10px; color: var(--cora-ink-2); }
+.cora-modules::before {
+    content: ''; position: absolute; inset: -6px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(246, 248, 247, .96) 55%, rgba(246, 248, 247, 0) 72%);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    -webkit-mask-image: radial-gradient(circle, #000 60%, transparent 72%);
+            mask-image: radial-gradient(circle, #000 60%, transparent 72%);
+    opacity: 0; transform: scale(.6); transition: opacity .2s ease, transform .3s ease;
+}
+.cora-dock-cora.is-open .cora-modules::before { opacity: 1; transform: none; }
+.cora-dock-cora.is-open .cora-modules { pointer-events: auto; }
+.cora-dock-cora.is-open .cora-module {
+    opacity: 1;
+    transform: rotate(var(--a)) translate(116px) rotate(calc(-1 * var(--a))) scale(1);
+}
+.cora-dock-cora.is-open .cora-dock-item { background: var(--cora-surface-soft); }
+
+/* ---------- Ingresso a cascata (frame "Intro") ---------- */
+.cora-reveal { opacity: 0; transform: translateY(14px); }
+.cora-revealed .cora-reveal {
+    opacity: 1; transform: none;
+    transition: opacity .45s ease, transform .55s cubic-bezier(.2, .8, .2, 1);
+    transition-delay: calc(var(--i, 0) * 110ms);
+}
+
+/* ---------- Telefono: barra in basso e foglio "Altro" (Figma 1064:18706) ---------- */
+.cora-tabbar, .cora-more, .cora-topbar-logo { display: none; }
+
+.cora-more-box {
+    width: 100%; max-width: 420px; margin: 0 auto;
+    background: var(--cora-surface);
+    border-radius: 24px; padding: 8px 12px 12px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, .14);
+    display: flex; flex-direction: column; gap: 2px;
+    transform: translateY(24px);
+    transition: transform .24s cubic-bezier(.2, .9, .3, 1.1);
+}
+.cora-more.is-open .cora-more-box { transform: none; }
+.cora-more-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--cora-line); margin: 2px auto 8px; }
+.cora-more-item {
+    position: relative;
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px; border-radius: 16px;
+    color: var(--cora-ink-2);
+}
+.cora-more-item:active { background: var(--cora-surface-soft); }
+.cora-more-item.is-active { background: var(--cora-accent-soft); color: var(--cora-accent-ink); }
+.cora-more-ic {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    background: var(--cora-surface-soft);
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.cora-more-item.is-active .cora-more-ic { background: var(--cora-surface); }
+.cora-more-ic svg { width: 22px; height: 22px; }
+.cora-more-ic .cora-avatar { width: 44px; height: 44px; border-radius: 12px; }
+.cora-more-label { flex: 1; min-width: 0; font-size: 16px; font-weight: 500; color: var(--cora-ink); }
+.cora-more-item.is-active .cora-more-label { color: var(--cora-accent-ink); font-weight: 700; }
+.cora-more-item .cora-dock-badge { position: static; transform: none; }
+.cora-more-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cora-accent); flex-shrink: 0; }
+.cora-more-chev, .cora-more-chev svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+@media (max-width: 820px) {
+    :root { --cora-dock-space: 0px; }
+    .cora-main {
+        position: static; inset: auto; overflow: visible;
+        padding: calc(12px + env(safe-area-inset-top)) 16px calc(120px + env(safe-area-inset-bottom));
+        gap: 12px;
+        -webkit-mask-image: none; mask-image: none;
+        min-height: 100%;
+    }
+
+    /* Barra app (logo, campanella, avatar) e sotto il titolo della pagina */
+    .cora-topbar { flex-wrap: wrap; gap: 12px 8px; }
+    .cora-topbar-logo { display: block; order: 0; flex: 1 1 auto; height: 30px; }
+    .cora-topbar-logo svg { width: 54px; height: 30px; display: block; }
+    .cora-topbar-user { order: 1; }
+    .cora-topbar-title { order: 2; flex: 1 1 100%; gap: 2px; }
+    .cora-topbar-title h1 { font-size: 24px; line-height: 32px; }
+    .cora-topbar-title p { line-height: 20px; }
+    .cora-topbar-center { order: 3; flex: 1 1 100%; }
+    .cora-topbar-actions { order: 4; flex: 1 1 100%; }
+    .cora-topbar-actions > * { flex: 1; justify-content: center; }
+
+    .cora-dock { display: none; }
+    .cora-tabbar {
+        display: flex; align-items: center; gap: 2px;
+        position: fixed; z-index: 50;
+        left: 16px; right: 16px; bottom: max(16px, calc(env(safe-area-inset-bottom) - 8px));
+        max-width: 420px; margin: 0 auto;
+        height: 68px; padding: 0 6px; border-radius: 24px;
+        background: var(--cora-surface);
+        filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .05)) drop-shadow(0 12px 16px rgba(0, 0, 0, .1));
+    }
+    .cora-tabbar .cora-dock-item { flex: 1 1 0; min-width: 0; width: auto; height: 60px; }
+    .cora-tabbar .cora-dock-dot { left: calc(50% + 7px); top: 12px; }
+    .cora-tabbar-cora { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; }
+    .cora-tabbar-btn {
+        width: 52px; height: 52px; border-radius: 999px; border: 0; padding: 0; cursor: pointer;
+        background: var(--cora-ink);
+        box-shadow: 0 6px 14px -4px rgba(0, 0, 0, .25);
+        display: inline-flex; align-items: center; justify-content: center;
+        transition: transform .25s ease;
+    }
+    .cora-tabbar-btn svg { width: 20px; height: 20px; transition: transform .3s ease; }
+    .cora-tabbar-cora.is-open .cora-tabbar-btn svg { transform: rotate(90deg); }
+    .cora-tabbar-btn:active { transform: scale(.95); }
+
+    .cora-more {
+        display: flex; align-items: flex-end;
+        position: fixed; inset: 0; z-index: 110;
+        padding: 0 8px max(8px, env(safe-area-inset-bottom));
+        background: rgba(8, 8, 8, .32);
+        opacity: 0; transition: opacity .2s ease;
+    }
+    .cora-more[hidden] { display: none; }
+    .cora-more.is-open { opacity: 1; }
+
+    .cora-toast-host { left: 16px; right: 16px; }
+    .cora-bell-menu { position: fixed; top: 70px; left: 16px; right: 16px; width: auto; }
+}

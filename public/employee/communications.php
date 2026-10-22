@@ -28,7 +28,22 @@ if ($viewId) {
         }
     }
 
-    if ($communication) {
+    // Solo comunicazioni dell'azienda del dipendente
+    if ($communication && (int) ($communication['company_id'] ?? 0) !== (int) $employee['company_id']) {
+        $communication = null;
+    }
+
+    // Interfaccia Cora: le comunicazioni a priorita' alta chiedono la conferma
+    // esplicita ("Ho letto"), le altre risultano lette all'apertura
+    $__coraAck = CoraUi::enabled() && $communication && in_array($communication['priority'], ['high', 'urgent'], true);
+    if ($__coraAck && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ack') {
+        CSRF::verifyOrDie();
+        Communication::markAsRead($viewId, $employee['id']);
+        header('Location: communications.php?id=' . $viewId . '&message=ack');
+        exit;
+    }
+
+    if ($communication && !$__coraAck) {
         Communication::markAsRead($viewId, $employee['id']);
     }
 }
@@ -45,6 +60,12 @@ if ($filterPriority && in_array($filterPriority, ['high', 'normal', 'low'])) {
     $communications = array_filter($communications, function($c) use ($filterPriority) {
         return $c['priority'] === $filterPriority;
     });
+}
+
+// Interfaccia Cora (ENV EMPLOYEE_CORA_UI)
+if (CoraUi::enabled()) {
+    include __DIR__ . '/_cora/communications.inc.php';
+    exit;
 }
 
 $pageTitle = $communication ? htmlspecialchars($communication['title']) : 'Comunicazioni';

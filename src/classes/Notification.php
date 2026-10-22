@@ -62,6 +62,25 @@ class Notification
     }
 
     /**
+     * Link della notifica sul percorso attuale dell'app.
+     *
+     * Nel tempo i link sono stati salvati in forme diverse: con il PUBLIC_URL
+     * di allora ("/pamanager/public/employee/...", "/public/employee/...")
+     * oppure relativi ("/employee/..."). Si tiene solo la parte dall'area
+     * (employee, admin, ...) in poi e la si riattacca al PUBLIC_URL di oggi.
+     */
+    public static function url(?string $link): string
+    {
+        $link = trim((string) $link);
+        if ($link === '') return '';
+        if (preg_match('#/(employee|admin|admin-reparto|accountant|consulente-lavoro|superadmin)/.*$#', $link, $m)) {
+            return PUBLIC_URL . $m[0];
+        }
+        if (preg_match('#^https?://#i', $link)) return $link;
+        return PUBLIC_URL . '/' . ltrim($link, '/');
+    }
+
+    /**
      * Ottiene notifiche per un utente
      */
     public static function getByUser(string $userType, int $userId, bool $unreadOnly = false, int $limit = 20): array

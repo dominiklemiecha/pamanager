@@ -1,0 +1,9 @@
+{
+  "name": "gestionalepa-realtime",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tempo reale della chat (Socket.IO)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "socket.io": "4.8.1" }
+}

@@ -50,7 +50,7 @@ function setSecurityHeaders(?string $nonce = null): void
         'ambient-light-sensor=()',
         'autoplay=()',
         'battery=()',
-        'camera=()',
+        'camera=(self)',
         'cross-origin-isolated=()',
         'display-capture=()',
         'document-domain=()',
@@ -62,7 +62,7 @@ function setSecurityHeaders(?string $nonce = null): void
         'gyroscope=()',
         'keyboard-map=()',
         'magnetometer=()',
-        'microphone=()',
+        'microphone=(self)',
         'midi=()',
         'navigation-override=()',
         'payment=()',
@@ -109,7 +109,7 @@ function buildContentSecurityPolicy(string $nonce): string
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://rsms.me",
 
         // Immagini: stesso dominio + data URI per icone SVG/base64 + connecteed.com (logo footer)
-        "img-src 'self' data: https://chart.googleapis.com https://www.connecteed.com",
+        "img-src 'self' data: blob: https://chart.googleapis.com https://www.connecteed.com",
 
         // Font: stesso dominio + Google Fonts (Space Grotesk) + rsms.me (Inter)
         "font-src 'self' https://fonts.gstatic.com https://rsms.me",
@@ -119,7 +119,7 @@ function buildContentSecurityPolicy(string $nonce): string
         "connect-src 'self' " . $crm,
 
         // Media: solo stesso dominio (video/audio dei corsi Academy)
-        "media-src 'self'",
+        "media-src 'self' blob:",
 
         // Object/embed: disabilitato (previene Flash, PDF embedding)
         "object-src 'none'",

@@ -141,6 +141,12 @@ if (isset($_GET['message'])) {
 $employee = Employee::getById($employeeId);
 $photoUrl = !empty($employee['photo_path']) ? PUBLIC_URL . '/' . ltrim($employee['photo_path'], '/') : '';
 
+// Interfaccia Cora (ENV EMPLOYEE_CORA_UI)
+if (CoraUi::enabled()) {
+    include __DIR__ . '/_cora/profile.inc.php';
+    exit;
+}
+
 $pageTitle = 'Il mio profilo';
 include dirname(__DIR__) . '/includes/header-employee.php';
 ?>

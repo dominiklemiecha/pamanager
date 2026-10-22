@@ -59,7 +59,7 @@ Options -Indexes
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
     # Permissions Policy
-    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always set Permissions-Policy "geolocation=(), microphone=(self), camera=(self)"
 
     # HSTS: attivo solo quando la richiesta arriva davvero in HTTPS
     # (in locale su http non viene emesso, dietro Traefik si legge X-Forwarded-Proto)

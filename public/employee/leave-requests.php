@@ -54,6 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'end_time' => $_POST['end_time'] ?? '',
                 'reason' => $_POST['reason'] ?? '',
                 'notes' => $_POST['notes'] ?? '',
+                // Nell'interfaccia Cora la motivazione e' facoltativa: vale il tipo
+                ...(CoraUi::enabled() && trim((string) ($_POST['reason'] ?? '')) === ''
+                    ? ['reason' => LeaveRequest::LEAVE_TYPES[$leaveType] ?? 'Richiesta'] : []),
                 'protocol_number' => $leaveType === 'malattia' ? ($_POST['protocol_number'] ?? '') : null,
             ];
 
@@ -116,6 +119,12 @@ $filterStatus = !empty($_GET['status']) ? $_GET['status'] : null;
 
 // Carica richieste
 $requests = LeaveRequest::getByEmployee($employeeId, $filterStatus, $filterYear);
+
+// Interfaccia Cora (ENV EMPLOYEE_CORA_UI)
+if (CoraUi::enabled()) {
+    include __DIR__ . '/_cora/leave.inc.php';
+    exit;
+}
 
 $pageTitle = 'Ferie e Permessi';
 include dirname(__DIR__) . '/includes/header-employee.php';

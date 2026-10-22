@@ -90,6 +90,12 @@ foreach ($documents as $doc) {
 }
 krsort($groupedDocs);
 
+// Interfaccia Cora (ENV EMPLOYEE_CORA_UI)
+if (CoraUi::enabled()) {
+    include __DIR__ . '/_cora/documents.inc.php';
+    exit;
+}
+
 $pageTitle = 'I Miei Documenti';
 include dirname(__DIR__) . '/includes/header-employee.php';
 ?>

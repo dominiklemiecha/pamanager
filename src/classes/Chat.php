@@ -64,7 +64,9 @@ class Chat
      */
     public static function participantsOf(array $conv): array
     {
-        $out = [
+        // Gruppi: i due posti fissi tengono solo il creatore, i membri sono nell'elenco
+        $isGroup = ($conv['conv_type'] ?? 'direct') === 'group';
+        $out = $isGroup ? [] : [
             ['type' => $conv['participant1_type'], 'id' => (int) $conv['participant1_id']],
             ['type' => $conv['participant2_type'], 'id' => (int) $conv['participant2_id']],
         ];
@@ -75,7 +77,12 @@ class Chat
                      WHERE conversation_id = ? ORDER BY id",
                     [(int) $conv['id']]
                 );
+                $seen = [];
+                foreach ($out as $o) $seen[$o['type'] . ':' . $o['id']] = true;
                 foreach ($extras as $e) {
+                    $k = $e['participant_type'] . ':' . (int) $e['participant_id'];
+                    if (isset($seen[$k])) continue;
+                    $seen[$k] = true;
                     $out[] = ['type' => $e['participant_type'], 'id' => (int) $e['participant_id']];
                 }
             } catch (Throwable $e) {
@@ -99,8 +106,16 @@ class Chat
         $sql = "SELECT cc.*,
                        (SELECT COUNT(*) FROM chat_messages cm
                         WHERE cm.conversation_id = cc.id
-                          AND cm.is_read = FALSE
+                          AND " . self::unreadSql('cm', 'cr') . "
                           AND NOT (cm.sender_type = ? AND cm.sender_id = ?)$intFilter) AS unread_count,
+                       (SELECT COUNT(*) FROM chat_messages cm
+                        WHERE cm.conversation_id = cc.id
+                          AND " . self::unreadSql('cm', 'cr') . "
+                          AND cm.mentions LIKE ?
+                          AND NOT (cm.sender_type = ? AND cm.sender_id = ?)$intFilter) AS mention_count,
+                       (SELECT cm.attachment_name FROM chat_messages cm
+                        WHERE cm.conversation_id = cc.id$intFilter
+                        ORDER BY cm.created_at DESC, cm.id DESC LIMIT 1) AS last_attachment,
                        (SELECT cm.message FROM chat_messages cm
                         WHERE cm.conversation_id = cc.id$intFilter
                         ORDER BY cm.created_at DESC LIMIT 1) AS last_message,
@@ -108,9 +123,10 @@ class Chat
                         WHERE cm.conversation_id = cc.id$intFilter
                         ORDER BY cm.created_at DESC LIMIT 1) AS last_message_time
                 FROM chat_conversations cc
+                LEFT JOIN chat_reads cr ON cr.conversation_id = cc.id AND cr.user_type = ? AND cr.user_id = ?
                 WHERE cc.company_id = ?
-                  AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
-                       OR (cc.participant2_type = ? AND cc.participant2_id = ?)
+                  AND ((cc.conv_type <> 'group' AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
+                       OR (cc.participant2_type = ? AND cc.participant2_id = ?)))
                        OR EXISTS (SELECT 1 FROM chat_extra_participants ep
                                   WHERE ep.conversation_id = cc.id
                                     AND ep.participant_type = ? AND ep.participant_id = ?))
@@ -118,6 +134,8 @@ class Chat
 
         $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
         $conversations = Database::fetchAll($sql, [
+            $userType, $userId,
+            '%"' . $userType . ':' . $userId . '"%', $userType, $userId,
             $userType, $userId,
             $cid,
             $userType, $userId,
@@ -138,6 +156,7 @@ class Chat
             $conv['other_type'] = $primary['type'];
             $conv['other_id']   = $primary['id'];
             $conv['other_name'] = self::getParticipantName($primary['type'], $primary['id']);
+            $conv['others'] = $others;
             $conv['other_photo'] = self::getParticipantPhoto($primary['type'], $primary['id']);
             // Altri partecipanti oltre al principale (per header/lista chat a 3)
             $conv['extra_participants'] = [];
@@ -148,9 +167,32 @@ class Chat
         }
         unset($conv);
 
+        // Preferenze dell'utente: fissate in alto ed "elimina per me"
+        // (una chat eliminata ricompare quando arriva un nuovo messaggio).
+        $prefs = self::getPrefs($userType, $userId);
+        foreach ($conversations as &$conv) {
+            $pr = $prefs[(int) $conv['id']] ?? null;
+            $conv['pinned_at'] = $pr['pinned_at'] ?? null;
+            $conv['hidden_at'] = $pr['hidden_at'] ?? null;
+        }
+        unset($conv);
+        $conversations = array_values(array_filter($conversations, function ($conv) {
+            if (empty($conv['hidden_at'])) return true;
+            return !empty($conv['last_message_time']) && strtotime($conv['last_message_time']) > strtotime($conv['hidden_at']);
+        }));
+        usort($conversations, function ($a, $b) {
+            $pa = $a['pinned_at'] ?? null;
+            $pb = $b['pinned_at'] ?? null;
+            if ($pa && !$pb) return -1;
+            if ($pb && !$pa) return 1;
+            if ($pa && $pb) return strcmp($pb, $pa);
+            return strcmp($b['last_message_at'] ?? $b['created_at'] ?? '', $a['last_message_at'] ?? $a['created_at'] ?? '');
+        });
+
         // Conversazioni con dipendenti DISATTIVATI: nascoste dalla chat
         // (riappaiono se il dipendente viene riattivato).
         $conversations = array_values(array_filter($conversations, function ($conv) {
+            if (($conv['conv_type'] ?? 'direct') === 'group') return true;
             if ($conv['other_type'] !== 'employee') return true;
             $emp = Employee::getById((int) $conv['other_id']);
             return $emp && !empty($emp['is_active']);
@@ -185,8 +227,8 @@ class Chat
             "SELECT * FROM chat_conversations cc
              WHERE cc.id = ?
                AND (
-                  (cc.participant1_type = ? AND cc.participant1_id = ?)
-                  OR (cc.participant2_type = ? AND cc.participant2_id = ?)
+                  (cc.conv_type <> 'group' AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
+                  OR (cc.participant2_type = ? AND cc.participant2_id = ?)))
                   OR EXISTS (SELECT 1 FROM chat_extra_participants ep
                              WHERE ep.conversation_id = cc.id
                                AND ep.participant_type = ? AND ep.participant_id = ?)
@@ -330,7 +372,11 @@ class Chat
         ?string $attachmentName = null,
         ?int $attachmentSize = null,
         ?string $attachmentMime = null,
-        bool $isInternal = false
+        bool $isInternal = false,
+        ?int $replyToId = null,
+        bool $forwarded = false,
+        ?string $clientId = null,
+        array $mentions = []
     ): array {
         if (empty(trim($message)) && empty($attachmentPath)) {
             return ['success' => false, 'error' => 'Messaggio vuoto'];
@@ -361,8 +407,36 @@ class Chat
             $isInternal = false;
         }
 
+        // Stesso invio ripetuto (rete caduta a meta'): si restituisce quello gia' salvato
+        if ($clientId !== null && !preg_match('/^[A-Za-z0-9_-]{8,64}$/', $clientId)) $clientId = null;
+        if ($clientId) {
+            $gia = Database::fetchColumn(
+                "SELECT id FROM chat_messages WHERE conversation_id = ? AND sender_type = ? AND sender_id = ? AND client_id = ?",
+                [$conversationId, $senderType, $senderId, $clientId]
+            );
+            if ($gia) return ['success' => true, 'id' => (int) $gia, 'duplicate' => true];
+        }
+
+        // La risposta deve citare un messaggio della stessa conversazione
+        if ($replyToId) {
+            $ok = Database::fetchColumn(
+                "SELECT COUNT(*) FROM chat_messages WHERE id = ? AND conversation_id = ?",
+                [$replyToId, $conversationId]
+            );
+            if (!$ok) $replyToId = null;
+        }
+
         try {
-            $msgId = Database::insert('chat_messages', [
+            $extra = [];
+            if ($replyToId) $extra['reply_to_id'] = $replyToId;
+            if ($forwarded) $extra['forwarded'] = 1;
+            if ($clientId) $extra['client_id'] = $clientId;
+            // Solo membri della conversazione
+            $validi = [];
+            foreach (self::participantsOf($conv) as $pp) $validi[$pp['type'] . ':' . $pp['id']] = true;
+            $mentions = array_values(array_unique(array_filter($mentions, fn($k) => isset($validi[$k]) && $k !== $senderType . ':' . $senderId)));
+            if ($mentions) $extra['mentions'] = json_encode($mentions);
+            $msgId = Database::insert('chat_messages', $extra + [
                 'company_id' => (int)($conv['company_id'] ?? (class_exists('Tenant') ? Tenant::currentCompanyId() : 1)),
                 'conversation_id' => $conversationId,
                 'sender_type' => $senderType,
@@ -381,9 +455,40 @@ class Chat
                 'last_message_at' => date('Y-m-d H:i:s')
             ], 'id = ?', [$conversationId]);
 
+            // Il mittente ha letto fino al suo messaggio
+            try {
+                Database::query(
+                    "INSERT INTO chat_reads (conversation_id, user_type, user_id, last_read_at) VALUES (?, ?, ?, NOW())
+                     ON DUPLICATE KEY UPDATE last_read_at = NOW()",
+                    [$conversationId, $senderType, $senderId]
+                );
+            } catch (Throwable $e) {}
+
+            // Tempo reale: il messaggio a tutti i partecipanti, con "mine" giusto per ciascuno
+            $cidMsg = (int) ($conv['company_id'] ?? 0);
+            if (class_exists('Realtime') && Realtime::enabled()) {
+                try {
+                    $row = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [$msgId]);
+                    $per = [];
+                    foreach (self::participantsOf($conv) as $pp) {
+                        if ($isInternal && $pp['type'] === 'employee') continue;
+                        $sub = $pp['type'] . ':' . $pp['id'];
+                        $mine = $pp['type'] === $senderType && $pp['id'] === $senderId;
+                        $per[$sub] = [
+                            'conversationId' => $conversationId,
+                            'clientId'       => $mine ? $clientId : null,
+                            'message'        => CoraChat::messages([$row], $pp['type'], $pp['id'])[0] ?? null,
+                        ];
+                    }
+                    Realtime::emitEach($cidMsg, 'chat.message.created', $per);
+                } catch (Throwable $e) {
+                    error_log('[Chat] realtime: ' . $e->getMessage());
+                }
+            }
+
             // Crea notifica per gli altri partecipanti (ignora errori)
             try {
-                self::createMessageNotification($conv, $senderType, $senderId, $message, $isInternal);
+                self::createMessageNotification($conv, $senderType, $senderId, $message, $isInternal, $mentions);
             } catch (Exception $notifErr) {
                 // Ignora errori notifica, il messaggio è già stato inviato
                 error_log('Chat notification error: ' . $notifErr->getMessage());
@@ -401,11 +506,38 @@ class Chat
      */
     public static function markAsRead(int $conversationId, string $readerType, int $readerId): void
     {
+        // Fin dove ha letto questa persona ("Visto da" e non letti nei gruppi)
+        $prima = null;
+        try {
+            $prima = Database::fetchColumn(
+                "SELECT last_read_at FROM chat_reads WHERE conversation_id = ? AND user_type = ? AND user_id = ?",
+                [$conversationId, $readerType, $readerId]
+            );
+            $ultimo = Database::fetchColumn(
+                "SELECT MAX(created_at) FROM chat_messages WHERE conversation_id = ? AND NOT (sender_type = ? AND sender_id = ?)",
+                [$conversationId, $readerType, $readerId]
+            );
+            $adesso = date('Y-m-d H:i:s');
+            Database::query(
+                "INSERT INTO chat_reads (conversation_id, user_type, user_id, last_read_at) VALUES (?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE last_read_at = VALUES(last_read_at)",
+                [$conversationId, $readerType, $readerId, $adesso]
+            );
+            // Agli altri arriva la spunta solo se c'era davvero qualcosa di nuovo da leggere
+            if ($ultimo && (!$prima || strtotime($ultimo) > strtotime((string) $prima))) {
+                self::emitToConversation($conversationId, 'chat.conversation.read', function () use ($conversationId, $readerType, $readerId, $adesso) {
+                    return ['conversationId' => $conversationId, 'userId' => $readerType . ':' . $readerId, 'readAt' => date('c', strtotime($adesso))];
+                });
+            }
+        } catch (Throwable $e) {
+            // tabella chat_reads non ancora migrata: resta il flag is_read
+        }
+
         // Il dipendente non vede (e non deve "leggere") i messaggi interni dello staff
         $intFilter = $readerType === 'employee' ? ' AND is_internal = 0' : '';
         Database::query(
             "UPDATE chat_messages
-             SET is_read = TRUE
+             SET is_read = TRUE, read_at = NOW()
              WHERE conversation_id = ?
                AND NOT (sender_type = ? AND sender_id = ?)
                AND is_read = FALSE$intFilter",
@@ -423,20 +555,30 @@ class Chat
         return (int) Database::fetchColumn(
             "SELECT COUNT(*) FROM chat_messages cm
              JOIN chat_conversations cc ON cm.conversation_id = cc.id
+             LEFT JOIN chat_reads cr ON cr.conversation_id = cc.id AND cr.user_type = ? AND cr.user_id = ?
              WHERE cc.company_id = ?
-               AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
-                    OR (cc.participant2_type = ? AND cc.participant2_id = ?)
+               AND ((cc.conv_type <> 'group' AND ((cc.participant1_type = ? AND cc.participant1_id = ?)
+                    OR (cc.participant2_type = ? AND cc.participant2_id = ?)))
                     OR EXISTS (SELECT 1 FROM chat_extra_participants ep
                                WHERE ep.conversation_id = cc.id
                                  AND ep.participant_type = ? AND ep.participant_id = ?))
                AND NOT (cm.sender_type = ? AND cm.sender_id = ?)
-               AND cm.is_read = FALSE$intFilter
+               AND " . self::unreadSql('cm', 'cr') . "$intFilter
+               AND NOT EXISTS (SELECT 1 FROM chat_conversation_prefs hp
+                               WHERE hp.conversation_id = cc.id AND hp.user_type = ? AND hp.user_id = ?
+                                 AND hp.hidden_at IS NOT NULL AND hp.hidden_at >= cm.created_at)
                AND NOT EXISTS (SELECT 1 FROM employees ei
                                WHERE ei.is_active = FALSE
                                  AND ((cc.participant1_type = 'employee' AND cc.participant1_id = ei.id)
                                       OR (cc.participant2_type = 'employee' AND cc.participant2_id = ei.id)))",
-            [$cid, $userType, $userId, $userType, $userId, $userType, $userId, $userType, $userId]
+            [$userType, $userId, $cid, $userType, $userId, $userType, $userId, $userType, $userId, $userType, $userId, $userType, $userId]
         );
+    }
+
+    /** Messaggio non letto da chi ha la riga $r in chat_reads (senza riga: vecchio flag is_read). */
+    private static function unreadSql(string $m, string $r): string
+    {
+        return "(($r.last_read_at IS NULL AND $m.is_read = 0) OR ($r.last_read_at IS NOT NULL AND $m.created_at > $r.last_read_at))";
     }
 
     /**
@@ -603,7 +745,8 @@ class Chat
         string $senderType,
         int $senderId,
         string $message,
-        bool $isInternal = false
+        bool $isInternal = false,
+        array $mentions = []
     ): void {
         // Destinatari: tutti i partecipanti tranne il mittente.
         // I messaggi interni non arrivano MAI al dipendente.
@@ -612,9 +755,18 @@ class Chat
             if ($isInternal && $p['type'] === 'employee') return false;
             return true;
         }));
+        // Chi ha la chat aperta in primo piano non riceve il push del telefono (come nel CRM)
+        $guardano = [];
+        if (class_exists('Realtime') && Realtime::enabled()) {
+            $subs = array_map(fn($r) => $r['type'] . ':' . $r['id'], $recipients);
+            foreach (Realtime::viewing((int) ($conversation['company_id'] ?? 0), (int) $conversation['id'], $subs) as $sub => $st) {
+                if (!empty($st['guarda'])) $guardano[$sub] = true;
+            }
+        }
         foreach ($recipients as $r) {
             try {
-                self::notifyRecipient($conversation, $senderType, $senderId, $message, $r['type'], $r['id'], $isInternal);
+                $sub = $r['type'] . ':' . $r['id'];
+                self::notifyRecipient($conversation, $senderType, $senderId, $message, $r['type'], $r['id'], $isInternal, in_array($sub, $mentions, true), isset($guardano[$sub]));
             } catch (Throwable $e) {
                 error_log('[Chat] notifyRecipient error: ' . $e->getMessage());
             }
@@ -631,7 +783,9 @@ class Chat
         string $message,
         string $recipientType,
         int $recipientId,
-        bool $isInternal = false
+        bool $isInternal = false,
+        bool $mentioned = false,
+        bool $viewing = false
     ): void {
         $senderName = self::getParticipantName($senderType, $senderId);
         $preview = mb_strlen($message) > 50 ? mb_substr($message, 0, 47) . '...' : $message;
@@ -639,6 +793,10 @@ class Chat
         // Le note interne (solo staff) hanno un titolo distinto, così non si
         // confondono con i messaggi normali della conversazione col dipendente.
         $notifTitle = ($isInternal ? 'Nota interna da ' : 'Nuovo messaggio da ') . $senderName;
+        if ($mentioned) $notifTitle = $senderName . ' ti ha menzionato';
+        if (($conversation['conv_type'] ?? '') === 'group' && !empty($conversation['name'])) {
+            $notifTitle .= ' · ' . $conversation['name'];
+        }
 
         // Notifica in-app (database)
         Notification::create([
@@ -660,8 +818,8 @@ class Chat
             }
         }
 
-        // Push notification (browser)
-        try {
+        // Push notification (browser): non a chi sta gia' leggendo questa chat
+        if (!$viewing) try {
             error_log('[Chat] Invio push a ' . $recipientType . ' #' . $recipientId);
             $pushResult = PushNotification::sendToUser($recipientType, (int)$recipientId, [
                 'title' => $notifTitle,
@@ -755,7 +913,7 @@ class Chat
             return ['success' => false, 'error' => 'File troppo grande (max 20MB)'];
         }
 
-        $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'odt', 'ods', 'zip'];
+        $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'odt', 'ods', 'zip', 'webm', 'ogg', 'm4a', 'mp3', 'mp4', 'wav'];
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($extension, $allowedExt, true)) {
             return ['success' => false, 'error' => 'Estensione non consentita (.' . $extension . ')'];
@@ -821,5 +979,475 @@ class Chat
             'filename' => $msg['attachment_name'] ?? basename($msg['attachment_path']),
             'mime' => $msg['attachment_mime'] ?? 'application/octet-stream',
         ];
+    }
+
+    /** Minuti entro cui si puo' modificare un proprio messaggio */
+    public const EDIT_MINUTES = 15;
+
+    /**
+     * Preferenze per conversazione dell'utente: [conversation_id => row]
+     */
+    public static function getPrefs(string $userType, int $userId): array
+    {
+        try {
+            $rows = Database::fetchAll(
+                "SELECT conversation_id, pinned_at, hidden_at FROM chat_conversation_prefs
+                 WHERE user_type = ? AND user_id = ?",
+                [$userType, $userId]
+            );
+        } catch (Throwable $e) {
+            return []; // migration 064 non ancora applicata
+        }
+        $out = [];
+        foreach ($rows as $r) $out[(int) $r['conversation_id']] = $r;
+        return $out;
+    }
+
+    /**
+     * Imposta pinned_at / hidden_at (null per togliere) per l'utente.
+     */
+    public static function setPref(int $conversationId, string $userType, int $userId, string $field, ?string $value): void
+    {
+        if (!in_array($field, ['pinned_at', 'hidden_at'], true)) return;
+        Database::query(
+            "INSERT INTO chat_conversation_prefs (conversation_id, user_type, user_id, $field)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE $field = VALUES($field)",
+            [$conversationId, $userType, $userId, $value]
+        );
+    }
+
+    /**
+     * Segna come letti i messaggi di tutte le conversazioni dell'utente.
+     */
+    public static function markAllAsRead(string $userType, int $userId): void
+    {
+        foreach (self::getConversations($userType, $userId) as $c) {
+            if ((int) ($c['unread_count'] ?? 0) > 0) {
+                self::markAsRead((int) $c['id'], $userType, $userId);
+            }
+        }
+    }
+
+    /**
+     * Pagina di messaggi in ordine cronologico.
+     * $beforeId: i precedenti a quel messaggio; $afterId: solo i successivi (aggiornamento).
+     */
+    public static function getMessagesPage(int $conversationId, bool $includeInternal, ?int $beforeId = null, ?int $afterId = null, int $limit = 50): array
+    {
+        $where = 'conversation_id = ?';
+        $params = [$conversationId];
+        if (!$includeInternal) $where .= ' AND is_internal = 0';
+        if ($afterId) {
+            $where .= ' AND id > ?';
+            $params[] = $afterId;
+            return Database::fetchAll("SELECT * FROM chat_messages WHERE $where ORDER BY id ASC LIMIT 200", $params);
+        }
+        if ($beforeId) {
+            $where .= ' AND id < ?';
+            $params[] = $beforeId;
+        }
+        $params[] = $limit;
+        return array_reverse(Database::fetchAll("SELECT * FROM chat_messages WHERE $where ORDER BY id DESC LIMIT ?", $params));
+    }
+
+    /**
+     * Messaggio di una conversazione a cui l'utente partecipa (null se non accessibile).
+     */
+    public static function getAccessibleMessage(int $messageId, string $userType, int $userId): ?array
+    {
+        $msg = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [$messageId]);
+        if (!$msg || !self::isParticipant((int) $msg['conversation_id'], $userType, $userId)) return null;
+        if (!empty($msg['is_internal']) && $userType === 'employee') return null;
+        return $msg;
+    }
+
+    /**
+     * Aggiunge o toglie la reazione dell'utente con quell'emoji.
+     */
+    public static function toggleReaction(int $messageId, string $userType, int $userId, string $emoji): array
+    {
+        $emoji = trim($emoji);
+        if ($emoji === '' || mb_strlen($emoji) > 16) return ['success' => false, 'error' => 'Reazione non valida'];
+        $msg = self::getAccessibleMessage($messageId, $userType, $userId);
+        if (!$msg) return ['success' => false, 'error' => 'Messaggio non trovato'];
+
+        $me = $userType . ':' . $userId;
+        $reactions = json_decode((string) ($msg['reactions'] ?? ''), true) ?: [];
+        $list = $reactions[$emoji] ?? [];
+        if (in_array($me, $list, true)) {
+            $list = array_values(array_diff($list, [$me]));
+        } else {
+            $list[] = $me;
+        }
+        if ($list) $reactions[$emoji] = $list; else unset($reactions[$emoji]);
+        Database::update('chat_messages', ['reactions' => $reactions ? json_encode($reactions, JSON_UNESCAPED_UNICODE) : null], 'id = ?', [$messageId]);
+        self::emitMessageUpdated($messageId);
+        return ['success' => true, 'reactions' => $reactions];
+    }
+
+    /**
+     * Modifica il testo di un proprio messaggio entro EDIT_MINUTES minuti.
+     */
+    public static function editMessage(int $messageId, string $userType, int $userId, string $text): array
+    {
+        $text = trim($text);
+        if ($text === '') return ['success' => false, 'error' => 'Il messaggio non può essere vuoto'];
+        $msg = self::getAccessibleMessage($messageId, $userType, $userId);
+        if (!$msg || $msg['sender_type'] !== $userType || (int) $msg['sender_id'] !== $userId) {
+            return ['success' => false, 'error' => 'Puoi modificare solo i tuoi messaggi'];
+        }
+        if (time() - strtotime($msg['created_at']) > self::EDIT_MINUTES * 60) {
+            return ['success' => false, 'error' => 'Il tempo per modificare il messaggio è scaduto'];
+        }
+        Database::update('chat_messages', ['message' => $text, 'edited_at' => date('Y-m-d H:i:s')], 'id = ?', [$messageId]);
+        self::emitMessageUpdated($messageId);
+        return ['success' => true];
+    }
+
+    /**
+     * Elimina un proprio messaggio per tutti, solo finche' nessuno l'ha letto.
+     */
+    public static function deleteMessage(int $messageId, string $userType, int $userId): array
+    {
+        $msg = self::getAccessibleMessage($messageId, $userType, $userId);
+        if (!$msg || $msg['sender_type'] !== $userType || (int) $msg['sender_id'] !== $userId) {
+            return ['success' => false, 'error' => 'Puoi eliminare solo i tuoi messaggi'];
+        }
+        if (!empty($msg['is_read']) || self::seenCount($msg) > 0) {
+            return ['success' => false, 'error' => 'Il messaggio è già stato letto'];
+        }
+        Database::delete('chat_messages', 'id = ?', [$messageId]);
+        if (!empty($msg['attachment_path']) && is_file($msg['attachment_path'])) {
+            @unlink($msg['attachment_path']);
+        }
+        $convId = (int) $msg['conversation_id'];
+        self::emitToConversation($convId, 'chat.message.deleted', fn() => ['conversationId' => $convId, 'messageId' => $messageId]);
+        return ['success' => true];
+    }
+
+    /**
+     * Inoltra un messaggio (testo e allegato) in altre conversazioni dell'utente.
+     */
+    public static function forwardMessage(int $messageId, string $userType, int $userId, array $conversationIds): array
+    {
+        $msg = self::getAccessibleMessage($messageId, $userType, $userId);
+        if (!$msg) return ['success' => false, 'error' => 'Messaggio non trovato'];
+        $sent = 0;
+        foreach (array_unique(array_map('intval', $conversationIds)) as $convId) {
+            if (!$convId || !self::isParticipant($convId, $userType, $userId)) continue;
+            $path = null;
+            if (str_starts_with((string) $msg['attachment_path'], 'giphy:')) {
+                $path = $msg['attachment_path'];
+            } elseif (!empty($msg['attachment_path']) && is_file($msg['attachment_path'])) {
+                $dir = STORAGE_PATH . '/chat-attachments/' . $convId;
+                if (!is_dir($dir)) mkdir($dir, 0755, true);
+                $path = $dir . '/' . bin2hex(random_bytes(12)) . '.' . strtolower(pathinfo($msg['attachment_path'], PATHINFO_EXTENSION));
+                if (!copy($msg['attachment_path'], $path)) $path = null;
+            }
+            $r = self::sendMessage(
+                $convId, $userType, $userId, (string) $msg['message'],
+                $path, $path ? $msg['attachment_name'] : null, $path ? (int) $msg['attachment_size'] : null, $path ? $msg['attachment_mime'] : null,
+                false, null, true
+            );
+            if (!empty($r['success'])) $sent++;
+        }
+        return $sent ? ['success' => true, 'sent' => $sent] : ['success' => false, 'error' => 'Nessuna chat valida'];
+    }
+
+    // ─── Tempo reale ──────────────────────────────────────────────────────────
+
+    /**
+     * Evento a tutti i partecipanti della conversazione. $data riceve
+     * (type, id) del destinatario, cosi' il contenuto puo' cambiare per persona.
+     */
+    public static function emitToConversation(int $conversationId, string $type, callable $data): void
+    {
+        if (!class_exists('Realtime') || !Realtime::enabled()) return;
+        try {
+            $conv = Database::fetchOne("SELECT * FROM chat_conversations WHERE id = ?", [$conversationId]);
+            if (!$conv) return;
+            $per = [];
+            foreach (self::participantsOf($conv) as $p) {
+                $d = $data($p['type'], $p['id']);
+                if ($d !== null) $per[$p['type'] . ':' . $p['id']] = $d;
+            }
+            Realtime::emitEach((int) $conv['company_id'], $type, $per);
+        } catch (Throwable $e) {
+            error_log('[Chat] realtime: ' . $e->getMessage());
+        }
+    }
+
+    /** Testo, modifica o reazioni cambiati: il messaggio aggiornato a ciascuno. */
+    public static function emitMessageUpdated(int $messageId): void
+    {
+        $row = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [$messageId]);
+        if (!$row) return;
+        self::emitToConversation((int) $row['conversation_id'], 'chat.message.updated', function ($t, $id) use ($row) {
+            if (!empty($row['is_internal']) && $t === 'employee') return null;
+            return ['conversationId' => (int) $row['conversation_id'], 'message' => CoraChat::messages([$row], $t, $id)[0] ?? null];
+        });
+    }
+
+    /** L'elenco chat di queste persone e' cambiato (nuova chat, membri, foto, fissata). */
+    public static function emitChanged(int $conversationId, array $extraSubs = []): void
+    {
+        if (!class_exists('Realtime') || !Realtime::enabled()) return;
+        $conv = Database::fetchOne("SELECT * FROM chat_conversations WHERE id = ?", [$conversationId]);
+        if (!$conv) return;
+        $subs = $extraSubs;
+        foreach (self::participantsOf($conv) as $p) $subs[] = $p['type'] . ':' . $p['id'];
+        Realtime::emit((int) $conv['company_id'], 'chat.conversation.changed', $subs, ['conversationId' => $conversationId]);
+    }
+
+    // ─── Letture ──────────────────────────────────────────────────────────────
+
+    /**
+     * Chi, oltre al mittente, ha letto il messaggio e quando:
+     * [ ['type','id','seen_at'] ]. Senza riga in chat_reads vale il vecchio is_read.
+     */
+    public static function seenBy(array $msg, ?array $conv = null, ?array $reads = null): array
+    {
+        $conv = $conv ?? Database::fetchOne("SELECT * FROM chat_conversations WHERE id = ?", [(int) $msg['conversation_id']]);
+        if (!$conv) return [];
+        if ($reads === null) $reads = self::readsOf((int) $msg['conversation_id']);
+        $out = [];
+        $created = strtotime((string) $msg['created_at']);
+        foreach (self::participantsOf($conv) as $p) {
+            if ($p['type'] === $msg['sender_type'] && $p['id'] === (int) $msg['sender_id']) continue;
+            if (!empty($msg['is_internal']) && $p['type'] === 'employee') continue;
+            $k = $p['type'] . ':' . $p['id'];
+            if (isset($reads[$k])) {
+                if (strtotime($reads[$k]) >= $created) $out[] = ['type' => $p['type'], 'id' => $p['id'], 'seen_at' => $reads[$k]];
+            } elseif (!empty($msg['is_read']) && ($conv['conv_type'] ?? 'direct') !== 'group') {
+                $out[] = ['type' => $p['type'], 'id' => $p['id'], 'seen_at' => $msg['read_at'] ?? null];
+            }
+        }
+        return $out;
+    }
+
+    /** [ "type:id" => last_read_at ] della conversazione. */
+    public static function readsOf(int $conversationId): array
+    {
+        $out = [];
+        try {
+            foreach (Database::fetchAll("SELECT user_type, user_id, last_read_at FROM chat_reads WHERE conversation_id = ?", [$conversationId]) as $r) {
+                $out[$r['user_type'] . ':' . $r['user_id']] = $r['last_read_at'];
+            }
+        } catch (Throwable $e) {}
+        return $out;
+    }
+
+    private static function seenCount(array $msg): int
+    {
+        return count(self::seenBy($msg));
+    }
+
+    // ─── Gruppi ───────────────────────────────────────────────────────────────
+
+    /**
+     * Nuovo gruppo: nome e almeno un'altra persona. I due posti fissi tengono
+     * il creatore, i membri (creatore compreso) stanno nell'elenco dei partecipanti.
+     */
+    public static function createGroup(string $byType, int $byId, ?int $deptId, string $name, array $members): array
+    {
+        $name = trim(mb_substr($name, 0, 120));
+        if ($name === '') return ['success' => false, 'error' => 'Dai un nome al gruppo'];
+        $valid = [];
+        foreach ($members as $m) {
+            [$t, $i] = array_pad(explode(':', (string) $m, 2), 2, 0);
+            $i = (int) $i;
+            if (!$t || !$i || ($t === $byType && $i === $byId)) continue;
+            if (!self::canContact($byType, $byId, $deptId, $t, $i)) continue;
+            $valid[$t . ':' . $i] = [$t, $i];
+        }
+        if (!$valid) return ['success' => false, 'error' => 'Scegli almeno una persona'];
+        $cid = class_exists('Tenant') ? Tenant::currentCompanyId() : 1;
+        $convId = Database::insert('chat_conversations', [
+            'company_id'        => $cid,
+            'participant1_type' => $byType,
+            'participant1_id'   => $byId,
+            'participant2_type' => $byType,
+            'participant2_id'   => $byId,
+            'conv_type'         => 'group',
+            'name'              => $name,
+            'created_by'        => $byType . ':' . $byId,
+            'group_key'         => bin2hex(random_bytes(10)),
+            'last_message_at'   => date('Y-m-d H:i:s'),
+        ]);
+        foreach (array_merge([[$byType, $byId]], array_values($valid)) as [$t, $i]) {
+            Database::insert('chat_extra_participants', [
+                'conversation_id'  => $convId,
+                'participant_type' => $t,
+                'participant_id'   => $i,
+                'added_by_type'    => $byType,
+                'added_by_id'      => $byId,
+            ]);
+        }
+        self::emitChanged($convId);
+        return ['success' => true, 'id' => $convId];
+    }
+
+    /** Il gruppo lo gestisce chi l'ha creato (e l'HR). */
+    public static function canManageGroup(array $conv, string $type, int $id): bool
+    {
+        if (($conv['conv_type'] ?? '') !== 'group') return false;
+        return ($conv['created_by'] ?? '') === $type . ':' . $id || $type === 'admin';
+    }
+
+    /** Aggiungere persone: chiunque faccia parte del gruppo. */
+    public static function addGroupMembers(int $convId, string $byType, int $byId, ?int $deptId, array $members): array
+    {
+        $conv = self::isParticipant($convId, $byType, $byId);
+        if (!$conv || ($conv['conv_type'] ?? '') !== 'group') return ['success' => false, 'error' => 'Gruppo non trovato'];
+        $gia = [];
+        foreach (self::participantsOf($conv) as $p) $gia[$p['type'] . ':' . $p['id']] = true;
+        $n = 0;
+        foreach ($members as $m) {
+            [$t, $i] = array_pad(explode(':', (string) $m, 2), 2, 0);
+            $i = (int) $i;
+            if (!$t || !$i || isset($gia[$t . ':' . $i])) continue;
+            if (!self::canContact($byType, $byId, $deptId, $t, $i)) continue;
+            Database::insert('chat_extra_participants', [
+                'conversation_id' => $convId, 'participant_type' => $t, 'participant_id' => $i,
+                'added_by_type' => $byType, 'added_by_id' => $byId,
+            ]);
+            $gia[$t . ':' . $i] = true;
+            $n++;
+        }
+        if (!$n) return ['success' => false, 'error' => 'Nessuna persona da aggiungere'];
+        self::emitChanged($convId);
+        return ['success' => true];
+    }
+
+    /** Togliere una persona: chi gestisce il gruppo; uscire: chiunque, da se'. */
+    public static function removeGroupMember(int $convId, string $byType, int $byId, string $remType, int $remId): array
+    {
+        $conv = self::isParticipant($convId, $byType, $byId);
+        if (!$conv || ($conv['conv_type'] ?? '') !== 'group') return ['success' => false, 'error' => 'Gruppo non trovato'];
+        $self = $remType === $byType && $remId === $byId;
+        if (!$self && !self::canManageGroup($conv, $byType, $byId)) return ['success' => false, 'error' => 'Solo chi ha creato il gruppo può togliere persone'];
+        if (!$self && ($conv['created_by'] ?? '') === $remType . ':' . $remId) return ['success' => false, 'error' => 'Chi ha creato il gruppo non si può togliere'];
+        $prima = [];
+        foreach (self::participantsOf($conv) as $p) $prima[] = $p['type'] . ':' . $p['id'];
+        Database::delete('chat_extra_participants', 'conversation_id = ? AND participant_type = ? AND participant_id = ?', [$convId, $remType, $remId]);
+        $resto = (int) Database::fetchColumn("SELECT COUNT(*) FROM chat_extra_participants WHERE conversation_id = ?", [$convId]);
+        if ($resto === 0) {
+            Database::delete('chat_conversations', 'id = ?', [$convId]);
+            return ['success' => true];
+        }
+        self::emitChanged($convId, $prima);
+        return ['success' => true];
+    }
+
+    /** Foto del gruppo (immagine ridotta dal browser), solo per chi lo gestisce. */
+    public static function setGroupAvatar(int $convId, string $byType, int $byId, array $file): array
+    {
+        $conv = self::isParticipant($convId, $byType, $byId);
+        if (!$conv || !self::canManageGroup($conv, $byType, $byId)) return ['success' => false, 'error' => 'Non puoi cambiare la foto di questo gruppo'];
+        if (($file['error'] ?? 1) !== UPLOAD_ERR_OK || $file['size'] > 8 * 1024 * 1024) return ['success' => false, 'error' => 'Immagine troppo grande (max 8MB)'];
+        $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$mime] ?? null;
+        if (!$ext) return ['success' => false, 'error' => 'Seleziona un\'immagine'];
+        $dir = STORAGE_PATH . '/chat-attachments/' . $convId;
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $path = $dir . '/gruppo-' . bin2hex(random_bytes(8)) . '.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $path)) return ['success' => false, 'error' => 'Errore salvataggio'];
+        if (!empty($conv['avatar_path']) && is_file($conv['avatar_path'])) @unlink($conv['avatar_path']);
+        Database::update('chat_conversations', ['avatar_path' => $path], 'id = ?', [$convId]);
+        self::emitChanged($convId);
+        return ['success' => true];
+    }
+
+    // ─── Presenza (stile Teams, come nel CRM) ─────────────────────────────────
+
+    public const PRESENCE_OFFLINE_AFTER = 120;   // secondi senza segnale: app chiusa
+    public const PRESENCE_AWAY_AFTER = 300;      // app aperta ma ferma: assente
+
+    public static function presenceState(?array $p, ?int $now = null): string
+    {
+        $now = $now ?? time();
+        if (!$p || empty($p['last_seen_at']) || $now - strtotime($p['last_seen_at']) > self::PRESENCE_OFFLINE_AFTER) return 'offline';
+        if (($p['manual_status'] ?? null) === 'non_disturbare') return 'non_disturbare';
+        if (!empty($p['in_call_until']) && strtotime($p['in_call_until']) > $now) return 'in_chiamata';
+        if (!empty($p['manual_status'])) return $p['manual_status'];
+        if (empty($p['last_active_at']) || $now - strtotime($p['last_active_at']) > self::PRESENCE_AWAY_AFTER) return 'assente';
+        return 'online';
+    }
+
+    private static function presenceRow(int $cid, string $type, int $id): ?array
+    {
+        return Database::fetchOne("SELECT * FROM chat_presence WHERE company_id = ? AND user_type = ? AND user_id = ?", [$cid, $type, $id]) ?: null;
+    }
+
+    /** Segnale dall'app aperta (ogni 45 secondi). "In chiamata" segue lo stato del dipendente. */
+    public static function presencePing(string $type, int $id, bool $active): array
+    {
+        $cid = class_exists('Tenant') ? (int) Tenant::currentCompanyId() : 1;
+        $prima = self::presenceRow($cid, $type, $id);
+        $statoPrima = self::presenceState($prima);
+        $inCall = false;
+        if ($type === 'employee') {
+            $inCall = Database::fetchColumn("SELECT availability_status FROM employees WHERE id = ?", [$id]) === 'in_call';
+        }
+        $now = date('Y-m-d H:i:s');
+        Database::query(
+            "INSERT INTO chat_presence (company_id, user_type, user_id, last_seen_at, last_active_at, in_call_until)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE last_seen_at = VALUES(last_seen_at),
+                 last_active_at = COALESCE(VALUES(last_active_at), last_active_at),
+                 in_call_until = VALUES(in_call_until)",
+            [$cid, $type, $id, $now, ($active || $inCall) ? $now : null, $inCall ? date('Y-m-d H:i:s', time() + 90) : null]
+        );
+        $dopo = self::presenceRow($cid, $type, $id);
+        $stato = self::presenceState($dopo);
+        if ($stato !== $statoPrima) self::emitPresence($cid, $type, $id, $stato, $dopo['last_seen_at'] ?? null);
+        return ['stato' => $stato, 'manuale' => $dopo['manual_status'] ?? null];
+    }
+
+    /** Stato scelto a mano; null torna all'automatico. */
+    public static function presenceSetStatus(string $type, int $id, ?string $stato): array
+    {
+        if ($stato !== null && !in_array($stato, ['occupato', 'non_disturbare', 'assente'], true)) return ['success' => false, 'error' => 'Stato non valido'];
+        $cid = class_exists('Tenant') ? (int) Tenant::currentCompanyId() : 1;
+        $statoPrima = self::presenceState(self::presenceRow($cid, $type, $id));
+        $now = date('Y-m-d H:i:s');
+        Database::query(
+            "INSERT INTO chat_presence (company_id, user_type, user_id, last_seen_at, last_active_at, manual_status)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE manual_status = VALUES(manual_status)",
+            [$cid, $type, $id, $now, $now, $stato]
+        );
+        $dopo = self::presenceRow($cid, $type, $id);
+        $ora = self::presenceState($dopo);
+        if ($ora !== $statoPrima) self::emitPresence($cid, $type, $id, $ora, $dopo['last_seen_at'] ?? null);
+        return ['success' => true, 'stato' => $ora, 'manuale' => $stato];
+    }
+
+    /** Stato di tutti quelli che hanno mandato almeno un segnale: [ "type:id" => [stato, ultimoAccesso] ]. */
+    public static function presenceAll(): array
+    {
+        $cid = class_exists('Tenant') ? (int) Tenant::currentCompanyId() : 1;
+        $out = [];
+        try {
+            $now = time();
+            foreach (Database::fetchAll("SELECT * FROM chat_presence WHERE company_id = ?", [$cid]) as $p) {
+                $out[$p['user_type'] . ':' . $p['user_id']] = [
+                    'stato' => self::presenceState($p, $now),
+                    'ultimoAccesso' => !empty($p['last_seen_at']) ? date('c', strtotime($p['last_seen_at'])) : null,
+                ];
+            }
+        } catch (Throwable $e) {}
+        return $out;
+    }
+
+    private static function emitPresence(int $cid, string $type, int $id, string $stato, ?string $lastSeen): void
+    {
+        if (!class_exists('Realtime') || !Realtime::enabled()) return;
+        Realtime::emitCompany($cid, 'presence.changed', [
+            'userId' => $type . ':' . $id,
+            'stato' => $stato,
+            'ultimoAccesso' => $lastSeen ? date('c', strtotime($lastSeen)) : null,
+        ]);
     }
 }

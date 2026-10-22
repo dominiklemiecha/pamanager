@@ -100,6 +100,12 @@ foreach ($allDocs as $d) {
 $__hour = (int) date('H');
 $__greeting = $__hour < 12 ? 'Buongiorno' : ($__hour < 18 ? 'Buon pomeriggio' : 'Buonasera');
 
+// Interfaccia Cora (ENV EMPLOYEE_CORA_UI)
+if (CoraUi::enabled()) {
+    include __DIR__ . '/_cora/home.inc.php';
+    exit;
+}
+
 // Variante grafica dedicata (design Figma) per le email in EMPLOYEE_FIGMA_DASHBOARD_EMAILS
 if (EmployeeTour::usesFigmaDashboard((int) $employee['id'])) {
     include __DIR__ . '/_dashboard-figma.inc.php';

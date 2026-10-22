@@ -15,6 +15,8 @@
     if (!CFG || !CFG.employeeId) return;
     if (CFG.page === 'change-password' || CFG.page === 'contract-sign') return;
 
+    // Vista Cora (shell con dock/tabbar): alcuni passi cambiano bersaglio o testo
+    var CORA = !!CFG.cora;
     var STORE_KEY = 'pamTour';
     var MAX_AGE_MS = 30 * 60 * 1000;
     var WAIT_TARGET_MS = 1500;
@@ -44,19 +46,44 @@
             target: function () { return isMobileLayout() ? '[data-tour="nav-mobile"]' : '[data-tour="nav-desktop"]'; },
             title: 'Il menu',
             body: function () {
+                if (CORA) {
+                    return isMobileLayout()
+                        ? 'Dalla barra in basso raggiungi Home, Richieste e Documenti. Il pallino ti avvisa quando c\'è qualcosa di nuovo.'
+                        : 'Dalla barra in basso raggiungi tutte le sezioni: Home, Documenti, Richieste, Avvisi, Academy, Calendario e Chat. Il pallino ti avvisa quando c\'è qualcosa di nuovo.';
+                }
                 return isMobileLayout()
-                    ? 'Dalla barra in basso raggiungi Home, Documenti, Ferie, Calendario e Chat. Le comunicazioni dell\'azienda le trovi qui nella Home.'
+                    ? 'Dalla barra in basso raggiungi Home, Richieste e Documenti. Con Altro trovi Avvisi, Calendario, Chat, Academy e il tuo profilo.'
                     : 'Da qui raggiungi tutte le sezioni: Documenti, Ferie e permessi, Comunicazioni, Academy, Calendario e Chat. Il pallino rosso ti avvisa quando c\'è qualcosa di nuovo.';
             }
         },
         {
-            id: 'availability', page: 'index', chapter: 'Home',
+            id: 'more', page: 'index', chapter: 'Home', mobileOnly: true, coraOnly: true,
+            target: '.cora-more-box',
+            title: 'Altro',
+            body: 'Tocca Altro nella barra per aprire Avvisi, Calendario, Chat, Academy e il tuo profilo.',
+            onEnter: function () { if (window.Cora && Cora.more) Cora.more(true); },
+            onExit: function () { if (window.Cora && Cora.more) Cora.more(false); }
+        },
+        {
+            id: 'modules', page: 'index', chapter: 'Home', coraOnly: true,
+            target: ['.cora-tabbar [data-cora-modules]', '.cora-dock [data-cora-modules]'],
+            title: 'Il pulsante Cora',
+            body: 'Da qui passi agli altri moduli della suite. Quelli con il lucchetto non sono ancora attivi per la tua azienda.'
+        },
+        {
+            id: 'bell', page: 'index', chapter: 'Home', coraOnly: true,
+            target: '[data-cora-bell]',
+            title: 'Le notifiche',
+            body: 'Il pallino sulla campanella ti avvisa di documenti, risposte alle richieste e nuovi avvisi. Toccala per vedere le ultime notifiche.'
+        },
+        {
+            id: 'availability', page: 'index', chapter: 'Home', cora: false,
             target: '[data-tour="availability"]',
             title: 'Il tuo stato',
             body: 'Fai sapere ai colleghi se sei Operativo, In chiamata o In riunione. Quando ti serve, tocca qui e scegli lo stato: i colleghi lo vedono nelle presenze.'
         },
         {
-            id: 'punch', page: 'index', chapter: 'Home', mobileOnly: true,
+            id: 'punch', page: 'index', chapter: 'Home', mobileOnly: true, cora: false,
             target: '[data-tour="punch"]',
             title: 'Timbra entrata e uscita',
             body: 'Tocca il pulsante e avvicina il telefono al badge NFC aziendale: la timbratura parte da sola al contatto.'
@@ -65,7 +92,11 @@
             id: 'quick-actions', page: 'index', chapter: 'Home',
             target: '[data-tour="quick-actions"]',
             title: 'Le scorciatoie',
-            body: 'Con un tocco chiedi ferie o un permesso, apri le tue buste paga e scrivi all\'HR.'
+            body: function () {
+                return CORA
+                    ? 'Con un tocco chiedi ferie o un permesso. Qui vedi anche chi è al lavoro oggi e chi è assente.'
+                    : 'Con un tocco chiedi ferie o un permesso, apri le tue buste paga e scrivi all\'HR.';
+            }
         },
         {
             id: 'balance', page: 'index', chapter: 'Home',
@@ -74,7 +105,7 @@
             body: 'Quante ferie e quanti permessi ti restano quest\'anno, quanti ne hai già usati e il totale. Se vedi "Saldo non configurato", l\'HR non l\'ha ancora impostato.'
         },
         {
-            id: 'heatmap', page: 'index', chapter: 'Home',
+            id: 'heatmap', page: 'index', chapter: 'Home', cora: false,
             target: '[data-tour="heatmap"]',
             title: 'Presenze della settimana',
             body: 'Chi è al lavoro e chi è assente giorno per giorno. Con le frecce passi alla settimana precedente o successiva.'
@@ -83,7 +114,12 @@
             id: 'leave-form', page: 'leave-requests', chapter: 'Ferie e permessi',
             target: ['[data-tour="leave-types"]', '[data-tour="leave-form"]'],
             title: 'Nuova richiesta',
-            body: 'Scegli il tipo (ferie, permesso, malattia, L.104, smart working o altro), il periodo e se vale per la giornata intera o a ore. Poi premi "Invia richiesta" in fondo al modulo: la richiesta arriva all\'HR. Per la malattia puoi aggiungere protocollo INPS e certificato.'
+            body: function () {
+                return (CORA ? 'Con "Nuova richiesta" scegli' : 'Scegli')
+                    + ' il tipo (ferie, permesso, malattia, L.104, smart working o altro), il periodo e se vale per la giornata intera o a ore. Poi premi "Invia richiesta" in fondo al modulo: la richiesta arriva all\'HR. Per la malattia puoi aggiungere protocollo INPS e certificato.';
+            },
+            onEnter: function () { if (CORA && window.Cora) Cora.openModal('coraLeaveModal'); },
+            onExit: function () { if (CORA && window.Cora && Cora.closeModal) Cora.closeModal('coraLeaveModal'); }
         },
         {
             id: 'leave-list', page: 'leave-requests', chapter: 'Ferie e permessi',
@@ -98,7 +134,7 @@
             body: 'Buste paga, CU e altri documenti, divisi per mese. Filtra per tipo o per anno. Tocca un documento per scaricarlo: da quel momento non risulta più "Nuovo".'
         },
         {
-            id: 'docs-info', page: 'documents', chapter: 'Documenti',
+            id: 'docs-info', page: 'documents', chapter: 'Documenti', cora: false,
             target: '[data-tour="docs-info"]',
             title: 'Cosa contiene ogni documento',
             body: 'Questa finestra spiega i tipi di documento. La apri quando vuoi dal pulsante informazioni accanto ai filtri.',
@@ -130,9 +166,12 @@
         },
         {
             id: 'chat', page: 'chat', chapter: 'Chat',
-            target: ['[data-tour="chat-pinned"]', '[data-tour="chat-search"]'],
+            target: ['[data-tour="chat-pinned"]', '[data-tour="chat-search"]', '#coraChat .cc-aside'],
             title: 'Chat',
             body: function (el) {
+                if (CORA) {
+                    return 'Qui trovi le tue conversazioni, con quelle da leggere in evidenza. Con "Nuova chat" scrivi a un collega, all\'HR o al Consulente del lavoro. Puoi anche allegare file.';
+                }
                 var pinned = el && el.getAttribute('data-tour') === 'chat-pinned';
                 return (pinned ? 'In "In evidenza" trovi sempre l\'Amministrazione e il Consulente del lavoro. ' : '')
                     + 'Cerca un collega per nome e tocca il contatto per iniziare a scrivere. Puoi anche allegare file.';
@@ -143,6 +182,12 @@
             target: '[data-tour="profile-notify"]',
             title: 'Il tuo profilo',
             body: 'Qui aggiorni foto e nome e scegli se ricevere le notifiche via email o push. Il profilo lo apri sempre toccando la tua foto in alto a destra.'
+        },
+        {
+            id: 'availability-profile', page: 'profile', chapter: 'Profilo', coraOnly: true,
+            target: '[data-tour="availability"]',
+            title: 'Il tuo stato',
+            body: 'Fai sapere ai colleghi se sei Operativo, In chiamata o In riunione: tocca lo stato che ti serve. I colleghi lo vedono nelle presenze.'
         },
         {
             id: 'done', page: 'profile', chapter: 'Profilo',
@@ -181,6 +226,8 @@
     }
     function applies(step) {
         if (step.mobileOnly && !isMobileLayout()) return false;
+        if (step.coraOnly && !CORA) return false;
+        if (step.cora === false && CORA) return false;
         if (step.page === 'index' && CFG.figmaHome) return false;
         return true;
     }
@@ -473,11 +520,12 @@
                 if (hr.top <= 1 && hr.bottom > 0) top = hr.bottom;
             }
         }
-        var bn = document.querySelector('.emp-bottom-nav');
-        if (bn && window.getComputedStyle(bn).display !== 'none') {
+        // Barra in basso: bottom-nav classica, oppure tabbar/dock della vista Cora (sospesi sul contenuto)
+        document.querySelectorAll('.emp-bottom-nav, .cora-tabbar, .cora-dock').forEach(function (bn) {
+            if (window.getComputedStyle(bn).display === 'none') return;
             var br = bn.getBoundingClientRect();
-            if (br.height > 0) bottom = Math.max(0, window.innerHeight - br.top);
-        }
+            if (br.height > 0) bottom = Math.max(bottom, window.innerHeight - br.top);
+        });
         return { top: top, bottom: bottom };
     }
 

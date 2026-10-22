@@ -213,6 +213,20 @@ $__palette = [
     ['bg' => '#d1fae5', 'border' => '#10b981', 'text' => '#065f46'], // emerald
 ];
 
+// Vista Cora del dipendente: stessi accostamenti chiaro/scuro sui colori Cora
+if (!empty($coraPage)) {
+    $__palette = [
+        ['bg' => '#e3f6f8', 'border' => '#22a9b8', 'text' => '#0e6b75'], // ferie
+        ['bg' => '#efe9fb', 'border' => '#6a3fd1', 'text' => '#4a2a99'], // permesso
+        ['bg' => '#fff1de', 'border' => '#ff9400', 'text' => '#a24a08'], // accent
+        ['bg' => '#e5fff5', 'border' => '#008753', 'text' => '#006640'], // success
+        ['bg' => '#ffedec', 'border' => '#c9123b', 'text' => '#9c0e2e'], // error
+        ['bg' => '#eef3f2', 'border' => '#4f5c59', 'text' => '#2f3836'], // sage
+        ['bg' => '#fde8f3', 'border' => '#d6338a', 'text' => '#9c1f63'],
+        ['bg' => '#e8effd', 'border' => '#3a6fe0', 'text' => '#234a9e'],
+    ];
+}
+
 // Pre-calcola partecipanti + owner info per evento
 $__participantsByEv = [];
 $__ownerByEv = [];
@@ -1403,6 +1417,11 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     const CALLER_TYPE = <?= json_encode($callerType) ?>;
     const CALLER_ID   = <?= (int)$callerId ?>;
 
+    // Avvisi: toast nella vista Cora, finestra del browser altrove
+    function calAlert(msg) {
+        if (window.Cora && Cora.toast) Cora.toast('Calendario', msg, 'error');
+        else window.alert(msg);
+    }
     const modal = document.getElementById('calModal');
     const form = document.getElementById('calForm');
     const partsList = document.getElementById('calPartsList');
@@ -1764,7 +1783,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         // Sicurezza: forza sync dei hidden start_at/end_at prima dell'invio
         syncHidden();
         if (!startHidden.value || !endHidden.value) {
-            alert('Seleziona data e orari');
+            calAlert('Seleziona data e orari');
             return false;
         }
 
@@ -1789,14 +1808,16 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 if (data.success) {
                     if (data.conflicts && data.conflicts.length > 0) {
                         const names = data.conflicts.map(c => c.name).join(', ');
-                        alert('Attenzione: conflitti rilevati per ' + names + '.');
+                        calAlert('Attenzione: conflitti rilevati per ' + names + '.');
+                        // il toast non blocca come alert(): lascialo leggere prima di ricaricare
+                        if (window.Cora) { setTimeout(() => window.location.reload(), 2500); return; }
                     }
                     window.location.reload();
                 } else {
-                    alert(data.error || 'Errore');
+                    calAlert(data.error || 'Errore');
                 }
             })
-            .catch(err => { console.error(err); alert(err.message || 'Errore di connessione'); });
+            .catch(err => { console.error(err); calAlert(err.message || 'Errore di connessione'); });
         return false;
     };
 
@@ -1814,7 +1835,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 catch (e) { console.error('Non-JSON:', txt); throw new Error('Risposta server invalida'); }
             })
             .then(data => {
-                if (!data.success) { alert(data.error || 'Errore'); return; }
+                if (!data.success) { calAlert(data.error || 'Errore'); return; }
                 const ev = data.event;
                 const canEdit = !!data.can_edit;
                 titleEl.textContent = canEdit ? 'Modifica evento' : 'Dettaglio evento';
@@ -1864,7 +1885,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
 
                 modal.classList.add('show');
             })
-            .catch(err => { console.error(err); alert('Errore di connessione'); });
+            .catch(err => { console.error(err); calAlert('Errore di connessione'); });
     };
 
     window.calRespond = function(status) {
@@ -1881,9 +1902,9 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
             })
             .then(data => {
                 if (data.success) window.location.reload();
-                else alert(data.error || 'Errore');
+                else calAlert(data.error || 'Errore');
             })
-            .catch(err => { console.error(err); alert('Errore di connessione'); });
+            .catch(err => { console.error(err); calAlert('Errore di connessione'); });
     };
 
     window.calDeleteEvent = function() {
@@ -1897,7 +1918,7 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
             .then(r => r.json())
             .then(data => {
                 if (data.success) window.location.reload();
-                else alert(data.error || 'Errore');
+                else calAlert(data.error || 'Errore');
             });
     };
 
@@ -1912,9 +1933,10 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
         }
     })();
 
-    // Auto-scroll a 8:00 al load
+    // Auto-scroll al load: un'ora prima di adesso se oggi e' visibile, altrimenti alle 8:00
     const grid = document.getElementById('calGrid');
-    if (grid) grid.scrollTop = 60; // 8:00 - 7:00 = 60px
+    const nowLine = document.querySelector('.cal-now-line');
+    if (grid) grid.scrollTop = nowLine ? Math.max(0, parseInt(nowLine.style.top, 10) - 60) : 60;
 
     // ========================= DRAG & DROP =========================
     // 1 minuto = 1px (--cal-hour-h = 60), griglia inizia alle 7:00.
@@ -2030,9 +2052,9 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
                 })
                 .then(data => {
                     if (data.success) window.location.reload();
-                    else alert(data.error || 'Errore aggiornamento');
+                    else calAlert(data.error || 'Errore aggiornamento');
                 })
-                .catch(err => { console.error(err); alert('Errore di connessione'); });
+                .catch(err => { console.error(err); calAlert('Errore di connessione'); });
 
             dragData = null;
         });

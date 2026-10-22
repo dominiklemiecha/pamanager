@@ -23,6 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download_attachment']))
         exit(htmlspecialchars($result['error']));
     }
     $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $result['filename']);
+    if (!empty($_GET['inline']) && preg_match('#^(image/(jpeg|png|gif|webp)|audio/[a-z0-9.+-]+|video/(webm|mp4))$#', (string) $result['mime'])) {
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Type: ' . $result['mime']);
+        header('Content-Disposition: inline; filename="' . $safeName . '"');
+        header('Content-Length: ' . filesize($result['file_path']));
+        header('Cache-Control: private, max-age=86400');
+        if (ob_get_level()) { ob_end_clean(); }
+        readfile($result['file_path']);
+        exit;
+    }
     if (function_exists('setDownloadHeaders')) {
         setDownloadHeaders($safeName, $result['mime'], filesize($result['file_path']));
     } else {
@@ -32,6 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['download_attachment']))
     }
     if (ob_get_level()) { ob_end_clean(); }
     readfile($result['file_path']);
+    exit;
+}
+
+// ---- Foto di un gruppo (GET) ----
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['group_avatar'])) {
+    $__g = Chat::isParticipant((int) $_GET['group_avatar'], $userType, $userId);
+    if (!$__g || empty($__g['avatar_path']) || !is_file($__g['avatar_path'])) { http_response_code(404); exit; }
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Type: ' . ((new finfo(FILEINFO_MIME_TYPE))->file($__g['avatar_path']) ?: 'image/jpeg'));
+    header('Cache-Control: private, max-age=86400');
+    if (ob_get_level()) { ob_end_clean(); }
+    readfile($__g['avatar_path']);
     exit;
 }
 
@@ -72,7 +94,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Messaggio interno (solo staff admin/consulente, invisibile al dipendente)
                 $isInternal = !empty($_POST['is_internal']) && in_array($userType, ['admin', 'consulente_lavoro'], true);
-                $result = Chat::sendMessage($convId, $userType, $userId, $msg, $attachPath, $attachName, $attachSize, $attachMime, $isInternal);
+                $replyTo = (int) ($_POST['reply_to_id'] ?? 0) ?: null;
+                if (mb_strlen($msg) > 20000) {
+                    echo json_encode(['success' => false, 'error' => 'Il messaggio supera i 20.000 caratteri']);
+                    exit;
+                }
+                $result = Chat::sendMessage($convId, $userType, $userId, $msg, $attachPath, $attachName, $attachSize, $attachMime, $isInternal, $replyTo,
+                    false, ((string) ($_POST['client_id'] ?? '')) ?: null, array_filter(explode(',', (string) ($_POST['mention_ids'] ?? ''))));
+                if (!empty($result['success']) && !empty($_POST['cora'])) {
+                    $__row = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [(int) $result['id']]);
+                    $result['message'] = $__row ? (CoraChat::messages([$__row], $userType, $userId)[0] ?? null) : null;
+                }
                 echo json_encode($result);
                 exit;
 
@@ -125,6 +157,216 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $result = Chat::getOrCreateConversation($userType, $userId, $otherType, $otherId);
                 echo json_encode($result);
+                exit;
+
+            // ─── Chat Cora: stesse funzioni delle API della chat interna del CRM ───
+            case 'cora_list':
+                $__list = [];
+                foreach (Chat::getConversations($userType, $userId) as $__c) {
+                    $__list[] = CoraChat::conversation($__c, $userType, $userId);
+                }
+                echo json_encode($__list);
+                exit;
+
+            case 'cora_messages':
+                $convId = (int) ($_POST['conversation_id'] ?? 0);
+                if (!Chat::isParticipant($convId, $userType, $userId)) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => 'Accesso non autorizzato']);
+                    exit;
+                }
+                $__limit = max(1, min(100, (int) ($_POST['limit'] ?? 50)));
+                $__before = (int) ($_POST['before'] ?? 0) ?: null;
+                $__after = (int) ($_POST['after'] ?? 0) ?: null;
+                // "after" di un messaggio che non c'e' piu': l'ultima pagina
+                if ($__after && !Database::fetchColumn("SELECT 1 FROM chat_messages WHERE id = ? AND conversation_id = ?", [$__after, $convId])) $__after = null;
+                $__rows = Chat::getMessagesPage($convId, $userType !== 'employee', $__before, $__after, $__limit);
+                // Insieme ai nuovi, i messaggi corretti di recente (come il CRM)
+                if ($__after) {
+                    $__ed = Database::fetchAll(
+                        "SELECT * FROM chat_messages WHERE conversation_id = ? AND id <= ? AND edited_at IS NOT NULL AND edited_at > NOW() - INTERVAL 20 MINUTE"
+                        . ($userType === 'employee' ? ' AND is_internal = 0' : ''),
+                        [$convId, $__after]
+                    );
+                    $__rows = array_merge($__ed, $__rows);
+                }
+                echo json_encode(CoraChat::messages($__rows, $userType, $userId));
+                exit;
+
+            case 'cora_read':
+                $convId = (int) ($_POST['conversation_id'] ?? 0);
+                if (Chat::isParticipant($convId, $userType, $userId)) Chat::markAsRead($convId, $userType, $userId);
+                echo json_encode(['success' => true]);
+                exit;
+
+            case 'cora_read_all':
+                Chat::markAllAsRead($userType, $userId);
+                echo json_encode(['success' => true]);
+                exit;
+
+            case 'cora_react':
+                $__r = Chat::toggleReaction((int) ($_POST['message_id'] ?? 0), $userType, $userId, (string) ($_POST['emoji'] ?? ''));
+                if (!empty($__r['success'])) {
+                    $__row = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [(int) $_POST['message_id']]);
+                    $__r['reactions'] = CoraChat::messages([$__row], $userType, $userId)[0]['reactions'] ?? [];
+                }
+                echo json_encode($__r);
+                exit;
+
+            case 'cora_edit':
+                $__r = Chat::editMessage((int) ($_POST['message_id'] ?? 0), $userType, $userId, (string) ($_POST['message'] ?? ''));
+                if (!empty($__r['success'])) {
+                    $__row = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [(int) $_POST['message_id']]);
+                    $__r['message'] = CoraChat::messages([$__row], $userType, $userId)[0] ?? null;
+                }
+                echo json_encode($__r);
+                exit;
+
+            case 'cora_delete':
+                echo json_encode(Chat::deleteMessage((int) ($_POST['message_id'] ?? 0), $userType, $userId));
+                exit;
+
+            case 'cora_forward':
+                $__ids = array_filter(array_map('intval', explode(',', (string) ($_POST['conversation_ids'] ?? ''))));
+                echo json_encode(Chat::forwardMessage((int) ($_POST['message_id'] ?? 0), $userType, $userId, $__ids));
+                exit;
+
+            case 'cora_pin':
+            case 'cora_hide':
+                $convId = (int) ($_POST['conversation_id'] ?? 0);
+                if (!Chat::isParticipant($convId, $userType, $userId)) {
+                    echo json_encode(['success' => false, 'error' => 'Accesso non autorizzato']);
+                    exit;
+                }
+                if ($action === 'cora_pin') {
+                    $__pinned = !empty(Chat::getPrefs($userType, $userId)[$convId]['pinned_at']);
+                    Chat::setPref($convId, $userType, $userId, 'pinned_at', $__pinned ? null : date('Y-m-d H:i:s'));
+                } else {
+                    // "Elimina": sparisce dal mio elenco, torna con il prossimo messaggio
+                    Chat::markAsRead($convId, $userType, $userId);
+                    Chat::setPref($convId, $userType, $userId, 'hidden_at', date('Y-m-d H:i:s'));
+                    Chat::setPref($convId, $userType, $userId, 'pinned_at', null);
+                }
+                if (class_exists('Realtime')) Realtime::emit((int) (Tenant::currentCompanyId() ?? 0), 'chat.conversation.changed', [$userType . ':' . $userId], ['conversationId' => $convId]);
+                echo json_encode(['success' => true]);
+                exit;
+
+            case 'cora_direct':
+                [$__t, $__i] = array_pad(explode(':', (string) ($_POST['user'] ?? ''), 2), 2, 0);
+                if (!$__t || !Chat::canContact($userType, $userId, $departmentId, $__t, (int) $__i)) {
+                    echo json_encode(['success' => false, 'error' => 'Non puoi contattare questo utente']);
+                    exit;
+                }
+                $__r = Chat::getOrCreateConversation($userType, $userId, $__t, (int) $__i);
+                if (!empty($__r['success'])) {
+                    Chat::setPref((int) $__r['conversation']['id'], $userType, $userId, 'hidden_at', null);
+                    echo json_encode(['success' => true, 'id' => (int) $__r['conversation']['id']]);
+                } else {
+                    echo json_encode($__r);
+                }
+                exit;
+
+            case 'cora_group_create':
+                echo json_encode(Chat::createGroup($userType, $userId, $departmentId ? (int) $departmentId : null,
+                    (string) ($_POST['name'] ?? ''), array_filter(explode(',', (string) ($_POST['members'] ?? '')))));
+                exit;
+
+            case 'cora_group_add':
+                echo json_encode(Chat::addGroupMembers((int) ($_POST['conversation_id'] ?? 0), $userType, $userId,
+                    $departmentId ? (int) $departmentId : null, array_filter(explode(',', (string) ($_POST['members'] ?? '')))));
+                exit;
+
+            case 'cora_group_remove':
+            case 'cora_group_leave':
+                $__who = $action === 'cora_group_leave' ? $userType . ':' . $userId : (string) ($_POST['member'] ?? '');
+                [$__t, $__i] = array_pad(explode(':', $__who, 2), 2, 0);
+                echo json_encode(Chat::removeGroupMember((int) ($_POST['conversation_id'] ?? 0), $userType, $userId, (string) $__t, (int) $__i));
+                exit;
+
+            case 'cora_group_avatar':
+                echo json_encode(Chat::setGroupAvatar((int) ($_POST['conversation_id'] ?? 0), $userType, $userId, $_FILES['avatar'] ?? []));
+                exit;
+
+            case 'cora_info':
+                $convId = (int) ($_POST['conversation_id'] ?? 0);
+                $__conv = Chat::isParticipant($convId, $userType, $userId);
+                if (!$__conv) { echo json_encode(['success' => false]); exit; }
+                $__isGroup = ($__conv['conv_type'] ?? '') === 'group';
+                $__members = [];
+                foreach (Chat::participantsOf($__conv) as $__p) {
+                    $__members[] = CoraChat::person($__p['type'], $__p['id']) + ['isCreator' => ($__conv['created_by'] ?? '') === $__p['type'] . ':' . $__p['id']];
+                }
+                echo json_encode([
+                    'id' => $convId,
+                    'type' => $__isGroup || count($__members) > 2 ? 'group' : 'direct',
+                    'name' => $__conv['name'] ?? null,
+                    'avatarUrl' => !empty($__conv['avatar_path']) ? '?group_avatar=' . $convId . '&v=' . substr(md5((string) $__conv['avatar_path']), 0, 8) : null,
+                    'createdBy' => $__conv['created_by'] ?? null,
+                    'canEdit' => Chat::canManageGroup($__conv, $userType, $userId),
+                    'realGroup' => $__isGroup,
+                    'members' => $__members,
+                ]);
+                exit;
+
+            case 'cora_contacts':
+                echo json_encode(CoraChat::contacts(Chat::getAvailableContacts($userType, $userId, $departmentId)));
+                exit;
+
+            case 'cora_presence_ping':
+                echo json_encode(Chat::presencePing($userType, $userId, !empty($_POST['attivo'])));
+                exit;
+
+            case 'cora_presence_status':
+                $__s = (string) ($_POST['stato'] ?? '');
+                echo json_encode(Chat::presenceSetStatus($userType, $userId, $__s === '' ? null : $__s));
+                exit;
+
+            case 'cora_presence_all':
+                echo json_encode(Chat::presenceAll());
+                exit;
+
+            case 'cora_rt_token':
+                $__cid = class_exists('Tenant') ? (int) Tenant::currentCompanyId() : 1;
+                echo json_encode(['token' => class_exists('Realtime') ? Realtime::token($userType, $userId, $__cid) : null]);
+                exit;
+
+            case 'cora_gifs':
+                // Catalogo Giphy (GIF e sticker): la chiave resta sul server
+                $__key = getenv('GIPHY_API_KEY') ?: '';
+                if ($__key === '') { echo json_encode(['enabled' => false, 'results' => []]); exit; }
+                $__kind = ($_POST['kind'] ?? 'gif') === 'sticker' ? 'stickers' : 'gifs';
+                $__q = trim((string) ($_POST['q'] ?? ''));
+                $__url = 'https://api.giphy.com/v1/' . $__kind . '/' . ($__q === '' ? 'trending' : 'search')
+                    . '?' . http_build_query(['api_key' => $__key, 'q' => $__q, 'limit' => 24, 'rating' => 'g', 'lang' => 'it']);
+                $__ch = curl_init($__url);
+                curl_setopt_array($__ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 6]);
+                $__res = json_decode((string) curl_exec($__ch), true);
+                curl_close($__ch);
+                $__out = [];
+                foreach (($__res['data'] ?? []) as $__g) {
+                    $__img = $__g['images'] ?? [];
+                    $__full = $__img['downsized']['url'] ?? $__img['original']['url'] ?? null;
+                    $__prev = $__img['fixed_height_small']['url'] ?? $__full;
+                    if (!$__full || !preg_match('#^https://media\d*\.giphy\.com/#', $__full)) continue;
+                    $__out[] = ['id' => (string) $__g['id'], 'preview' => $__prev, 'url' => $__full, 'description' => (string) ($__g['title'] ?? 'GIF')];
+                }
+                echo json_encode(['enabled' => true, 'results' => $__out]);
+                exit;
+
+            case 'cora_send_gif':
+                $convId = (int) ($_POST['conversation_id'] ?? 0);
+                $__gif = (string) ($_POST['url'] ?? '');
+                if (!Chat::isParticipant($convId, $userType, $userId) || !preg_match('#^https://media\d*\.giphy\.com/[A-Za-z0-9/._?=&%-]+$#', $__gif)) {
+                    echo json_encode(['success' => false, 'error' => 'GIF non valida']);
+                    exit;
+                }
+                $__r = Chat::sendMessage($convId, $userType, $userId, '', 'giphy:' . $__gif, mb_substr((string) ($_POST['description'] ?? 'GIF'), 0, 200) ?: 'GIF', 0, 'image/gif',
+                    false, null, false, (string) ($_POST['client_id'] ?? '') ?: null);
+                if (!empty($__r['success'])) {
+                    $__row = Database::fetchOne("SELECT * FROM chat_messages WHERE id = ?", [(int) $__r['id']]);
+                    $__r['message'] = CoraChat::messages([$__row], $userType, $userId)[0] ?? null;
+                }
+                echo json_encode($__r);
                 exit;
 
             default:
@@ -258,6 +500,15 @@ if ($selectedConvId) {
             [$selectedConvId]
         );
     } catch (Exception $e) { $sharedFiles = []; }
+}
+
+if ($userType === 'employee' && class_exists('CoraUi') && CoraUi::enabled()) {
+    $coraPage = true;
+    $coraExtraCss = ['cora-chat.css'];
+    include __DIR__ . '/header-employee.php';
+    include dirname(__DIR__) . '/employee/_cora/chat.inc.php';
+    include __DIR__ . '/footer-employee.php';
+    return;
 }
 
 include __DIR__ . '/header-' . $__chatLayout . '.php';
