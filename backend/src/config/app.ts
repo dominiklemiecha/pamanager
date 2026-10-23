@@ -20,3 +20,8 @@ export function cartellaStorage(...parti: string[]): string {
 export function cartellaUpload(...parti: string[]): string {
   return path.resolve(process.env.UPLOAD_DIR || './uploads', ...parti);
 }
+
+/** Risorse fisse dell'applicazione (es. modello Excel delle presenze). */
+export function cartellaRisorse(...parti: string[]): string {
+  return path.resolve(process.env.RISORSE_DIR || './risorse', ...parti);
+}

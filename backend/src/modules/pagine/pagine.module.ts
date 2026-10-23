@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ComunicazioniModule } from '../comunicazioni/comunicazioni.module';
 import { DocumentiModule } from '../documenti/documenti.module';
 import { ImpostazioniModule } from '../impostazioni/impostazioni.module';
+import { PresenzeModule } from '../presenze/presenze.module';
 import { ProfiloModule } from '../profilo/profilo.module';
 import { UtentiModule } from '../utenti/utenti.module';
 import { FerieModule } from '../ferie/ferie.module';
@@ -14,6 +15,7 @@ import { AziendePagina } from './admin/aziende.pagina';
 import { ComunicazioniAdminPagina, ComunicazioniUploadPagina } from './admin/comunicazioni.pagina';
 import { DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina } from './admin/documenti-aziendali.pagina';
 import { VisibilitaCampiPagina } from './admin/visibilita-campi.pagina';
+import { PresenzeExportPagina } from './admin/presenze-export.pagina';
 import { BuoniPastoPagina, OrarioLavorativoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, TimbratureImpostazioniPagina } from './admin/configurazione.pagina';
 import { FerieAdminPagina } from './admin/ferie.pagina';
 import { PasswordResetPagina } from './admin/password-reset.pagina';
@@ -24,11 +26,11 @@ import { HeatmapService } from './widget/heatmap.service';
 
 /** Pagine staff portate dal PHP (vedi pagina.ts). */
 @Module({
-  imports: [FerieModule, ProvaModule, AcademyModule, AuthModule, ProfiloModule, UtentiModule, ComunicazioniModule, DocumentiModule, ImpostazioniModule],
+  imports: [FerieModule, ProvaModule, AcademyModule, AuthModule, ProfiloModule, UtentiModule, ComunicazioniModule, DocumentiModule, ImpostazioniModule, PresenzeModule],
   controllers: [PagineController, PagineLegacyController],
   providers: [MotorePagine, HeatmapService, DashboardAdminPagina, DecisioneProvaPagina, FerieAdminPagina,
     OrarioLavorativoPagina, TimbratureImpostazioniPagina, BuoniPastoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, ProfiloStaffPagina, PasswordResetPagina,
     RepartiService, RepartiPagina, RepartoDettaglioPagina, AziendePagina, ComunicazioniAdminPagina, ComunicazioniUploadPagina,
-    DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, VisibilitaCampiPagina],
+    DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, VisibilitaCampiPagina, PresenzeExportPagina],
 })
 export class PagineModule {}

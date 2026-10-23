@@ -33,6 +33,16 @@ class Browser {
   }
 
   valoreCookie(nome: string): string | undefined { return this.cookie.get(nome); }
+
+  /** GET di un file: corpo binario e intestazioni (stessa sessione e stesso indirizzo del client). */
+  async scarica(percorso: string) {
+    const prova = (i: number): Promise<Response> => fetch(this.base + percorso, {
+      redirect: 'manual',
+      headers: { 'User-Agent': this.userAgent, 'X-Forwarded-For': this.ip, Cookie: [...this.cookie].map(([k, v]) => `${k}=${v}`).join('; ') },
+    }).catch((e) => { if (i < 2) return prova(i + 1); throw e; });
+    const res = await prova(0);
+    return { status: res.status, tipo: res.headers.get('content-type'), nome: res.headers.get('content-disposition'), dati: Buffer.from(await res.arrayBuffer()) };
+  }
 }
 
 let contatoreIp = 10;

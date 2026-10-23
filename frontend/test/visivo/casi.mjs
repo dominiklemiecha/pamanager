@@ -147,5 +147,6 @@ export const CASI = [
   { nome: 'admin-visibilita-campi', percorso: '/admin/field-visibility.php', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-visibilita-salvata', percorso: '/admin/field-visibility.php', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
     azione: async (page) => { await page.click('form.card button[type=submit]'); await page.waitForSelector('text=Configurazione salvata'); await page.waitForTimeout(400); } },
+  { nome: 'admin-presenze-export', percorso: '/admin/presenze-export.php?month=11&year=2026', attesa: 1000, ...come('hr.alfa') },
 ];
 export { PW };
