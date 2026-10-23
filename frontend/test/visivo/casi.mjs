@@ -93,5 +93,16 @@ export const CASI = [
   { nome: 'contratto-da-firmare', percorso: '/employee/contract-sign.php?id=1', attesa: 2500, ...come('laura.zanichelli') },
   { nome: 'admin-dashboard', percorso: '/admin/', attesa: 1500, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-dashboard-settimana', percorso: '/admin/index.php?w=2026-10-26', attesa: 1500, ...come('hr.alfa') },
+  { nome: 'admin-ferie', percorso: '/admin/leave-requests.php', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-ferie-tutte', percorso: '/admin/leave-requests.php?status=all', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-ferie-messaggio', percorso: '/admin/leave-requests.php?status=approved&message=updated', attesa: 1200, ...come('hr.alfa') },
+  { nome: 'admin-ferie-nuova', percorso: '/admin/leave-requests.php', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('.lp-hero-btn'); await page.click('#acl_all'); await page.waitForTimeout(400); } },
+  { nome: 'admin-ferie-dettaglio', percorso: '/admin/leave-requests.php', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('tr:has(.lp-btn-approve) .js-detail >> nth=0'); await page.waitForSelector('#detailModal.show'); await page.click('#dmBtnReject'); await page.waitForTimeout(400); } },
+  { nome: 'admin-ferie-malattia', percorso: '/admin/leave-requests.php', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('.js-sick >> nth=0'); await page.waitForSelector('#sickModal.show'); await page.waitForTimeout(400); } },
+  { nome: 'admin-ferie-modifica', percorso: '/admin/leave-requests.php?status=all', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('.js-edit >> nth=1'); await page.waitForSelector('#editModal.show'); await page.waitForTimeout(400); } },
 ];
 export { PW };

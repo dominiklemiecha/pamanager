@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { esegui, P } from '../php/runtime';
 import { api } from '../services/api';
+import './funzioni-cora';
 import { StaffShell, useCorniceStaff } from './StaffShell';
 
 type Render = (V: any, F: any) => void;
@@ -43,10 +44,14 @@ function Contenuto({ html }: { html: string }) {
  * template convertito, cornice dello staff intorno. I moduli POST vanno al
  * backend (stesso ramo POST della pagina PHP): redirect o pagina ridisegnata.
  * `prepara` adatta le variabili prima del template (es. date come DateTime).
+ * `scarica` elenca i parametri GET con cui la pagina PHP serviva un file:
+ * quei link vanno direttamente al backend.
  */
-export function PaginaStaff({ render, prepara }: { render: Render; prepara?: (V: any) => void }) {
+export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render; prepara?: (V: any) => void; scarica?: string[] }) {
   const percorso = location.pathname;
   const indirizzo = apiDiPagina(percorso);
+  const download = (u: URL) => scarica.some((k) => u.searchParams.has(k));
+  if (download(new URL(location.href))) location.replace('/api/v1' + indirizzo + location.search);
   const dati = useMemo(() => api.get(indirizzo + location.search), [indirizzo]);
   const cornice = useCorniceStaff(dati);
   const [stato, setStato] = useState<{ titolo: string; V: any } | null>(null);
@@ -86,8 +91,18 @@ export function PaginaStaff({ render, prepara }: { render: Render; prepara?: (V:
         alert(err?.response?.data?.message ?? 'Operazione non riuscita');
       }
     };
+    const clic = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || e.defaultPrevented) return;
+      const u = new URL(a.href, location.href);
+      const api2 = u.origin === location.origin ? apiDiPagina(u.pathname) : null;
+      if (!api2 || !download(u)) return;
+      e.preventDefault();
+      location.assign('/api/v1' + api2 + u.search);
+    };
     document.addEventListener('submit', invio);
-    return () => document.removeEventListener('submit', invio);
+    document.addEventListener('click', clic);
+    return () => { document.removeEventListener('submit', invio); document.removeEventListener('click', clic); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -15,6 +15,8 @@ const MESI_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
 const GIORNI_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 let buffer: string[] = [''];
+/** Costanti definite con define() durante il disegno della pagina (si azzerano a ogni disegno). */
+let definite: Record<string, any> = {};
 const estensioni: Record<string, Funzione> = {};
 const widget: Record<string, (V: any, F: any) => void> = {};
 const costanti: Record<string, any> = { __DIR__: '', __FILE__: '', __LINE__: 0, PHP_EOL: '\n', ENT_QUOTES: 3, JSON_UNESCAPED_UNICODE: 256, JSON_UNESCAPED_SLASHES: 64, JSON_HEX_TAG: 1, JSON_HEX_AMP: 2, JSON_HEX_APOS: 4, JSON_HEX_QUOT: 8, PUBLIC_URL: '', SORT_STRING: 2 };
@@ -63,7 +65,7 @@ const pad = (n: number, l = 2) => String(n).padStart(l, '0');
 
 export const P = {
   // ── output ──
-  inizio() { buffer = ['']; },
+  inizio() { buffer = ['']; definite = {}; },
   fine(): string { const s = buffer.join(''); buffer = ['']; return s; },
   o(v: any) { buffer[buffer.length - 1] += P.s(v); },
   ob_start() { buffer.push(''); return true; },
@@ -167,7 +169,7 @@ export const P = {
   nuovo(nome: string, a: any[]) { if (nome === 'DateTime' || nome === 'DateTimeImmutable') return new DataPhp(a[0]); throw new Error(`classe non supportata: ${nome}`); },
   metodo(o: any, m: string, a: any[]) { if (o && typeof o[m] === 'function') return o[m](...a); throw new Error(`metodo non supportato: ${m}`); },
   statico(cl: string, nome: string) { return estensioni[`${cl}::${nome}`]?.() ?? null; },
-  costante(nome: string) { if (nome in costanti) return costanti[nome]; const f = estensioni[nome]; if (f) return f(); throw new Error(`costante non definita: ${nome}`); },
+  costante(nome: string) { if (nome in definite) return definite[nome]; if (nome in costanti) return costanti[nome]; const f = estensioni[nome]; if (f) return f(); throw new Error(`costante non definita: ${nome}`); },
   include(file: any, V: any, F: any) { const nome = String(file).split('/').pop()!.replace(/\.php$/, ''); const w = widget[nome]; if (!w) throw new Error(`include non convertito: ${nome}`); w(V, F); return 1; },
   registraWidget(nome: string, f: (V: any, F: any) => void) { widget[nome] = f; },
   estendi(nome: string, f: Funzione) { estensioni[nome] = f; },
@@ -394,8 +396,9 @@ const FN: Record<string, Funzione> = {
   function_exists: () => true,
   class_exists: () => true,
   method_exists: () => true,
-  defined: (c: any) => P.s(c) in costanti,
-  constant: (c: any) => costanti[P.s(c)],
+  defined: (c: any) => P.s(c) in costanti || P.s(c) in definite,
+  define: (c: any, v: any) => { if (P.s(c) in definite) return false; definite[P.s(c)] = v; return true; },
+  constant: (c: any) => (P.s(c) in definite ? definite[P.s(c)] : costanti[P.s(c)]),
   is_file: () => false,
   file_exists: () => false,
   error_log: () => true,

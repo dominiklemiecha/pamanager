@@ -6,6 +6,7 @@ legge il database, ora nel backend) con php2js. I file generati non vanno
 modificati a mano: si rigenerano con `python strumenti/genera-pagine.py`.
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -18,13 +19,25 @@ USCITA = os.path.join(RADICE, 'frontend', 'src', 'php')
 HEADER_ADMIN = "include dirname(__DIR__) . '/includes/header-admin.php';\n?>"
 FOOTER_ADMIN = "<?php include dirname(__DIR__) . '/includes/footer-admin.php'; ?>"
 
-# (file PHP, modulo generato, marcatore di inizio, marcatore di fine)
+# Dopo l'header, ancora dentro <?php (la pagina include altro prima del template).
+HEADER_ADMIN_PHP = "include dirname(__DIR__) . '/includes/header-admin.php';\n"
+
+# Letture del database rimaste nel template: diventano variabili calcolate dal backend.
+FERIE_ADMIN = [
+    (r"\$pendingCount = \(int\) Database::fetchColumn\(.*?\[\$__leaveCid\]\s*\);", "$pendingCount = (int) $__pendingCountDb;"),
+    (r'Database::fetchOne\("SELECT lunch_break_start, lunch_break_end FROM companies WHERE id = \?", \[Tenant::currentCompanyId\(\)\]\)', "$__lunchCfgDb"),
+    (r"try \{\s*\$__sickLate = LeaveRequest::sickPendingDocs\(24\);\s*\} catch \(Throwable \$e\) \{ \$__sickLate = \[\]; \}", ""),
+]
+
+# (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
-    ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN),
+    ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('admin/leave-requests.php', 'pagine/admin/leave-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, FERIE_ADMIN),
 ]
 
 # (file PHP, nome del widget, marcatore dopo il quale inizia il template, il tratto parte dentro <?php, condizione JS per disegnarlo)
 WIDGET = [
+    ('includes/_cd-tabs.inc.php', '_cd-tabs.inc', " */\n", True, 'true'),
     ('includes/widget-tenant-wizard.php', 'widget-tenant-wizard', "        exit;\n    }\n}\n?>", False, 'P.t(V.__wTenantWizard)'),
     ('includes/widget-birthday-banner.php', 'widget-birthday-banner',
      "if ($todayViewerName === null && empty($todayOthers) && empty($tomorrowOthers)) return;\n", True, 'P.t(V.__wCompleanni)'),
@@ -44,12 +57,19 @@ def scrivi(rel, testo):
 
 
 def main():
-    for src, out, inizio, fine in PAGINE:
+    for src, out, inizio, fine, sostituzioni in PAGINE:
         testo = open(os.path.join(PUBBLICO, src), encoding='utf8').read()
         a = testo.index(inizio) + len(inizio)
         b = testo.index(fine, a)
         funzioni = funzioni_preambolo(testo[:a])
-        sorgente = ('<?php ' + '\n'.join(funzioni) + ' ?>' if funzioni else '') + testo[a:b]
+        tratto = testo[a:b]
+        for cerca, metti in sostituzioni:
+            tratto, quante = re.subn(cerca, lambda _m: metti, tratto, flags=re.S)
+            if quante != 1:
+                raise SystemExit(f'{src}: sostituzione non trovata: {cerca}')
+        if not inizio.rstrip().endswith('?>'):
+            tratto = '<?php ' + tratto
+        sorgente = ('<?php ' + '\n'.join(funzioni) + ' ?>' if funzioni else '') + tratto
         corpo = converti(sorgente)
         profondita = out.count('/')
         imp = '../' * profondita

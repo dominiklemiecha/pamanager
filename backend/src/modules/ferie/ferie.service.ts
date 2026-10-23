@@ -173,6 +173,13 @@ export class FerieService {
     return { success: true };
   }
 
+  /** Certificato segnato come non richiesto (o di nuovo obbligatorio) dall'HR. */
+  async esoneroCertificato(r: any, esonero: boolean, ctx: ContestoAudit & { tipo: string; id: number }): Promise<Esito> {
+    await this.ds.query('UPDATE leave_requests SET certificate_waived = $2 WHERE id = $1', [r.id, esonero]);
+    await this.registra(esonero ? 'leave_sick_cert_waived' : 'leave_sick_cert_required', r.id, r, [] as unknown as Record<string, unknown>, ctx);
+    return { success: true };
+  }
+
   async annulla(requestId: number, employeeId: number, ctx: ContestoAudit & { tipo: string; id: number }): Promise<Esito> {
     const r = await this.perId(requestId);
     if (!r) return { success: false, error: 'Richiesta non trovata' };

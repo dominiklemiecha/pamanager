@@ -1,6 +1,7 @@
 import { Route } from 'react-router-dom';
 import { P } from '../../php/runtime';
 import adminIndex from '../../php/pagine/admin/index';
+import adminFerie from '../../php/pagine/admin/leave-requests';
 import { PaginaStaff } from '../../staff/PaginaStaff';
 
 /** Date della settimana del widget presenze come DateTime (il template usa ->format). */
@@ -14,4 +15,5 @@ export const rotteStaff = [
   <Route key="admin" path="/admin" element={<PaginaStaff render={adminIndex} prepara={conSettimana} />} />,
   <Route key="admin/" path="/admin/" element={<PaginaStaff render={adminIndex} prepara={conSettimana} />} />,
   <Route key="admin/index" path="/admin/index.php" element={<PaginaStaff render={adminIndex} prepara={conSettimana} />} />,
+  <Route key="admin/leave-requests" path="/admin/leave-requests.php" element={<PaginaStaff render={adminFerie} scarica={['download_attachment', 'download_cert']} />} />,
 ];

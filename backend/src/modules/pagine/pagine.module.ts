@@ -4,6 +4,7 @@ import { FerieModule } from '../ferie/ferie.module';
 import { ProvaModule } from '../prova/prova.module';
 import { DashboardAdminPagina } from './admin/dashboard.pagina';
 import { DecisioneProvaPagina } from './admin/decisione-prova.pagina';
+import { FerieAdminPagina } from './admin/ferie.pagina';
 import { PagineController } from './pagine.controller';
 import { HeatmapService } from './widget/heatmap.service';
 
@@ -11,6 +12,6 @@ import { HeatmapService } from './widget/heatmap.service';
 @Module({
   imports: [FerieModule, ProvaModule, AcademyModule],
   controllers: [PagineController],
-  providers: [HeatmapService, DashboardAdminPagina, DecisioneProvaPagina],
+  providers: [HeatmapService, DashboardAdminPagina, DecisioneProvaPagina, FerieAdminPagina],
 })
 export class PagineModule {}
