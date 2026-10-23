@@ -111,3 +111,4 @@ dist/
 coverage/
 backend/uploads/*
 backend/storage/*
+test/equivalenza/.dati/

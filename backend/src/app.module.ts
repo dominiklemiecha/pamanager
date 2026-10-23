@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getEnvironmentConfig } from './config/environments';
 import { opzioniDatabase } from './database/data-source';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Module({
@@ -17,6 +19,8 @@ import { HealthModule } from './modules/health/health.module';
         logging: getEnvironmentConfig().logging,
       }),
     }),
+    AuditModule,
+    AuthModule,
     HealthModule,
   ],
 })

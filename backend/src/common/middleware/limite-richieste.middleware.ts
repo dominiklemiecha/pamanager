@@ -13,7 +13,9 @@ interface Regola { nome: string; metodo?: string; percorso: RegExp; massimo: num
 
 const MIN = 60_000;
 const REGOLE: Regola[] = [
-  { nome: 'login', metodo: 'POST', percorso: /^\/api\/v1\/auth\/(login|mfa)\/?$/i, massimo: 10, finestraMs: 5 * MIN },
+  // Raffiche sul login: un ufficio intero puo' entrare dallo stesso IP alle 9, quindi
+  // il tetto e' largo; i tentativi SBAGLIATI hanno un limite a parte (AuthService).
+  { nome: 'login', metodo: 'POST', percorso: /^\/api\/v1\/auth\/(login|mfa)\/?$/i, massimo: 30, finestraMs: 5 * MIN },
   { nome: 'recupero', metodo: 'POST', percorso: /^\/api\/v1\/auth\/(forgot-password|reset-password)\/?$/i, massimo: 5, finestraMs: 15 * MIN },
   { nome: 'rinnovo', metodo: 'POST', percorso: /^\/api\/v1\/auth\/refresh\/?$/i, massimo: 60, finestraMs: 5 * MIN },
   // API usate da sistemi esterni con le vecchie URL (CRM, porta, verifica attestati).

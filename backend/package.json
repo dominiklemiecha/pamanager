@@ -8,6 +8,7 @@
     "start": "nest start",
     "start:prod": "node dist/main",
     "test": "jest",
+    "test:equivalenza": "jest --config test/jest-e2e.json --runInBand",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
