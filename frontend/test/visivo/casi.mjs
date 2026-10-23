@@ -111,5 +111,7 @@ export const CASI = [
   { nome: 'admin-buoni-pasto', percorso: '/admin/buoni-pasto.php', attesa: 1000, ...come('hr.alfa') },
   { nome: 'admin-porta', percorso: '/admin/door-settings.php', attesa: 1000, ...come('connecteed') },
   { nome: 'admin-porta-log', percorso: '/admin/door-log.php', attesa: 1000, ...come('connecteed') },
+  { nome: 'admin-profilo', percorso: '/admin/profile.php?message=updated', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-profilo-commercialista', percorso: '/admin/profile.php', attesa: 1000, ...come('studio.commercialista') },
 ];
 export { PW };

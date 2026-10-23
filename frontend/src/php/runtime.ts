@@ -19,7 +19,7 @@ let buffer: string[] = [''];
 let definite: Record<string, any> = {};
 const estensioni: Record<string, Funzione> = {};
 const widget: Record<string, (V: any, F: any) => void> = {};
-const costanti: Record<string, any> = { __DIR__: '', __FILE__: '', __LINE__: 0, PHP_EOL: '\n', ENT_QUOTES: 3, JSON_UNESCAPED_UNICODE: 256, JSON_UNESCAPED_SLASHES: 64, JSON_HEX_TAG: 1, JSON_HEX_AMP: 2, JSON_HEX_APOS: 4, JSON_HEX_QUOT: 8, PUBLIC_URL: '', SORT_STRING: 2 };
+const costanti: Record<string, any> = { __DIR__: '', __FILE__: '', __LINE__: 0, PHP_EOL: '\n', ENT_QUOTES: 3, JSON_UNESCAPED_UNICODE: 256, JSON_UNESCAPED_SLASHES: 64, JSON_HEX_TAG: 1, JSON_HEX_AMP: 2, JSON_HEX_APOS: 4, JSON_HEX_QUOT: 8, PUBLIC_URL: '', SORT_STRING: 2, MAX_FILE_SIZE: 10 * 1024 * 1024 };
 
 class Uscita extends Error {}
 

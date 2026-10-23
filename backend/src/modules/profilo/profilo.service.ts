@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DataSource } from 'typeorm';
 import type { FileCaricato } from '../../common/file/caricamenti';
+import { senzaIsolamento } from '../../common/database/isolamento';
 import { cartellaUpload } from '../../config/app';
 import { AuditService, ContestoAudit } from '../audit/audit.service';
 
@@ -94,6 +95,45 @@ export class ProfiloService {
     const vecchia = await this.fotoAttuale(employeeId);
     await this.ds.query('UPDATE employees SET photo_path = NULL WHERE id = $1', [employeeId]);
     this.elimina(vecchia);
+  }
+
+  /**
+   * Foto dello staff (admin/profile.php): uploads/users/u{id}_xxxx.webp.
+   * Correzione: oltre all'estensione si controlla il contenuto del file.
+   */
+  async caricaFotoUtente(userId: number, f: FileCaricato | undefined): Promise<string | null> {
+    if (!f || !f.size) return 'Foto mancante o errore upload';
+    if (f.size > FOTO_MASSIMA) return 'File troppo grande (max 3MB)';
+    const ext = path.extname(f.originalname ?? '').slice(1).toLowerCase();
+    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext) || !['image/jpeg', 'image/png', 'image/webp'].includes(tipoImmagine(f.buffer) ?? '')) {
+      return 'Solo immagini JPG, PNG, WEBP';
+    }
+    let webp: Buffer;
+    try {
+      webp = await sharp(f.buffer, { limitInputPixels: 40_000_000 }).rotate()
+        .resize(256, 256, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
+    } catch {
+      return 'Conversione foto fallita';
+    }
+    const relativo = `uploads/users/u${userId}_${randomBytes(4).toString('hex')}.webp`;
+    const dest = this.percorsoUpload(relativo)!;
+    fs.mkdirSync(path.dirname(dest), { recursive: true, mode: 0o775 });
+    fs.writeFileSync(dest, webp, { mode: 0o644 });
+    const vecchia = await this.fotoUtente(userId);
+    await senzaIsolamento(() => this.ds.query('UPDATE users SET photo_path = $1 WHERE id = $2', [relativo, userId]));
+    this.elimina(vecchia);
+    return null;
+  }
+
+  async rimuoviFotoUtente(userId: number) {
+    const vecchia = await this.fotoUtente(userId);
+    await senzaIsolamento(() => this.ds.query('UPDATE users SET photo_path = NULL WHERE id = $1', [userId]));
+    this.elimina(vecchia);
+  }
+
+  private async fotoUtente(userId: number): Promise<string | null> {
+    const [u] = await senzaIsolamento(() => this.ds.query('SELECT photo_path FROM users WHERE id = $1', [userId]));
+    return u?.photo_path ?? null;
   }
 
   async notifiche(employeeId: number, email: boolean, push: boolean) {

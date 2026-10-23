@@ -4,5 +4,5 @@ import { FotoController } from './foto.controller';
 import { ProfiloController } from './profilo.controller';
 import { ProfiloService } from './profilo.service';
 
-@Module({ controllers: [ProfiloController, FotoController, DisiscrizioneController], providers: [ProfiloService] })
+@Module({ controllers: [ProfiloController, FotoController, DisiscrizioneController], providers: [ProfiloService], exports: [ProfiloService] })
 export class ProfiloModule {}
