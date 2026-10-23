@@ -20,6 +20,12 @@ export default defineConfig({
         // La connessione in tempo reale passa dallo stesso proxy.
         ws: true,
       },
+      // Servizio Socket.IO della chat (cartella realtime/), se avviato.
+      '/realtime': {
+        target: process.env.VITE_REALTIME_TARGET || 'http://localhost:3001',
+        changeOrigin: true,
+        ws: true,
+      },
       // Foto profilo (indirizzi salvati nel database), servite dal backend.
       '/uploads': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',

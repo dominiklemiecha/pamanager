@@ -74,5 +74,9 @@ export const CASI = [
     azione: async (page) => { await senzaGuida(page); await page.click('.cal-add-btn'); await page.waitForSelector('#calModal.show'); await page.waitForTimeout(400); } },
   { nome: 'calendario-dettaglio', percorso: '/employee/calendar.php?view=week&d=2026-10-28', attesa: 900, ...come('marco.bellandi'), misure: [[1512, 900]],
     azione: async (page) => { await senzaGuida(page); await page.click('.cal-evt'); await page.waitForSelector('#calModal.show'); await page.waitForTimeout(500); } },
+  { nome: 'chat-elenco', percorso: '/employee/chat.php', attesa: 2000, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'chat-aperta', percorso: '/employee/chat.php?conv=1', attesa: 3500, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'chat-nuova', percorso: '/employee/chat.php', attesa: 900, ...come('marco.bellandi'), misure: [[1512, 900]],
+    azione: async (page) => { await senzaGuida(page); await page.click('[data-cc-new]'); await page.waitForTimeout(600); } },
 ];
 export { PW };

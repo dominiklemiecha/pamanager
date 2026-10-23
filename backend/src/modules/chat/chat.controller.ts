@@ -50,12 +50,14 @@ export class ChatController {
     }
     let aperta = intero(conv);
     if (aperta && !(await this.chat.sePartecipa(aperta, c))) aperta = 0;
+    // Come il PHP: l'elenco e' quello di prima della lettura della chat aperta.
+    const elenco = await this.chat.elenco(c, u.companyId!);
     if (aperta) await this.chat.segnaLetta(aperta, c);
     const token = this.realtime.token(c.tipo, c.id, u.companyId!);
     return {
       me: await this.chat.persona(c.tipo, c.id),
       open: aperta,
-      conversations: await this.chat.elenco(c, u.companyId!),
+      conversations: elenco,
       contacts: await this.chat.contattiCora(u),
       presence: await this.chat.presenze(u.companyId!),
       editMinutes: MINUTI_MODIFICA,
