@@ -36,5 +36,10 @@ export const CASI = [
   { nome: 'home-dipendente', percorso: '/employee/', attesa: 1500, ...come('giulia.ferraresi'), azione: senzaGuida },
   { nome: 'home-dipendente-presenze', percorso: '/employee/', attesa: 800, ...come('marco.bellandi'),
     azione: async (page) => { await senzaGuida(page); await page.click('.cora-presence .cora-see-all'); await page.waitForSelector('#coraPresenceModal.is-open'); } },
+  { nome: 'richieste-elenco', percorso: '/employee/leave-requests.php', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'richieste-nuova', percorso: '/employee/leave-requests.php?new=permesso', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'richieste-dettaglio', percorso: '/employee/leave-requests.php', attesa: 900, ...come('marco.bellandi'),
+    azione: async (page) => { await senzaGuida(page); await page.locator('.cora-tr[data-cora-open]').nth(1).click(); await page.waitForTimeout(500); } },
+  { nome: 'richieste-filtro', percorso: '/employee/leave-requests.php?status=pending', attesa: 900, ...come('giulia.ferraresi'), azione: senzaGuida },
 ];
 export { PW };

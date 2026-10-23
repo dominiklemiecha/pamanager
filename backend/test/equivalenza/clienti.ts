@@ -83,7 +83,9 @@ export class Node {
 
   async get(percorso: string) {
     const r = await this.b.chiama('/api/v1' + percorso);
-    return { status: r.status, json: r.testo ? JSON.parse(r.testo) : null };
+    let json: any = null;
+    try { json = r.testo ? JSON.parse(r.testo) : null; } catch { json = { testo: r.testo }; }
+    return { status: r.status, json };
   }
 
   async login(username: string, password: string, ritorno?: string): Promise<EsitoAccesso> {

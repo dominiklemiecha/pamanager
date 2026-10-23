@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Cornice, CoraShell, Topbar, useCornice } from '../../cora/CoraShell';
 import { dataBreve, fa, iniziali, nome, num, TIPI_ASSENZA } from '../../cora/formato';
-import { Modale } from '../../cora/Modale';
 import { svgCora } from '../../cora/svg';
 import { api } from '../../services/api';
 
@@ -48,20 +47,12 @@ function Volto({ p }: { p: Persona }) {
 export default function Home() {
   const cornice = useCornice();
   const [d, setD] = useState<DatiHome | null>(null);
-  const [presenze, setPresenze] = useState(false);
-  const [festaChiusa, setFestaChiusa] = useState(true);
   const liste = useRef<HTMLElement>(null);
   useEffect(() => { api.get('/dipendente/home').then((r) => setD(r.data)).catch(() => undefined); }, []);
 
-  const t = oraRoma();
-  const chiaveFesta = 'cora-bday-' + new Date().toISOString().slice(0, 10);
-  useEffect(() => {
-    try { setFestaChiusa(!!localStorage.getItem(chiaveFesta)); } catch { setFestaChiusa(false); }
-  }, [chiaveFesta]);
-
   // Liste della Home: le righe che non entrano per intero restano nascoste.
   useLayoutEffect(() => {
-    if (!d) return;
+    if (!d || !cornice) return;
     const adatta = () => {
       liste.current?.querySelectorAll<HTMLElement>('.cora-rows').forEach((box) => {
         const righe = Array.from(box.children) as HTMLElement[];
@@ -77,19 +68,30 @@ export default function Home() {
     return () => { clearTimeout(timer); window.removeEventListener('resize', adatta); };
   }, [d, cornice]);
 
+  // Banner del compleanno: si chiude per oggi (stesso script della pagina PHP).
+  useEffect(() => {
+    if (!d || !cornice) return;
+    const b = document.querySelector<HTMLElement>('[data-cora-bday]');
+    if (!b) return;
+    const chiave = 'cora-bday-' + new Date().toISOString().slice(0, 10);
+    try { if (localStorage.getItem(chiave)) return; } catch { /* niente */ }
+    b.hidden = false;
+    b.querySelector('[data-cora-bday-close]')?.addEventListener('click', () => {
+      b.hidden = true;
+      try { localStorage.setItem(chiave, '1'); } catch { /* niente */ }
+    });
+  }, [d, cornice]);
+
   if (!cornice || !d) return null;
 
+  const t = oraRoma();
   const saluto = t.ora < 13 ? 'Buongiorno' : t.ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const oggi = `${GIORNI[t.giorno]} ${t.d} ${MESI[t.m]} ${t.a}`;
 
   return (
     <CoraShell pagina="index" titolo="Home" cornice={cornice}>
-      <HomeContenuto d={d} cornice={cornice} saluto={saluto} oggi={oggi} festaChiusa={festaChiusa}
-        chiudiFesta={() => { setFestaChiusa(true); try { localStorage.setItem(chiaveFesta, '1'); } catch { /* niente */ } }}
-        apriPresenze={() => setPresenze(true)} liste={liste} />
-      <Modale id="coraPresenceModal" aperta={presenze} onChiudi={() => setPresenze(false)}>
-        <PresenzeModale persone={d.persone} chiudi={() => setPresenze(false)} />
-      </Modale>
+      <HomeContenuto d={d} cornice={cornice} saluto={saluto} oggi={oggi} liste={liste} />
+      <PresenzeModale persone={d.persone} />
     </CoraShell>
   );
 }
@@ -99,13 +101,14 @@ function contaPresenze(persone: Persona[]) {
   return { assenti, presenti: persone.length - assenti };
 }
 
-function PresenzeModale({ persone, chiudi }: { persone: Persona[]; chiudi: () => void }) {
+function PresenzeModale({ persone }: { persone: Persona[] }) {
   const { assenti, presenti } = contaPresenze(persone);
   return (
+    <div className="cora-modal" id="coraPresenceModal" hidden>
     <div className="cora-modal-box cora-modal-sm" role="dialog" aria-modal="true" aria-labelledby="coraPresenceTitle">
       <div className="cora-modal-h">
         <div><h2 id="coraPresenceTitle">Presenze di oggi</h2><p>{presenti} present{presenti === 1 ? 'e' : 'i'} · {assenti} assent{assenti === 1 ? 'e' : 'i'}</p></div>
-        <button type="button" className="cora-modal-x" data-cora-close aria-label="Chiudi" onClick={chiudi}><S n="ic-x-modal.svg" /></button>
+        <button type="button" className="cora-modal-x" data-cora-close aria-label="Chiudi"><S n="ic-x-modal.svg" /></button>
       </div>
       <div className="cora-people">
         {persone.map((p) => (
@@ -120,12 +123,12 @@ function PresenzeModale({ persone, chiudi }: { persone: Persona[]; chiudi: () =>
         ))}
       </div>
     </div>
+    </div>
   );
 }
 
 function HomeContenuto(props: {
-  d: DatiHome; cornice: Cornice; saluto: string; oggi: string; festaChiusa: boolean; chiudiFesta: () => void;
-  apriPresenze: () => void; liste: React.RefObject<HTMLElement | null>;
+  d: DatiHome; cornice: Cornice; saluto: string; oggi: string; liste: React.RefObject<HTMLElement | null>;
 }) {
   const { d, saluto, oggi } = props;
   const anno = new Date().getFullYear();
@@ -133,8 +136,8 @@ function HomeContenuto(props: {
 
   const festa = d.compleanni.length ? calcolaFesta(d) : null;
 
-  const centro = festa && !props.festaChiusa ? (
-    <div className="cora-bday" data-cora-bday>
+  const centro = festa ? (
+    <div className="cora-bday" data-cora-bday hidden>
       <span className="cora-bday-confetti" aria-hidden="true" dangerouslySetInnerHTML={{ __html: svgCora('coriandoli.svg') }} />
       <span className="cora-bday-who">
         <span className="cora-bday-avatar">
@@ -144,10 +147,10 @@ function HomeContenuto(props: {
       </span>
       <span className="cora-bday-actions">
         {!festa.me && <a className="cora-bday-cta" href="/employee/chat.php">Fai gli auguri</a>}
-        <button type="button" className="cora-bday-close" data-cora-bday-close aria-label="Chiudi" onClick={props.chiudiFesta} dangerouslySetInnerHTML={{ __html: svgCora('ic-x.svg') }} />
+        <button type="button" className="cora-bday-close" data-cora-bday-close aria-label="Chiudi" dangerouslySetInnerHTML={{ __html: svgCora('ic-x.svg') }} />
       </span>
     </div>
-  ) : festa ? <div className="cora-bday" data-cora-bday hidden /> : undefined;
+  ) : undefined;
 
   const saldi: Array<['ferie' | 'permesso', string, string, string]> = [
     ['ferie', `Ferie ${anno}`, 'gg', 'giorni residui'],
@@ -203,7 +206,7 @@ function HomeContenuto(props: {
         <div className="cora-card cora-presence">
           <div className="cora-card-h">
             <h2>Presenze di oggi</h2>
-            <a href="#" className="cora-see-all" data-cora-open="coraPresenceModal" onClick={(e) => { e.preventDefault(); props.apriPresenze(); }}>Vedi tutti <S n="ic-arr-r.svg" /></a>
+            <a href="#" className="cora-see-all" data-cora-open="coraPresenceModal">Vedi tutti <S n="ic-arr-r.svg" /></a>
           </div>
           <div className="cora-presence-body">
             <div className="cora-avatars">

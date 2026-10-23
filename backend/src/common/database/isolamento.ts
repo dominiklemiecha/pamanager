@@ -100,7 +100,7 @@ export async function attivaIsolamento(ds: DataSource): Promise<void> {
   t.unref();
 }
 
-async function applicaRegole(ds: DataSource): Promise<number> {
+export async function applicaRegole(ds: DataSource): Promise<number> {
   await ds.query(`DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${RUOLO}') THEN CREATE ROLE ${RUOLO} NOLOGIN; END IF;
   END $$`);

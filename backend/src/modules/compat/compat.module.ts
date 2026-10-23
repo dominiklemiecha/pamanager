@@ -6,4 +6,4 @@ import { CompatController } from './compat.controller';
 export class CompatModule {}
 
 /** Percorsi /api/*.php fuori dal prefisso api/v1 (stessi indirizzi del PHP). */
-export const PERCORSI_COMPAT = ['api/employee-tour.php', 'api/availability.php'];
+export const PERCORSI_COMPAT = ['api/employee-tour.php', 'api/availability.php', 'api/notifications-read.php', 'api/push.php'];

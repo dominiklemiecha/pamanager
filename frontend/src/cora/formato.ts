@@ -70,3 +70,19 @@ export const TIPI_ASSENZA: Record<string, string> = {
   ferie: 'Ferie', permesso: 'Permesso', malattia: 'Malattia', permesso_104: 'Permesso L.104', congedo_parentale: 'Congedo Parentale',
   congedo_separazione: 'Congedo Separazione', congedo_mestruale: 'Congedo Mestruale', altro: 'Altro', chiusura: 'Chiusura aziendale', smart_working: 'Smart working',
 };
+
+/** Ora di Roma di un istante: { g, m, a, ore, min } (date() del PHP). */
+export function partiRoma(dt: string | Date) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(dt)).map((x) => [x.type, x.value]));
+  return { g: p.day, m: p.month, a: p.year, ore: p.hour, min: p.minute };
+}
+
+/** Giorni lun-ven tra due date (LeaveRequest::calculateWorkingDays). */
+export function giorniLunVen(da: string, a: string): number {
+  let n = 0;
+  const d = new Date(`${da}T00:00:00Z`);
+  const f = new Date(`${a}T00:00:00Z`);
+  while (d <= f) { const g = d.getUTCDay(); if (g !== 0 && g !== 6) n++; d.setUTCDate(d.getUTCDate() + 1); }
+  return n;
+}

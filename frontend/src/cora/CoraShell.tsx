@@ -5,6 +5,16 @@ import { api } from '../services/api';
 import { fa, iniziali } from './formato';
 import { svgCora } from './svg';
 
+/**
+ * Cornice delle pagine Cora del dipendente (header.inc.php + footer.inc.php).
+ *
+ * React disegna lo stesso markup del PHP; il comportamento (campanella, anello
+ * dei moduli, foglio "Altro", modali, filtri, caricamento file, toast, guida)
+ * lo danno gli stessi script del PHP (cora.js e quelli della pagina), caricati
+ * una volta sola quando i dati sono arrivati, come a fine pagina nel PHP.
+ * Dopo il caricamento la pagina non si ridisegna piu': gli script possono
+ * spostare nodi (le modali vanno nel body) senza conflitti con React.
+ */
 export interface Cornice {
   nome: string;
   cognome: string;
@@ -18,8 +28,8 @@ export interface Cornice {
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&display=swap';
 const S = ({ n, t, c }: { n: string; t?: boolean; c?: string }) => <span className={c} dangerouslySetInnerHTML={{ __html: svgCora(n, t) }} />;
+const I = ({ n, t }: { n: string; t?: boolean }) => <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svgCora(n, t) }} />;
 
-/** Testa delle pagine Cora (header.inc.php): manifest "Cora", icone dell'app. */
 const TESTA_CORA = {
   manifest: '/manifest-cora.json.php',
   themeColor: '#f6f8f7',
@@ -44,7 +54,6 @@ const DOCK: Array<[string, string, string, string]> = [
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 const ALTRO = ['communications', 'calendar', 'chat', 'academy'];
 
-/** Pallino e numero di ogni voce del dock, come in footer.inc.php. */
 function segnali(c: Cornice['contatori'], chiave: string): [boolean, number] {
   switch (chiave) {
     case 'documents': return [c.documenti > 0, 0];
@@ -56,33 +65,8 @@ function segnali(c: Cornice['contatori'], chiave: string): [boolean, number] {
   }
 }
 
-function Avatar({ c }: { c: Cornice }) {
-  return c.foto ? <img src={c.foto} alt="" decoding="async" /> : <span>{iniziali(c.nome, c.cognome)}</span>;
-}
-
 /** Barra in alto delle pagine Cora (_topbar.inc.php). */
 export function Topbar({ titolo, sottotitolo = '', azioni, centro, cornice }: { titolo: string; sottotitolo?: string; azioni?: ReactNode; centro?: ReactNode; cornice: Cornice }) {
-  const [aperta, setAperta] = useState(false);
-  const [puntino, setPuntino] = useState(cornice.notificheNonLette > 0);
-  const [segnate, setSegnate] = useState(false);
-  useEffect(() => {
-    if (!aperta) return;
-    const chiudi = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('.cora-bell')) setAperta(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAperta(false); };
-    document.addEventListener('click', chiudi);
-    document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('click', chiudi); document.removeEventListener('keydown', esc); };
-  }, [aperta]);
-  function apri(e: React.MouseEvent) {
-    e.stopPropagation();
-    const ora = !aperta;
-    setAperta(ora);
-    // All'apertura le notifiche diventano lette.
-    if (ora && puntino && !segnate) {
-      setSegnate(true);
-      api.post('/dipendente/notifiche/lette').then(() => setPuntino(false)).catch(() => undefined);
-    }
-  }
   return (
     <header className="cora-topbar">
       <a href="/employee/" className="cora-topbar-logo" aria-label="Cora · Home" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-mobile.svg') }} />
@@ -93,10 +77,10 @@ export function Topbar({ titolo, sottotitolo = '', azioni, centro, cornice }: { 
       {centro && <div className="cora-topbar-center">{centro}</div>}
       {azioni && <div className="cora-topbar-actions">{azioni}</div>}
       <div className="cora-topbar-user">
-        <div className={'cora-bell' + (aperta ? ' is-open' : '')} data-cora-bell>
-          <button type="button" className="cora-icon-btn" aria-haspopup="true" aria-expanded={aperta} aria-label="Notifiche" onClick={apri}>
-            <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svgCora('ic-bell.svg') }} />
-            {puntino && <span className="cora-bell-dot" data-cora-bell-dot />}
+        <div className="cora-bell" data-cora-bell>
+          <button type="button" className="cora-icon-btn" aria-haspopup="true" aria-expanded="false" aria-label="Notifiche">
+            <I n="ic-bell.svg" />
+            {cornice.notificheNonLette > 0 && <span className="cora-bell-dot" data-cora-bell-dot />}
           </button>
           <div className="cora-bell-menu" role="menu">
             <div className="cora-bell-head">Notifiche</div>
@@ -112,7 +96,7 @@ export function Topbar({ titolo, sottotitolo = '', azioni, centro, cornice }: { 
           </div>
         </div>
         <a href="/employee/profile.php" className="cora-avatar" data-tour="profile-link" title={`${cornice.nome} ${cornice.cognome}`}>
-          <Avatar c={cornice} />
+          {cornice.foto ? <img src={cornice.foto} alt="" decoding="async" /> : <span>{iniziali(cornice.nome, cornice.cognome)}</span>}
         </a>
       </div>
     </header>
@@ -124,12 +108,7 @@ function AnelloModuli() {
     <div className="cora-modules" aria-hidden="true">
       {MODULI.map(([nome, tipo], i) => {
         const stile = { '--a': `${-90 + i * (360 / MODULI.length)}deg` } as React.CSSProperties;
-        const interno = (
-          <>
-            <S n={`mod-${tipo}.svg`} c="cora-module-ic" />
-            <span className="cora-module-name">{nome}</span>
-          </>
-        );
+        const interno = (<><S n={`mod-${tipo}.svg`} c="cora-module-ic" /><span className="cora-module-name">{nome}</span></>);
         return tipo === 'cora'
           ? <a key={nome} href="/employee/" className={`cora-module is-${tipo}`} style={stile}>{interno}</a>
           : <span key={nome} className={`cora-module is-${tipo}`} style={stile}>{interno}</span>;
@@ -138,46 +117,67 @@ function AnelloModuli() {
   );
 }
 
+/** Carica uno script in ordine, una sola volta per pagina caricata. */
+function carica(src: string): Promise<void> {
+  return new Promise((ok) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = false;
+    s.onload = () => ok();
+    s.onerror = () => ok();
+    document.body.appendChild(s);
+  });
+}
+
 /**
- * Cornice delle pagine Cora del dipendente (header.inc.php + footer.inc.php):
- * contenuto, dock (desktop), barra del telefono, foglio "Altro", notifiche.
+ * Configurazione e script del footer PHP. `globali` sono le variabili che la
+ * pagina PHP scriveva prima dei suoi script (es. window.CORA_LEAVE).
  */
-export function CoraShell({ pagina, titolo, css = [], children, cornice }: { pagina: string; titolo: string; css?: string[]; children: ReactNode; cornice: Cornice }) {
+function useScriptLegacy(pagina: string, cornice: Cornice, script: string[], globali: Record<string, unknown>) {
+  useEffect(() => {
+    const w = window as any;
+    if (w.__coraScript) return;
+    w.__coraScript = true;
+    w.PAM = { baseUrl: '' };
+    Object.assign(w, globali);
+    const csrf = decodeURIComponent(document.cookie.match(/(?:^|;\s*)cora_csrf=([^;]+)/)?.[1] ?? '');
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]');
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'csrf-token'; document.head.appendChild(meta); }
+    meta.content = csrf;
+    w.PAM_TOUR = {
+      employeeId: cornice.guida.id, session: cornice.guida.sessione, status: cornice.guida.stato, page: pagina,
+      figmaHome: false, cora: true, api: '/api/employee-tour.php', baseUrl: '/employee/',
+    };
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/assets/css/employee-tour.css';
+    document.head.appendChild(link);
+    (async () => {
+      for (const s of ['/assets/js/app.js', '/assets/js/push.js', '/assets/js/availability-toggle.js', '/assets/js/cora.js', ...script, '/assets/js/employee-tour.js']) {
+        await carica(s);
+      }
+      // Nel PHP gli script erano nella pagina e ricevevano DOMContentLoaded:
+      // chi lo aspetta (es. riapertura della modale dopo un errore) parte ora.
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
+export function CoraShell({ pagina, titolo, css = [], script = [], globali = {}, children, cornice }: {
+  pagina: string; titolo: string; css?: string[]; script?: string[]; globali?: Record<string, unknown>; children: ReactNode; cornice: Cornice;
+}) {
   useFoglioEsterno(FONT);
   useCss('/assets/css/cora.css', '/assets/css/cora-pages.css', ...css.map((c) => `/assets/css/${c}`));
   useClasseBody('cora-body');
   useTitolo(`${titolo} · Cora`);
   useTesta(TESTA_CORA);
-  useLayoutEffect(() => { document.body.dataset.page = pagina; return () => { delete document.body.dataset.page; }; }, [pagina]);
-  // Ingresso a cascata: gli elementi .cora-reveal compaiono riga per riga.
-  useEffect(() => {
-    document.querySelectorAll<HTMLElement>('.cora-reveal').forEach((el, i) => { if (!el.style.getPropertyValue('--i')) el.style.setProperty('--i', String(i)); });
-    const r = requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('cora-revealed')));
-    return () => { cancelAnimationFrame(r); document.body.classList.remove('cora-revealed'); };
-  }, []);
-
-  useScriptLegacy(pagina, cornice);
-  const [modAperto, setModAperto] = useState<string | null>(null);
-  const [altro, setAltro] = useState(false);
-  const [altroVisibile, setAltroVisibile] = useState(false);
-  useEffect(() => {
-    const chiudi = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('.cora-dock-cora')) setModAperto(null); };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setModAperto(null); setAltro(false); } };
-    document.addEventListener('click', chiudi);
-    document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('click', chiudi); document.removeEventListener('keydown', esc); };
-  }, []);
-  useEffect(() => {
-    if (altro) { setAltroVisibile(true); return; }
-    const t = setTimeout(() => setAltroVisibile(false), 220);
-    return () => clearTimeout(t);
-  }, [altro]);
+  useLayoutEffect(() => { document.body.dataset.page = pagina; }, [pagina]);
+  useScriptLegacy(pagina, cornice, script, globali);
 
   const c = cornice.contatori;
   const altroAttivo = ALTRO.includes(pagina) || pagina === 'profile';
   const altroPuntino = ALTRO.some((k) => { const [d, b] = segnali(c, k); return d || b > 0; });
-  const vociDock = DOCK.filter(([k]) => ['index', 'leave-requests', 'documents'].includes(k));
-  const voce = (k: string) => vociDock.find((v) => v[0] === k)!;
 
   return (
     <>
@@ -200,9 +200,8 @@ export function CoraShell({ pagina, titolo, css = [], children, cornice }: { pag
           })}
         </div>
         <span className="cora-dock-sep" aria-hidden="true" />
-        <div className={'cora-dock-cora' + (modAperto === 'dock' ? ' is-open' : '')} data-cora-modules>
-          <button type="button" className="cora-dock-item" aria-expanded={modAperto === 'dock'} aria-label="Moduli Cora"
-            onClick={(e) => { e.stopPropagation(); setModAperto(modAperto === 'dock' ? null : 'dock'); }}>
+        <div className="cora-dock-cora" data-cora-modules>
+          <button type="button" className="cora-dock-item" aria-expanded="false" aria-label="Moduli Cora">
             <S n="dock-cora.svg" c="cora-dock-icon cora-dock-logo" />
             <span className="cora-dock-label">Cora</span>
           </button>
@@ -214,25 +213,22 @@ export function CoraShell({ pagina, titolo, css = [], children, cornice }: { pag
         {(['index', 'leave-requests', 'cora', 'documents', 'altro'] as const).map((k) => {
           if (k === 'cora') {
             return (
-              <div key={k} className={'cora-tabbar-cora cora-dock-cora' + (modAperto === 'tab' ? ' is-open' : '')} data-cora-modules>
-                <button type="button" className="cora-tabbar-btn" aria-expanded={modAperto === 'tab'} aria-label="Moduli Cora"
-                  onClick={(e) => { e.stopPropagation(); setAltro(false); setModAperto(modAperto === 'tab' ? null : 'tab'); }}
-                  dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
+              <div key={k} className="cora-tabbar-cora cora-dock-cora" data-cora-modules>
+                <button type="button" className="cora-tabbar-btn" aria-expanded="false" aria-label="Moduli Cora" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
                 <AnelloModuli />
               </div>
             );
           }
           if (k === 'altro') {
             return (
-              <button key={k} type="button" className={'cora-dock-item' + (altroAttivo ? ' is-active' : '')} data-cora-more aria-haspopup="dialog" aria-expanded={altro}
-                onClick={(e) => { e.stopPropagation(); setModAperto(null); setAltro(!altro); }}>
+              <button key={k} type="button" className={'cora-dock-item' + (altroAttivo ? ' is-active' : '')} data-cora-more aria-haspopup="dialog" aria-expanded="false">
                 <S n="dock-altro.svg" t c="cora-dock-icon" />
                 <span className="cora-dock-label">Altro</span>
                 {altroPuntino && <span className="cora-dock-dot" data-cora-more-dot />}
               </button>
             );
           }
-          const [, label, icona, href] = voce(k);
+          const [, label, icona, href] = DOCK.find((v) => v[0] === k)!;
           const [puntino] = segnali(c, k);
           const attivo = pagina === k;
           return (
@@ -245,8 +241,7 @@ export function CoraShell({ pagina, titolo, css = [], children, cornice }: { pag
         })}
       </nav>
 
-      <div className={'cora-more' + (altro && altroVisibile ? ' is-open' : '')} data-cora-more-sheet hidden={!altroVisibile}
-        onClick={(e) => { if (!(e.target as HTMLElement).closest('.cora-more-box')) setAltro(false); }}>
+      <div className="cora-more" data-cora-more-sheet hidden>
         <div className="cora-more-box" role="dialog" aria-modal="true" aria-label="Altre sezioni">
           <div className="cora-more-grip" aria-hidden="true" />
           {[...ALTRO, 'profile'].map((k) => {
@@ -259,7 +254,7 @@ export function CoraShell({ pagina, titolo, css = [], children, cornice }: { pag
                 <span className="cora-more-ic">
                   {k === 'profile'
                     ? <span className="cora-avatar">{cornice.foto ? <img src={cornice.foto} alt="" /> : iniziali(cornice.nome, cornice.cognome)}</span>
-                    : <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svgCora(icona, true) }} />}
+                    : <I n={icona} t />}
                 </span>
                 <span className="cora-more-label">{label}</span>
                 {numero > 0 ? <span className="cora-dock-badge">{numero > 9 ? '9+' : numero}</span> : puntino ? <span className="cora-more-dot" /> : null}
@@ -275,39 +270,7 @@ export function CoraShell({ pagina, titolo, css = [], children, cornice }: { pag
   );
 }
 
-/**
- * Script del vecchio PHP che lavorano sul markup gia' disegnato (guida
- * interattiva): stessa configurazione (window.PAM_TOUR) e stesso token CSRF
- * nel meta "csrf-token", che qui e' il valore del cookie cora_csrf.
- */
-function useScriptLegacy(pagina: string, cornice: Cornice) {
-  useEffect(() => {
-    const w = window as any;
-    w.PAM = { baseUrl: '' };
-    w.PAM_TOUR = {
-      employeeId: cornice.guida.id, session: cornice.guida.sessione, status: cornice.guida.stato, page: pagina,
-      figmaHome: false, cora: true, api: '/api/employee-tour.php', baseUrl: '/employee/',
-    };
-    const csrf = decodeURIComponent(document.cookie.match(/(?:^|;\s*)cora_csrf=([^;]+)/)?.[1] ?? '');
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]');
-    if (!meta) { meta = document.createElement('meta'); meta.name = 'csrf-token'; document.head.appendChild(meta); }
-    meta.content = csrf;
-    // Lo script si esegue una volta per pagina caricata (come nel PHP), anche se
-    // React rimonta il componente.
-    if (w.__coraGuida) return;
-    w.__coraGuida = true;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = '/assets/css/employee-tour.css';
-    document.head.appendChild(link);
-    const script = document.createElement('script');
-    script.src = '/assets/js/employee-tour.js';
-    document.body.appendChild(script);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-}
-
-/** Carica la cornice; la pagina compare solo quando i dati ci sono (il PHP rendeva tutto insieme). */
+/** Dati della cornice; la pagina si disegna solo quando ci sono tutti (il PHP rendeva tutto insieme). */
 export function useCornice(): Cornice | null {
   const [c, setC] = useState<Cornice | null>(null);
   useEffect(() => { api.get('/dipendente/cornice').then((r) => setC(r.data)).catch(() => undefined); }, []);

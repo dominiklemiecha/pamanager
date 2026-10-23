@@ -188,12 +188,17 @@ async function main() {
     ['Fontanesi', 'permesso', '2026-10-19', '2026-10-19', 0, '08:00', '10:00', 'Ufficio postale', 'approved', hrBeta],
     ['Morselli', 'malattia', '2026-10-22', '2026-10-23', 1, null, null, 'Malattia', 'pending', null],
   ];
+  // Orari di creazione tutti diversi: a parita' di ora MariaDB e Postgres
+  // ordinerebbero le righe in modo diverso e i confronti non sarebbero stabili.
+  let progressivo = 0;
   for (const [cog, tipo, da, a, intera, ora1, ora2, motivo, stato, approvatore] of richieste) {
     const d = E(cog);
-    await q(`INSERT INTO leave_requests (company_id, employee_id, leave_type, start_date, end_date, is_full_day, start_time, end_time, reason, status, approved_by, approved_at, protocol_number)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    progressivo++;
+    const creata = `2026-${String(Math.min(10, Number(da.slice(5, 7)))).padStart(2, '0')}-01 ${String(8 + (progressivo % 10)).padStart(2, '0')}:${String(progressivo * 3).padStart(2, '0')}:00`;
+    await q(`INSERT INTO leave_requests (company_id, employee_id, leave_type, start_date, end_date, is_full_day, start_time, end_time, reason, status, approved_by, approved_at, protocol_number, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [d.company_id, d.id, tipo, da, a, intera, ora1, ora2, motivo, stato, approvatore,
-        stato === 'approved' || stato === 'rejected' ? `${da} 10:00:00` : null, tipo === 'malattia' ? 'INPS-0000123456' : null]);
+        stato === 'approved' || stato === 'rejected' ? `${da} 10:00:00` : null, tipo === 'malattia' ? 'INPS-0000123456' : null, creata]);
   }
 
   const comunicazioni = [

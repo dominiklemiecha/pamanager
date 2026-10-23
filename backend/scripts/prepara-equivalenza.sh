@@ -23,6 +23,7 @@ docker compose -f $RADICE/docker-compose.node.yml -p cora-dev up -d >/dev/null
 docker exec cora-dev-postgres-1 psql -q -U cora -d cora -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null 2>&1
 npm run --silent migration:run >/dev/null
 node scripts/converti-dati.js | tail -1
+npx ts-node scripts/applica-isolamento.ts
 
 echo "== Istantanee"
 rm -rf test/equivalenza/.dati

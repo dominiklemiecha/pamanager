@@ -7,6 +7,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompatModule } from './modules/compat/compat.module';
 import { DipendenteModule } from './modules/dipendente/dipendente.module';
+import { FerieModule } from './modules/ferie/ferie.module';
 import { HealthModule } from './modules/health/health.module';
 import { NotificheModule } from './modules/notifiche/notifiche.module';
 import { SaldiModule } from './modules/saldi/saldi.module';
@@ -30,6 +31,7 @@ import { SaldiModule } from './modules/saldi/saldi.module';
     NotificheModule,
     DipendenteModule,
     CompatModule,
+    FerieModule,
   ],
 })
 export class AppModule {}
