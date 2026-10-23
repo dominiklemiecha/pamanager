@@ -72,28 +72,39 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
 
   // Moduli POST della pagina (anche quelli che puntano ad altre pagine PHP dell'area).
   useEffect(() => {
-    const invio = async (e: SubmitEvent) => {
-      const f = e.target as HTMLFormElement;
-      if (e.defaultPrevented || (f.getAttribute('method') ?? 'get').toLowerCase() !== 'post') return;
+    /** Invia al backend un modulo POST della pagina; false se non e' da gestire qui. */
+    const inviaModulo = (f: HTMLFormElement, bottone: HTMLButtonElement | null): boolean => {
+      if ((f.getAttribute('method') ?? 'get').toLowerCase() !== 'post') return false;
       const destinazione = new URL(f.getAttribute('action') || location.href, location.href);
-      if (/\/auth\/(switch|leave)-tenant\.php$/.test(destinazione.pathname)) return;
+      if (/\/auth\/(switch|leave)-tenant\.php$/.test(destinazione.pathname)) return false;
       const api2 = apiDiPagina(destinazione.pathname);
-      if (!api2) return;
-      e.preventDefault();
+      if (!api2) return false;
       const corpo = new FormData(f);
-      const bottone = e.submitter as HTMLButtonElement | null;
       if (bottone?.name) corpo.append(bottone.name, bottone.value);
-      try {
-        const r = await api.post(api2 + destinazione.search, corpo);
-        if (r.data?.redirect) location.assign(new URL(r.data.redirect, destinazione).toString());
-        else {
-          // Come il PHP: la pagina ridisegnata dopo il POST riparte dall'alto.
-          mostra(r.data);
-          window.scrollTo(0, 0);
+      (async () => {
+        try {
+          const r = await api.post(api2 + destinazione.search, corpo);
+          if (r.data?.redirect) location.assign(new URL(r.data.redirect, destinazione).toString());
+          else {
+            // Come il PHP: la pagina ridisegnata dopo il POST riparte dall'alto.
+            mostra(r.data);
+            window.scrollTo(0, 0);
+          }
+        } catch (err: any) {
+          alert(err?.response?.data?.message ?? 'Operazione non riuscita');
         }
-      } catch (err: any) {
-        alert(err?.response?.data?.message ?? 'Operazione non riuscita');
-      }
+      })();
+      return true;
+    };
+    const invio = (e: SubmitEvent) => {
+      if (e.defaultPrevented) return;
+      if (inviaModulo(e.target as HTMLFormElement, e.submitter as HTMLButtonElement | null)) e.preventDefault();
+    };
+    // form.submit() dagli script della pagina non genera l'evento submit (come nel browser):
+    // senza questo andrebbe al server come POST classico.
+    const submitNativo = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function (this: HTMLFormElement) {
+      if (!inviaModulo(this, null)) submitNativo.call(this);
     };
     const clic = (e: MouseEvent) => {
       const a = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
@@ -106,7 +117,11 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
     };
     document.addEventListener('submit', invio);
     document.addEventListener('click', clic);
-    return () => { document.removeEventListener('submit', invio); document.removeEventListener('click', clic); };
+    return () => {
+      document.removeEventListener('submit', invio);
+      document.removeEventListener('click', clic);
+      HTMLFormElement.prototype.submit = submitNativo;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

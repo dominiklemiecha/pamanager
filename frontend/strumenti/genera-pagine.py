@@ -42,6 +42,7 @@ PAGINE = [
     ('admin/password-resets.php', 'pagine/admin/password-resets', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
     ('admin/departments.php', 'pagine/admin/departments', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/department-detail.php', 'pagine/admin/department-detail', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('admin/companies.php', 'pagine/admin/companies', HEADER_ADMIN, FOOTER_ADMIN, []),
 ]
 
 # (file PHP, nome del widget, marcatore dopo il quale inizia il template, il tratto parte dentro <?php, condizione JS per disegnarlo)

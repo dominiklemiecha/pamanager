@@ -119,5 +119,14 @@ export const CASI = [
   { nome: 'admin-reparti-nuovo', percorso: '/admin/departments.php?action=new', attesa: 1000, ...come('hr.alfa') },
   { nome: 'admin-reparti-modifica', percorso: '/admin/departments.php?edit=1&message=updated', attesa: 1000, ...come('hr.alfa') },
   { nome: 'admin-reparto-dettaglio', percorso: '/admin/department-detail.php?id=1', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-aziende', percorso: '/admin/companies.php?msg=updated', attesa: 1000, ...come('connecteed') },
+  { nome: 'admin-aziende-modifica', percorso: '/admin/companies.php', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('tr[data-row-id="1"] td:last-child button.btn-secondary'); await page.waitForTimeout(300); } },
+  { nome: 'admin-aziende-elimina-errore', percorso: '/admin/companies.php', attesa: 900, ...come('connecteed'), misure: [[1512, 900]],
+    azione: async (page) => {
+      page.once('dialog', (d) => d.accept('nome sbagliato'));
+      await page.evaluate(() => { document.getElementById('deleteId').value = '2'; document.getElementById('deleteConfirmName').value = 'nome sbagliato'; document.getElementById('deleteForm').submit(); });
+      await page.waitForSelector('text=Conferma fallita'); await page.waitForTimeout(400);
+    } },
 ];
 export { PW };
