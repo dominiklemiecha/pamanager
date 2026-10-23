@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useLayoutEffect, useState } from 'react';
-import { useClasseBody, useCss, useFoglioEsterno, useTitolo } from '../componenti/stile';
+import { useClasseBody, useCss, useFoglioEsterno, useStile, useTitolo } from '../componenti/stile';
 import { useTesta } from '../componenti/testa';
 import { api } from '../services/api';
 import { fa, iniziali } from './formato';
@@ -169,12 +169,14 @@ function useScriptLegacy(pagina: string, cornice: Cornice, script: string[], glo
  * classici prima di quelli di Cora, classi "cora-legacy employee-body" e
  * contenuto dentro la barra in alto e div.app-content.
  */
-export function CoraShell({ pagina, titolo, css = [], script = [], globali = {}, children, cornice, classica = false }: {
-  pagina: string; titolo: string; css?: string[]; script?: string[]; globali?: Record<string, unknown>; children: ReactNode; cornice: Cornice; classica?: boolean;
+export function CoraShell({ pagina, titolo, css = [], stile, script = [], globali = {}, children, cornice, classica = false }: {
+  pagina: string; titolo: string; css?: string[]; stile?: string; script?: string[]; globali?: Record<string, unknown>; children: ReactNode; cornice: Cornice; classica?: boolean;
 }) {
   useFoglioEsterno(FONT);
   useCss(...(classica ? ['https://rsms.me/inter/inter.css', '/assets/css/theme.css', '/assets/css/components.css', '/assets/css/style.css', '/assets/css/mobile-staff.css'] : []),
     '/assets/css/cora.css', '/assets/css/cora-pages.css', ...css.map((c) => `/assets/css/${c}`));
+  // <style> della pagina PHP (nel body): dopo i fogli della cornice.
+  useStile(...(stile ? [stile] : []));
   useClasseBody(classica ? 'cora-body cora-legacy employee-body' : 'cora-body');
   useTitolo(`${titolo} · Cora`);
   useTesta(TESTA_CORA);

@@ -318,6 +318,41 @@ async function main() {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'application/pdf', ?, 0, ?, ?, ?)`,
       [d.company_id, gruppo, d.id, titolo, f.percorso, nome, `${titolo.replace(/ /g, '_')}.pdf`, f.dimensione, visibile, scadenza, d.company_id === 1 ? hrAlfa : hrBeta, quando]);
   }
+  // Academy: un corso pubblicato con un PDF e un link, assegnato in tre stati
+  // diversi (da iniziare, in corso con un materiale aperto, completato con attestato).
+  const corsoPdf = await scrivi('seed_corso_sicurezza.pdf', 'Sicurezza sul lavoro - modulo 1');
+  const fsAc = require('fs');
+  fsAc.mkdirSync(path.join(__dirname, '..', 'storage', 'academy'), { recursive: true });
+  fsAc.renameSync(path.join(locale, 'seed_corso_sicurezza.pdf'), path.join(__dirname, '..', 'storage', 'academy', 'seed_corso_sicurezza.pdf'));
+  const attestato = await pdf('Attestato di frequenza - Elena Gualtieri');
+  fsAc.writeFileSync(path.join(__dirname, '..', 'storage', 'academy', 'seed_attestato_1.pdf'), attestato);
+  const [corso] = await q(`INSERT INTO academy_courses (company_id, title, description, duration_hours, due_date, status, created_by_user_id, created_at)
+                           VALUES (1, 'Sicurezza sul lavoro', 'Corso base obbligatorio.\nDurata indicativa: 4 ore.', 4, '2026-12-15', 'published', ?, '2026-09-01 09:00:00')`, [hrAlfa]);
+  const [m1] = await q(`INSERT INTO academy_materials (company_id, course_id, kind, title, file_path, original_name, mime_type, file_size, sort_order)
+                        VALUES (1, ?, 'file', 'Modulo 1 - Rischi generali', '/var/www/html/storage/academy/seed_corso_sicurezza.pdf', 'modulo1.pdf', 'application/pdf', ?, 1)`, [corso.insertId, corsoPdf.dimensione]);
+  const [m2] = await q(`INSERT INTO academy_materials (company_id, course_id, kind, title, url, sort_order)
+                        VALUES (1, ?, 'link', 'Normativa di riferimento', 'https://esempio.test/normativa', 2)`, [corso.insertId]);
+  const assegna = async (cog, extra) => {
+    const [r] = await q(`INSERT INTO academy_assignments (company_id, course_id, employee_id, assigned_by_user_id, assigned_at, started_at, started_ip, completed_at, completed_ip, declaration_text)
+                         VALUES (1, ?, ?, ?, '2026-09-02 10:00:00', ?, ?, ?, ?, ?)`,
+    [corso.insertId, E(cog).id, hrAlfa, extra.inizio ?? null, extra.inizio ? '127.0.0.1' : null, extra.fine ?? null, extra.fine ? '127.0.0.1' : null,
+      extra.fine ? 'Dichiaro di aver seguito integralmente il corso e di aver consultato tutti i materiali didattici.' : null]);
+    return r.insertId;
+  };
+  await assegna('Ferraresi', {});
+  const aBel = await assegna('Bellandi', { inizio: '2026-09-10 09:00:00' });
+  await q(`INSERT INTO academy_material_views (assignment_id, material_id, first_opened_at, last_opened_at, open_count) VALUES (?, ?, '2026-09-10 09:05:00', '2026-09-10 09:05:00', 1)`, [aBel, m1.insertId]);
+  const aGua = await assegna('Gualtieri', { inizio: '2026-09-05 09:00:00', fine: '2026-09-06 15:30:00' });
+  for (const m of [m1.insertId, m2.insertId]) {
+    await q(`INSERT INTO academy_material_views (assignment_id, material_id, first_opened_at, last_opened_at, open_count) VALUES (?, ?, '2026-09-05 10:00:00', '2026-09-05 10:00:00', 1)`, [aGua, m]);
+  }
+  await q(`INSERT INTO academy_certificates (company_id, assignment_id, number, seq_year, seq_number, issued_at, issued_by_user_id, file_path, sha256, verify_token)
+           VALUES (1, ?, 'ATT-2026-0001', 2026, 1, '2026-09-07 11:00:00', ?, '/var/www/html/storage/academy/seed_attestato_1.pdf', ?, ?)`,
+  [aGua, hrAlfa, require('crypto').createHash('sha256').update(attestato).digest('hex'), 'seedverifica00000000000000000001']);
+  execFileSync('docker', ['exec', 'cora-baseline-app-1', 'mkdir', '-p', '/var/www/html/storage/academy']);
+  execFileSync('docker', ['cp', path.join(__dirname, '..', 'storage', 'academy') + path.sep + '.', 'cora-baseline-app-1:/var/www/html/storage/academy/']);
+  execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/storage/academy']);
+
   execFileSync('docker', ['exec', 'cora-baseline-app-1', 'mkdir', '-p', '/var/www/html/storage/documents']);
   execFileSync('docker', ['cp', locale + path.sep + '.', 'cora-baseline-app-1:/var/www/html/storage/documents/']);
   execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/storage/documents']);

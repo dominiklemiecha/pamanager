@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useStile } from '../../componenti/stile';
 import { CoraShell, Topbar, useCornice } from '../../cora/CoraShell';
 import { api } from '../../services/api';
 import css from '../condivise/calendario.css?inline';
@@ -11,7 +10,6 @@ import { htmlModale } from '../condivise/calendario-modale';
  * stesso script del calendario condiviso, dati dal nuovo backend.
  */
 export default function Calendario() {
-  useStile(css);
   const cornice = useCornice();
   const q = useMemo(() => new URLSearchParams(location.search), []);
   const [d, setD] = useState<DatiCalendario | null>(null);
@@ -22,7 +20,7 @@ export default function Calendario() {
 
   if (!cornice || !d) return null;
   return (
-    <CoraShell pagina="calendar" titolo="Calendario" cornice={cornice} css={['cora-calendar.css']}
+    <CoraShell stile={css} pagina="calendar" titolo="Calendario" cornice={cornice} css={['cora-calendar.css']}
       script={['/assets/js/cora-calendario.js']} globali={{ CORA_CAL: d.chiamante }}>
       <Topbar titolo="Calendario" sottotitolo="I tuoi impegni e gli inviti dei colleghi" cornice={cornice} />
       <div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: html }} />

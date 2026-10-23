@@ -6,8 +6,14 @@ async function scrivi(page, sel, testo) { await page.fill(sel, testo); }
 /** Entra con il modulo di login (uguale sui due sistemi). */
 async function entra(page, base, utente) {
   await page.goto(base + '/auth/login.php');
-  await page.fill('#username', utente);
-  await page.fill('#password', PW);
+  // Gli script della pagina di login possono ancora toccare i campi: si aspetta che finiscano.
+  await page.waitForLoadState('networkidle');
+  for (let i = 0; i < 3; i++) {
+    await page.fill('#username', utente);
+    await page.fill('#password', PW);
+    if (await page.inputValue('#username') === utente) break;
+    await page.waitForTimeout(300);
+  }
   await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/'), { waitUntil: 'load' }), page.click('button[type=submit]')]);
   await page.waitForLoadState('networkidle');
 }
@@ -78,5 +84,11 @@ export const CASI = [
   { nome: 'chat-aperta', percorso: '/employee/chat.php?conv=1', attesa: 3500, ...come('giulia.ferraresi'), azione: senzaGuida },
   { nome: 'chat-nuova', percorso: '/employee/chat.php', attesa: 900, ...come('marco.bellandi'), misure: [[1512, 900]],
     azione: async (page) => { await senzaGuida(page); await page.click('[data-cc-new]'); await page.waitForTimeout(600); } },
+  { nome: 'academy-elenco', percorso: '/employee/academy.php', attesa: 1200, ...come('marco.bellandi'), azione: senzaGuida },
+  { nome: 'academy-da-iniziare', percorso: '/employee/academy.php?course=1', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'academy-in-corso', percorso: '/employee/academy.php?course=1', attesa: 1200, ...come('marco.bellandi'), azione: senzaGuida, paginaIntera: true },
+  { nome: 'academy-completato', percorso: '/employee/academy.php?course=1', attesa: 1200, ...come('elena.gualtieri'), azione: senzaGuida },
+  { nome: 'academy-errore', percorso: '/employee/academy.php?course=1&err=Apri%20tutti%20i%20materiali%20del%20corso%20prima%20di%20completarlo',
+    percorsoNode: '/employee/academy.php?course=1&err=materiali', attesa: 1200, ...come('marco.bellandi'), azione: senzaGuida },
 ];
 export { PW };

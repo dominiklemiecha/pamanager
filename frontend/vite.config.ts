@@ -31,6 +31,11 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
       },
+      // Materiali e attestati dell'Academy.
+      '/academy-file.php': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
       // Allegati e immagini delle comunicazioni (indirizzo salvato nel testo).
       '/communication_file.php': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
