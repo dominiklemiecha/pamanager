@@ -20,7 +20,7 @@ const { PostgresQueryRunner } = require('typeorm/driver/postgres/PostgresQueryRu
  *  - fuori dalle richieste (avvio, job, link pubblici, superadmin) e nei
  *    controlli che devono vedere tutto si torna al ruolo del backend.
  *
- * DB_RLS=off lo spegne (senza toccare il resto).
+ * DB_RLS=off lo spegne (solo fuori produzione).
  */
 interface Contesto { companyId?: number; libero?: boolean }
 const contesto = new AsyncLocalStorage<Contesto>();
@@ -70,57 +70,87 @@ export function senzaIsolamento<T>(fn: () => Promise<T>): Promise<T> {
   return contesto.run({ ...c, libero: true }, fn);
 }
 
-/** Crea ruolo e regole (idempotente) e attiva il cambio di ruolo sulle connessioni. */
+/**
+ * Crea ruolo e regole (idempotente) e attiva il cambio di ruolo sulle connessioni.
+ *
+ * In produzione e' "a prova di guasto": se le regole non si possono creare, o se
+ * dopo la creazione una tabella con company_id resta scoperta, il backend non
+ * parte. Ogni 5 minuti le regole si riapplicano: una tabella ricreata mentre il
+ * servizio gira (ripristino, migrazione) torna protetta senza aspettare un riavvio.
+ */
 export async function attivaIsolamento(ds: DataSource): Promise<void> {
   if (String(process.env.DB_RLS ?? 'on').toLowerCase() === 'off') {
+    if (process.env.APP_ENV === 'production') throw new Error('DB_RLS=off non ammesso in produzione');
     logger.warn('Isolamento nel database spento (DB_RLS=off)');
     return;
   }
   try {
-    await ds.query(`DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${RUOLO}') THEN CREATE ROLE ${RUOLO} NOLOGIN; END IF;
-    END $$`);
-    await ds.query(`GRANT ${RUOLO} TO CURRENT_USER`).catch(() => undefined);
-    await ds.query(`GRANT USAGE ON SCHEMA public TO ${RUOLO}`);
-    await ds.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${RUOLO}`);
-    await ds.query(`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${RUOLO}`);
-    const tabelle: Array<{ table_name: string; is_nullable: string }> = await ds.query(
-      `SELECT c.table_name, c.is_nullable FROM information_schema.columns c
-         JOIN information_schema.tables t ON t.table_name = c.table_name AND t.table_schema = c.table_schema
-        WHERE c.table_schema = 'public' AND c.column_name = 'company_id' AND t.table_type = 'BASE TABLE'`,
-    );
-    let n = 0;
-    for (const { table_name } of tabelle) {
-      if (ESCLUSE.has(table_name)) continue;
-      const t = `"${table_name.replace(/"/g, '')}"`;
-      const condivisa = CONDIVISE_SE_NULL.has(table_name);
-      if (!condivisa) {
-        // Righe senza azienda diventerebbero invisibili a tutti: su quella
-        // tabella l'isolamento non si accende (i dati vengono prima).
-        const [senza] = await ds.query(`SELECT EXISTS (SELECT 1 FROM ${t} WHERE company_id IS NULL) AS c`);
-        if (senza?.c) {
-          await ds.query(`ALTER TABLE ${t} DISABLE ROW LEVEL SECURITY`);
-          logger.warn(`Isolamento NON attivo su ${table_name}: ci sono righe senza azienda`);
-          continue;
-        }
-      }
-      const proprie = `company_id = NULLIF(current_setting('app.company_id', true), '')::int`;
-      await ds.query(`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY`);
-      await ds.query(`DROP POLICY IF EXISTS cora_azienda ON ${t}`);
+    await applicaRegole(ds);
+    await verificaCopertura(ds);
+  } catch (e: any) {
+    if (process.env.APP_ENV === 'production') throw e;
+    logger.error(`Isolamento nel database NON attivo: ${e?.message ?? e}`);
+    return;
+  }
+  installaCambioRuolo();
+  attivo = true;
+  const t = setInterval(() => {
+    applicaRegole(ds).then(() => verificaCopertura(ds)).catch((e) => logger.error(`Riapplicazione dell'isolamento fallita: ${e?.message ?? e}`));
+  }, 5 * 60_000);
+  t.unref();
+}
+
+async function applicaRegole(ds: DataSource): Promise<number> {
+  await ds.query(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${RUOLO}') THEN CREATE ROLE ${RUOLO} NOLOGIN; END IF;
+  END $$`);
+  await ds.query(`GRANT ${RUOLO} TO CURRENT_USER`).catch(() => undefined);
+  await ds.query(`GRANT USAGE ON SCHEMA public TO ${RUOLO}`);
+  await ds.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${RUOLO}`);
+  await ds.query(`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${RUOLO}`);
+  let n = 0;
+  for (const table_name of await tabelleDaProteggere(ds)) {
+    const t = `"${table_name.replace(/"/g, '')}"`;
+    const condivisa = CONDIVISE_SE_NULL.has(table_name);
+    if (!condivisa) {
+      // Righe senza azienda diventerebbero invisibili a tutti: meglio fermarsi e dirlo.
+      const [senza] = await ds.query(`SELECT EXISTS (SELECT 1 FROM ${t} WHERE company_id IS NULL) AS c`);
+      if (senza?.c) throw new Error(`la tabella ${table_name} ha righe senza azienda`);
+    }
+    const proprie = `company_id = NULLIF(current_setting('app.company_id', true), '')::int`;
+    const [esiste] = await ds.query(`SELECT 1 AS c FROM pg_policies WHERE schemaname = 'public' AND tablename = $1 AND policyname = 'cora_azienda'`, [table_name]);
+    await ds.query(`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY`);
+    if (!esiste) {
       await ds.query(
         `CREATE POLICY cora_azienda ON ${t} TO ${RUOLO}
            USING (${condivisa ? `company_id IS NULL OR ${proprie}` : proprie})
            WITH CHECK (${proprie})`,
       );
-      n++;
     }
-    installaCambioRuolo();
-    attivo = true;
-    logger.log(`Isolamento nel database attivo su ${n} tabelle`);
-  } catch (e: any) {
-    // Senza permessi per creare ruolo e regole si resta coi soli filtri nel codice.
-    logger.error(`Isolamento nel database NON attivo: ${e?.message ?? e}`);
+    n++;
   }
+  if (!attivo) logger.log(`Isolamento nel database attivo su ${n} tabelle`);
+  return n;
+}
+
+async function tabelleDaProteggere(ds: DataSource): Promise<string[]> {
+  const righe: Array<{ table_name: string }> = await ds.query(
+    `SELECT c.table_name FROM information_schema.columns c
+       JOIN information_schema.tables t ON t.table_name = c.table_name AND t.table_schema = c.table_schema
+      WHERE c.table_schema = 'public' AND c.column_name = 'company_id' AND t.table_type = 'BASE TABLE'`,
+  );
+  return righe.map((r) => r.table_name).filter((t) => !ESCLUSE.has(t));
+}
+
+/** Ogni tabella da proteggere deve avere RLS accesa e la regola: altrimenti errore. */
+async function verificaCopertura(ds: DataSource): Promise<void> {
+  const scoperte: Array<{ relname: string }> = await ds.query(
+    `SELECT c.relname FROM pg_class c
+      WHERE c.relnamespace = 'public'::regnamespace AND c.relname = ANY($1)
+        AND (NOT c.relrowsecurity OR NOT EXISTS (SELECT 1 FROM pg_policies p WHERE p.tablename = c.relname AND p.policyname = 'cora_azienda'))`,
+    [await tabelleDaProteggere(ds)],
+  );
+  if (scoperte.length) throw new Error(`tabelle senza isolamento: ${scoperte.map((r) => r.relname).join(', ')}`);
 }
 
 let installato = false;

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { senzaIsolamento } from '../../common/database/isolamento';
-import { verificaPassword } from '../../common/sicurezza/password';
+import { hashPassword, verificaPassword } from '../../common/sicurezza/password';
 import { usaCodiceRiserva, verificaTotp } from '../../common/sicurezza/totp';
 import { AuditService, ContestoAudit } from '../audit/audit.service';
 import { BLOCCO_SECONDI, MAX_TENTATIVI, RUOLI_MFA } from './auth.types';
@@ -33,6 +33,16 @@ function segnaFallito(ip: string): void {
   else c.n++;
   if (fallitiIp.size > 10_000) fallitiIp.clear();
 }
+
+/**
+ * Hash di confronto per gli account che non esistono: la verifica costa lo
+ * stesso tempo, cosi' dalla durata della risposta non si capisce se un
+ * username, un'email o un codice fiscale sono registrati.
+ */
+let hashFinto: Promise<string> | null = null;
+const hashDiConfronto = () => (hashFinto ??= hashPassword(`non-esiste-${Date.now()}-${Math.random()}`));
+
+const DURATA_MINIMA_ERRORE_MS = 450;
 
 export type EsitoLogin =
   | { ok: true; token: string; tipo: 'user' | 'employee'; ruolo: string; mfa: boolean }
@@ -77,9 +87,22 @@ export class AuthService {
   }
 
   async login(identificativo: string, password: string, ctx: ContestoAudit & { userAgent: string; ip: string }): Promise<EsitoLogin> {
+    const inizio = Date.now();
+    const esito = await this.provaLogin(identificativo, password, ctx);
+    // Le risposte negative durano tutte almeno lo stesso tempo: gli hash bcrypt
+    // (circa 330 ms) e Argon2id (circa 120 ms) altrimenti farebbero capire chi esiste.
+    if (!esito.ok) {
+      const resta = DURATA_MINIMA_ERRORE_MS - (Date.now() - inizio);
+      if (resta > 0) await new Promise((r) => setTimeout(r, resta));
+    }
+    return esito;
+  }
+
+  private async provaLogin(identificativo: string, password: string, ctx: ContestoAudit & { userAgent: string; ip: string }): Promise<EsitoLogin> {
     if (ipBloccato(ctx.ip)) return { ok: false, errore: 'Troppi tentativi. Riprova tra qualche minuto.' };
     const account = await this.trovaAccount(identificativo);
     if (!account.length) {
+      await verificaPassword(password, await hashDiConfronto());
       segnaFallito(ctx.ip);
       await this.loginFallito('unknown', 0, 'user_not_found', ctx, { username: identificativo });
       return { ok: false, errore: 'Credenziali non valide' };
