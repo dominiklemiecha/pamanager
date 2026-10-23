@@ -107,7 +107,7 @@ describe('messaggi', () => {
     expect(pulisci(b)).toEqual(pulisci(a));
     // Stesso invio ripetuto: lo stesso messaggio, non un doppione.
     const [a2, b2] = [await phpAzione(p, invio(mariadb)), await nodeAzione(n, invio(postgres))];
-    expect(b2).toEqual(a2);
+    expect(pulisci(b2)).toEqual(pulisci(a2));
 
     const reaz = (fn: typeof mariadb) => ({ action: 'cora_react', message_id: String(ultimoMsg(fn)), emoji: '👍' });
     expect(pulisci(await nodeAzione(n, reaz(postgres)))).toEqual(pulisci(await phpAzione(p, reaz(mariadb))));

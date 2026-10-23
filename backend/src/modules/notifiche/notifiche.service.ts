@@ -24,7 +24,7 @@ export class NotificheService {
 
   constructor(private readonly ds: DataSource, private readonly push: PushService) {}
 
-  async crea(companyId: number, n: NuovaNotifica): Promise<{ success: boolean; id?: number; error?: string }> {
+  async crea(companyId: number, n: NuovaNotifica, conPush = true): Promise<{ success: boolean; id?: number; error?: string }> {
     if (!n.recipient_type || !n.recipient_id) return { success: false, error: 'Destinatario obbligatorio' };
     if (!n.type) return { success: false, error: 'Tipo notifica obbligatorio' };
     if (!n.title) return { success: false, error: 'Titolo obbligatorio' };
@@ -33,7 +33,7 @@ export class NotificheService {
         `INSERT INTO notifications (company_id, recipient_type, recipient_id, type, title, message, link, is_read)
          VALUES ($1, $2, $3, $4, $5, $6, $7, false) RETURNING id`,
         [companyId, n.recipient_type, n.recipient_id, n.type, n.title, n.message ?? '', n.link ?? null]);
-      try {
+      if (conPush) try {
         await this.push.aUtente(n.recipient_type, n.recipient_id, { title: n.title, body: n.message ?? '', url: n.link ?? '/', tag: `notification-${r.id}` });
       } catch (e: any) {
         this.logger.warn(`push non inviata: ${e?.message ?? e}`);

@@ -6,6 +6,9 @@ import { opzioniDatabase } from './database/data-source';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompatModule } from './modules/compat/compat.module';
+import { PagineModule } from './modules/pagine/pagine.module';
+import { StaffModule } from './modules/staff/staff.module';
+import { WidgetModule } from './modules/widget/widget.module';
 import { ContrattoModule } from './modules/contratto/contratto.module';
 import { AcademyModule } from './modules/academy/academy.module';
 import { ChatModule } from './modules/chat/chat.module';
@@ -46,6 +49,9 @@ import { SaldiModule } from './modules/saldi/saldi.module';
     ChatModule,
     AcademyModule,
     ContrattoModule,
+    WidgetModule,
+    StaffModule,
+    PagineModule,
   ],
 })
 export class AppModule {}

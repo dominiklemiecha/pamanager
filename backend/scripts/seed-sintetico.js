@@ -147,7 +147,9 @@ async function main() {
       company_id: azienda, username: `${nome}.${cognome}`.toLowerCase(), password_hash: hash, fiscal_code: cf,
       first_name: nome, last_name: cognome, email: `${nome}.${cognome}@esempio.test`.toLowerCase(), birth_date: nascita,
       department_id: rep ? reparto[rep] : null, hire_date: assunzione, position: rep === 2 ? 'Tecnico' : rep === 3 ? 'Magazziniere' : 'Impiegato',
-      is_active: 1, must_change_password: 0, ...extra,
+      is_active: 1, must_change_password: 0,
+      // Orari di creazione distinti: a parita' di ora l'ordine dei due database sarebbe diverso.
+      created_at: `2026-09-${String(1 + dip.length).padStart(2, '0')} 09:00:00`, ...extra,
     };
     const campi = Object.keys(riga);
     const [r] = await q(`INSERT INTO employees (${campi.join(', ')}) VALUES (${campi.map(() => '?').join(', ')})`, campi.map((c) => riga[c]));
@@ -207,9 +209,11 @@ async function main() {
     [1, 'Riunione commerciale', 'Venerdi riunione di reparto alle 10.', 'low', 1, staffId['resp.commerciale']],
     [2, 'Inventario di fine anno', 'Il magazzino fa inventario il 30 dicembre.', 'high', null, hrBeta],
   ];
+  let nComm = 0;
   for (const [azienda, titolo, testo, priorita, rep, autore] of comunicazioni) {
-    await q(`INSERT INTO communications (company_id, title, content, priority, is_published, publish_date, is_global, department_id, created_by)
-             VALUES (?, ?, ?, ?, 1, '2026-10-01', ?, ?, ?)`, [azienda, titolo, testo, priorita, rep ? 0 : 1, rep ? reparto[rep] : null, autore]);
+    nComm++;
+    await q(`INSERT INTO communications (company_id, title, content, priority, is_published, publish_date, is_global, department_id, created_by, created_at)
+             VALUES (?, ?, ?, ?, 1, '2026-10-01', ?, ?, ?, ?)`, [azienda, titolo, testo, priorita, rep ? 0 : 1, rep ? reparto[rep] : null, autore, `2026-10-01 0${nComm}:00:00`]);
   }
 
   // Comunicazione con testo formattato (editor), un allegato e tentativi di
@@ -222,6 +226,7 @@ async function main() {
     + '<script>alert(3)</script><!-- nota -->';
   const [rc] = await q(`INSERT INTO communications (company_id, title, content, priority, is_published, publish_date, is_global, department_id, created_by)
                          VALUES (1, 'Nuovi orari di apertura', ?, 'normal', 1, '2026-10-02', 1, NULL, ?)`, [ricco, hrAlfa]);
+  await q(`UPDATE communications SET created_at = '2026-10-02 08:00:00' WHERE id = ?`, [rc.insertId]);
   {
     const fs = require('fs');
     const path = require('path');

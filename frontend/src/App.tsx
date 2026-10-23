@@ -17,6 +17,7 @@ import Home from './pages/employee/Home';
 import Profilo from './pages/employee/Profilo';
 import Richieste from './pages/employee/Richieste';
 import Stato from './pages/Stato';
+import { rotteStaff } from './pages/staff/rotte';
 
 /** Pagina iniziale: chi e' dentro va alla sua area, gli altri al login (come index.php). */
 function Radice() {
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/employee/contract-sign.php" element={<ContrattoFirma />} />
         <Route path="/employee/change-password.php" element={<CambioPassword />} />
         <Route path="/employee/unsubscribe.php" element={<Disiscrizione />} />
+        {rotteStaff}
         <Route path="*" element={<Stato />} />
       </Routes>
     </SessioneProvider>

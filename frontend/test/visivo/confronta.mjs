@@ -38,6 +38,9 @@ for (const caso of CASI.filter((c) => c.nome.includes(filtro))) {
       await page.waitForTimeout(caso.attesa ?? 600);
       // Il cursore lampeggiante nei campi non conta come differenza.
       await page.addStyleTag({ content: '*{caret-color:transparent!important}' });
+      // Animazioni infinite (pallini che pulsano): ferme nello stesso punto da tutte e due le parti.
+      await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;animation-delay:-1s!important}' });
+      await page.waitForTimeout(50);
       const file = path.join(OUT, `${caso.nome}-${w}-${lato}.png`);
       await page.screenshot({ path: file, fullPage: !!caso.paginaIntera });
       scatti[lato] = PNG.sync.read(fs.readFileSync(file));

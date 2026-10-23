@@ -25,6 +25,20 @@ export interface Cornice {
   notificheNonLette: number;
   guida: { id: number; sessione: string; stato: string | null };
   contrattoDaFirmare: number | null;
+  widget: WidgetAssistenza | null;
+}
+
+export interface WidgetAssistenza { src: string; appId: string; sessione: string }
+
+/** Widget assistenza del CRM (ConnecteedWidget::scriptTag), in fondo alla pagina. */
+export function caricaWidget(w: WidgetAssistenza | null | undefined) {
+  if (!w || document.querySelector(`script[data-app-id]`)) return;
+  const s = document.createElement('script');
+  s.src = w.src;
+  s.async = true;
+  s.dataset.appId = w.appId;
+  s.dataset.sessionUrl = w.sessione;
+  document.body.appendChild(s);
 }
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&display=swap';
@@ -160,6 +174,7 @@ function useScriptLegacy(pagina: string, cornice: Cornice, script: string[], glo
       // Nel PHP gli script erano nella pagina e ricevevano DOMContentLoaded:
       // chi lo aspetta (es. riapertura della modale dopo un errore) parte ora.
       document.dispatchEvent(new Event('DOMContentLoaded'));
+      caricaWidget(cornice.widget);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

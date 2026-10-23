@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { oggiRoma } from '../../common/calcoli/php';
 import { NotificheService } from '../notifiche/notifiche.service';
 import { SaldiService } from '../saldi/saldi.service';
+import { WidgetService } from '../widget/widget.service';
 
 /**
  * Priorita' delle comunicazioni come la ordinava MariaDB (ENUM per posizione:
@@ -19,7 +20,7 @@ const foto = (p: string | null | undefined) => (p ? '/' + String(p).replace(/^\/
  */
 @Injectable()
 export class DipendenteService {
-  constructor(private readonly ds: DataSource, private readonly notifiche: NotificheService, private readonly saldi: SaldiService) {}
+  constructor(private readonly ds: DataSource, private readonly notifiche: NotificheService, private readonly saldi: SaldiService, private readonly widget: WidgetService) {}
 
   private async uno<T = any>(sql: string, p: unknown[]): Promise<T | undefined> {
     const [r] = await this.ds.query(sql, p);
@@ -120,6 +121,7 @@ export class DipendenteService {
       notificheNonLette: await this.notifiche.nonLette(companyId, 'employee', employeeId),
       guida: { id: employeeId, sessione: String(sessioneCreata), stato: e?.tour_status || null },
       // Contratto da firmare: il portale porta subito alla firma (header-employee.php).
+      widget: this.widget.tag(),
       contrattoDaFirmare: (await this.uno(`SELECT id FROM hire_requests WHERE employee_id = $1 AND status = 'contract_pending' ORDER BY id DESC LIMIT 1`, [employeeId]))?.id ?? null,
     };
   }

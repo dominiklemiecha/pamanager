@@ -5,6 +5,7 @@ import { DIMENSIONE_MASSIMA, ESTENSIONI_DOCUMENTI, FileCaricato, contenutoCoeren
 import { AuditService, ContestoAudit } from '../audit/audit.service';
 import type { UtenteCorrente } from '../auth/auth.types';
 import { NotificheService } from '../notifiche/notifiche.service';
+import { PushService } from '../notifiche/push.service';
 
 /** Tipi di assenza con le etichette del PHP (LeaveRequest::LEAVE_TYPES). */
 export const TIPI: Record<string, string> = {
@@ -49,7 +50,7 @@ const periodo = (s: string, e: string) => ddmmyyyy(s) + (s !== e ? ` - ${ddmmyyy
 export class FerieService {
   private readonly logger = new Logger('Ferie');
 
-  constructor(private readonly ds: DataSource, private readonly audit: AuditService, private readonly notifiche: NotificheService) {}
+  constructor(private readonly ds: DataSource, private readonly audit: AuditService, private readonly notifiche: NotificheService, private readonly push: PushService) {}
 
   async perId(id: number) {
     const [r] = await this.ds.query(
@@ -180,6 +181,153 @@ export class FerieService {
     await this.ds.query("UPDATE leave_requests SET status = 'cancelled' WHERE id = $1", [requestId]);
     await this.registra('leave_request_cancelled', requestId, { status: 'pending' }, { status: 'cancelled' }, ctx);
     return { success: true };
+  }
+
+  // ─── Operazioni dell'HR ─────────────────────────────────────────────────
+
+  /**
+   * Approvazione (LeaveRequest::approve). La malattia si approva solo con
+   * protocollo e certificato (o certificato segnato come non richiesto).
+   */
+  async approva(id: number, companyId: number, ctx: ContestoAudit & { tipo: string; id: number }): Promise<Esito> {
+    const r = await this.perId(id);
+    if (!r) return { success: false, error: 'Richiesta non trovata' };
+    if (r.company_id !== companyId) return { success: false, error: "Richiesta non appartiene all'azienda corrente" };
+    if (r.status !== 'pending') return { success: false, error: 'Solo le richieste in attesa possono essere approvate' };
+    if (r.leave_type === 'malattia') {
+      const manca = [];
+      if (!r.protocol_number) manca.push('numero protocollo');
+      if (!r.certificate_path && !r.certificate_waived) manca.push('certificato medico');
+      if (manca.length) {
+        return { success: false, error: `Impossibile approvare: manca ${manca.join(' e ')}. La richiesta resta in attesa finché i documenti non vengono caricati o il certificato segnato come non richiesto.` };
+      }
+    }
+    try {
+      await this.ds.query(`UPDATE leave_requests SET status = 'approved', approved_by = $2, approved_at = CURRENT_TIMESTAMP WHERE id = $1`, [id, ctx.id]);
+      await this.registra('leave_request_approved', id, { status: 'pending' }, { status: 'approved' }, ctx);
+      await this.esitoAlDipendente(r, 'leave_approved');
+      await this.avvisaCommercialisti(r);
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`approvazione non riuscita: ${err?.message ?? err}`);
+      return { success: false, error: "Errore durante l'approvazione" };
+    }
+  }
+
+  /** Rifiuto con motivo facoltativo (LeaveRequest::reject). */
+  async rifiuta(id: number, companyId: number, motivo: string, ctx: ContestoAudit & { tipo: string; id: number }): Promise<Esito> {
+    const r = await this.perId(id);
+    if (!r) return { success: false, error: 'Richiesta non trovata' };
+    if (r.company_id !== companyId) return { success: false, error: "Richiesta non appartiene all'azienda corrente" };
+    if (r.status !== 'pending') return { success: false, error: 'Solo le richieste in attesa possono essere rifiutate' };
+    try {
+      await this.ds.query(`UPDATE leave_requests SET status = 'rejected', approved_by = $2, approved_at = CURRENT_TIMESTAMP, rejection_reason = $3 WHERE id = $1`,
+        [id, ctx.id, String(motivo ?? '').trim() || null]);
+      await this.registra('leave_request_rejected', id, { status: 'pending' }, { status: 'rejected', rejection_reason: motivo ?? '' }, ctx);
+      await this.esitoAlDipendente(r, 'leave_rejected', motivo ?? '');
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`rifiuto non riuscito: ${err?.message ?? err}`);
+      return { success: false, error: 'Errore durante il rifiuto' };
+    }
+  }
+
+  /** Richiesta inserita dall'HR: gia' approvata (LeaveRequest::createByAdmin). */
+  async creaDaAdmin(d: DatiRichiesta, ctx: ContestoAudit & { tipo: string; id: number }, companyId: number): Promise<Esito> {
+    const [e] = await this.ds.query('SELECT company_id FROM employees WHERE id = $1', [d.employee_id]);
+    if (!e || e.company_id !== companyId) return { success: false, error: 'Dipendente non trovato' };
+    const r = await this.crea(d, ctx, false);
+    if (!r.success) return r;
+    await this.ds.query(`UPDATE leave_requests SET status = 'approved', approved_by = $2, approved_at = CURRENT_TIMESTAMP, created_by_admin = true WHERE id = $1`, [r.id, ctx.id])
+      .catch((err) => this.logger.error(`createByAdmin: ${err?.message ?? err}`));
+    return r;
+  }
+
+  /** Eliminazione (con l'allegato) da parte dell'HR. */
+  async elimina(id: number, companyId: number, ctx: ContestoAudit & { tipo: string; id: number }): Promise<Esito> {
+    const [r] = await this.ds.query('SELECT * FROM leave_requests WHERE id = $1', [id]);
+    if (!r) return { success: false, error: 'Richiesta non trovata' };
+    if (r.company_id !== companyId) return { success: false, error: "Richiesta non appartiene all'azienda corrente" };
+    try {
+      const p = fileSicuro(r.attachment_path);
+      if (p) fs.rmSync(p, { force: true });
+      await this.ds.query('DELETE FROM leave_requests WHERE id = $1', [id]);
+      await this.registra('leave_request_deleted', id, r, null, ctx);
+      return { success: true };
+    } catch {
+      return { success: false, error: "Errore durante l'eliminazione" };
+    }
+  }
+
+  /** Modifica forzata dell'HR (LeaveRequest::adminUpdate): niente controllo sovrapposizioni. */
+  async aggiornaDaAdmin(id: number, companyId: number, d: Record<string, any>, ctx: ContestoAudit & { tipo: string; id: number }): Promise<Esito> {
+    const [r] = await this.ds.query('SELECT * FROM leave_requests WHERE id = $1', [id]);
+    if (!r) return { success: false, error: 'Richiesta non trovata' };
+    if (r.company_id !== companyId) return { success: false, error: "Richiesta non appartiene all'azienda corrente" };
+    const campi: Record<string, unknown> = {};
+    if (d.leave_type != null && TIPI[d.leave_type]) campi.leave_type = d.leave_type;
+    if (d.start_date && dataValida(String(d.start_date))) campi.start_date = d.start_date;
+    if (d.end_date && dataValida(String(d.end_date))) campi.end_date = d.end_date;
+    if (d.is_full_day !== undefined) campi.is_full_day = !!d.is_full_day;
+    if ('start_time' in d) campi.start_time = d.start_time && ORA.test(String(d.start_time)) ? d.start_time : null;
+    if ('end_time' in d) campi.end_time = d.end_time && ORA.test(String(d.end_time)) ? d.end_time : null;
+    if (d.reason != null) campi.reason = String(d.reason).trim();
+    if ('notes' in d) campi.notes = d.notes !== '' && d.notes != null ? String(d.notes) : null;
+    if (d.status != null && STATI[d.status]) campi.status = d.status;
+    const chiavi = Object.keys(campi);
+    if (!chiavi.length) return { success: false, error: 'Nessun dato da aggiornare' };
+    try {
+      await this.ds.query(`UPDATE leave_requests SET ${chiavi.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [id, ...chiavi.map((k) => campi[k])]);
+      await this.registra('leave_request_admin_update', id, r, campi, ctx);
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`aggiornamento non riuscito: ${err?.message ?? err}`);
+      return { success: false, error: "Errore durante l'aggiornamento" };
+    }
+  }
+
+  /**
+   * Esito al dipendente: notifica nel portale e push (LeaveRequest::createNotification).
+   * Correzione: la notifica va nell'azienda del dipendente (nel PHP sempre l'azienda 1).
+   */
+  private async esitoAlDipendente(r: any, tipo: 'leave_approved' | 'leave_rejected', motivo = '') {
+    try {
+      const nomeTipo = TIPI[r.leave_type] ?? r.leave_type;
+      let messaggio = `La tua richiesta di ${nomeTipo} per il ${periodo(r.start_date, r.end_date)} è stata ` + (tipo === 'leave_approved' ? 'approvata.' : 'rifiutata.');
+      if (tipo === 'leave_rejected' && motivo) messaggio += ` Motivo: ${motivo}`;
+      await this.notifiche.crea(r.company_id, {
+        recipient_type: 'employee', recipient_id: r.employee_id, type: tipo,
+        title: tipo === 'leave_approved' ? 'Richiesta Approvata' : 'Richiesta Rifiutata', message: messaggio, link: '/employee/leave-requests.php',
+      }, false);
+      const PUSH: Record<string, string> = { ferie: 'Ferie', permesso: 'Permesso', malattia: 'Malattia', permesso_104: 'Permesso L.104', congedo_parentale: 'Congedo Parentale', altro: 'Richiesta' };
+      const stato = tipo === 'leave_approved' ? 'approvata' : 'rifiutata';
+      await this.push.aUtente('employee', r.employee_id, {
+        title: `${PUSH[r.leave_type] ?? 'Richiesta'} ${stato}`, body: `La tua richiesta di ${(PUSH[r.leave_type] ?? r.leave_type).toLowerCase()} è stata ${stato}`,
+        url: '/employee/leave-requests.php', tag: `leave-response-${Math.floor(Date.now() / 1000)}`, icon: '/assets/images/icon.php?size=192',
+      }).catch(() => undefined);
+    } catch (err: any) {
+      this.logger.error(`esito non notificato: ${err?.message ?? err}`);
+    }
+  }
+
+  /**
+   * Commercialisti avvisati di un'assenza approvata (LeaveRequest::notifyAccountants).
+   * Correzione: solo quelli dell'azienda della richiesta (o collegati), non di altre aziende.
+   */
+  private async avvisaCommercialisti(r: any) {
+    try {
+      const acc = await this.ds.query(
+        `SELECT DISTINCT u.id FROM users u WHERE u.role = 'accountant' AND (u.company_id = $1 OR u.id IN (SELECT user_id FROM user_companies WHERE company_id = $1)) ORDER BY u.id`, [r.company_id]);
+      const tipo = TIPI[r.leave_type] ?? r.leave_type;
+      for (const a of acc) {
+        await this.notifiche.crea(r.company_id, {
+          recipient_type: 'accountant', recipient_id: a.id, type: 'leave_approved', title: `${tipo} Approvata`,
+          message: `${r.first_name} ${r.last_name}: ${tipo} approvata per il ${periodo(r.start_date, r.end_date)}`, link: '/accountant/leave-requests.php',
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(`commercialisti non avvisati: ${err?.message ?? err}`);
+    }
   }
 
   /** Malattie senza documenti da piu' di N ore (LeaveRequest::sickPendingDocs). */
