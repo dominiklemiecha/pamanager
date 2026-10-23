@@ -103,3 +103,11 @@ docker-compose.override.yml
 /mockups/sidebar-showcase.html
 /mockups/stat-cards-showcase.html
 /mockups/stat-cards-v3.html
+
+# Nuovo stack Node (backend/ + frontend/)
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+backend/uploads/*
+backend/storage/*

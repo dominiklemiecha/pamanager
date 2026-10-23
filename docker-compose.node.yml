@@ -1,0 +1,36 @@
+# Sviluppo del nuovo stack (backend/ + frontend/): solo i servizi di appoggio.
+# Backend e frontend girano con `npm run dev` sulla macchina.
+#
+# Database separato da quello del PHP e popolato solo con dati sintetici
+# (npm run seed:sintetico --workspace=backend). Le email finiscono in Mailpit:
+# http://localhost:8046
+#
+#   docker compose -f docker-compose.node.yml -p cora-dev up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cora
+      POSTGRES_PASSWORD: cora_sviluppo
+      POSTGRES_DB: cora
+      TZ: Europe/Rome
+    ports:
+      - "127.0.0.1:5444:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cora -d cora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1046:1025"
+      - "127.0.0.1:8046:8025"
+
+volumes:
+  pgdata:

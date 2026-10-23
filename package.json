@@ -1,0 +1,26 @@
+{
+  "name": "cora",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cora - gestionale HR (dipendenti, ferie, documenti, presenze)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev --workspace=backend",
+    "backend:build": "npm run build --workspace=backend",
+    "frontend:dev": "npm run dev --workspace=frontend",
+    "frontend:build": "npm run build --workspace=frontend",
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "test": "npm run test --workspace=backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "allowScripts": {
+    "argon2@0.41.1": true,
+    "bcrypt@5.1.1": true,
+    "esbuild@0.25.12": true
+  }
+}
