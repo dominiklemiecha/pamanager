@@ -4,6 +4,7 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import Login from './pages/auth/Login';
 import MfaVerify from './pages/auth/MfaVerify';
 import ResetPassword from './pages/auth/ResetPassword';
+import Home from './pages/employee/Home';
 import Stato from './pages/Stato';
 
 /** Pagina iniziale: chi e' dentro va alla sua area, gli altri al login (come index.php). */
@@ -24,6 +25,9 @@ export default function App() {
         <Route path="/auth/forgot-password.php" element={<ForgotPassword />} />
         <Route path="/auth/reset-password.php" element={<ResetPassword />} />
         <Route path="/auth/mfa-verify.php" element={<MfaVerify />} />
+        <Route path="/employee" element={<Home />} />
+        <Route path="/employee/" element={<Home />} />
+        <Route path="/employee/index.php" element={<Home />} />
         <Route path="*" element={<Stato />} />
       </Routes>
     </SessioneProvider>

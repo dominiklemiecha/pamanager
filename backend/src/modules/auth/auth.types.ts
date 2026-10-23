@@ -6,6 +6,8 @@ export type Ruolo = RuoloStaff | 'employee';
 /** Chi sta facendo la richiesta, ricavato dalla sessione a ogni chiamata. */
 export interface UtenteCorrente {
   sessioneId: string;
+  /** Inizio della sessione (secondi): lega lo stato della guida alla sessione di login. */
+  sessioneCreata: number;
   tipo: 'user' | 'employee';
   id: number;
   ruolo: Ruolo;

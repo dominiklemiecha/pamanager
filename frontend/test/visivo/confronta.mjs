@@ -30,8 +30,11 @@ for (const caso of CASI.filter((c) => c.nome.includes(filtro))) {
       const page = await ctx.newPage();
       if (caso.utente) await caso.login(page, base, lato);
       await page.goto(base + caso.percorso);
+      // Il puntatore resta dove ha cliccato il login: lo si sposta fuori, niente effetti hover.
+      await page.mouse.move(1, 1);
       await page.waitForLoadState('networkidle');
       if (caso.azione) await caso.azione(page, lato);
+      await page.mouse.move(1, 1);
       await page.waitForTimeout(caso.attesa ?? 600);
       // Il cursore lampeggiante nei campi non conta come differenza.
       await page.addStyleTag({ content: '*{caret-color:transparent!important}' });

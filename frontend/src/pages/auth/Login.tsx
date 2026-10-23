@@ -39,9 +39,13 @@ export default function Login() {
     setErrore('');
     try {
       const { data } = await api.post('/auth/login', { username, password, ...(ritorno ? { ritorno } : {}) });
-      await sessione.ricarica();
-      if (data.mfa) naviga('/auth/mfa-verify.php', { replace: true });
-      else window.location.assign(data.destinazione);
+      if (data.mfa) {
+        await sessione.ricarica();
+        naviga('/auth/mfa-verify.php', { replace: true });
+      } else {
+        // Pagina nuova come dopo il redirect del PHP.
+        window.location.assign(data.destinazione);
+      }
     } catch (err) {
       setErrore(messaggioErrore(err, 'Credenziali non valide'));
       // Come la pagina PHP ricaricata: password vuota, cursore sullo username.

@@ -1,13 +1,14 @@
 // Per primo: toglie gli spazi intorno ai valori delle variabili d'ambiente.
 import './common/config/pulisci-env';
 import { attivaIsolamento, contestoRichiesta } from './common/database/isolamento';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser = require('cookie-parser');
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
+import { PERCORSI_COMPAT } from './modules/compat/compat.module';
 import { bodyGuard } from './common/middleware/body-guard.middleware';
 import { limiteRichieste } from './common/middleware/limite-richieste.middleware';
 import { getEnvironmentConfig, nomeAmbiente, verificaAmbiente } from './config/environments';
@@ -43,7 +44,8 @@ async function bootstrap() {
   const origine = process.env.FRONTEND_URL || envConfig.corsOrigin;
   if (origine) app.enableCors({ origin: origine, credentials: true });
 
-  app.setGlobalPrefix('api/v1');
+  // I vecchi indirizzi /api/*.php restano uguali per gli script e i sistemi esterni.
+  app.setGlobalPrefix('api/v1', { exclude: PERCORSI_COMPAT.map((path) => ({ path, method: RequestMethod.ALL })) });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const port = process.env.APP_PORT || 3100;

@@ -91,6 +91,7 @@ export class SessioneGuard implements CanActivate {
 
     req.utente = {
       sessioneId: s.id,
+      sessioneCreata: Math.floor(new Date(s.created_at).getTime() / 1000),
       tipo: s.subject_type,
       id: a.id,
       ruolo: (s.subject_type === 'user' ? a.role : 'employee') as Ruolo,
