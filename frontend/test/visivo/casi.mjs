@@ -107,7 +107,7 @@ export const CASI = [
   { nome: 'admin-orario', percorso: '/admin/work-schedule.php', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-orario-errore', percorso: '/admin/work-schedule.php', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
     azione: async (page) => { await page.evaluate(() => document.querySelectorAll('input[name="working_days[]"]').forEach((c) => { c.checked = false; })); await page.click('.cfg-actions button[type=submit]'); await page.waitForSelector('.alert-error'); await page.waitForTimeout(400); } },
-  { nome: 'admin-timbrature', percorso: '/admin/punch-settings.php?msg=enable_first', attesa: 1000, ...come('hr.alfa'), soglia: 0.004 },
+  { nome: 'admin-timbrature-nfc', percorso: '/admin/punch-settings.php?msg=enable_first', attesa: 1000, ...come('hr.alfa'), soglia: 0.004 },
   { nome: 'admin-buoni-pasto', percorso: '/admin/buoni-pasto.php', attesa: 1000, ...come('hr.alfa') },
   { nome: 'admin-porta', percorso: '/admin/door-settings.php', attesa: 1000, ...come('connecteed') },
   { nome: 'admin-porta-log', percorso: '/admin/door-log.php', attesa: 1000, ...come('connecteed') },
@@ -148,5 +148,8 @@ export const CASI = [
   { nome: 'admin-visibilita-salvata', percorso: '/admin/field-visibility.php', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
     azione: async (page) => { await page.click('form.card button[type=submit]'); await page.waitForSelector('text=Configurazione salvata'); await page.waitForTimeout(400); } },
   { nome: 'admin-presenze-export', percorso: '/admin/presenze-export.php?month=11&year=2026', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-timbrature', percorso: '/admin/attendance.php?d=2026-10-22', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-timbrature-modifica', percorso: '/admin/attendance.php?d=2026-10-22', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('.att-punch >> nth=1'); await page.waitForSelector('#pmModal.show'); await page.waitForTimeout(400); } },
 ];
 export { PW };
