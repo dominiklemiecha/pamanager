@@ -19,6 +19,8 @@ export interface UtenteCorrente {
   email: string | null;
   /** Password giusta ma manca ancora il codice MFA: vale solo per la verifica. */
   mfaInAttesa: boolean;
+  /** Password temporanea da cambiare prima di usare il resto dell'app. */
+  deveCambiarePassword: boolean;
 }
 
 export interface RichiestaAutenticata extends Request {

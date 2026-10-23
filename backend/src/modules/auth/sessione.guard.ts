@@ -6,7 +6,7 @@ import { DataSource } from 'typeorm';
 import { impostaAziendaRichiesta, senzaIsolamento } from '../../common/database/isolamento';
 import { AuditService } from '../audit/audit.service';
 import { COOKIE_CSRF, COOKIE_SESSIONE, RichiestaAutenticata, Ruolo } from './auth.types';
-import { CHIAVE_MFA_IN_CORSO, CHIAVE_PUBBLICO, CHIAVE_RUOLI, CHIAVE_SENZA_CSRF } from './decoratori';
+import { CHIAVE_CAMBIO_PASSWORD, CHIAVE_MFA_IN_CORSO, CHIAVE_PUBBLICO, CHIAVE_RUOLI, CHIAVE_SENZA_CSRF } from './decoratori';
 import { SessioniService } from './sessioni.service';
 import { TenantService } from './tenant.service';
 
@@ -101,9 +101,17 @@ export class SessioneGuard implements CanActivate {
       nome: s.subject_type === 'user' ? a.name : `${a.first_name} ${a.last_name}`,
       email: a.email ?? null,
       mfaInAttesa: s.mfa_pending,
+      deveCambiarePassword: !!a.must_change_password,
     };
     await this.sessioni.tocca(s.id);
     if (companyId) impostaAziendaRichiesta(companyId);
+
+    // Password temporanea: il PHP la imponeva solo con un redirect nelle pagine del
+    // dipendente (le azioni POST passavano lo stesso, lo staff mai). Qui vale
+    // per tutti e su ogni rotta tranne cambio password, sessione e logout.
+    if (req.utente.deveCambiarePassword && !meta<boolean>(CHIAVE_CAMBIO_PASSWORD)) {
+      throw new ForbiddenException({ statusCode: 403, message: 'Devi cambiare la password prima di continuare', must_change_password: true });
+    }
 
     const ruoli = meta<Ruolo[]>(CHIAVE_RUOLI);
     if (ruoli?.length && !ruoli.includes(req.utente.ruolo)) {

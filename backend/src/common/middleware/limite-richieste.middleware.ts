@@ -16,7 +16,9 @@ const REGOLE: Regola[] = [
   // Raffiche sul login: un ufficio intero puo' entrare dallo stesso IP alle 9, quindi
   // il tetto e' largo; i tentativi SBAGLIATI hanno un limite a parte (AuthService).
   { nome: 'login', metodo: 'POST', percorso: /^\/api\/v1\/auth\/(login|mfa)\/?$/i, massimo: 30, finestraMs: 5 * MIN },
-  { nome: 'recupero', metodo: 'POST', percorso: /^\/api\/v1\/auth\/(forgot-password|reset-password)\/?$/i, massimo: 5, finestraMs: 15 * MIN },
+  // Come il PHP: 3 richieste di recupero ogni 15 minuti (ma per IP, non per sessione).
+  { nome: 'recupero', metodo: 'POST', percorso: /^\/api\/v1\/auth\/recupero\/?$/i, massimo: 3, finestraMs: 15 * MIN },
+  { nome: 'reset', metodo: 'POST', percorso: /^\/api\/v1\/auth\/reset(\/verifica)?\/?$/i, massimo: 20, finestraMs: 15 * MIN },
   { nome: 'rinnovo', metodo: 'POST', percorso: /^\/api\/v1\/auth\/refresh\/?$/i, massimo: 60, finestraMs: 5 * MIN },
   // API usate da sistemi esterni con le vecchie URL (CRM, porta, verifica attestati).
   { nome: 'api-esterne', metodo: 'POST', percorso: /^\/api\/(auth|door)\.php$/i, massimo: 30, finestraMs: 5 * MIN },

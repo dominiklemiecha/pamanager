@@ -5,7 +5,8 @@ import type { CookieOptions, Response } from 'express';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from './auth.service';
 import { COOKIE_CSRF, COOKIE_SESSIONE, DURATA_MASSIMA, RichiestaAutenticata, UtenteCorrente } from './auth.types';
-import { DuranteMfa, Pubblico, Ruoli, Utente } from './decoratori';
+import { DuranteCambioPassword, DuranteMfa, Pubblico, Ruoli, Utente } from './decoratori';
+import { PasswordService } from './password.service';
 import { SessioniService } from './sessioni.service';
 import { TenantService } from './tenant.service';
 
@@ -19,6 +20,22 @@ class MfaDto {
 }
 class AziendaDto {
   @IsInt() azienda!: number;
+}
+class CambioPasswordDto {
+  @IsString() @MaxLength(1024) attuale!: string;
+  @IsString() @MaxLength(1024) nuova!: string;
+  @IsString() @MaxLength(1024) conferma!: string;
+}
+class RecuperoDto {
+  @IsString() @MaxLength(255) identificativo!: string;
+}
+class TokenDto {
+  @IsString() @MaxLength(128) token!: string;
+}
+class ResetDto {
+  @IsString() @MaxLength(128) token!: string;
+  @IsString() @MaxLength(1024) password!: string;
+  @IsString() @MaxLength(1024) conferma!: string;
 }
 
 /** Pagina iniziale per ruolo, come login_redirect_for() del PHP. */
@@ -47,6 +64,7 @@ export class AuthController {
     private readonly sessioni: SessioniService,
     private readonly tenant: TenantService,
     private readonly audit: AuditService,
+    private readonly password: PasswordService,
   ) {}
 
   private opzioni(req: RichiestaAutenticata, httpOnly: boolean): CookieOptions {
@@ -69,6 +87,7 @@ export class AuthController {
   @Get('sessione')
   @Pubblico()
   @DuranteMfa()
+  @DuranteCambioPassword()
   async sessione(@Req() req: RichiestaAutenticata, @Res({ passthrough: true }) res: Response, @Utente() u?: UtenteCorrente) {
     if (!req.cookies?.[COOKIE_CSRF]) this.nuovoCsrf(req, res);
     if (!u) return { autenticato: false };
@@ -76,6 +95,7 @@ export class AuthController {
     if (u.mfaInAttesa) return { autenticato: false, mfa: true };
     return {
       autenticato: true,
+      deveCambiarePassword: u.deveCambiarePassword,
       utente: { tipo: u.tipo, id: u.id, ruolo: u.ruolo, nome: u.nome, username: u.username, email: u.email, azienda: u.companyId, reparto: u.departmentId },
       destinazione: destinazione(u.ruolo),
     };
@@ -115,6 +135,7 @@ export class AuthController {
   @Post('logout')
   @Pubblico()
   @DuranteMfa()
+  @DuranteCambioPassword()
   @HttpCode(200)
   async logout(@Req() req: RichiestaAutenticata, @Res({ passthrough: true }) res: Response, @Utente() u?: UtenteCorrente) {
     if (u) {
@@ -143,5 +164,44 @@ export class AuthController {
     }
     await this.sessioni.scegliAzienda(u.sessioneId, dto.azienda);
     return { ok: true, azienda: dto.azienda };
+  }
+
+  /** Cambio della propria password (anche quello obbligatorio dopo un reset dell'HR). */
+  @Post('password')
+  @DuranteCambioPassword()
+  @HttpCode(200)
+  async cambiaPassword(@Body() dto: CambioPasswordDto, @Req() req: RichiestaAutenticata, @Utente() u: UtenteCorrente) {
+    const esito = await this.password.cambia(u.tipo, u.id, u.ruolo, dto.attuale, dto.nuova, dto.conferma,
+      { ip: req.ip, userAgent: String(req.headers['user-agent'] ?? ''), sessioneId: u.sessioneId });
+    if (!esito.ok) throw new HttpException({ statusCode: 400, message: esito.errore ?? esito.errori?.join(' '), errori: esito.errori }, 400);
+    return { ok: true };
+  }
+
+  /** Recupero password: risposta identica che l'account esista o no. */
+  @Post('recupero')
+  @Pubblico()
+  @HttpCode(200)
+  async recupero(@Body() dto: RecuperoDto, @Req() req: RichiestaAutenticata) {
+    const id = dto.identificativo.trim();
+    if (!id) throw new HttpException({ statusCode: 400, message: 'Inserisci username o email' }, 400);
+    await this.password.richiedi(id, { ip: req.ip, userAgent: String(req.headers['user-agent'] ?? '') });
+    return { message: "Se l'account esiste, riceverai a breve un'email con il link per reimpostare la password." };
+  }
+
+  @Post('reset/verifica')
+  @Pubblico()
+  @HttpCode(200)
+  async verificaReset(@Body() dto: TokenDto) {
+    const t = await this.password.verificaToken(dto.token);
+    return t ? { valido: true, nome: t.nome, username: t.username } : { valido: false };
+  }
+
+  @Post('reset')
+  @Pubblico()
+  @HttpCode(200)
+  async reset(@Body() dto: ResetDto, @Req() req: RichiestaAutenticata) {
+    const esito = await this.password.completa(dto.token, dto.password, dto.conferma, { ip: req.ip, userAgent: String(req.headers['user-agent'] ?? '') });
+    if (!esito.ok) throw new HttpException({ statusCode: 400, message: esito.errore ?? esito.errori?.join(', '), errori: esito.errori }, 400);
+    return { ok: true, message: 'Password aggiornata con successo' };
   }
 }
