@@ -18,6 +18,7 @@ import adminPassword from '../../php/pagine/admin/password-resets';
 import adminProfilo from '../../php/pagine/admin/profile';
 import adminTimbrature from '../../php/pagine/admin/punch-settings';
 import adminOrario from '../../php/pagine/admin/work-schedule';
+import CalendarioStaff from '../../staff/CalendarioStaff';
 import { PaginaStaff } from '../../staff/PaginaStaff';
 
 /** Date della settimana del widget presenze come DateTime (il template usa ->format). */
@@ -62,6 +63,7 @@ export const rotteStaff = [
   pagina('/admin/accountant.php', adminUtentiEsterni, { prepara: conOspiti }),
   pagina('/admin/consulente-lavoro.php', adminUtentiEsterni, { prepara: conOspiti }),
   pagina('/admin/formatori.php', adminUtentiEsterni, { prepara: conOspiti }),
+  ...['admin', 'accountant', 'consulente-lavoro'].map((a) => <Route key={`${a}/calendar`} path={`/${a}/calendar.php`} element={<CalendarioStaff />} />),
   pagina('/admin/presenze-export.php', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),
   pagina('/admin/documenti-aziendali.php', adminDocumentiAziendali, { scarica: ['download'] }),
 ];

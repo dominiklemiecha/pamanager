@@ -156,5 +156,10 @@ export const CASI = [
   { nome: 'admin-consulenti-modifica', percorso: '/admin/consulente-lavoro.php?action=edit&id=6', attesa: 1000, ...come('hr.alfa') },
   { nome: 'admin-consulenti-collega', percorso: '/admin/consulente-lavoro.php?action=link', attesa: 1000, ...come('hr.beta') },
   { nome: 'admin-formatori', percorso: '/admin/formatori.php?message=created&email=fail', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-calendario', percorso: '/admin/calendar.php?view=week&d=2026-10-28', attesa: 1200, ...come('hr.alfa') },
+  { nome: 'admin-calendario-giorno', percorso: '/admin/calendar.php?view=day&d=2026-10-28', attesa: 1200, ...come('hr.alfa') },
+  { nome: 'admin-calendario-nuovo', percorso: '/admin/calendar.php?view=week&d=2026-10-28', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('.cal-add-btn'); await page.waitForSelector('#calModal.show'); await page.waitForTimeout(400); } },
+  { nome: 'commercialista-calendario', percorso: '/accountant/calendar.php?view=week&d=2026-10-28', attesa: 1200, ...come('studio.commercialista') },
 ];
 export { PW };
