@@ -1,0 +1,67 @@
+# Baseline del vecchio PHP per i test di equivalenza della migrazione.
+#
+# Gira il codice PHP attuale (montato in sola lettura) su un MariaDB nuovo,
+# creato dall'entrypoint con install_full.sql + migrazioni e riempito solo
+# con dati sintetici (backend/scripts/seed-sintetico.js). Niente email vere,
+# niente seed demo, nessun collegamento ai dati reali.
+#
+#   docker compose -f docker-compose.baseline.yml -p cora-baseline up -d
+#   PHP: http://localhost:8899   MariaDB: 127.0.0.1:33070
+services:
+  app:
+    image: gestionalepa-app:latest
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: baseline
+      DB_USER: baseline
+      DB_PASS: baseline_sviluppo
+      APP_URL: http://localhost:8899
+      JWT_SECRET: baseline-solo-locale-jwt-0000000000
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO_TENANT: "false"
+      SEED_ADMIN_PASSWORD: Baseline!Cora2026
+      EMPLOYEE_CORA_UI: "1"
+      REALTIME_ENABLED: "false"
+      CRM_COMPANY_SLUG: alfa
+      SMTP_ENABLED: "0"
+      PHP_TIMEZONE: Europe/Rome
+    volumes:
+      - ./public:/var/www/html/public:ro
+      - ./src:/var/www/html/src:ro
+      - ./database:/var/www/html/database:ro
+      # Copre public/uploads della cartella locale, che contiene file reali.
+      - uploads:/var/www/html/public/uploads
+      - storage:/var/www/html/storage
+    ports:
+      - "127.0.0.1:8899:80"
+
+  db:
+    image: mariadb:10.11
+    restart: "no"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_DATABASE: baseline
+      MARIADB_USER: baseline
+      MARIADB_PASSWORD: baseline_sviluppo
+      MARIADB_ROOT_PASSWORD: baseline_root
+    ports:
+      - "127.0.0.1:33070:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  uploads:
+  storage:
+  dbdata:
