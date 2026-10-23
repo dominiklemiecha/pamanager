@@ -115,5 +115,9 @@ export const CASI = [
   { nome: 'admin-profilo-commercialista', percorso: '/admin/profile.php', attesa: 1000, ...come('studio.commercialista') },
   { nome: 'admin-password', percorso: '/admin/password-resets.php', attesa: 1000, ...come('hr.alfa'), misure: [[1512, 900], [390, 844]],
     azione: async (page) => { await page.selectOption('#manualUserType', 'employee'); await page.waitForTimeout(300); } },
+  { nome: 'admin-reparti', percorso: '/admin/departments.php', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-reparti-nuovo', percorso: '/admin/departments.php?action=new', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-reparti-modifica', percorso: '/admin/departments.php?edit=1&message=updated', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-reparto-dettaglio', percorso: '/admin/department-detail.php?id=1', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
 ];
 export { PW };

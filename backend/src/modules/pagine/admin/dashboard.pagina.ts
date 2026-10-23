@@ -116,7 +116,7 @@ export class DashboardAdminPagina implements Pagina {
     const tomorrowOthers = compleanni.filter((r: any) => r.md === mdDomani).map((r: any) => r.first_name);
 
     const probation = await this.prova.daDecidere(cid);
-    const [azienda] = await senzaIsolamento(() => this.ds.query('SELECT * FROM companies WHERE id = $1', [cid]));
+    const [azienda] = await senzaIsolamento(() => this.ds.query('SELECT id, name FROM companies WHERE id = $1', [cid]));
 
     return vista('Dashboard', {
       user: { id: me?.id, name: me?.name ?? '', username: me?.username, role: me?.role },

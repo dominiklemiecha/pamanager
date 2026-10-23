@@ -190,10 +190,12 @@ export class FerieAdminPagina implements Pagina {
     const [pausa] = await senzaIsolamento(() => this.ds.query(
       'SELECT lunch_break_start, lunch_break_end FROM companies WHERE id = $1', [cid]));
 
+    // Il template guarda solo se allegato e certificato esistono: i percorsi sul server non escono.
+    const senzaPercorsi = (r: any) => ({ ...r, attachment_path: r.attachment_path ? '1' : null, certificate_path: r.certificate_path ? '1' : null });
     return vista('Ferie e Permessi', {
-      message, error: errore, activeEmployees, filterStatus, filterDept, requests, departments,
+      message, error: errore, activeEmployees, filterStatus, filterDept, requests: requests.map(senzaPercorsi), departments,
       __lrPending, __lrApproved, __lrTotal,
-      __sickLate: await this.ferie.malattieSenzaDocumenti(cid, 24),
+      __sickLate: (await this.ferie.malattieSenzaDocumenti(cid, 24)).map(senzaPercorsi),
       __pendingCountDb: __pendingCount,
       __lunchCfgDb: pausa ?? false,
     });
