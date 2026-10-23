@@ -203,6 +203,17 @@ async function main() {
         stato === 'approved' || stato === 'rejected' ? `${da} 10:00:00` : null, tipo === 'malattia' ? 'INPS-0000123456' : null, creata]);
   }
 
+  // Log dell'apertura porta (solo per l'admin globale).
+  for (const [azienda, cog, uid, ok, motivo, quando] of [
+    [1, 'Bellandi', '04A1B2C3D4E5F6', 1, 'ok', '2026-10-20 08:31:12'],
+    [1, null, '04DEADBEEF0001', 0, 'unknown_uid', '2026-10-20 19:02:45'],
+    [1, 'Bellandi', '04A1B2C3D4E5F6', 0, 'module_disabled', '2026-10-21 08:29:03'],
+    [2, 'Fontanesi', '04FFEEDDCCBBAA', 1, 'ok', '2026-10-21 08:45:00'],
+  ]) {
+    await q(`INSERT INTO door_access_log (company_id, employee_id, nfc_uid, granted, reason, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, '192.0.2.10', 'ESP32', ?)`,
+      [azienda, cog ? E(cog).id : null, uid, ok, motivo, quando]);
+  }
+
   const comunicazioni = [
     [1, 'Chiusura aziendale di Natale', "L'ufficio resta chiuso dal 24 dicembre al 6 gennaio.", 'high', null, hrAlfa],
     [1, 'Nuovo regolamento parcheggio', 'Dal mese prossimo i posti sono assegnati per reparto.', 'normal', null, hrAlfa],

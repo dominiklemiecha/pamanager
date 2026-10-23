@@ -1,7 +1,12 @@
 import { Route } from 'react-router-dom';
 import { P } from '../../php/runtime';
+import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
+import adminPortaLog from '../../php/pagine/admin/door-log';
+import adminPorta from '../../php/pagine/admin/door-settings';
 import adminIndex from '../../php/pagine/admin/index';
 import adminFerie from '../../php/pagine/admin/leave-requests';
+import adminTimbrature from '../../php/pagine/admin/punch-settings';
+import adminOrario from '../../php/pagine/admin/work-schedule';
 import { PaginaStaff } from '../../staff/PaginaStaff';
 
 /** Date della settimana del widget presenze come DateTime (il template usa ->format). */
@@ -10,10 +15,23 @@ const conSettimana = (V: any) => {
   if (V.weekEnd) V.weekEnd = P.nuovo('DateTime', [V.weekEnd]);
 };
 
+/** Pagina che il PHP serviva solo con un redirect: lo chiede al backend. */
+const soloRedirect = () => undefined;
+
+const pagina = (percorso: string, render: (V: any, F: any) => void, opz: { prepara?: (V: any) => void; scarica?: string[] } = {}) => (
+  <Route key={percorso} path={percorso} element={<PaginaStaff render={render} {...opz} />} />
+);
+
 /** Pagine dell'area staff (stessi indirizzi del PHP). */
 export const rotteStaff = [
-  <Route key="admin" path="/admin" element={<PaginaStaff render={adminIndex} prepara={conSettimana} />} />,
-  <Route key="admin/" path="/admin/" element={<PaginaStaff render={adminIndex} prepara={conSettimana} />} />,
-  <Route key="admin/index" path="/admin/index.php" element={<PaginaStaff render={adminIndex} prepara={conSettimana} />} />,
-  <Route key="admin/leave-requests" path="/admin/leave-requests.php" element={<PaginaStaff render={adminFerie} scarica={['download_attachment', 'download_cert']} />} />,
+  pagina('/admin', adminIndex, { prepara: conSettimana }),
+  pagina('/admin/', adminIndex, { prepara: conSettimana }),
+  pagina('/admin/index.php', adminIndex, { prepara: conSettimana }),
+  pagina('/admin/leave-requests.php', adminFerie, { scarica: ['download_attachment', 'download_cert'] }),
+  pagina('/admin/work-schedule.php', adminOrario),
+  pagina('/admin/punch-settings.php', adminTimbrature),
+  pagina('/admin/buoni-pasto.php', adminBuoniPasto),
+  pagina('/admin/door-settings.php', adminPorta),
+  pagina('/admin/door-log.php', adminPortaLog),
+  pagina('/admin/smtp-settings.php', soloRedirect),
 ];

@@ -86,7 +86,11 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
       try {
         const r = await api.post(api2 + destinazione.search, corpo);
         if (r.data?.redirect) location.assign(new URL(r.data.redirect, destinazione).toString());
-        else mostra(r.data);
+        else {
+          // Come il PHP: la pagina ridisegnata dopo il POST riparte dall'alto.
+          mostra(r.data);
+          window.scrollTo(0, 0);
+        }
       } catch (err: any) {
         alert(err?.response?.data?.message ?? 'Operazione non riuscita');
       }

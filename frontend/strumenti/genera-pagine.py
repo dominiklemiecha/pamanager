@@ -33,10 +33,16 @@ FERIE_ADMIN = [
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/leave-requests.php', 'pagine/admin/leave-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, FERIE_ADMIN),
+    ('admin/work-schedule.php', 'pagine/admin/work-schedule', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
+    ('admin/punch-settings.php', 'pagine/admin/punch-settings', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
+    ('admin/buoni-pasto.php', 'pagine/admin/buoni-pasto', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
+    ('admin/door-settings.php', 'pagine/admin/door-settings', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
+    ('admin/door-log.php', 'pagine/admin/door-log', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
 ]
 
 # (file PHP, nome del widget, marcatore dopo il quale inizia il template, il tratto parte dentro <?php, condizione JS per disegnarlo)
 WIDGET = [
+    ('includes/_config-tabs.php', '_config-tabs', '(tab "orario")\n */\n', True, 'true'),
     ('includes/_cd-tabs.inc.php', '_cd-tabs.inc', " */\n", True, 'true'),
     ('includes/widget-tenant-wizard.php', 'widget-tenant-wizard', "        exit;\n    }\n}\n?>", False, 'P.t(V.__wTenantWizard)'),
     ('includes/widget-birthday-banner.php', 'widget-birthday-banner',

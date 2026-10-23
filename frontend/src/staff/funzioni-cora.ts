@@ -45,6 +45,13 @@ P.estendi('employeeAvatarHtml', (...a: any[]) => {
   return `<div class="${h(classe)}"${stile}>${h(iniziali)}</div>`;
 });
 
+const GIORNI: Array<[string, string]> = [['mon', 'Lun'], ['tue', 'Mar'], ['wed', 'Mer'], ['thu', 'Gio'], ['fri', 'Ven'], ['sat', 'Sab'], ['sun', 'Dom']];
+P.estendi('LeaveBalance::allDayKeys', () => GIORNI.map(([k]) => k));
+P.estendi('LeaveBalance::dayLabel', (k: any) => GIORNI.find(([g]) => g === P.s(k))?.[1] ?? k);
+
+/** Admin globale "vero": lo calcola il backend (variabile __veroGlobale). */
+P.estendi('Tenant::isCurrentUserTrueGlobalAdmin', (...a: any[]) => P.t(a[a.length - 1]?.V?.__veroGlobale));
+
 /** Giorni dal lunedi' al venerdi' tra due date incluse (LeaveRequest::calculateWorkingDays). */
 P.estendi('LeaveRequest::calculateWorkingDays', (inizio: string, fine: string) => {
   const d = new Date(`${String(inizio).slice(0, 10)}T12:00:00Z`);
