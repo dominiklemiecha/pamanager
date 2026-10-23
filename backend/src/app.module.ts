@@ -6,6 +6,7 @@ import { opzioniDatabase } from './database/data-source';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { SaldiModule } from './modules/saldi/saldi.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { HealthModule } from './modules/health/health.module';
     AuditModule,
     AuthModule,
     HealthModule,
+    SaldiModule,
   ],
 })
 export class AppModule {}

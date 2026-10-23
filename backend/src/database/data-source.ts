@@ -1,10 +1,15 @@
 import '../common/config/pulisci-env';
+import { types } from 'pg';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { verificaAmbiente } from '../config/environments';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// Le date senza ora restano stringhe "AAAA-MM-GG", come le restituiva il PHP:
+// convertite in Date cambierebbero giorno a seconda del fuso del server.
+types.setTypeParser(1082, (v: string) => v);
 
 /**
  * Connessione unica per l'app e per la CLI delle migrazioni.
