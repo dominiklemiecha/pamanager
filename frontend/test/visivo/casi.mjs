@@ -132,5 +132,17 @@ export const CASI = [
   { nome: 'admin-comunicazioni-nuova', percorso: '/admin/communications.php?action=new', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-comunicazioni-modifica', percorso: '/admin/communications.php?action=edit&id=1&message=created', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-comunicazioni-dettaglio', percorso: '/admin/communications.php?action=view&id=1', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-documenti-aziendali', percorso: '/admin/documenti-aziendali.php', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-documenti-aziendali-errore', percorso: '/admin/documenti-aziendali.php?err=Seleziona+un+file+da+caricare.',
+    percorsoNode: '/admin/documenti-aziendali.php?err=no_file', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-documenti-aziendali-invio', percorso: '/admin/documenti-aziendali.php', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => {
+      page.on('dialog', (d) => d.accept());
+      await page.fill('input[name=name]', 'Codice etico');
+      await page.setInputFiles('input[name=document]', { name: 'codice-etico.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+      await page.click('#docUploadBtn');
+      await page.waitForSelector('text=Notifiche inviate a tutti i dipendenti.', { timeout: 20000 });
+      await page.waitForTimeout(400);
+    } },
 ];
 export { PW };
