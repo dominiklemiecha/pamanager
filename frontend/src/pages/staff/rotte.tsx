@@ -5,6 +5,7 @@ import adminPortaLog from '../../php/pagine/admin/door-log';
 import adminPorta from '../../php/pagine/admin/door-settings';
 import adminComunicazioni from '../../php/pagine/admin/communications';
 import adminDocumentiAziendali from '../../php/pagine/admin/documenti-aziendali';
+import adminVisibilita from '../../php/pagine/admin/field-visibility';
 import adminAziende from '../../php/pagine/admin/companies';
 import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
 import adminReparti from '../../php/pagine/admin/departments';
@@ -47,5 +48,6 @@ export const rotteStaff = [
   pagina('/admin/department-detail.php', adminRepartoDettaglio),
   pagina('/admin/companies.php', adminAziende),
   pagina('/admin/communications.php', adminComunicazioni),
+  pagina('/admin/field-visibility.php', adminVisibilita),
   pagina('/admin/documenti-aziendali.php', adminDocumentiAziendali, { scarica: ['download'] }),
 ];

@@ -54,6 +54,14 @@ P.estendi('sanitizeRichHtml', (h: any) => P.s(h));
 P.estendi('Communication::PRIORITIES', () => P.assoc([['low', 'Bassa'], ['normal', 'Normale'], ['high', 'Alta']]));
 P.estendi('Communication::attachmentUrl', (id: any) => `/communication_file.php?id=${P.int(id)}`);
 
+P.estendi('FieldVisibility::FIELDS', () => P.assoc([
+  ['username', 'Username'], ['fiscal_code', 'Codice fiscale'], ['first_name', 'Nome'], ['last_name', 'Cognome'], ['email', 'Email'], ['phone', 'Telefono'],
+  ['address', 'Indirizzo di residenza'], ['birth_date', 'Data di nascita'], ['department_id', 'Reparto'], ['position', 'Posizione'],
+  ['hire_date', 'Data assunzione'], ['job_level', 'Livello'], ['ral_amount', 'RAL annua'], ['monthly_salary', 'Retribuzione mensile'], ['iban', 'IBAN'],
+  ['medical_certs', 'Certificati medici'],
+]));
+P.estendi('FieldVisibility::ROLES', () => P.assoc([['admin', 'Amministratore'], ['accountant', 'Commercialista'], ['admin_reparto', 'Admin reparto']]));
+
 /** Admin globale "vero": lo calcola il backend (variabile __veroGlobale). */
 P.estendi('Tenant::isCurrentUserTrueGlobalAdmin', (...a: any[]) => P.t(a[a.length - 1]?.V?.__veroGlobale));
 

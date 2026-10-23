@@ -144,5 +144,8 @@ export const CASI = [
       await page.waitForSelector('text=Notifiche inviate a tutti i dipendenti.', { timeout: 20000 });
       await page.waitForTimeout(400);
     } },
+  { nome: 'admin-visibilita-campi', percorso: '/admin/field-visibility.php', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-visibilita-salvata', percorso: '/admin/field-visibility.php', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
+    azione: async (page) => { await page.click('form.card button[type=submit]'); await page.waitForSelector('text=Configurazione salvata'); await page.waitForTimeout(400); } },
 ];
 export { PW };
