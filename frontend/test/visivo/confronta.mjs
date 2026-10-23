@@ -29,7 +29,7 @@ for (const caso of CASI.filter((c) => c.nome.includes(filtro))) {
       const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: 'it-IT', timezoneId: 'Europe/Rome' });
       const page = await ctx.newPage();
       if (caso.utente) await caso.login(page, base, lato);
-      await page.goto(base + caso.percorso);
+      await page.goto(base + (lato === 'node' && caso.percorsoNode ? caso.percorsoNode : caso.percorso));
       // Il puntatore resta dove ha cliccato il login: lo si sposta fuori, niente effetti hover.
       await page.mouse.move(1, 1);
       await page.waitForLoadState('networkidle');

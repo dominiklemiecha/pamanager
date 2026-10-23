@@ -4,6 +4,7 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import Login from './pages/auth/Login';
 import MfaVerify from './pages/auth/MfaVerify';
 import ResetPassword from './pages/auth/ResetPassword';
+import Documenti from './pages/employee/Documenti';
 import Home from './pages/employee/Home';
 import Richieste from './pages/employee/Richieste';
 import Stato from './pages/Stato';
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/employee/" element={<Home />} />
         <Route path="/employee/index.php" element={<Home />} />
         <Route path="/employee/leave-requests.php" element={<Richieste />} />
+        <Route path="/employee/documents.php" element={<Documenti />} />
         <Route path="*" element={<Stato />} />
       </Routes>
     </SessioneProvider>

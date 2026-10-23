@@ -41,5 +41,14 @@ export const CASI = [
   { nome: 'richieste-dettaglio', percorso: '/employee/leave-requests.php', attesa: 900, ...come('marco.bellandi'),
     azione: async (page) => { await senzaGuida(page); await page.locator('.cora-tr[data-cora-open]').nth(1).click(); await page.waitForTimeout(500); } },
   { nome: 'richieste-filtro', percorso: '/employee/leave-requests.php?status=pending', attesa: 900, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'documenti-elenco', percorso: '/employee/documents.php', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida, paginaIntera: true },
+  { nome: 'documenti-anno', percorso: '/employee/documents.php?year=2025', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'documenti-anno-vuoto', percorso: '/employee/documents.php?year=2024', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida },
+  { nome: 'documenti-vuoto', percorso: '/employee/documents.php', attesa: 1200, ...come('elena.gualtieri'), azione: senzaGuida },
+  { nome: 'documenti-filtro', percorso: '/employee/documents.php', attesa: 900, ...come('giulia.ferraresi'),
+    azione: async (page) => { await senzaGuida(page); await page.click('.cora-tab[data-filter=payslip]'); await page.waitForTimeout(400); } },
+  { nome: 'documenti-cerca', percorso: '/employee/documents.php', attesa: 900, ...come('giulia.ferraresi'),
+    azione: async (page) => { await senzaGuida(page); await page.fill('[data-cora-search]', 'regolamento'); await page.waitForTimeout(400); } },
+  { nome: 'documenti-errore', percorso: '/employee/documents.php?download=999999', percorsoNode: '/employee/documents.php?errore=non_trovato', attesa: 1200, ...come('giulia.ferraresi'), azione: senzaGuida },
 ];
 export { PW };

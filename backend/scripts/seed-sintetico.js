@@ -240,6 +240,63 @@ async function main() {
       [conv.insertId, tipo, id, testo, interna, quando]);
   }
 
+  // Documenti: PDF finti scritti nello storage di tutte e due le parti
+  // (volume della baseline e storage del nuovo backend), stesso percorso salvato.
+  const documenti = [
+    ['Ferraresi', 'payslip', 'Busta paga Settembre 2026', 2026, 9, hrAlfa, '2026-10-05 09:00:00'],
+    ['Ferraresi', 'payslip', 'Busta paga Agosto 2026', 2026, 8, hrAlfa, '2026-09-05 09:00:00'],
+    ['Ferraresi', 'cud', 'CU 2025', 2025, 12, hrAlfa, '2026-03-10 10:00:00'],
+    ['Ferraresi', 'other', 'Contratto di assunzione', 2019, 3, hrAlfa, '2026-01-15 11:00:00'],
+    ['Bellandi', 'payslip', 'Busta paga Settembre 2026', 2026, 9, hrAlfa, '2026-10-05 09:01:00'],
+    ['Castellari', 'payslip', 'Busta paga Settembre 2026', 2026, 9, hrBeta, '2026-10-05 09:02:00'],
+  ];
+  const personali = [
+    ['Ferraresi', 'Attestato sicurezza', 1, null, '2027-03-31', '2026-06-01 12:00:00'],
+    ['Ferraresi', 'Regolamento aziendale', 1, 'seed-bulk-1', null, '2026-10-10 08:30:00'],
+    ['Ferraresi', 'Nota riservata HR', 0, null, null, '2026-10-11 08:30:00'],
+    ['Castellari', 'Attestato sicurezza', 1, null, null, '2026-06-02 12:00:00'],
+  ];
+  const fs = require('fs');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { PDFDocument, StandardFonts } = require('pdf-lib');
+  const locale = path.join(__dirname, '..', 'storage', 'documents');
+  fs.mkdirSync(locale, { recursive: true });
+  const pdf = async (testo) => {
+    const p = await PDFDocument.create();
+    p.setCreationDate(new Date('2026-01-01T00:00:00Z'));
+    p.setModificationDate(new Date('2026-01-01T00:00:00Z'));
+    const font = await p.embedFont(StandardFonts.Helvetica);
+    p.addPage([595.28, 841.89]).drawText(testo, { x: 50, y: 780, size: 14, font });
+    // Senza object stream: il parser gratuito di FPDI (filigrana del PHP) non li legge.
+    return Buffer.from(await p.save({ useObjectStreams: false }));
+  };
+  const scrivi = async (nome, testo) => {
+    const dati = await pdf(testo);
+    fs.writeFileSync(path.join(locale, nome), dati);
+    return { percorso: `/var/www/html/storage/documents/${nome}`, dimensione: dati.length };
+  };
+  let nDoc = 0;
+  for (const [cog, tipo, titolo, anno, mese, autore, quando] of documenti) {
+    const d = E(cog);
+    const nome = `seed_doc_${++nDoc}.pdf`;
+    const f = await scrivi(nome, `${titolo} - ${d.first_name} ${d.last_name}`);
+    await q(`INSERT INTO documents (company_id, employee_id, type, title, file_path, file_name, original_name, file_size, mime_type, month, year, uploaded_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'application/pdf', ?, ?, ?, ?)`,
+      [d.company_id, d.id, tipo, titolo, f.percorso, nome, `${titolo.replace(/ /g, '_')}.pdf`, f.dimensione, mese, anno, autore, quando]);
+  }
+  for (const [cog, titolo, visibile, gruppo, scadenza, quando] of personali) {
+    const d = E(cog);
+    const nome = `seed_doc_${++nDoc}.pdf`;
+    const f = await scrivi(nome, `${titolo} - ${d.first_name} ${d.last_name}`);
+    await q(`INSERT INTO employee_documents (company_id, bulk_group, employee_id, name, file_path, file_name, original_name, file_size, mime_type, visible_to_employee, notify_pending, expires_on, uploaded_by, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'application/pdf', ?, 0, ?, ?, ?)`,
+      [d.company_id, gruppo, d.id, titolo, f.percorso, nome, `${titolo.replace(/ /g, '_')}.pdf`, f.dimensione, visibile, scadenza, d.company_id === 1 ? hrAlfa : hrBeta, quando]);
+  }
+  execFileSync('docker', ['exec', 'cora-baseline-app-1', 'mkdir', '-p', '/var/www/html/storage/documents']);
+  execFileSync('docker', ['cp', locale + path.sep + '.', 'cora-baseline-app-1:/var/www/html/storage/documents/']);
+  execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/storage/documents']);
+
   console.log(`Seminati: ${AZIENDE.length} aziende, ${STAFF.length + 1} utenti staff, ${dip.length} dipendenti, ${richieste.length} richieste. Password di tutti: ${PASSWORD}`);
   await db.end();
 }

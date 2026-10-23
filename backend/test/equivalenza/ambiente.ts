@@ -48,7 +48,9 @@ export function mariadb(sql: string): Array<Record<string, string>> {
   if (!out) return [];
   const [testa, ...righe] = out.split('\n');
   const col = testa.split('\t');
-  return righe.map((r) => Object.fromEntries(r.split('\t').map((v, i) => [col[i], v === 'NULL' ? null : v])) as Record<string, string>);
+  // In modalita' -B il client scrive \\, \t, \n e \0 come sequenze: si tolgono.
+  const testo = (v: string) => v.replace(/\\([\\tn0])/g, (_m, c) => ({ '\\': '\\', t: '\t', n: '\n', 0: '\0' })[c as '\\']);
+  return righe.map((r) => Object.fromEntries(r.split('\t').map((v, i) => [col[i], v === 'NULL' ? null : testo(v)])) as Record<string, string>);
 }
 
 /** Query di controllo sul Postgres del nuovo backend. */

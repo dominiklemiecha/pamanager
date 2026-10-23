@@ -51,7 +51,10 @@ export function salvaPrivato(sottocartella: string, prefisso: string, f: FileCar
 export function fileSicuro(salvato: string | null | undefined): string | null {
   if (!salvato) return null;
   const radice = path.resolve(cartellaStorage());
-  const p = path.resolve(salvato);
+  // Percorsi scritti dal PHP (/var/www/html/storage/...): stesso file nello
+  // storage del nuovo backend, anche se la cartella e' montata altrove.
+  const legacy = (process.env.STORAGE_LEGACY_DIR || '/var/www/html/storage').replace(/\/+$/, '') + '/';
+  const p = salvato.startsWith(legacy) ? path.resolve(radice, ...salvato.slice(legacy.length).split('/')) : path.resolve(salvato);
   if (p !== radice && !p.startsWith(radice + path.sep)) return null;
   return fs.existsSync(p) && fs.statSync(p).isFile() ? p : null;
 }

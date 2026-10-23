@@ -6,6 +6,7 @@ import { opzioniDatabase } from './database/data-source';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompatModule } from './modules/compat/compat.module';
+import { DocumentiModule } from './modules/documenti/documenti.module';
 import { DipendenteModule } from './modules/dipendente/dipendente.module';
 import { FerieModule } from './modules/ferie/ferie.module';
 import { HealthModule } from './modules/health/health.module';
@@ -32,6 +33,7 @@ import { SaldiModule } from './modules/saldi/saldi.module';
     DipendenteModule,
     CompatModule,
     FerieModule,
+    DocumentiModule,
   ],
 })
 export class AppModule {}
