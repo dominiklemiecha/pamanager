@@ -1,15 +1,10 @@
-import { Body, Controller, HttpCode, Post, Req, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { DataSource } from 'typeorm';
 import { oggiRoma } from '../../../common/calcoli/php';
 import { sanitizzaHtmlRicco } from '../../../common/html/sanitizza';
 import type { FileCaricato } from '../../../common/file/caricamenti';
-import { Ruoli, Utente } from '../../auth/decoratori';
-import type { RichiestaAutenticata, UtenteCorrente } from '../../auth/auth.types';
 import { ComunicazioniAdminService } from '../../comunicazioni/comunicazioni-admin.service';
-import { ContestoPagina, PaginaPhp, Pagina, redirect, vista } from '../pagina';
+import { ContestoPagina, json, PaginaPhp, Pagina, redirect, vista } from '../pagina';
 
 const MESSAGGI: Record<string, string> = {
   created: 'Comunicazione creata con successo', updated: 'Comunicazione aggiornata con successo', deleted: 'Comunicazione eliminata con successo',
@@ -119,24 +114,25 @@ export class ComunicazioniAdminPagina implements Pagina {
  * dall'editor (risposta JSON come il PHP). Correzione: solo comunicazioni
  * dell'azienda attiva.
  */
-@Controller('admin')
-export class ComunicazioniUploadController {
+@Injectable()
+@PaginaPhp('admin/communications_upload')
+export class ComunicazioniUploadPagina implements Pagina {
+  readonly ruoli = ['admin'];
   constructor(private readonly com: ComunicazioniAdminService) {}
 
-  @Post('communications_upload.php')
-  @Ruoli('admin')
-  @HttpCode(200)
-  @UseInterceptors(AnyFilesInterceptor({ storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
-  async carica(@Body() corpo: Record<string, string>, @UploadedFiles() file: Array<FileCaricato & { fieldname: string }>, @Req() _req: RichiestaAutenticata,
-    @Utente() u: UtenteCorrente) {
+  async dati() {
+    return json({ success: false, error: 'Metodo non consentito' }, 405);
+  }
+
+  async azione(c: ContestoPagina, corpo: Record<string, string>, file: Record<string, FileCaricato[]>) {
     const id = Number.parseInt(corpo.communication_id ?? '', 10) || 0;
-    if (!id) return { success: false, error: 'Comunicazione non specificata' };
-    if (!(await this.com.perId(id, u.companyId!))) return { success: false, error: 'Comunicazione non trovata' };
-    const f = (file ?? []).find((x) => x.fieldname === 'file');
-    if (!f) return { success: false, error: 'File mancante' };
+    if (!id) return json({ success: false, error: 'Comunicazione non specificata' });
+    if (!(await this.com.perId(id, c.u.companyId!))) return json({ success: false, error: 'Comunicazione non trovata' });
+    const f = file.file?.[0];
+    if (!f) return json({ success: false, error: 'File mancante' });
     const inline = (corpo.type ?? 'attachment') === 'image';
     const r = await this.com.allega(f, id, inline);
-    if (!r.success) return r;
-    return { success: true, id: r.id, url: r.url + (inline ? '&inline=1' : ''), name: f.originalname, size: f.size, mime: f.mimetype };
+    if (!r.success) return json(r);
+    return json({ success: true, id: r.id, url: r.url + (inline ? '&inline=1' : ''), name: f.originalname, size: f.size, mime: f.mimetype });
   }
 }

@@ -19,7 +19,8 @@ export interface ContestoPagina {
 }
 
 export type Variabili = Record<string, unknown>;
-export type EsitoPagina = { redirect: string } | { titolo: string; V: Variabili };
+/** json: risposta diretta agli script della pagina (endpoint AJAX del PHP). */
+export type EsitoPagina = { redirect: string } | { titolo: string; V: Variabili } | { json: unknown; status?: number };
 
 export interface Pagina {
   /** Ruoli ammessi (Auth::requireUser del PHP). */
@@ -41,3 +42,4 @@ export function classiPagine() { return registro; }
 
 export const redirect = (url: string): EsitoPagina => ({ redirect: url });
 export const vista = (titolo: string, V: Variabili): EsitoPagina => ({ titolo, V });
+export const json = (dati: unknown, status = 200): EsitoPagina => ({ json: dati, status });

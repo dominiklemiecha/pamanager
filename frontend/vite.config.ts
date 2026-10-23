@@ -41,10 +41,15 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
       },
-      // Endpoint AJAX chiamati dagli script delle pagine staff (stessi indirizzi del PHP).
-      '/admin/communications_upload.php': {
+      // Pagine staff agli indirizzi del PHP: la navigazione resta alla SPA, le
+      // chiamate degli script delle pagine (POST, fetch) vanno al backend.
+      '^/(admin|admin-reparto|accountant|consulente-lavoro|formatore)/[a-z0-9_-]+\\.php': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
+        bypass: (req) => {
+          if ((req.method === 'GET' || req.method === 'HEAD') && String(req.headers.accept ?? '').includes('text/html')) return req.url;
+          return undefined;
+        },
       },
       // Allegati e immagini delle comunicazioni (indirizzo salvato nel testo).
       '/communication_file.php': {
