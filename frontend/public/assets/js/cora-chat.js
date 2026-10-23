@@ -139,7 +139,8 @@
         fd.append('csrf_token', csrf);
         Object.keys(data || {}).forEach(function (k) { if (data[k] != null) fd.append(k, data[k]); });
         Object.keys(files || {}).forEach(function (k) { if (files[k]) fd.append(k, files[k], files[k].name); });
-        return fetch(location.pathname, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) {
+        // Nuovo stack: azioni al backend, token CSRF anche nell'header.
+        return fetch('/api/v1/chat/azione', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf } }).then(function (r) {
             if (r.status === 401) { location.reload(); throw new Error('Sessione scaduta'); }
             return r.json().then(function (j) {
                 if (!r.ok) { var e = new Error((j && j.error) || 'Errore'); e.response = true; throw e; }
@@ -799,7 +800,7 @@
             }
             if (m.attachment && isImage) {
                 var u = m.attachment.data || m.attachment.url || '';
-                var src = u.indexOf('?download_attachment=') === 0 ? u + '&inline=1' : u;
+                var src = u.indexOf('download_attachment=') !== -1 ? u + '&inline=1' : u;
                 html += '<span class="cc-foto" data-foto data-nome="' + esc(m.attachment.name) + '">' +
                     (src ? '<img src="' + esc(src) + '" alt="' + esc(m.attachment.name) + '" loading="lazy" data-img-retry>' : '<span class="cc-foto-attesa"></span>') + '</span>';
             }
@@ -856,7 +857,7 @@
         var d = /\((\d+):(\d{2})\)/.exec(m.attachment.name || '');
         var tot = d ? Number(d[1]) * 60 + Number(d[2]) : 0;
         var u = m.attachment.url || m.attachment.data || '';
-        if (u.indexOf('?download_attachment=') === 0) u += '&inline=1';
+        if (u.indexOf('download_attachment=') !== -1) u += '&inline=1';
         return '<span class="cc-voce" data-voce="' + esc(u) + '" data-tot="' + tot + '">' +
             '<button type="button" class="cc-voce-btn"' + (u ? '' : ' disabled') + '>' + (u ? '<span class="cc-s4">' + I.play + '</span>' : '<span class="cc-spin cc-spin4"></span>') + '</button>' +
             '<span class="cc-voce-dx"><span class="cc-voce-barra"><span class="cc-voce-pieno"></span></span><span class="cc-voce-t">' + fmtRecTime(tot) + '</span></span></span>';

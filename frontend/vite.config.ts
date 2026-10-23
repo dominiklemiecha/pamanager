@@ -20,6 +20,16 @@ export default defineConfig({
         // La connessione in tempo reale passa dallo stesso proxy.
         ws: true,
       },
+      // Foto profilo (indirizzi salvati nel database), servite dal backend.
+      '/uploads': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
+      // Allegati e immagini delle comunicazioni (indirizzo salvato nel testo).
+      '/communication_file.php': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
     },
   },
 });

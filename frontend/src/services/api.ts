@@ -25,3 +25,14 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+// Password temporanea da cambiare: il backend rifiuta tutto il resto, la pagina
+// porta al cambio password (come il redirect di header-employee.php).
+api.interceptors.response.use(undefined, (err) => {
+  const d = err?.response?.data;
+  if (err?.response?.status === 403 && d?.must_change_password && location.pathname.startsWith('/employee/')
+    && location.pathname !== '/employee/change-password.php') {
+    location.replace('/employee/change-password.php');
+  }
+  return Promise.reject(err);
+});

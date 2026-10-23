@@ -212,6 +212,31 @@ async function main() {
              VALUES (?, ?, ?, ?, 1, '2026-10-01', ?, ?, ?)`, [azienda, titolo, testo, priorita, rep ? 0 : 1, rep ? reparto[rep] : null, autore]);
   }
 
+  // Comunicazione con testo formattato (editor), un allegato e tentativi di
+  // codice malevolo che la pulizia dell'HTML deve togliere.
+  const ricco = '<h2>Nuovi orari</h2><p>Dal <strong>1 novembre</strong> l\'ufficio apre alle <em>8:30</em>.</p>'
+    + '<ul><li>Lunedì-giovedì: 8:30-17:30</li><li>Venerdì: 8:30-14:00</li></ul>'
+    + '<p>Dettagli sul <a href="https://esempio.test/orari" target="_blank">sito</a> o scrivi a <a href="mailto:hr@cora.test">HR</a>.</p>'
+    + '<blockquote>Grazie a tutti per la collaborazione.</blockquote>'
+    + '<p><a href="javascript:alert(1)">link finto</a><span style="color:red" onclick="alert(2)">testo</span></p>'
+    + '<script>alert(3)</script><!-- nota -->';
+  const [rc] = await q(`INSERT INTO communications (company_id, title, content, priority, is_published, publish_date, is_global, department_id, created_by)
+                         VALUES (1, 'Nuovi orari di apertura', ?, 'normal', 1, '2026-10-02', 1, NULL, ?)`, [ricco, hrAlfa]);
+  {
+    const fs = require('fs');
+    const path = require('path');
+    const { execFileSync } = require('child_process');
+    const dir = path.join(__dirname, '..', 'storage', 'communications', String(rc.insertId));
+    fs.mkdirSync(dir, { recursive: true });
+    const contenuto = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
+    fs.writeFileSync(path.join(dir, 'seedallegato01.pdf'), contenuto);
+    await q(`INSERT INTO communication_attachments (communication_id, original_name, stored_name, mime_type, size_bytes, is_inline_image)
+             VALUES (?, 'Orari 2026.pdf', 'seedallegato01.pdf', 'application/pdf', ?, 0)`, [rc.insertId, contenuto.length]);
+    execFileSync('docker', ['exec', 'cora-baseline-app-1', 'mkdir', '-p', `/var/www/html/storage/communications/${rc.insertId}`]);
+    execFileSync('docker', ['cp', path.join(dir, 'seedallegato01.pdf'), `cora-baseline-app-1:/var/www/html/storage/communications/${rc.insertId}/seedallegato01.pdf`]);
+    execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/storage/communications']);
+  }
+
   const [ev] = await q(`INSERT INTO calendar_events (company_id, owner_type, owner_id, title, description, location, start_at, end_at, color, all_day)
                          VALUES (1, 'admin', ?, 'Colloqui annuali', 'Revisione obiettivi', 'Sala riunioni', '2026-10-28 10:00:00', '2026-10-28 12:00:00', '#ff9400', 0)`, [hrAlfa]);
   await q(`INSERT INTO calendar_event_participants (event_id, user_type, user_id, status) VALUES (?, 'employee', ?, 'accepted'), (?, 'employee', ?, 'pending')`,

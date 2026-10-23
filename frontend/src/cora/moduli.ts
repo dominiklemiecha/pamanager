@@ -31,7 +31,7 @@ export function esitoPrecedente(): EsitoPrecedente | null {
   }
 }
 
-export function useInvioModuli(gestori: Record<string, { url: (dati: FormData) => string; messaggio: string }>, attivo: boolean) {
+export function useInvioModuli(gestori: Record<string, { url: (dati: FormData) => string; messaggio: string; mantieni?: string[] }>, attivo: boolean) {
   useEffect(() => {
     if (!attivo) return;
     const invio = async (e: SubmitEvent) => {
@@ -45,7 +45,10 @@ export function useInvioModuli(gestori: Record<string, { url: (dati: FormData) =
       try {
         await api.post(gestori[chiave].url(dati), dati);
         const u = new URL(location.href);
+        const prima = new URLSearchParams(u.search);
         u.search = '';
+        // Parametri da conservare (es. ?id= della comunicazione aperta).
+        for (const k of gestori[chiave].mantieni ?? []) { const v = prima.get(k); if (v !== null) u.searchParams.set(k, v); }
         u.searchParams.set('message', gestori[chiave].messaggio);
         location.assign(u.pathname + u.search);
       } catch (err: any) {

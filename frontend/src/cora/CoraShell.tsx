@@ -164,12 +164,18 @@ function useScriptLegacy(pagina: string, cornice: Cornice, script: string[], glo
   }, []);
 }
 
-export function CoraShell({ pagina, titolo, css = [], script = [], globali = {}, children, cornice }: {
-  pagina: string; titolo: string; css?: string[]; script?: string[]; globali?: Record<string, unknown>; children: ReactNode; cornice: Cornice;
+/**
+ * `classica`: pagina non ridisegnata (come senza $coraPage nel PHP): CSS
+ * classici prima di quelli di Cora, classi "cora-legacy employee-body" e
+ * contenuto dentro la barra in alto e div.app-content.
+ */
+export function CoraShell({ pagina, titolo, css = [], script = [], globali = {}, children, cornice, classica = false }: {
+  pagina: string; titolo: string; css?: string[]; script?: string[]; globali?: Record<string, unknown>; children: ReactNode; cornice: Cornice; classica?: boolean;
 }) {
   useFoglioEsterno(FONT);
-  useCss('/assets/css/cora.css', '/assets/css/cora-pages.css', ...css.map((c) => `/assets/css/${c}`));
-  useClasseBody('cora-body');
+  useCss(...(classica ? ['https://rsms.me/inter/inter.css', '/assets/css/theme.css', '/assets/css/components.css', '/assets/css/style.css', '/assets/css/mobile-staff.css'] : []),
+    '/assets/css/cora.css', '/assets/css/cora-pages.css', ...css.map((c) => `/assets/css/${c}`));
+  useClasseBody(classica ? 'cora-body cora-legacy employee-body' : 'cora-body');
   useTitolo(`${titolo} · Cora`);
   useTesta(TESTA_CORA);
   useLayoutEffect(() => { document.body.dataset.page = pagina; }, [pagina]);
@@ -182,7 +188,14 @@ export function CoraShell({ pagina, titolo, css = [], script = [], globali = {},
   return (
     <>
       <div className="cora-app">
-        <main className="cora-main">{children}</main>
+        <main className="cora-main">
+          {classica ? (
+            <>
+              <Topbar titolo={titolo} cornice={cornice} />
+              <div className="app-content cora-legacy-content">{children}</div>
+            </>
+          ) : children}
+        </main>
       </div>
 
       <nav className="cora-dock" data-tour="nav-desktop" aria-label="Menu principale">
@@ -270,9 +283,16 @@ export function CoraShell({ pagina, titolo, css = [], script = [], globali = {},
   );
 }
 
-/** Dati della cornice; la pagina si disegna solo quando ci sono tutti (il PHP rendeva tutto insieme). */
-export function useCornice(): Cornice | null {
+/**
+ * Dati della cornice; la pagina si disegna solo quando ci sono tutti (il PHP rendeva tutto insieme).
+ * `dopo`: operazione della pagina da finire prima (es. comunicazione segnata come
+ * letta), cosi' i contatori sono quelli che il PHP calcolava dopo di essa.
+ */
+export function useCornice(dopo?: Promise<unknown>): Cornice | null {
   const [c, setC] = useState<Cornice | null>(null);
-  useEffect(() => { api.get('/dipendente/cornice').then((r) => setC(r.data)).catch(() => undefined); }, []);
+  useEffect(() => {
+    Promise.resolve(dopo).catch(() => undefined).then(() => api.get('/dipendente/cornice')).then((r) => setC(r.data)).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return c;
 }

@@ -1,9 +1,27 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": ".",
   "testRegex": ".*\\.e2e-spec\\.ts$",
-  "transform": { "^.+\\.ts$": "ts-jest" },
+  "transform": {
+    "^.+\\.ts$": "ts-jest",
+    "^.+\\.js$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "allowJs": true
+        },
+        "isolatedModules": true
+      }
+    ]
+  },
   "testEnvironment": "node",
   "testTimeout": 120000,
-  "maxWorkers": 1
+  "maxWorkers": 1,
+  "transformIgnorePatterns": [
+    "/node_modules/(?!(htmlparser2|domhandler|domutils|dom-serializer|entities|domelementtype)/)"
+  ]
 }

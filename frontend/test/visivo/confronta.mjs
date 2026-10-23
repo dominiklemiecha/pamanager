@@ -54,7 +54,7 @@ for (const caso of CASI.filter((c) => c.nome.includes(filtro))) {
       fs.writeFileSync(path.join(OUT, `${caso.nome}-${w}-diff.png`), PNG.sync.write(diff));
     }
     const quota = diversi / (a.width * a.height);
-    const ok = quota <= SOGLIA;
+    const ok = quota <= (caso.soglia ?? SOGLIA);
     esiti.push({ caso: caso.nome, larghezza: w, diversi, quota: Number.isFinite(quota) ? +(quota * 100).toFixed(3) : 'dimensioni diverse', esito: ok ? 'PASS' : 'FAIL' });
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${caso.nome} @${w}: ${Number.isFinite(diversi) ? diversi + ' pixel diversi' : `dimensioni ${a.width}x${a.height} contro ${b.width}x${b.height}`}`);
   }

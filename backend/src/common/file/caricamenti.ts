@@ -25,6 +25,12 @@ export function contenutoCoerente(estensione: string, buf: Buffer): boolean {
     case 'doc': case 'xls': case 'ppt': return inizia(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1);
     case 'docx': case 'xlsx': case 'pptx': case 'odt': case 'ods': case 'zip': return inizia(0x50, 0x4b, 0x03, 0x04);
     case 'txt': case 'csv': return !buf.includes(0);
+    // Audio e video (vocali e clip della chat)
+    case 'webm': return inizia(0x1a, 0x45, 0xdf, 0xa3);
+    case 'ogg': return buf.slice(0, 4).toString('latin1') === 'OggS';
+    case 'mp4': case 'm4a': return buf.slice(4, 8).toString('latin1') === 'ftyp';
+    case 'mp3': return buf.slice(0, 3).toString('latin1') === 'ID3' || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0);
+    case 'wav': return buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WAVE';
     default: return false;
   }
 }

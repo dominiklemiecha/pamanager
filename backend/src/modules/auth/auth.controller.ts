@@ -1,3 +1,4 @@
+import { DataSource } from 'typeorm';
 import { Body, Controller, Get, HttpCode, HttpException, Post, Req, Res } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 import { randomBytes } from 'crypto';
@@ -65,6 +66,7 @@ export class AuthController {
     private readonly tenant: TenantService,
     private readonly audit: AuditService,
     private readonly password: PasswordService,
+    private readonly ds: DataSource,
   ) {}
 
   private opzioni(req: RichiestaAutenticata, httpOnly: boolean): CookieOptions {
@@ -174,6 +176,11 @@ export class AuthController {
     const esito = await this.password.cambia(u.tipo, u.id, u.ruolo, dto.attuale, dto.nuova, dto.conferma,
       { ip: req.ip, userAgent: String(req.headers['user-agent'] ?? ''), sessioneId: u.sessioneId });
     if (!esito.ok) throw new HttpException({ statusCode: 400, message: esito.errore ?? esito.errori?.join(' '), errori: esito.errori }, 400);
+    // Contratto da firmare in attesa: si va subito li' (change-password.php).
+    if (u.tipo === 'employee') {
+      const [c] = await this.ds.query(`SELECT id FROM hire_requests WHERE employee_id = $1 AND status = 'contract_pending' ORDER BY id DESC LIMIT 1`, [u.id]);
+      if (c) return { ok: true, destinazione: `/employee/contract-sign.php?id=${c.id}` };
+    }
     return { ok: true };
   }
 
