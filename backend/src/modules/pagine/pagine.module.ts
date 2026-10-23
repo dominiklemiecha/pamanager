@@ -17,6 +17,7 @@ import { DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina } from './admi
 import { VisibilitaCampiPagina } from './admin/visibilita-campi.pagina';
 import { PresenzeExportPagina } from './admin/presenze-export.pagina';
 import { TimbratureAdminPagina } from './admin/timbrature.pagina';
+import { CommercialistiPagina, ConsulentiPagina, FormatoriPagina } from './admin/utenti-esterni.pagina';
 import { BuoniPastoPagina, OrarioLavorativoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, TimbratureImpostazioniPagina } from './admin/configurazione.pagina';
 import { FerieAdminPagina } from './admin/ferie.pagina';
 import { PasswordResetPagina } from './admin/password-reset.pagina';
@@ -32,6 +33,7 @@ import { HeatmapService } from './widget/heatmap.service';
   providers: [MotorePagine, HeatmapService, DashboardAdminPagina, DecisioneProvaPagina, FerieAdminPagina,
     OrarioLavorativoPagina, TimbratureImpostazioniPagina, BuoniPastoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, ProfiloStaffPagina, PasswordResetPagina,
     RepartiService, RepartiPagina, RepartoDettaglioPagina, AziendePagina, ComunicazioniAdminPagina, ComunicazioniUploadPagina,
-    DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, VisibilitaCampiPagina, PresenzeExportPagina, TimbratureAdminPagina],
+    DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, VisibilitaCampiPagina, PresenzeExportPagina, TimbratureAdminPagina,
+    CommercialistiPagina, ConsulentiPagina, FormatoriPagina],
 })
 export class PagineModule {}

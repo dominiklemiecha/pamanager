@@ -8,6 +8,7 @@ import adminDocumentiAziendali from '../../php/pagine/admin/documenti-aziendali'
 import adminVisibilita from '../../php/pagine/admin/field-visibility';
 import adminPresenzeExport from '../../php/pagine/admin/presenze-export';
 import adminTimbratureGiorno from '../../php/pagine/admin/attendance';
+import adminUtentiEsterni from '../../php/pagine/admin/user-role-manager';
 import adminAziende from '../../php/pagine/admin/companies';
 import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
 import adminReparti from '../../php/pagine/admin/departments';
@@ -27,6 +28,12 @@ const conSettimana = (V: any) => {
 
 /** Pagina che il PHP serviva solo con un redirect: lo chiede al backend. */
 const soloRedirect = () => undefined;
+
+/** Utenti esterni: "condiviso" se appartiene a un'azienda che l'HR non gestisce ($isGuestUser del PHP). */
+const conOspiti = (V: any) => {
+  const gestite = new Set((V.accessibleCids ?? []).map(Number));
+  V.isGuestUser = (u: any) => { const cid = Number(P.g(u, 'company_id') ?? 0); return cid > 0 && !gestite.has(cid); };
+};
 
 const pagina = (percorso: string, render: (V: any, F: any) => void, opz: { prepara?: (V: any) => void; scarica?: string[] } = {}) => (
   <Route key={percorso} path={percorso} element={<PaginaStaff render={render} {...opz} />} />
@@ -52,6 +59,9 @@ export const rotteStaff = [
   pagina('/admin/communications.php', adminComunicazioni),
   pagina('/admin/field-visibility.php', adminVisibilita),
   pagina('/admin/attendance.php', adminTimbratureGiorno),
+  pagina('/admin/accountant.php', adminUtentiEsterni, { prepara: conOspiti }),
+  pagina('/admin/consulente-lavoro.php', adminUtentiEsterni, { prepara: conOspiti }),
+  pagina('/admin/formatori.php', adminUtentiEsterni, { prepara: conOspiti }),
   pagina('/admin/presenze-export.php', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),
   pagina('/admin/documenti-aziendali.php', adminDocumentiAziendali, { scarica: ['download'] }),
 ];

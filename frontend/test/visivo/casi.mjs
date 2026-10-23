@@ -151,5 +151,10 @@ export const CASI = [
   { nome: 'admin-timbrature', percorso: '/admin/attendance.php?d=2026-10-22', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-timbrature-modifica', percorso: '/admin/attendance.php?d=2026-10-22', attesa: 800, ...come('hr.alfa'), misure: [[1512, 900]],
     azione: async (page) => { await page.click('.att-punch >> nth=1'); await page.waitForSelector('#pmModal.show'); await page.waitForTimeout(400); } },
+  { nome: 'admin-commercialisti', percorso: '/admin/accountant.php', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-commercialisti-nuovo', percorso: '/admin/accountant.php?action=new', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-consulenti-modifica', percorso: '/admin/consulente-lavoro.php?action=edit&id=6', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-consulenti-collega', percorso: '/admin/consulente-lavoro.php?action=link', attesa: 1000, ...come('hr.beta') },
+  { nome: 'admin-formatori', percorso: '/admin/formatori.php?message=created&email=fail', attesa: 1000, ...come('hr.alfa') },
 ];
 export { PW };

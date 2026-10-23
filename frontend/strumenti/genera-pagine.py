@@ -29,6 +29,12 @@ FERIE_ADMIN = [
     (r"try \{\s*\$__sickLate = LeaveRequest::sickPendingDocs\(24\);\s*\} catch \(Throwable \$e\) \{ \$__sickLate = \[\]; \}", ""),
 ]
 
+UTENTI_ESTERNI = [
+    (r"\$linkableCompanies = !empty\(\$accessibleCids\).*?: \[\];", "$linkableCompanies = $__aziendeGestibili;"),
+    (r"if \(!empty\(\$accessibleCids\)\) \{\s*\$allCompanies = .*?ORDER BY name\"\);\s*\}", "$allCompanies = $__aziendeGestibili;"),
+    (r"\$assignedCompanyIds = \$current \? Tenant::getUserCompanyIds\(\(int\)\$current\['id'\]\) : \[\];", "$assignedCompanyIds = $__aziendeAssegnate;"),
+]
+
 # (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
@@ -48,6 +54,7 @@ PAGINE = [
     ('admin/field-visibility.php', 'pagine/admin/field-visibility', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/presenze-export.php', 'pagine/admin/presenze-export', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/attendance.php', 'pagine/admin/attendance', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('admin/_user-role-manager.inc.php', 'pagine/admin/user-role-manager', HEADER_ADMIN, FOOTER_ADMIN, UTENTI_ESTERNI),
 ]
 
 # (file PHP, nome del widget, marcatore dopo il quale inizia il template, il tratto parte dentro <?php, condizione JS per disegnarlo)
