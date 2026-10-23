@@ -128,5 +128,9 @@ export const CASI = [
       await page.evaluate(() => { document.getElementById('deleteId').value = '2'; document.getElementById('deleteConfirmName').value = 'nome sbagliato'; document.getElementById('deleteForm').submit(); });
       await page.waitForSelector('text=Conferma fallita'); await page.waitForTimeout(400);
     } },
+  { nome: 'admin-comunicazioni', percorso: '/admin/communications.php', attesa: 1000, ...come('hr.alfa') },
+  { nome: 'admin-comunicazioni-nuova', percorso: '/admin/communications.php?action=new', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-comunicazioni-modifica', percorso: '/admin/communications.php?action=edit&id=1&message=created', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-comunicazioni-dettaglio', percorso: '/admin/communications.php?action=view&id=1', attesa: 1000, ...come('hr.alfa'), paginaIntera: true },
 ];
 export { PW };

@@ -100,6 +100,19 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
       if (e.defaultPrevented) return;
       if (inviaModulo(e.target as HTMLFormElement, e.submitter as HTMLButtonElement | null)) e.preventDefault();
     };
+    // Chiamate AJAX degli script della pagina (fetch verso gli indirizzi .php):
+    // il backend vuole il token CSRF nell'header, il PHP lo leggeva dal corpo.
+    const fetchNativo = window.fetch;
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      const metodo = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+      if (url.origin === location.origin && !['GET', 'HEAD', 'OPTIONS'].includes(metodo)) {
+        const h = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+        if (!h.has('X-CSRF-Token')) h.set('X-CSRF-Token', leggiCsrf());
+        init = { ...init, headers: h, credentials: init?.credentials ?? 'same-origin' };
+      }
+      return fetchNativo(input, init);
+    };
     // form.submit() dagli script della pagina non genera l'evento submit (come nel browser):
     // senza questo andrebbe al server come POST classico.
     const submitNativo = HTMLFormElement.prototype.submit;
@@ -121,6 +134,7 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
       document.removeEventListener('submit', invio);
       document.removeEventListener('click', clic);
       HTMLFormElement.prototype.submit = submitNativo;
+      window.fetch = fetchNativo;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

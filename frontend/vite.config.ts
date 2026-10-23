@@ -41,6 +41,11 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
       },
+      // Endpoint AJAX chiamati dagli script delle pagine staff (stessi indirizzi del PHP).
+      '/admin/communications_upload.php': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
       // Allegati e immagini delle comunicazioni (indirizzo salvato nel testo).
       '/communication_file.php': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',

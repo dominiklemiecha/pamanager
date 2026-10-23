@@ -3,6 +3,7 @@ import { P } from '../../php/runtime';
 import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
 import adminPortaLog from '../../php/pagine/admin/door-log';
 import adminPorta from '../../php/pagine/admin/door-settings';
+import adminComunicazioni from '../../php/pagine/admin/communications';
 import adminAziende from '../../php/pagine/admin/companies';
 import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
 import adminReparti from '../../php/pagine/admin/departments';
@@ -44,4 +45,5 @@ export const rotteStaff = [
   pagina('/admin/departments.php', adminReparti),
   pagina('/admin/department-detail.php', adminRepartoDettaglio),
   pagina('/admin/companies.php', adminAziende),
+  pagina('/admin/communications.php', adminComunicazioni),
 ];

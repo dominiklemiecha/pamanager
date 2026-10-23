@@ -49,6 +49,11 @@ const GIORNI: Array<[string, string]> = [['mon', 'Lun'], ['tue', 'Mar'], ['wed',
 P.estendi('LeaveBalance::allDayKeys', () => GIORNI.map(([k]) => k));
 P.estendi('LeaveBalance::dayLabel', (k: any) => GIORNI.find(([g]) => g === P.s(k))?.[1] ?? k);
 
+/** Comunicazioni: il testo arriva dal backend gia' ripulito (sanitizzaHtmlRicco). */
+P.estendi('sanitizeRichHtml', (h: any) => P.s(h));
+P.estendi('Communication::PRIORITIES', () => P.assoc([['low', 'Bassa'], ['normal', 'Normale'], ['high', 'Alta']]));
+P.estendi('Communication::attachmentUrl', (id: any) => `/communication_file.php?id=${P.int(id)}`);
+
 /** Admin globale "vero": lo calcola il backend (variabile __veroGlobale). */
 P.estendi('Tenant::isCurrentUserTrueGlobalAdmin', (...a: any[]) => P.t(a[a.length - 1]?.V?.__veroGlobale));
 
