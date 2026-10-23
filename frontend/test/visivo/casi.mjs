@@ -113,5 +113,7 @@ export const CASI = [
   { nome: 'admin-porta-log', percorso: '/admin/door-log.php', attesa: 1000, ...come('connecteed') },
   { nome: 'admin-profilo', percorso: '/admin/profile.php?message=updated', attesa: 1000, ...come('hr.alfa') },
   { nome: 'admin-profilo-commercialista', percorso: '/admin/profile.php', attesa: 1000, ...come('studio.commercialista') },
+  { nome: 'admin-password', percorso: '/admin/password-resets.php', attesa: 1000, ...come('hr.alfa'), misure: [[1512, 900], [390, 844]],
+    azione: async (page) => { await page.selectOption('#manualUserType', 'employee'); await page.waitForTimeout(300); } },
 ];
 export { PW };

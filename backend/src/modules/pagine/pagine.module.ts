@@ -8,6 +8,7 @@ import { DashboardAdminPagina } from './admin/dashboard.pagina';
 import { DecisioneProvaPagina } from './admin/decisione-prova.pagina';
 import { BuoniPastoPagina, OrarioLavorativoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, TimbratureImpostazioniPagina } from './admin/configurazione.pagina';
 import { FerieAdminPagina } from './admin/ferie.pagina';
+import { PasswordResetPagina } from './admin/password-reset.pagina';
 import { ProfiloStaffPagina } from './admin/profilo.pagina';
 import { PagineController } from './pagine.controller';
 import { HeatmapService } from './widget/heatmap.service';
@@ -17,6 +18,6 @@ import { HeatmapService } from './widget/heatmap.service';
   imports: [FerieModule, ProvaModule, AcademyModule, AuthModule, ProfiloModule],
   controllers: [PagineController],
   providers: [HeatmapService, DashboardAdminPagina, DecisioneProvaPagina, FerieAdminPagina,
-    OrarioLavorativoPagina, TimbratureImpostazioniPagina, BuoniPastoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, ProfiloStaffPagina],
+    OrarioLavorativoPagina, TimbratureImpostazioniPagina, BuoniPastoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, ProfiloStaffPagina, PasswordResetPagina],
 })
 export class PagineModule {}

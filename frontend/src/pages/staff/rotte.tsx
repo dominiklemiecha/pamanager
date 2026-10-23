@@ -5,6 +5,7 @@ import adminPortaLog from '../../php/pagine/admin/door-log';
 import adminPorta from '../../php/pagine/admin/door-settings';
 import adminIndex from '../../php/pagine/admin/index';
 import adminFerie from '../../php/pagine/admin/leave-requests';
+import adminPassword from '../../php/pagine/admin/password-resets';
 import adminProfilo from '../../php/pagine/admin/profile';
 import adminTimbrature from '../../php/pagine/admin/punch-settings';
 import adminOrario from '../../php/pagine/admin/work-schedule';
@@ -36,4 +37,5 @@ export const rotteStaff = [
   pagina('/admin/door-log.php', adminPortaLog),
   pagina('/admin/smtp-settings.php', soloRedirect),
   pagina('/admin/profile.php', adminProfilo),
+  pagina('/admin/password-resets.php', adminPassword),
 ];

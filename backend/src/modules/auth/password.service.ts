@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import { DataSource } from 'typeorm';
 import { senzaIsolamento } from '../../common/database/isolamento';
-import { erroriPassword, hashPassword, verificaPassword } from '../../common/sicurezza/password';
+import { erroriPassword, hashPassword, passwordTemporanea, verificaPassword } from '../../common/sicurezza/password';
 import { urlPubblico } from '../../config/app';
 import { AuditService, ContestoAudit } from '../audit/audit.service';
 import { escapeHtml, MailerService } from '../notifiche/mailer.service';
@@ -135,6 +135,82 @@ export class PasswordService {
     });
     await this.audit.log('password_reset_completed', t.user_type, t.user_id, ctx);
     await this.sessioni.chiudiTutte(tipo, t.user_id, 'password_recuperata');
+    return { ok: true };
+  }
+
+  // ─── Operazioni dell'HR (admin/password-resets.php) ───────────────────
+
+  /**
+   * Account che l'HR puo' reimpostare: utenti e dipendenti attivi della sua
+   * azienda. Correzione: nel PHP qualsiasi id (anche di altre aziende o
+   * dell'admin globale) e gli admin senza azienda erano nell'elenco.
+   */
+  async accountReimpostabili(companyId: number, veroGlobale: boolean) {
+    const users = await senzaIsolamento(() => this.ds.query(
+      `SELECT id, username, name, email, role FROM users WHERE is_active = true AND (company_id = $1 ${veroGlobale ? 'OR company_id IS NULL' : ''}) ORDER BY name`,
+      [companyId]));
+    const employees = await this.ds.query(
+      `SELECT id, username, fiscal_code, concat(last_name, ' ', first_name) AS name, email FROM employees
+        WHERE is_active = true AND company_id = $1 ORDER BY last_name, first_name`, [companyId]);
+    return { users, employees };
+  }
+
+  /** Password temporanea (Auth::adminResetPassword), cambio obbligatorio al prossimo accesso. */
+  async reimpostaDaAdmin(tipo: string, id: number, companyId: number, veroGlobale: boolean, ctx: ContestoAudit & { id: number }): Promise<{ ok: true; password: string } | { ok: false; errore: string }> {
+    const { users, employees } = await this.accountReimpostabili(companyId, veroGlobale);
+    const ammesso = tipo === 'employee' ? employees.some((e: any) => e.id === id) : ['admin', 'accountant'].includes(tipo) && users.some((u: any) => u.id === id && u.role === tipo);
+    if (!ammesso) return { ok: false, errore: 'Utente non trovato' };
+    const tabella = tipo === 'employee' ? 'employees' : 'users';
+    const password = passwordTemporanea();
+    try {
+      await senzaIsolamento(async () => this.ds.query(
+        `UPDATE ${tabella} SET password_hash = $2, failed_attempts = 0, locked_until = NULL, must_change_password = true, password_changed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [id, await hashPassword(password)]));
+      await this.audit.log('admin_password_reset', 'admin', ctx.id, ctx, tabella, id, null, { target_user_type: tipo, target_user_id: id });
+      await this.sessioni.chiudiTutte(tipo === 'employee' ? 'employee' : 'user', id, 'password_reimpostata');
+      return { ok: true, password };
+    } catch {
+      return { ok: false, errore: 'Errore durante il reset' };
+    }
+  }
+
+  /** Richiesta di recupero di un account dell'azienda (stesso perimetro di countPendingResetRequests, senza admin di altre aziende). */
+  private async richiestaDellAzienda(id: number, companyId: number, veroGlobale: boolean) {
+    const [r] = await senzaIsolamento(() => this.ds.query(
+      `SELECT prr.* FROM password_reset_requests prr
+         LEFT JOIN users u ON prr.user_type <> 'employee' AND prr.user_id = u.id
+         LEFT JOIN employees e ON prr.user_type = 'employee' AND prr.user_id = e.id
+        WHERE prr.id = $1 AND ((prr.user_type = 'employee' AND e.company_id = $2)
+          OR (prr.user_type <> 'employee' AND (u.company_id = $2 ${veroGlobale ? 'OR u.company_id IS NULL' : ''})))`, [id, companyId]));
+    return r ?? null;
+  }
+
+  /** Approvazione di una richiesta: link valido 24 ore (Auth::approveResetRequest). */
+  async approvaRichiesta(id: number, companyId: number, veroGlobale: boolean, ctx: ContestoAudit & { id: number }): Promise<{ ok: true; link: string } | { ok: false; errore: string }> {
+    const r = await this.richiestaDellAzienda(id, companyId, veroGlobale);
+    if (!r || r.status !== 'pending') return { ok: false, errore: 'Richiesta non trovata' };
+    const token = randomBytes(32).toString('hex');
+    try {
+      await senzaIsolamento(async () => {
+        const [t] = await this.ds.query(
+          `INSERT INTO password_reset_tokens (user_type, user_id, token, expires_at, ip_address, user_agent)
+           VALUES ($1, $2, $3, CURRENT_TIMESTAMP + interval '24 hours', $4, 'Admin approved') RETURNING id`,
+          [r.user_type, r.user_id, impronta(token), ctx.ip ?? null]);
+        await this.ds.query(`UPDATE password_reset_requests SET status = 'sent', token_id = $2, resolved_by = $3, resolved_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [id, t.id, ctx.id]);
+      });
+      await this.audit.log('password_reset_approved', 'admin', ctx.id, ctx, 'password_reset_requests', id);
+      return { ok: true, link: urlPubblico(`/auth/reset-password.php?token=${token}`) };
+    } catch {
+      return { ok: false, errore: "Errore durante l'approvazione" };
+    }
+  }
+
+  async rifiutaRichiesta(id: number, companyId: number, veroGlobale: boolean, note: string, ctx: ContestoAudit & { id: number }): Promise<{ ok: true } | { ok: false; errore: string }> {
+    if (!(await this.richiestaDellAzienda(id, companyId, veroGlobale))) return { ok: false, errore: 'Richiesta non trovata' };
+    await senzaIsolamento(() => this.ds.query(
+      `UPDATE password_reset_requests SET status = 'rejected', resolved_by = $2, resolved_at = CURRENT_TIMESTAMP, notes = $3 WHERE id = $1`, [id, ctx.id, note]));
+    await this.audit.log('password_reset_rejected', 'admin', ctx.id, ctx, 'password_reset_requests', id);
     return { ok: true };
   }
 }
