@@ -15,7 +15,8 @@
  *    stringa "mon,tue" (la logica che la legge resta uguale);
  *  - timestamp e datetime -> timestamptz: i datetime erano ora di Roma, il
  *    convertitore dei dati li legge come tali (niente piu' scarto con l'ora legale);
- *  - JSON nativo (CHECK json_valid) -> jsonb; il resto dei testi -> text;
+ *  - JSON nativo (CHECK json_valid) -> json, che conserva il testo esatto (jsonb
+ *    riordinerebbe le chiavi dei log di audit); il resto dei testi -> text;
  *  - AUTO_INCREMENT -> identity "by default" (gli id esistenti restano uguali);
  *  - ON UPDATE current_timestamp -> trigger;
  *  - nomi degli indici prefissati con la tabella (in Postgres sono globali).
@@ -91,7 +92,7 @@ function colonna(tabella, nome, def, vincoli) {
       pg = 'citext';
       vincoli.push(`CONSTRAINT ${q(`${tabella}__${nome}__lunghezza`)} CHECK (char_length(${q(nome)}) <= ${arg})`);
       break;
-    case 'text': case 'tinytext': case 'mediumtext': case 'longtext': pg = json ? 'jsonb' : 'text'; break;
+    case 'text': case 'tinytext': case 'mediumtext': case 'longtext': pg = json ? 'json' : 'text'; break;
     case 'date': pg = 'date'; break;
     case 'time': pg = 'time'; break;
     case 'datetime': case 'timestamp': pg = 'timestamptz'; break;
@@ -131,7 +132,7 @@ function valoreDefault(v, booleano, pg) {
     if (n !== '0' && n !== '1') throw new Error(`Default booleano non 0/1: ${v}`);
     return n === '1' ? 'true' : 'false';
   }
-  if (pg === 'jsonb' && v.startsWith("'")) return `${v}::jsonb`;
+  if (pg === 'json' && v.startsWith("'")) return `${v}::json`;
   return v;
 }
 
