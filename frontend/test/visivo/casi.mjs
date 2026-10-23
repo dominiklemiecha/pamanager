@@ -161,5 +161,8 @@ export const CASI = [
   { nome: 'admin-calendario-nuovo', percorso: '/admin/calendar.php?view=week&d=2026-10-28', attesa: 900, ...come('hr.alfa'), misure: [[1512, 900]],
     azione: async (page) => { await page.click('.cal-add-btn'); await page.waitForSelector('#calModal.show'); await page.waitForTimeout(400); } },
   { nome: 'commercialista-calendario', percorso: '/accountant/calendar.php?view=week&d=2026-10-28', attesa: 1200, ...come('studio.commercialista') },
+  { nome: 'admin-chat', percorso: '/admin/chat.php', attesa: 1500, ...come('hr.alfa') },
+  { nome: 'admin-chat-aperta', percorso: '/admin/chat.php?conv=1', attesa: 1500, ...come('hr.alfa') },
+  { nome: 'consulente-chat', percorso: '/consulente-lavoro/chat.php', attesa: 1500, ...come('studio.consulente') },
 ];
 export { PW };
