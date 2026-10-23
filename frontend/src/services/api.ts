@@ -7,11 +7,21 @@ import axios from 'axios';
  */
 export const api = axios.create({ baseURL: '/api/v1', withCredentials: true });
 
-api.interceptors.request.use((config) => {
+const leggiCsrf = () => document.cookie.match(/(?:^|;\s*)cora_csrf=([^;]+)/)?.[1];
+
+// Se il cookie CSRF non c'e' ancora (prima visita), lo si chiede una volta sola
+// prima di mandare la richiesta: senza, il backend la rifiuterebbe.
+let preparazione: Promise<unknown> | null = null;
+
+api.interceptors.request.use(async (config) => {
   const metodo = (config.method || 'get').toLowerCase();
   if (!['get', 'head', 'options'].includes(metodo)) {
-    const m = document.cookie.match(/(?:^|;\s*)cora_csrf=([^;]+)/);
-    if (m) config.headers.set('X-CSRF-Token', decodeURIComponent(m[1]));
+    if (!leggiCsrf()) {
+      preparazione ??= axios.get('/api/v1/auth/sessione', { withCredentials: true }).finally(() => { preparazione = null; });
+      await preparazione;
+    }
+    const token = leggiCsrf();
+    if (token) config.headers.set('X-CSRF-Token', decodeURIComponent(token));
   }
   return config;
 });

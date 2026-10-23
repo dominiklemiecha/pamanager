@@ -112,3 +112,4 @@ coverage/
 backend/uploads/*
 backend/storage/*
 test/equivalenza/.dati/
+frontend/test/visivo/.risultati/

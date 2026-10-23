@@ -1,0 +1,301 @@
+/*
+ * Cora — calendario del dipendente.
+ * Stesso markup e stessi script di includes/_calendar.inc.php (condiviso con
+ * gli altri ruoli): qui solo l'aspetto nella shell Cora. Il calendario occupa
+ * lo spazio fra barra in alto e dock, la griglia oraria scorre al suo interno.
+ */
+
+/* ---------- Contenitore ---------- */
+.cora-body .cal-wrap {
+    --cal-line: #edf2f1;
+    --cal-bg: var(--cora-surface);
+    --cal-now: var(--cora-accent);
+    flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column;
+    background: var(--cora-surface);
+    border: 0; border-radius: 20px;
+    overflow: hidden;
+}
+.cora-body .cal-sticky-head { position: static; background: var(--cora-surface); border-radius: 0; flex-shrink: 0; }
+
+/* ---------- Toolbar ---------- */
+.cora-body .cal-toolbar { gap: 12px; padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--cal-line); }
+.cora-body .cal-nav { gap: 8px; }
+.cora-body .cal-nav-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--cora-line); background: var(--cora-surface);
+    color: var(--cora-ink);
+}
+.cora-body .cal-nav-btn:hover { border-color: var(--cora-line); background: var(--cora-surface-soft); color: var(--cora-ink); }
+.cora-body .cal-nav-btn[aria-label="Oggi"] { padding: 0 14px !important; font-size: 13px !important; font-weight: 600 !important; }
+.cora-body .cal-nav-label {
+    font-family: var(--cora-font);
+    font-size: 18px; font-weight: 500; letter-spacing: 0;
+    color: var(--cora-ink);
+    min-width: 150px; text-align: center;
+}
+.cora-body .cal-view-toggle { background: var(--cora-surface-soft); border-radius: 999px; padding: 4px; gap: 2px; }
+.cora-body .cal-view-toggle a {
+    height: 32px; padding: 0 16px; border-radius: 999px;
+    display: inline-flex; align-items: center;
+    font-size: 14px; font-weight: 500; color: var(--cora-ink-2);
+}
+.cora-body .cal-view-toggle a:hover { color: var(--cora-ink); }
+.cora-body .cal-view-toggle a.active { background: var(--cora-ink); color: var(--cora-surface); font-weight: 600; box-shadow: none; }
+.cora-body .cal-add-btn {
+    height: 40px; padding: 0 18px 0 14px; gap: 8px;
+    border-radius: 999px;
+    background: var(--cora-ink); color: var(--cora-surface);
+    font-family: var(--cora-font); font-size: 14px; font-weight: 600;
+    box-shadow: none;
+}
+.cora-body .cal-add-btn:hover { background: #262626; }
+.cora-body .cal-add-btn:active { transform: scale(.98); }
+.cora-body .cal-add-btn svg { width: 16px; height: 16px; }
+
+/* ---------- Griglia ---------- */
+.cora-body .cal-grid { scrollbar-gutter: stable; }
+.cora-body .cal-sticky-head .cal-grid { overflow: hidden; border-bottom-color: var(--cal-line) !important; }
+.cora-body #calGrid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cora-body .cal-time-col { border-right-color: var(--cal-line); background: var(--cora-surface); }
+.cora-body .cal-time-slot {
+    font-size: 11px; font-weight: 500; color: var(--cora-ink-3);
+    font-variant-numeric: tabular-nums;
+    padding-right: 10px; transform: translateY(-7px);
+}
+.cora-body .cal-time-slot:first-child { transform: none; }
+.cora-body .cal-days { background: var(--cora-surface); }
+.cora-body .cal-day-col { border-right-color: var(--cal-line); }
+.cora-body .cal-day-col.is-today { background: rgba(255, 148, 0, .035); }
+.cora-body .cal-day-col.is-drop-target { background: var(--cora-accent-soft); outline: 2px dashed var(--cora-accent); }
+
+.cora-body .cal-day-head {
+    padding: 8px 6px;
+    background: var(--cora-surface);
+    border-bottom: 0; border-right-color: var(--cal-line);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.cora-body .cal-day-head .dow {
+    font-size: 12px; font-weight: 500; color: var(--cora-ink-3);
+    text-transform: none; letter-spacing: 0;
+}
+.cora-body .cal-day-head .dnum {
+    font-family: var(--cora-font);
+    width: 32px; height: 32px; border-radius: 999px; margin: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--cora-ink);
+}
+.cora-body .cal-day-head.is-today { background: var(--cora-surface); }
+.cora-body .cal-day-head.is-today .dow { color: var(--cora-accent-ink); font-weight: 600; }
+.cora-body .cal-day-head.is-today .dnum { background: var(--cora-ink); color: var(--cora-surface); font-weight: 600; }
+.cora-body .cal-day-head.is-holiday { background: var(--cora-error-soft); }
+.cora-body .cal-day-head.is-holiday .dow,
+.cora-body .cal-day-head.is-holiday .dnum,
+.cora-body .cal-day-head .dholiday { color: var(--cora-error); }
+.cora-body .cal-day-head .dholiday { font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; max-width: 100%; }
+.cora-body .cal-day-col.is-holiday {
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(201, 18, 59, .035) 10px, rgba(201, 18, 59, .035) 20px);
+}
+.cora-body .cal-day-holiday-banner {
+    background: var(--cora-error-soft); color: var(--cora-error);
+    border: 0; border-radius: 999px; padding: 4px 10px; box-shadow: none;
+}
+
+.cora-body .cal-now-line { border-top-width: 2px; }
+.cora-body .cal-now-line::before { left: -5px; top: -6px; box-shadow: 0 0 0 3px rgba(255, 148, 0, .2); }
+
+/* ---------- Eventi ---------- */
+.cora-body .cal-evt {
+    left: 4px; right: 4px;
+    padding: 8px 10px; gap: 8px;
+    border-radius: 12px; border-left-width: 3px;
+    font-family: var(--cora-font);
+}
+.cora-body .cal-evt:hover { filter: none; transform: translateY(-1px); box-shadow: 0 6px 14px -6px rgba(8, 8, 8, .18); }
+.cora-body .cal-evt .evt-owner-av { width: 26px; height: 26px; font-size: 11px; font-weight: 600; border-width: 2px; box-shadow: none; }
+.cora-body .cal-evt .evt-title { font-size: 13px; font-weight: 600; }
+.cora-body .cal-evt .evt-meta { font-size: 11.5px; font-weight: 500; opacity: .8; font-variant-numeric: tabular-nums; }
+.cora-body .cal-evt .evt-part-av { font-weight: 600; color: var(--cora-ink); }
+.cora-body .cal-evt.is-pending::after {
+    content: ''; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cora-accent); box-shadow: 0 0 0 2px var(--cora-surface);
+}
+body.cora-body.cal-dragging .cal-evt.is-dragging { opacity: .4; }
+
+/* ---------- Modale evento ---------- */
+.cora-body .cal-modal-overlay { background: rgba(8, 8, 8, .32); z-index: 120; padding: 24px; }
+.cora-body .cal-modal-overlay.show { animation: cora-fade .18s ease-out; }
+.cora-body .cal-modal {
+    max-width: 520px; max-height: calc(100vh - 48px);
+    border-radius: 24px;
+    box-shadow: 0 30px 35px rgba(0, 0, 0, .18);
+    font-family: var(--cora-font);
+}
+.cora-body .cal-modal-overlay.show .cal-modal { animation: cora-pop .2s ease-out; }
+.cora-body .cal-modal-h { padding: 24px 24px 8px 28px; border-bottom: 0; align-items: flex-start; }
+.cora-body .cal-modal-h h3 { font-family: var(--cora-font); font-size: 22px; font-weight: 500; color: var(--cora-ink); }
+.cora-body .cal-modal-close {
+    width: 36px; height: 36px; border-radius: 999px; flex-shrink: 0;
+    background: var(--cora-surface-soft); color: var(--cora-ink);
+    font-size: 20px; display: inline-flex; align-items: center; justify-content: center;
+}
+.cora-body .cal-modal-close:hover { background: var(--cora-line); }
+.cora-body .cal-modal-body { padding: 12px 28px 20px; gap: 18px; }
+.cora-body .cal-modal-body::-webkit-scrollbar-track { margin: 8px 0; }
+
+.cora-body .cal-fg label {
+    font-size: 13px; font-weight: 600; color: var(--cora-ink-2);
+    text-transform: none; letter-spacing: 0; margin-bottom: 8px;
+}
+.cora-body .cal-fg input[type=text] {
+    height: 44px; padding: 0 14px; border-radius: 12px;
+    border: 1px solid var(--cora-line);
+    font-family: var(--cora-font); font-size: 14px; font-weight: 500; color: var(--cora-ink);
+}
+.cora-body .cal-fg input::placeholder { color: var(--cora-ink-3); font-weight: 400; }
+.cora-body .cal-fg input:focus { border-color: var(--cora-ink); box-shadow: 0 0 0 3px rgba(8, 8, 8, .06); }
+.cora-body .cal-fg input:disabled { background: var(--cora-surface-soft); border-color: var(--cora-surface-soft); color: var(--cora-ink-2); }
+
+/* Data e orari: campi come cora-input */
+.cora-body .cal-pill {
+    height: 44px; padding: 0 14px; gap: 10px;
+    border-radius: 12px; border: 1px solid var(--cora-line);
+    background: var(--cora-surface);
+    font-size: 14px; font-weight: 500; color: var(--cora-ink);
+    font-variant-numeric: tabular-nums;
+}
+.cora-body .cal-pill svg:first-child { color: var(--cora-ink-2); }
+.cora-body .cal-pill:hover { background: var(--cora-surface); border-color: var(--cora-ink-3); color: var(--cora-ink); }
+.cora-body .cal-pill.is-open { background: var(--cora-surface); color: var(--cora-ink); border-color: var(--cora-ink); box-shadow: 0 0 0 3px rgba(8, 8, 8, .06); }
+.cora-body .cal-pill:disabled { background: var(--cora-surface-soft); border-color: var(--cora-surface-soft); cursor: default; }
+.cora-body .cal-pick-row { gap: 10px; margin-top: 10px; }
+.cora-body .cal-pick-sep { color: var(--cora-ink-3); }
+
+/* Scelte rapide: chip Cora */
+.cora-body .cal-date-presets,
+.cora-body .cal-duration-chips { gap: 8px; }
+.cora-body .cal-duration-chips { margin-top: 10px; }
+.cora-body .cal-preset,
+.cora-body .cal-chip {
+    height: 32px; padding: 0 14px; border-radius: 999px;
+    background: var(--cora-surface); border: 1px solid var(--cora-line);
+    font-family: var(--cora-font); font-size: 13px; font-weight: 500; color: var(--cora-ink-2);
+}
+.cora-body .cal-preset:hover,
+.cora-body .cal-chip:hover { background: var(--cora-surface); border-color: var(--cora-ink-3); color: var(--cora-ink); }
+.cora-body .cal-preset.active,
+.cora-body .cal-chip.active { background: var(--cora-ink); border-color: var(--cora-ink); color: var(--cora-surface); font-weight: 600; }
+
+/* Popover data (al centro) e orari */
+.cora-body .cal-date-backdrop { background: rgba(8, 8, 8, .24); }
+.cora-body .cal-pop {
+    border: 0; border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 18px 40px -10px rgba(0, 0, 0, .22);
+    font-family: var(--cora-font);
+}
+.cora-body .cal-pop-date { padding: 16px; border-radius: 20px; box-shadow: 0 30px 35px rgba(0, 0, 0, .18) !important; }
+.cora-body .cal-mini-label { font-family: var(--cora-font); font-size: 15px; font-weight: 600; color: var(--cora-ink); }
+.cora-body .cal-mini-nav { width: 32px; height: 32px; border-radius: 999px; background: var(--cora-surface-soft); color: var(--cora-ink); }
+.cora-body .cal-mini-nav:hover { background: var(--cora-line); color: var(--cora-ink); }
+.cora-body .cal-mini-dows { border-bottom: 0; padding-bottom: 0; margin-bottom: 4px; }
+.cora-body .cal-mini-dows span { font-size: 12px; font-weight: 500; color: var(--cora-ink-3); text-transform: none; letter-spacing: 0; }
+.cora-body .cal-mini-grid { gap: 2px; }
+.cora-body .cal-mini-cell {
+    min-height: 36px; border-radius: 999px;
+    font-size: 14px; font-weight: 500; color: var(--cora-ink);
+}
+.cora-body .cal-mini-cell:hover:not(:disabled):not(.is-empty) { background: var(--cora-surface-soft); color: var(--cora-ink); }
+.cora-body .cal-mini-cell.is-other-month { color: var(--cora-line); }
+.cora-body .cal-mini-cell.is-today { color: var(--cora-accent-ink); font-weight: 700; }
+.cora-body .cal-mini-cell.is-today::after { background: var(--cora-accent); }
+.cora-body .cal-mini-cell.is-selected { background: var(--cora-ink) !important; color: var(--cora-surface) !important; box-shadow: none; font-weight: 600; }
+.cora-body .cal-mini-cell.is-selected::after { background: var(--cora-surface); }
+
+.cora-body .cal-pop-time { padding: 6px; }
+.cora-body .cal-pop-time::-webkit-scrollbar-track { margin: 12px 0; }
+.cora-body .cal-time-opt {
+    height: 34px; padding: 0 12px; border-radius: 10px;
+    font-family: var(--cora-font); font-size: 14px; font-weight: 500; color: var(--cora-ink);
+    font-variant-numeric: tabular-nums;
+}
+.cora-body .cal-time-opt:hover { background: var(--cora-surface-soft); color: var(--cora-ink); }
+.cora-body .cal-time-opt.is-selected { background: var(--cora-ink); color: var(--cora-surface); font-weight: 600; }
+.cora-body .cal-time-opt.is-suggested { height: auto; font-size: 12px; font-weight: 500; color: var(--cora-ink-3); text-transform: none; letter-spacing: 0; }
+
+/* Luogo */
+.cora-body .cal-when-field {
+    height: 44px; padding: 0 14px; gap: 10px;
+    border: 1px solid var(--cora-line); border-radius: 12px;
+}
+.cora-body .cal-when-field:focus-within { border-color: var(--cora-ink); box-shadow: 0 0 0 3px rgba(8, 8, 8, .06); }
+.cora-body .cal-when-ic { color: var(--cora-ink-2); }
+.cora-body .cal-when-field input { font-family: var(--cora-font); font-weight: 500; color: var(--cora-ink); height: auto !important; }
+
+/* Partecipanti */
+.cora-body .cal-participants { gap: 8px; padding: 8px; border: 1px solid var(--cora-line); border-radius: 12px; min-height: 52px; }
+.cora-body .cal-participants .av {
+    min-height: 34px;
+    background: var(--cora-surface-soft) !important; border: 0;
+    font-size: 13px; font-weight: 500; color: var(--cora-ink) !important;
+}
+.cora-body .cal-participants .av .av-photo { width: 26px; height: 26px; background: var(--cora-accent-soft); color: var(--cora-warning); font-weight: 600; }
+.cora-body .cal-participants .av .x { color: var(--cora-ink-3); }
+.cora-body .cal-participants .av .x:hover { background: var(--cora-error-soft); color: var(--cora-error); }
+.cora-body .cal-part-add-btn { width: 34px; height: 34px; border: 1.5px dashed var(--cora-ink-3); color: var(--cora-ink-2); }
+.cora-body .cal-part-add-btn:hover { border-color: var(--cora-ink); color: var(--cora-ink); }
+
+.cora-body .cal-contact-picker { margin-top: 10px; border: 1px solid var(--cora-line); border-radius: 14px; }
+.cora-body .cal-contact-picker::-webkit-scrollbar-track { margin: 12px 0; }
+.cora-body .cal-contact-search { gap: 8px; padding: 10px 14px; background: var(--cora-surface-soft); border-bottom: 0; }
+.cora-body .cal-contact-search svg { color: var(--cora-ink-3); }
+.cora-body .cal-contact-search input { font-family: var(--cora-font); font-size: 14px; color: var(--cora-ink); }
+.cora-body .cal-contact-item { gap: 10px; padding: 8px 14px; border-bottom: 0; font-size: 14px; font-weight: 500; color: var(--cora-ink); }
+.cora-body .cal-contact-item:hover { background: var(--cora-surface-soft); }
+.cora-body .cal-contact-item .av { width: 30px; height: 30px; font-weight: 600; }
+.cora-body .cal-contact-item.selected { background: var(--cora-surface-soft); color: var(--cora-ink); font-weight: 600; }
+.cora-body .cal-contact-item.selected::after { width: 18px; height: 18px; background-color: var(--cora-ink); }
+
+.cora-body .cal-conflicts {
+    background: var(--cora-warning-soft); border: 0; border-radius: 12px;
+    padding: 12px 14px; font-size: 13px; color: var(--cora-warning);
+}
+
+/* Azioni in fondo alla modale: pulsanti Cora */
+.cora-body .cal-modal-footer { padding: 16px 24px 24px; gap: 10px; border-top: 1px solid var(--cal-line); }
+.cora-body .cal-btn {
+    height: 40px; min-height: 40px; padding: 0 18px;
+    border-radius: 999px; border: 0;
+    font-family: var(--cora-font); font-size: 14px; font-weight: 600;
+    transition: transform .12s ease, background .15s ease;
+}
+.cora-body .cal-btn:active { transform: scale(.98); }
+.cora-body .cal-btn svg { width: 16px; height: 16px; }
+.cora-body .cal-btn-primary { background: var(--cora-ink); color: var(--cora-surface); padding-left: 14px; }
+.cora-body .cal-btn-primary:hover { background: #262626; }
+.cora-body .cal-btn-ghost { background: var(--cora-surface); color: var(--cora-ink); border: 1px solid var(--cora-line); }
+.cora-body .cal-btn-ghost:hover { background: var(--cora-surface-soft); color: var(--cora-ink); border-color: var(--cora-line); }
+.cora-body .cal-btn-danger { background: var(--cora-error-soft); color: var(--cora-error); }
+.cora-body .cal-btn-danger:hover { background: #ffdedc; }
+.cora-body #calDeleteBtn { margin-right: auto; }
+.cora-body .cal-btn-accept { background: var(--cora-success); color: var(--cora-surface); }
+.cora-body .cal-btn-accept:hover { background: #006e44; }
+
+@keyframes cora-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 820px) {
+    .cora-body .cal-wrap { flex: none; border-radius: 16px; }
+    .cora-body #calGrid { height: calc(100svh - 300px); min-height: 420px; }
+}
+@media (max-width: 720px) {
+    .cora-body .cal-toolbar { padding: 12px; }
+    .cora-body .cal-nav-label { min-width: 0; font-size: 16px; }
+    .cora-body .cal-add-btn { height: 36px; padding: 0 14px 0 12px; font-size: 13px; }
+    .cora-body .cal-modal-overlay { padding: 12px; }
+    .cora-body .cal-modal { border-radius: 20px; }
+    .cora-body .cal-modal-h { padding: 18px 18px 6px 20px; }
+    .cora-body .cal-modal-body { padding: 10px 20px 16px; gap: 14px; }
+    .cora-body .cal-modal-footer { padding: 12px 16px 16px; box-shadow: none; }
+    .cora-body .cal-modal-footer .cal-btn { min-height: 40px; }
+    .cora-body #calDeleteBtn { margin-right: 0; }
+}

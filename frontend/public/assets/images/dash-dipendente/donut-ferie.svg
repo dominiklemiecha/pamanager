@@ -1,0 +1,6 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="265" height="192" viewBox="0 0 265 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Circle Charts / Donut Chart / ricostruzione vettoriale">
+<path id="Circle Charts / Background segment" d="M188 94C188 145.915 145.915 188 94 188C42.0852 188 0 145.915 0 94C0 42.0852 42.0852 0 94 0C145.915 0 188 42.0852 188 94ZM26.32 94C26.32 131.379 56.6214 161.68 94 161.68C131.379 161.68 161.68 131.379 161.68 94C161.68 56.6214 131.379 26.32 94 26.32C56.6214 26.32 26.32 56.6214 26.32 94Z" fill="#FF9400" fill-opacity="0.13"/>
+<path id="Circle Charts / Used segment" d="M94 0C108.469 1.72537e-07 122.742 3.33999 135.708 9.75983C148.675 16.1797 159.984 25.5061 168.756 37.0126L147.824 52.9691C141.509 44.6844 133.366 37.9694 124.03 33.3471C114.694 28.7248 104.417 26.32 94 26.32L94 0Z" fill="#FF9400"/>
+</g>
+</svg>
