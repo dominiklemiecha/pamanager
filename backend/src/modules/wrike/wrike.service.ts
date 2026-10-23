@@ -115,6 +115,42 @@ export class WrikeService {
     }
   }
 
+  private prefissoAssunzione(stato: string): string {
+    return ({
+      awaiting_prospects: '🟡 Prospetti da caricare', prospects_review: '🔵 Prospetti da approvare', approved: '🟢 Da contrattualizzare',
+      contract_pending: '✍️ Contratto da firmare', contract_signed: '✅ Firmato', rejected: '⛔ Prospetti rifiutati', cancelled: '✖️ Annullata',
+    } as Record<string, string>)[stato] ?? 'Assunzione';
+  }
+
+  /**
+   * Passaggio di una pratica di assunzione sul task del consulente
+   * (Wrike::hireStep): titolo aggiornato, commento e, se serve, task chiuso.
+   */
+  async passaggioAssunzione(consulenteId: number, richiesta: number, commentoHtml: string, chiudi = false, nuovoStato: string | null = null): Promise<void> {
+    try {
+      const i = await this.perUtente(consulenteId);
+      if (!i || !i.is_active || !i.config.on_hire || !i.token) return;
+      const task = i.config.hire_tasks?.[String(richiesta)];
+      if (!task) return;
+      const host = this.host(i);
+      if (nuovoStato) {
+        const base = i.config.hire_titles?.[String(richiesta)];
+        if (base) {
+          await this.api(i.token, host, 'PUT', `/tasks/${encodeURIComponent(task)}`, { title: [...`${this.prefissoAssunzione(nuovoStato)} — ${base}`].slice(0, 250).join('') })
+            .catch((e) => this.segnaErrore(consulenteId, String(e?.message ?? e)));
+        }
+      }
+      await this.api(i.token, host, 'POST', `/tasks/${encodeURIComponent(task)}/comments`, { plainText: 'false', text: commentoHtml })
+        .catch((e) => this.segnaErrore(consulenteId, String(e?.message ?? e)));
+      if (chiudi) {
+        await this.api(i.token, host, 'PUT', `/tasks/${encodeURIComponent(task)}`, { status: 'Completed' })
+          .catch((e) => this.segnaErrore(consulenteId, String(e?.message ?? e)));
+      }
+    } catch (e: any) {
+      this.logger.warn(`passaggioAssunzione: ${e?.message ?? e}`);
+    }
+  }
+
   /** Un'attivita' per conversazione finche' il task resta aperto (Wrike::taskForChatMessage). */
   async taskPerMessaggioChat(consulenteId: number, conversazione: number, mittente: string, anteprima: string, link: string): Promise<void> {
     try {

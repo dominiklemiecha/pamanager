@@ -90,5 +90,6 @@ export const CASI = [
   { nome: 'academy-completato', percorso: '/employee/academy.php?course=1', attesa: 1200, ...come('elena.gualtieri'), azione: senzaGuida },
   { nome: 'academy-errore', percorso: '/employee/academy.php?course=1&err=Apri%20tutti%20i%20materiali%20del%20corso%20prima%20di%20completarlo',
     percorsoNode: '/employee/academy.php?course=1&err=materiali', attesa: 1200, ...come('marco.bellandi'), azione: senzaGuida },
+  { nome: 'contratto-da-firmare', percorso: '/employee/contract-sign.php?id=1', attesa: 2500, ...come('laura.zanichelli') },
 ];
 export { PW };

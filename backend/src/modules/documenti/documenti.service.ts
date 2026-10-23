@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import * as fs from 'fs';
+import * as path from 'path';
 import { DataSource } from 'typeorm';
-import { fileSicuro } from '../../common/file/caricamenti';
+import { contenutoCoerente, fileSicuro } from '../../common/file/caricamenti';
+import { cartellaStorage, urlPubblico } from '../../config/app';
+import { MailerService, escapeHtml } from '../notifiche/mailer.service';
+import { PushService } from '../notifiche/push.service';
 import { pdfConFiligrana } from '../../common/file/filigrana';
 import { LimitiDbService } from '../../common/sicurezza/limiti-db.service';
 import { AuditService, ContestoAudit } from '../audit/audit.service';
@@ -27,7 +32,55 @@ function adessoRoma(): string {
  */
 @Injectable()
 export class DocumentiService {
-  constructor(private readonly ds: DataSource, private readonly audit: AuditService, private readonly limiti: LimitiDbService) {}
+  constructor(private readonly ds: DataSource, private readonly audit: AuditService, private readonly limiti: LimitiDbService,
+    private readonly push: PushService, private readonly mailer: MailerService) {}
+
+  /**
+   * Documento creato dal sistema a partire da un file (Document::uploadFromPath),
+   * es. il contratto firmato: copia nello storage, riga, push ed email al
+   * dipendente come per un caricamento dell'HR.
+   */
+  async caricaDaPercorso(sorgente: string, d: { employee_id: number; type: 'payslip' | 'cud' | 'other'; month: number; year: number; title: string; description?: string; original_name: string; uploaded_by: number }) {
+    const [e] = await this.ds.query('SELECT id, company_id, first_name, last_name, email FROM employees WHERE id = $1', [d.employee_id]);
+    if (!e || !fs.existsSync(sorgente)) return { success: false, error: 'File sorgente non trovato' };
+    const buf = fs.readFileSync(sorgente);
+    if (!contenutoCoerente('pdf', buf)) return { success: false, error: 'Tipo file non consentito' };
+    const nome = `${randomBytes(16).toString('hex')}.pdf`;
+    const dir = cartellaStorage('documents', String(d.employee_id), String(d.year), String(d.month));
+    fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+    const dest = path.join(dir, nome);
+    fs.writeFileSync(dest, buf, { mode: 0o640 });
+    let caricatoDa = d.uploaded_by;
+    if (caricatoDa <= 0) {
+      const [a] = await this.ds.query(`SELECT id FROM users WHERE role = 'admin' AND is_active = true AND (company_id = $1 OR company_id IS NULL) ORDER BY id LIMIT 1`, [e.company_id]);
+      caricatoDa = a?.id ?? 1;
+    }
+    let id: number;
+    try {
+      [{ id }] = await this.ds.query(
+        `INSERT INTO documents (company_id, employee_id, type, title, description, file_path, file_name, original_name, file_size, mime_type, month, year, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'application/pdf', $10, $11, $12) RETURNING id`,
+        [e.company_id, d.employee_id, d.type, d.title, d.description ?? null, dest, nome, d.original_name, buf.length, d.month, d.year, caricatoDa]);
+    } catch {
+      fs.rmSync(dest, { force: true });
+      return { success: false, error: 'Errore durante il salvataggio del documento' };
+    }
+    const MESI = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+    const periodo = `${MESI[d.month]} ${d.year}`;
+    const tipo = ({ payslip: 'Busta paga', cud: 'CUD', other: 'Documento' } as Record<string, string>)[d.type];
+    await this.push.aUtente('employee', d.employee_id, { title: 'Nuovo documento disponibile', body: `${tipo} ${periodo}`, url: '/employee/documents.php', tag: `document-${Math.floor(Date.now() / 1000)}`, icon: '/assets/images/icon.php?size=192' }).catch(() => undefined);
+    if (e.email) {
+      const etichetta = ({ payslip: 'Busta Paga', cud: 'CUD/CU', other: 'Altro' } as Record<string, string>)[d.type];
+      const accesso = urlPubblico('/auth/login.php');
+      const nomeCompleto = `${e.first_name} ${e.last_name}`.trim();
+      const html = `<p>Ciao ${escapeHtml(nomeCompleto)},</p><p>È stato caricato un nuovo documento nella tua area personale:</p><ul>`
+        + `<li><strong>Tipo:</strong> ${escapeHtml(etichetta)}</li><li><strong>Titolo:</strong> ${escapeHtml(d.title)}</li><li><strong>Periodo:</strong> ${escapeHtml(periodo)}</li></ul>`
+        + `<p><a href="${accesso}">Accedi al portale per consultarlo</a></p>`;
+      const testo = `Ciao ${nomeCompleto},\n\nNuovo documento disponibile:\n- Tipo: ${etichetta}\n- Titolo: ${d.title}\n- Periodo: ${periodo}\n\nAccedi: ${accesso}`;
+      await this.mailer.inviaADipendente(d.employee_id, `Nuovo documento disponibile: ${etichetta} ${periodo}`, html, testo).catch(() => undefined);
+    }
+    return { success: true, id };
+  }
 
   /** Dati della pagina Documenti del dipendente (documents.php + _cora/documents.inc.php). */
   async perDipendente(employeeId: number, tipo: string | null = null) {

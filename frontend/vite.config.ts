@@ -31,6 +31,11 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
       },
+      // PDF del contratto da firmare (incorporato nella pagina).
+      '/employee/contract-pdf.php': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
       // Materiali e attestati dell'Academy.
       '/academy-file.php': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',

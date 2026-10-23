@@ -119,6 +119,8 @@ export class DipendenteService {
       notifiche: notifiche.map((n: any) => ({ id: n.id, titolo: n.title, messaggio: n.message, link: NotificheService.url(n.link), letta: n.is_read, creata: n.created_at })),
       notificheNonLette: await this.notifiche.nonLette(companyId, 'employee', employeeId),
       guida: { id: employeeId, sessione: String(sessioneCreata), stato: e?.tour_status || null },
+      // Contratto da firmare: il portale porta subito alla firma (header-employee.php).
+      contrattoDaFirmare: (await this.uno(`SELECT id FROM hire_requests WHERE employee_id = $1 AND status = 'contract_pending' ORDER BY id DESC LIMIT 1`, [employeeId]))?.id ?? null,
     };
   }
 

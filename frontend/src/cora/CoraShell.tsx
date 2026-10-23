@@ -24,6 +24,7 @@ export interface Cornice {
   notifiche: Array<{ id: number; titolo: string; messaggio: string; link: string; letta: boolean; creata: string }>;
   notificheNonLette: number;
   guida: { id: number; sessione: string; stato: string | null };
+  contrattoDaFirmare: number | null;
 }
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600;700&display=swap';
@@ -293,7 +294,14 @@ export function CoraShell({ pagina, titolo, css = [], stile, script = [], global
 export function useCornice(dopo?: Promise<unknown>): Cornice | null {
   const [c, setC] = useState<Cornice | null>(null);
   useEffect(() => {
-    Promise.resolve(dopo).catch(() => undefined).then(() => api.get('/dipendente/cornice')).then((r) => setC(r.data)).catch(() => undefined);
+    Promise.resolve(dopo).catch(() => undefined).then(() => api.get('/dipendente/cornice')).then((r) => {
+      // Contratto da firmare: prima la firma, poi il resto del portale (header-employee.php).
+      if (r.data?.contrattoDaFirmare && !['/employee/contract-sign.php', '/employee/change-password.php'].includes(location.pathname)) {
+        location.replace(`/employee/contract-sign.php?id=${r.data.contrattoDaFirmare}`);
+        return;
+      }
+      setC(r.data);
+    }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return c;

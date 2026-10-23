@@ -10,6 +10,7 @@ import Calendario from './pages/employee/Calendario';
 import CambioPassword from './pages/employee/CambioPassword';
 import Chat from './pages/employee/Chat';
 import Comunicazioni from './pages/employee/Comunicazioni';
+import ContrattoFirma from './pages/employee/ContrattoFirma';
 import Disiscrizione from './pages/employee/Disiscrizione';
 import Documenti from './pages/employee/Documenti';
 import Home from './pages/employee/Home';
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/employee/calendar.php" element={<Calendario />} />
         <Route path="/employee/chat.php" element={<Chat />} />
         <Route path="/employee/academy.php" element={<Academy />} />
+        <Route path="/employee/contract-sign.php" element={<ContrattoFirma />} />
         <Route path="/employee/change-password.php" element={<CambioPassword />} />
         <Route path="/employee/unsubscribe.php" element={<Disiscrizione />} />
         <Route path="*" element={<Stato />} />

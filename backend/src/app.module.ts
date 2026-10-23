@@ -6,6 +6,7 @@ import { opzioniDatabase } from './database/data-source';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompatModule } from './modules/compat/compat.module';
+import { ContrattoModule } from './modules/contratto/contratto.module';
 import { AcademyModule } from './modules/academy/academy.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { CalendarioModule } from './modules/calendario/calendario.module';
@@ -44,6 +45,7 @@ import { SaldiModule } from './modules/saldi/saldi.module';
     CalendarioModule,
     ChatModule,
     AcademyModule,
+    ContrattoModule,
   ],
 })
 export class AppModule {}

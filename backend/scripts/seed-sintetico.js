@@ -353,6 +353,23 @@ async function main() {
   execFileSync('docker', ['cp', path.join(__dirname, '..', 'storage', 'academy') + path.sep + '.', 'cora-baseline-app-1:/var/www/html/storage/academy/']);
   execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/storage/academy']);
 
+  // Assunzione con contratto da firmare (Zanichelli, azienda Beta): il dipendente
+  // al primo accesso deve firmare prima di usare il portale.
+  const [hrq] = await q(`INSERT INTO hire_requests (company_id, status, created_by_user_id, assigned_consulente_user_id, employer_name, employee_first_name, employee_last_name,
+                           employee_id, decided_by_user_id, created_at, updated_at)
+                         VALUES (2, 'contract_pending', ?, ?, 'Beta Logistica Srl', 'Laura', 'Zanichelli', ?, ?, '2026-01-20 10:00:00', '2026-01-25 10:00:00')`,
+  [hrBeta, staffId['studio.consulente'], E('Zanichelli').id, hrBeta]);
+  const contratto = await pdf('Contratto di assunzione - Laura Zanichelli');
+  const cartellaContratto = path.join(__dirname, '..', 'uploads', 'hire-requests', String(hrq.insertId), 'contract');
+  fs.mkdirSync(cartellaContratto, { recursive: true });
+  fs.writeFileSync(path.join(cartellaContratto, 'contratto.pdf'), contratto);
+  await q(`INSERT INTO hire_request_files (hire_request_id, category, file_path, original_name, mime_type, file_size, uploaded_by_user_id, uploaded_at)
+           VALUES (?, 'contract', ?, 'contratto.pdf', 'application/pdf', ?, ?, '2026-01-25 10:00:00')`,
+  [hrq.insertId, `hire-requests/${hrq.insertId}/contract/contratto.pdf`, contratto.length, staffId['studio.consulente']]);
+  execFileSync('docker', ['exec', 'cora-baseline-app-1', 'mkdir', '-p', `/var/www/html/public/uploads/hire-requests/${hrq.insertId}/contract`]);
+  execFileSync('docker', ['cp', path.join(cartellaContratto, 'contratto.pdf'), `cora-baseline-app-1:/var/www/html/public/uploads/hire-requests/${hrq.insertId}/contract/contratto.pdf`]);
+  execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/public/uploads/hire-requests']);
+
   execFileSync('docker', ['exec', 'cora-baseline-app-1', 'mkdir', '-p', '/var/www/html/storage/documents']);
   execFileSync('docker', ['cp', locale + path.sep + '.', 'cora-baseline-app-1:/var/www/html/storage/documents/']);
   execFileSync('docker', ['exec', 'cora-baseline-app-1', 'chown', '-R', 'www-data:www-data', '/var/www/html/storage/documents']);
