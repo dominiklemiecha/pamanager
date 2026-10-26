@@ -11,6 +11,8 @@ import adminTimbratureGiorno from '../../php/pagine/admin/attendance';
 import adminUtentiEsterni from '../../php/pagine/admin/user-role-manager';
 import adminDipendenti from '../../php/pagine/admin/employees';
 import adminAssunzioni from '../../php/pagine/admin/hire-requests';
+import staffAcademy from '../../php/pagine/staff/academy';
+import staffModelliAttestato from '../../php/pagine/staff/academy-templates';
 import adminAziende from '../../php/pagine/admin/companies';
 import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
 import adminReparti from '../../php/pagine/admin/departments';
@@ -72,4 +74,6 @@ export const rotteStaff = [
   ...['admin', 'accountant', 'consulente-lavoro'].map((a) => <Route key={`${a}/calendar`} path={`/${a}/calendar.php`} element={<CalendarioStaff />} />),
   pagina('/admin/presenze-export.php', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),
   pagina('/admin/documenti-aziendali.php', adminDocumentiAziendali, { scarica: ['download'] }),
+  ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy.php`, staffAcademy, { scarica: ['export', 'zip'] })),
+  ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy-templates.php`, staffModelliAttestato)),
 ];

@@ -35,6 +35,19 @@ function Contenuto({ html }: { html: string }) {
       s.text = vecchio.text;
       vecchio.replaceWith(s);
     }
+    // Nel PHP gli script misuravano la pagina gia' completa: qui la cornice si
+    // assesta dopo, quindi quando cambia la larghezza del contenuto gli script
+    // che si adattano alla finestra ricalcolano (come a un resize).
+    const contenitore = box.parentElement;
+    if (!contenitore || typeof ResizeObserver === 'undefined') return undefined;
+    let larghezza = contenitore.clientWidth;
+    const osserva = new ResizeObserver(() => {
+      if (contenitore.clientWidth === larghezza) return;
+      larghezza = contenitore.clientWidth;
+      window.dispatchEvent(new Event('resize'));
+    });
+    osserva.observe(contenitore);
+    return () => osserva.disconnect();
   }, [html]);
   return <div ref={rif} style={{ display: 'contents' }} />;
 }
@@ -81,6 +94,24 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
       if (!api2) return false;
       const corpo = new FormData(f);
       if (bottone?.name) corpo.append(bottone.name, bottone.value);
+      // Modulo verso un'altra scheda (es. anteprima PDF): la scheda si apre subito
+      // (niente blocco dei popup) e riceve il file prodotto dal backend.
+      const bersaglio = f.getAttribute('target');
+      if (bersaglio && bersaglio !== '_self') {
+        const scheda = window.open('', bersaglio);
+        (async () => {
+          try {
+            const r = await api.post(api2 + destinazione.search, corpo, { responseType: 'blob' });
+            const url = URL.createObjectURL(r.data as Blob);
+            if (scheda) scheda.location.href = url; else window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          } catch {
+            scheda?.close();
+            alert('Operazione non riuscita');
+          }
+        })();
+        return true;
+      }
       (async () => {
         try {
           const r = await api.post(api2 + destinazione.search, corpo);

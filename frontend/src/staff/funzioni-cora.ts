@@ -167,3 +167,38 @@ const CONTRATTI_ASSUNZIONE: Array<[string, string]> = [['contract_indeterminato'
 P.estendi('HireRequest::contractTypesLabels', (hr: any) => CONTRATTI_ASSUNZIONE.filter(([k]) => P.t(P.g(hr, k))).map(([, l]) => l).join(', '));
 /** footer-admin incluso a meta' pagina prima di exit: il layout lo disegna gia' PaginaStaff. */
 P.registraWidget('footer-admin', () => undefined);
+
+/** Academy (Academy.php, AcademyCertificate.php): letture dal backend, costanti ed etichette qui. */
+P.estendi('Academy::getAssignment', daV('__logAssignmentRow'));
+P.estendi('AcademyCertificate::getTemplates', daV('__templates'));
+P.estendi('AcademyCertificate::sampleValues', daV('__sampleValues'));
+P.estendi('AcademyCertificate::defaultLayout', daV('__defaultLayout'));
+P.estendi('Academy::COURSE_STATUSES', () => P.assoc([['draft', 'Bozza'], ['published', 'Pubblicato'], ['archived', 'Archiviato']]));
+P.estendi('Academy::DUE_REMINDER_DAYS', () => 3);
+P.estendi('Academy::STATUS_LABELS', () => P.assoc([['not_started', 'Da iniziare'], ['in_progress', 'In corso'], ['completed', 'Completato'], ['overdue', 'Scaduto']]));
+P.estendi('Academy::EVENT_LABELS', () => P.assoc([
+  ['course_created', 'Corso creato'], ['course_published', 'Corso pubblicato'], ['course_archived', 'Corso archiviato'], ['material_added', 'Materiale aggiunto'],
+  ['material_removed', 'Materiale rimosso'], ['assigned', 'Corso assegnato'], ['unassigned', 'Assegnazione rimossa'], ['notified', 'Notifica inviata'], ['started', 'Corso iniziato'],
+  ['material_opened', 'Materiale aperto'], ['completed', 'Corso completato'], ['reminded', 'Sollecito inviato'], ['due_reminder', 'Promemoria scadenza inviato'],
+  ['certificate_generated', 'Attestato generato'], ['certificate_downloaded', 'Attestato scaricato'],
+]));
+P.estendi('AcademyCertificate::PLACEHOLDERS', () => P.assoc([
+  ['Dipendente', ['{NOME}', '{COGNOME}', '{NOME_COGNOME}', '{COGNOME_NOME}', '{CF}', '{DATA_NASCITA}', '{LUOGO_NASCITA}', '{MANSIONE}', '{REPARTO}']],
+  ['Corso', ['{CORSO}', '{ORE}', '{DATA_INIZIO}', '{DATA_COMPLETAMENTO}', '{AZIENDA}']],
+  ['Attestato', ['{NUMERO_ATTESTATO}', '{DATA_EMISSIONE}', '{CODICE_VERIFICA}', '{URL_VERIFICA}']],
+]));
+/** Stato di un'assegnazione rispetto alla scadenza (oggi a Roma). */
+P.estendi('Academy::statusOf', (a: any, scadenza: any) => {
+  if (P.t(P.g(a, 'completed_at'))) return 'completed';
+  const oggi = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date());
+  if (P.t(scadenza) && P.s(scadenza) < oggi) return 'overdue';
+  return P.t(P.g(a, 'started_at')) ? 'in_progress' : 'not_started';
+});
+const ATTORI_ACADEMY: Record<string, string> = { admin: 'HR', consulente_lavoro: 'Consulente', admin_reparto: 'Resp. reparto', accountant: 'Commercialista', formatore: 'Resp. formazione' };
+P.estendi('Academy::actorLabel', (ev: any) => {
+  const tipo = P.s(P.g(ev, 'actor_type'));
+  if (tipo === 'employee') return `${P.s(P.g(ev, 'first_name'))} ${P.s(P.g(ev, 'last_name'))}`.trim() || `Dipendente #${P.s(P.g(ev, 'actor_id'))}`;
+  if (tipo === 'system') return 'Sistema';
+  const u = P.g(ev, 'actor_username');
+  return (ATTORI_ACADEMY[tipo] ?? tipo) + (P.t(u) ? ` (${P.s(u)})` : '');
+});

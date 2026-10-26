@@ -20,13 +20,20 @@ export interface ContestoPagina {
 
 export type Variabili = Record<string, unknown>;
 /** json: risposta diretta agli script della pagina (endpoint AJAX del PHP). */
-export type EsitoPagina = { redirect: string } | { titolo: string; V: Variabili } | { json: unknown; status?: number };
+export type EsitoPagina = { redirect: string } | { titolo: string; V: Variabili } | { json: unknown; status?: number } | { file: FilePagina };
+/** File prodotto da un POST (es. anteprima PDF aperta in una nuova scheda). */
+export interface FilePagina { dati: Buffer; tipo: string; nome: string; inLinea?: boolean }
 
 export interface Pagina {
   /** Ruoli ammessi (Auth::requireUser del PHP). */
   readonly ruoli: string[];
   dati(c: ContestoPagina): Promise<EsitoPagina>;
   azione?(c: ContestoPagina, corpo: Record<string, string>, file: Record<string, FileCaricato[]>): Promise<EsitoPagina>;
+  /**
+   * Limiti dei file caricati (default 25MB in memoria). suDisco: file grandi
+   * (video dei corsi) in una cartella temporanea invece che in memoria.
+   */
+  readonly caricamenti?: { dimensione: number; file?: number; suDisco?: boolean };
   /** true se ha gestito un download (con i parametri GET della pagina PHP). */
   file?(c: ContestoPagina, res: Response): Promise<boolean>;
 }
@@ -43,3 +50,4 @@ export function classiPagine() { return registro; }
 export const redirect = (url: string): EsitoPagina => ({ redirect: url });
 export const vista = (titolo: string, V: Variabili): EsitoPagina => ({ titolo, V });
 export const json = (dati: unknown, status = 200): EsitoPagina => ({ json: dati, status });
+export const filePagina = (f: FilePagina): EsitoPagina => ({ file: f });

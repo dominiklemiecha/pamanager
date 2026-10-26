@@ -1,11 +1,12 @@
 import { Body, Controller, Get, HttpCode, HttpException, Param, ParseIntPipe, Post, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import * as path from 'path';
-import { fileSicuro } from '../../common/file/caricamenti';
+import { fileSicuro, mimeDaContenuto } from '../../common/file/caricamenti';
 import { AuditService } from '../audit/audit.service';
 import { Ruoli, Utente } from '../auth/decoratori';
 import type { RichiestaAutenticata, UtenteCorrente } from '../auth/auth.types';
 import { AcademyService, Attore, DICHIARAZIONE, ETICHETTE_STATO } from './academy.service';
+import { AttestatiService } from './attestati.service';
 
 const attore = (req: RichiestaAutenticata, u: UtenteCorrente): Attore => ({
   tipo: u.tipo === 'employee' ? 'employee' : u.ruolo, id: u.id, ip: req.ip ?? null, userAgent: String(req.headers['user-agent'] ?? ''),
@@ -67,7 +68,7 @@ export class AcademyDipendenteController {
 @Controller()
 @Ruoli('employee', 'admin', 'consulente_lavoro', 'admin_reparto', 'formatore')
 export class AcademyFileController {
-  constructor(private readonly academy: AcademyService, private readonly audit: AuditService) {}
+  constructor(private readonly academy: AcademyService, private readonly audit: AuditService, private readonly attestati: AttestatiService) {}
 
   private invia(res: Response, percorso: string, mime: string, nome: string, inLinea: boolean) {
     res.set({
@@ -83,9 +84,18 @@ export class AcademyFileController {
   }
 
   @Get('academy-file.php')
-  async file(@Query('m') m: string, @Query('cert') cert: string, @Query('dl') dl: string, @Req() req: RichiestaAutenticata, @Res() res: Response, @Utente() u: UtenteCorrente) {
+  async file(@Query('m') m: string, @Query('cert') cert: string, @Query('img') img: string, @Query('dl') dl: string, @Req() req: RichiestaAutenticata, @Res() res: Response, @Utente() u: UtenteCorrente) {
     const dipendente = u.tipo === 'employee';
     const testo = (s: number, t: string) => { res.status(s).type('text/plain').send(t); };
+
+    // Immagini dei modelli di attestato: solo staff che gestisce l'Academy, azienda corrente
+    if (img !== undefined) {
+      if (dipendente || !['admin', 'consulente_lavoro', 'formatore'].includes(u.ruolo)) { testo(403, 'Accesso non autorizzato'); return; }
+      const p = this.attestati.percorsoImmagine(String(img), u.companyId!);
+      if (!p) { testo(404, 'Immagine non trovata'); return; }
+      this.invia(res, p, mimeDaContenuto(p), path.basename(p), true);
+      return;
+    }
 
     if (cert) {
       const id = Number.parseInt(cert, 10) || 0;

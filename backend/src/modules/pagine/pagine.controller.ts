@@ -1,8 +1,12 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, Injectable, NotFoundException, Param, Post, Query, Req, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, CallHandler, Controller, ExecutionContext, ForbiddenException, Get, HttpCode, Injectable, NestInterceptor, NotFoundException, Param, PayloadTooLargeException, Post, Query, Req, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { randomBytes } from 'crypto';
+import * as fs from 'fs';
+import * as os from 'os';
 import type { Response } from 'express';
-import { memoryStorage } from 'multer';
+import multer = require('multer');
+import { Observable } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import type { FileCaricato } from '../../common/file/caricamenti';
 import { AuditService } from '../audit/audit.service';
 import { Utente } from '../auth/decoratori';
@@ -10,7 +14,6 @@ import type { RichiestaAutenticata, UtenteCorrente } from '../auth/auth.types';
 import { normalizza } from './normalizza';
 import { classiPagine, ContestoPagina, EsitoPagina, Pagina } from './pagina';
 
-const CARICAMENTI = AnyFilesInterceptor({ storage: memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 60, fields: 400 } });
 
 /** Aree staff con pagine portate dal PHP (stessi indirizzi). */
 export const AREE_STAFF = ['admin', 'admin-reparto', 'accountant', 'consulente-lavoro', 'formatore'];
@@ -38,8 +41,19 @@ export class MotorePagine {
     return { u, req, query, audit: { ip: req.ip ?? null, userAgent: String(req.headers['user-agent'] ?? ''), sessioneId: u.sessioneId, tipo, id: u.id } };
   }
 
+  /** Invia un file prodotto da un POST; true se l'esito era un file. */
+  inviaFile(res: Response, e: EsitoPagina): boolean {
+    if (!('file' in e)) return false;
+    const f = e.file;
+    res.set({
+      'Content-Type': f.tipo, 'Content-Disposition': `${f.inLinea ? 'inline' : 'attachment'}; filename="${f.nome.replace(/[^A-Za-z0-9._-]/g, '_')}"`,
+      'Content-Length': String(f.dati.length), 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store',
+    }).send(f.dati);
+    return true;
+  }
+
   risposta(e: EsitoPagina) {
-    if ('json' in e) return e;
+    if ('json' in e || 'file' in e) return e;
     return 'redirect' in e ? e : { titolo: e.titolo, V: normalizza(e.V) };
   }
 
@@ -49,6 +63,36 @@ export class MotorePagine {
     return r;
   }
 }
+
+/**
+ * File caricati sulle pagine: prima si controlla pagina e ruolo (prima il
+ * corpo veniva letto da qualunque utente collegato), poi si leggono i file
+ * con i limiti della pagina. Quelli su disco si cancellano a fine richiesta
+ * se la pagina non li ha spostati.
+ */
+@Injectable()
+class CaricamentiPagine implements NestInterceptor {
+  constructor(private readonly motore: MotorePagine) {}
+
+  async intercept(ctx: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
+    const req = ctx.switchToHttp().getRequest<RichiestaAutenticata>();
+    const res = ctx.switchToHttp().getResponse<Response>();
+    const area = (req.params as Record<string, string>).area ?? req.path.split('/')[1];
+    const nome = (req.params as Record<string, string>).nome ?? String((req.params as Record<string, string>).file ?? '').replace(/\.php$/, '');
+    const p = await this.motore.pagina(area, nome, req.utente!, req);
+    const lim = p.caricamenti ?? { dimensione: 25 * 1024 * 1024 };
+    const storage = lim.suDisco ? multer.diskStorage({ destination: os.tmpdir(), filename: (_r, _f, cb) => cb(null, `cora-${randomBytes(12).toString('hex')}`) }) : multer.memoryStorage();
+    await new Promise<void>((ok, ko) => multer({ storage, limits: { fileSize: lim.dimensione, files: lim.file ?? 60, fields: 400 } }).any()(req as any, res as any, (e: unknown) => {
+      if (!e) { ok(); return; }
+      const codice = (e as { code?: string }).code;
+      ko(new PayloadTooLargeException({ statusCode: 413, message: codice === 'LIMIT_FILE_SIZE' ? 'File troppo grande' : 'Caricamento non valido' }));
+    }));
+    const temporanei = ((req as any).files ?? []).map((f: { path?: string }) => f.path).filter(Boolean) as string[];
+    const pulisci = () => { for (const f of temporanei) fs.rmSync(f, { force: true }); };
+    return next.handle().pipe(finalize(pulisci));
+  }
+}
+const CARICAMENTI = CaricamentiPagine;
 
 /**
  * Pagine staff portate dal PHP: GET = variabili del template (o download),
@@ -72,10 +116,11 @@ export class PagineController {
   @HttpCode(200)
   @UseInterceptors(CARICAMENTI)
   async scrivi(@Param('area') area: string, @Param('nome') nome: string, @Query() query: Record<string, string>, @Body() corpo: Record<string, string>,
-    @UploadedFiles() file: Array<FileCaricato & { fieldname?: string }>, @Req() req: RichiestaAutenticata, @Utente() u: UtenteCorrente) {
+    @UploadedFiles() file: Array<FileCaricato & { fieldname?: string }>, @Req() req: RichiestaAutenticata, @Res({ passthrough: true }) res: Response, @Utente() u: UtenteCorrente) {
     const p = await this.motore.pagina(area, nome, u, req);
     if (!p.azione) throw new NotFoundException({ statusCode: 404, message: 'Azione non disponibile' });
     const e = await p.azione(this.motore.contesto(u, req, query), corpo ?? {}, this.motore.perCampo(file));
+    if (this.motore.inviaFile(res, e)) return undefined;
     return 'json' in e ? e.json : this.motore.risposta(e);
   }
 }
@@ -95,6 +140,7 @@ export class PagineLegacyController {
   }
 
   private invia(res: Response, e: EsitoPagina) {
+    if (this.motore.inviaFile(res, e)) return;
     if ('json' in e) { res.status(e.status ?? 200).json(e.json); return; }
     if ('redirect' in e) { res.redirect(302, e.redirect); return; }
     res.json(this.motore.risposta(e));

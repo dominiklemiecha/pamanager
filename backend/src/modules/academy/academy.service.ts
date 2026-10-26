@@ -171,13 +171,13 @@ export class AcademyService {
   }
 
   /** Notifica in-app, push ed email al dipendente (Academy::notifyEmployee). */
-  async avvisaDipendente(employeeId: number, titolo: string, messaggio: string, courseId: number, companyId: number) {
+  async avvisaDipendente(employeeId: number, titolo: string, messaggio: string, courseId: number, companyId: number, email = true) {
     const link = `/employee/academy.php?course=${courseId}`;
     await this.ds.query(`INSERT INTO notifications (company_id, recipient_type, recipient_id, type, title, message, link, is_read) VALUES ($1, 'employee', $2, 'academy', $3, $4, $5, false)`,
       [companyId, employeeId, [...titolo].slice(0, 255).join(''), messaggio, link]).catch(() => undefined);
     await this.push.aUtente('employee', employeeId, { title: titolo, body: messaggio, url: link, tag: `academy-${courseId}` }).catch(() => undefined);
     const [e] = await this.ds.query('SELECT first_name, last_name FROM employees WHERE id = $1', [employeeId]);
-    if (e) {
+    if (e && email) {
       const url = urlPubblico(link);
       const nome = `${e.first_name} ${e.last_name}`.trim();
       await this.mailer.inviaADipendente(employeeId, titolo, `<p>Ciao ${escapeHtml(nome)},</p><p>${escapeHtml(messaggio)}</p><p><a href="${escapeHtml(url)}">Apri il corso nell'Academy</a></p>`,

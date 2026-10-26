@@ -4,7 +4,7 @@ import * as path from 'path';
 import { cartellaStorage } from '../../config/app';
 
 /** File ricevuto da multer (in memoria). */
-export interface FileCaricato { originalname: string; size: number; buffer: Buffer; mimetype: string }
+export interface FileCaricato { originalname: string; size: number; buffer: Buffer; mimetype: string; /** Solo per le pagine con caricamenti su disco (allora buffer manca). */ path?: string }
 
 /** Limite e tipi dei documenti, come MAX_FILE_SIZE e ALLOWED_EXTENSIONS del PHP. */
 export const DIMENSIONE_MASSIMA = 10 * 1024 * 1024;
@@ -25,7 +25,7 @@ export function contenutoCoerente(estensione: string, buf: Buffer): boolean {
     case 'heic': case 'heif': return buf.slice(4, 8).toString('latin1') === 'ftyp' && ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1'].includes(buf.slice(8, 12).toString('latin1'));
     case 'webp': return buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP';
     case 'doc': case 'xls': case 'ppt': return inizia(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1);
-    case 'docx': case 'xlsx': case 'pptx': case 'odt': case 'ods': case 'zip': return inizia(0x50, 0x4b, 0x03, 0x04);
+    case 'docx': case 'xlsx': case 'pptx': case 'odt': case 'ods': case 'odp': case 'zip': return inizia(0x50, 0x4b, 0x03, 0x04);
     case 'txt': case 'csv': return !buf.includes(0);
     // Audio e video (vocali e clip della chat)
     case 'webm': return inizia(0x1a, 0x45, 0xdf, 0xa3);
@@ -75,6 +75,7 @@ export function mimeDaContenuto(p: string, nome = ''): string {
   if (buf.slice(0, 5).toString('latin1') === '%PDF-') return 'application/pdf';
   if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
   if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+  if (buf.slice(0, 4).toString('latin1') === 'GIF8') return 'image/gif';
   if (buf[0] === 0xd0 && buf[1] === 0xcf) return 'application/msword';
   if (buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
   if (buf.slice(4, 8).toString('latin1') === 'ftyp' && ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis'].includes(buf.slice(8, 12).toString('latin1'))) return 'image/heic';

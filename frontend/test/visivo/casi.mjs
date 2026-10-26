@@ -174,6 +174,15 @@ export const CASI = [
   { nome: 'admin-assunzioni-dettaglio', percorso: '/admin/hire-requests.php?id=1&sent=1&notified=1', attesa: 1200, ...come('hr.beta'), paginaIntera: true },
   { nome: 'admin-assunzioni-nuova', percorso: '/admin/hire-requests.php?action=new', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
   { nome: 'admin-assunzioni-diretta', percorso: '/admin/hire-requests.php?action=direct', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy', percorso: '/admin/academy.php', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy-persone', percorso: '/admin/academy.php?course=1&tab=people', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy-info', percorso: '/admin/academy.php?course=1&tab=info&ok=Corso+aggiornato', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy-materiali', percorso: '/admin/academy.php?course=1&tab=materials', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy-registro', percorso: '/admin/academy.php?course=1&tab=log', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy-modelli', percorso: '/admin/academy-templates.php', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-academy-modello-nuovo', percorso: '/admin/academy-templates.php?new=1', attesa: 2000, ...come('hr.alfa') },
+  { nome: 'consulente-academy', percorso: '/consulente-lavoro/academy.php', attesa: 1200, ...come('studio.consulente'), paginaIntera: true },
+  { nome: 'formatore-academy-persone', percorso: '/formatore/academy.php?course=1&tab=people', attesa: 1200, ...come('formatore.alfa'), paginaIntera: true },
   { nome: 'admin-assunzioni-vuota', percorso: '/admin/hire-requests.php?deleted=1', attesa: 1200, ...come('hr.alfa') },
 ];
 export { PW };

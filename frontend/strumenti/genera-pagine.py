@@ -49,6 +49,13 @@ ASSUNZIONI = [
     (r'Database::fetchAll\("SELECT id, name FROM departments WHERE company_id = \? AND is_active = TRUE ORDER BY name", \[[^;]*?\]\)', "$__deptsDb"),
 ]
 
+# Academy: le variabili della pagina (corso, schede, elenchi) arrivano dal backend.
+INIZIO_ACADEMY = "$errMessage = (string) ($_GET['err'] ?? '');\n"
+ACADEMY = [
+    (r"\$course = null;\s*if \(\$courseId > 0\).*?include __DIR__ \. \(\$readOnly \? '/header-admin-reparto\.php' : '/header-admin\.php'\);", ""),
+]
+FOOTER_INCLUDE = "<?php include __DIR__ . '/footer-admin.php'; ?>"
+
 # (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
@@ -71,6 +78,8 @@ PAGINE = [
     ('includes/_chat-page.inc.php', 'pagine/staff/chat', "include __DIR__ . '/header-' . $__chatLayout . '.php';\n?>", "<?php\n$__chatFooter", []),
     ('admin/employees.php', 'pagine/admin/employees', INIZIO_DIPENDENTI, FOOTER_ADMIN, DIPENDENTI),
     ('admin/hire-requests.php', 'pagine/admin/hire-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, ASSUNZIONI),
+    ('includes/_academy-staff.inc.php', 'pagine/staff/academy', INIZIO_ACADEMY, FOOTER_INCLUDE, ACADEMY),
+    ('includes/_academy-templates.inc.php', 'pagine/staff/academy-templates', "include __DIR__ . '/header-admin.php';\n?>", FOOTER_INCLUDE, []),
     ('admin/_user-role-manager.inc.php', 'pagine/admin/user-role-manager', HEADER_ADMIN, FOOTER_ADMIN, UTENTI_ESTERNI),
 ]
 
