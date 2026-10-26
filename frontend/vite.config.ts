@@ -36,6 +36,15 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
       },
+      // Timbratura da carta NFC e verifica pubblica degli attestati: pagine del backend.
+      '/punch.php': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
+      '/verifica-attestato.php': {
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
+        changeOrigin: true,
+      },
       // Materiali e attestati dell'Academy.
       '/academy-file.php': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',

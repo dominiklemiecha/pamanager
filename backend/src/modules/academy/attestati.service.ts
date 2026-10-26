@@ -10,6 +10,7 @@ import { oggiRoma } from '../../common/calcoli/php';
 import { senzaIsolamento } from '../../common/database/isolamento';
 import { contenutoCoerente, estensione, FileCaricato, fileSicuro } from '../../common/file/caricamenti';
 import { cartellaStorage, urlPubblico } from '../../config/app';
+import { ETICHETTE_EVENTI as ETICHETTE_EVENTI_PUBBLICHE } from './academy-staff.service';
 import { AcademyService, Attore } from './academy.service';
 import JSZip = require('jszip');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -456,5 +457,39 @@ export class AttestatiService {
       if (f) z.file(`attestato_${r.number}_${r.last_name}_${r.first_name}`.replace(/[^A-Za-z0-9_-]/g, '_') + '.pdf', fs.readFileSync(f));
     }
     return { nome: `attestati_${c.title}`.replace(/[^A-Za-z0-9_-]/g, '_') + '.zip', dati: await z.generateAsync({ type: 'nodebuffer' }) };
+  }
+
+  /**
+   * Verifica pubblica dal QR (AcademyCertificate::verify): dati essenziali,
+   * integrita' del PDF e registro dell'assegnazione con IP oscurati.
+   */
+  async verifica(token: string) {
+    if (!/^[a-f0-9]{32}$/.test(token)) return null;
+    const [c] = await senzaIsolamento(() => this.ds.query(
+      `SELECT ce.number, to_char(ce.issued_at AT TIME ZONE 'Europe/Rome', 'YYYY-MM-DD HH24:MI:SS') AS issued_at, ce.file_path, ce.sha256, ce.company_id, ce.assignment_id,
+              to_char(a.completed_at AT TIME ZONE 'Europe/Rome', 'YYYY-MM-DD HH24:MI:SS') AS completed_at, a.declaration_text,
+              c.title AS course_title, e.first_name, e.last_name, e.fiscal_code, co.name AS company_name
+         FROM academy_certificates ce JOIN academy_assignments a ON a.id = ce.assignment_id JOIN academy_courses c ON c.id = a.course_id
+         JOIN employees e ON e.id = a.employee_id LEFT JOIN companies co ON co.id = ce.company_id WHERE ce.verify_token = $1`, [token]));
+    if (!c) return null;
+    const f = fileSicuro(c.file_path);
+    const integro = !!f && createHash('sha256').update(fs.readFileSync(f)).digest('hex') === c.sha256;
+    const eventi = await senzaIsolamento(() => this.ds.query(
+      `SELECT ev.event, ev.actor_type, ev.ip_address, to_char(ev.created_at AT TIME ZONE 'Europe/Rome', 'YYYY-MM-DD HH24:MI:SS') AS created_at, ev.details, m.title AS material_title
+         FROM academy_events ev LEFT JOIN academy_materials m ON m.id = ev.material_id WHERE ev.company_id = $1 AND ev.assignment_id = $2 ORDER BY ev.id`, [c.company_id, c.assignment_id]));
+    const attori: Record<string, string> = { employee: 'Dipendente', admin: 'HR', consulente_lavoro: 'Consulente del lavoro', admin_reparto: 'Responsabile reparto', formatore: 'Responsabile formazione', system: 'Sistema' };
+    const oscura = (ip: string | null) => {
+      if (!ip) return '';
+      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip.replace(/\.\d+$/, '.***');
+      return `${ip.split(':').slice(0, 3).join(':')}:****`;
+    };
+    return {
+      ...c, file_path: undefined, sha256: undefined, file_intact: integro,
+      events: eventi.map((ev: any) => ({
+        at: ev.created_at, label: ETICHETTE_EVENTI_PUBBLICHE[ev.event] ?? ev.event, event: ev.event,
+        detail: ev.material_title || (ev.event === 'certificate_generated' ? ev.details ?? '' : ''), actor: attori[ev.actor_type] ?? 'Staff', ip: oscura(ev.ip_address),
+      })),
+      chain: await this.academy.verificaCatena(c.company_id),
+    };
   }
 }
