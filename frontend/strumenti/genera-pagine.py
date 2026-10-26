@@ -5,6 +5,7 @@ Per ogni pagina e widget converte il tratto di template (dopo la parte che
 legge il database, ora nel backend) con php2js. I file generati non vanno
 modificati a mano: si rigenerano con `python strumenti/genera-pagine.py`.
 """
+import json
 import os
 import re
 import sys
@@ -75,6 +76,15 @@ CONSULENTE_PROFILO = [
     (r"\A", "<?php define('WRIKE_NAVY', '#15243d'); ?>"),
 ]
 
+# Superadmin: pagine senza cornice; i dati del report arrivano dal backend.
+SA_UI = "<?php include __DIR__ . '/_ui.php'; ?></head><body>\n"
+SA_FINE = "</body></html>"
+SA_CLIC = [
+    (r"\$where = \['1=1'\];.*?\$aw = implode\(' AND ', \$aWhere\);", ""),
+    (r"if \(\(\$_GET\['export'\] \?\? ''\) === 'storico'\).*?\$maxN = max\(1, \(int\) \(\$topButtons\[0\]\['n'\] \?\? 1\)\);", ""),
+    (r"\?>\s*<!DOCTYPE html>.*?<body>", "?>"),
+]
+
 # (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
@@ -116,6 +126,10 @@ PAGINE = [
     ('accountant/profile.php', 'pagine/esterni/profile-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('consulente-lavoro/profile.php', 'pagine/esterni/profile-consulente', HEADER_ADMIN, FOOTER_ADMIN, CONSULENTE_PROFILO),
     ('consulente-lavoro/hire-requests.php', 'pagine/esterni/hire-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, CONSULENTE_ASSUNZIONI),
+    ('superadmin/login.php', 'pagine/superadmin/login', '<body class="auth">\n', SA_FINE, []),
+    ('superadmin/totp.php', 'pagine/superadmin/totp', '<body class="auth">\n', SA_FINE, []),
+    ('superadmin/index.php', 'pagine/superadmin/index', SA_UI, SA_FINE, []),
+    ('superadmin/clic.php', 'pagine/superadmin/clic', "SuperAdmin::requireAuth();\n", SA_FINE, SA_CLIC),
     ('admin/_user-role-manager.inc.php', 'pagine/admin/user-role-manager', HEADER_ADMIN, FOOTER_ADMIN, UTENTI_ESTERNI),
 ]
 
@@ -152,7 +166,8 @@ def main():
             tratto, quante = re.subn(cerca, lambda _m: metti, tratto, flags=re.S)
             if quante == 0:
                 raise SystemExit(f'{src}: sostituzione non trovata: {cerca}')
-        if not inizio.rstrip().endswith('?>'):
+        # Marcatori HTML (es. <body>): il tratto parte fuori da <?php
+        if not inizio.rstrip().endswith('?>') and not inizio.lstrip().startswith('<'):
             tratto = '<?php ' + tratto
         sorgente = ('<?php ' + '\n'.join(funzioni) + ' ?>' if funzioni else '') + tratto
         corpo = converti(sorgente)
@@ -172,6 +187,9 @@ def main():
         indice.append(f"import './{nome}';\n")
         print('widget', src)
     scrivi('widget/index', ''.join(indice))
+    ui = open(os.path.join(PUBBLICO, 'superadmin/_ui.php'), encoding='utf8').read()
+    css = ui[ui.index('<style>') + len('<style>'):ui.index('</style>')]
+    scrivi('pagine/superadmin/stile', TESTA.format(src='superadmin/_ui.php') + 'export default ' + json.dumps(css) + ';\n')
 
 
 if __name__ == '__main__':

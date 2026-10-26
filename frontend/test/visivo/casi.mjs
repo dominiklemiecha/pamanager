@@ -1,3 +1,4 @@
+import { createHmac } from 'crypto';
 /** Casi del confronto visivo PHP / nuovo frontend (dati sintetici della baseline). */
 const PW = 'Prova!Cora2026';
 
@@ -17,6 +18,31 @@ async function entra(page, base, utente) {
   await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/'), { waitUntil: 'load' }), page.click('button[type=submit]')]);
   await page.waitForLoadState('networkidle');
 }
+/** Codice TOTP (RFC 6238, 30 secondi, 6 cifre) per l'accesso al superadmin di prova. */
+function totp(segreto) {
+  const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bit = '';
+  for (const c of segreto.replace(/=+$/, '')) bit += alfabeto.indexOf(c).toString(2).padStart(5, '0');
+  const chiave = Buffer.from(bit.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const contatore = Buffer.alloc(8);
+  contatore.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+  const h = createHmac('sha1', chiave).update(contatore).digest();
+  const o = h[h.length - 1] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, '0');
+}
+/** Superadmin di prova: password, poi codice. */
+async function entraSa(page, base) {
+  await page.goto(base + '/superadmin/login.php');
+  await page.waitForSelector('input[name=username]');
+  await page.fill('input[name=username]', 'sa.prova');
+  await page.fill('input[name=password]', PW);
+  await Promise.all([page.waitForURL(/totp\.php/), page.click('button')]);
+  await page.waitForSelector('input[name=code]');
+  await page.fill('input[name=code]', totp('JBSWY3DPEHPK3PXP'));
+  await Promise.all([page.waitForURL(/index\.php/), page.click('button')]);
+  await page.waitForLoadState('networkidle');
+}
+const comeSa = () => ({ utente: 'sa', login: (page, base) => entraSa(page, base) });
 const come = (utente) => ({ utente, login: (page, base) => entra(page, base, utente) });
 
 /** Se la guida interattiva parte da sola la si chiude (salvo i casi che la provano). */
@@ -217,6 +243,9 @@ export const CASI = [
   { nome: 'consulente-presenze', percorso: '/consulente-lavoro/presenze-export.php', attesa: 1200, ...come('studio.consulente') },
   { nome: 'consulente-profilo', percorso: '/consulente-lavoro/profile.php?message=updated', attesa: 1200, ...come('studio.consulente'), paginaIntera: true },
   { nome: 'consulente-assunzioni', percorso: '/consulente-lavoro/hire-requests.php', attesa: 1200, ...come('studio.consulente'), paginaIntera: true },
+  { nome: 'superadmin-login', percorso: '/superadmin/login.php', attesa: 800 },
+  { nome: 'superadmin-tenant', percorso: '/superadmin/index.php', attesa: 1200, ...comeSa(), paginaIntera: true },
+  { nome: 'superadmin-clic', percorso: '/superadmin/clic.php?days=0', attesa: 1200, ...comeSa(), paginaIntera: true },
   { nome: 'admin-assunzioni-vuota', percorso: '/admin/hire-requests.php?deleted=1', attesa: 1200, ...come('hr.alfa') },
 ];
 export { PW };

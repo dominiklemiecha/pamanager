@@ -28,4 +28,11 @@ export class LimitiDbService {
       return agg.attempts <= massimo;
     });
   }
+
+  /** true se l'azione ha gia' superato il massimo nella finestra (senza contarla). */
+  async superato(identificativo: string, azione: string, massimo: number, finestraSecondi: number): Promise<boolean> {
+    const [r] = await senzaIsolamento(() => this.ds.query(
+      `SELECT attempts FROM rate_limits WHERE identifier = $1 AND action = $2 AND window_start >= CURRENT_TIMESTAMP - make_interval(secs => $3)`, [identificativo, azione, finestraSecondi]));
+    return !!r && r.attempts >= massimo;
+  }
 }

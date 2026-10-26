@@ -17,7 +17,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
  * assunzioni, timbrature, log...) e senza transazione, con il rischio di
  * eliminazioni a meta'.
  */
-const DA_ELIMINARE = [
+export const DA_ELIMINARE = [
   'chat_messages', 'chat_presence', 'chat_conversations', 'notifications', 'push_subscriptions', 'app_settings', 'communications',
   'documents', 'employee_documents', 'medical_certificates', 'leave_requests', 'employee_leave_balances', 'attendance_punches',
   'calendar_events', 'hire_requests', 'academy_events', 'academy_certificates', 'academy_assignments', 'academy_materials',

@@ -1,4 +1,5 @@
 import { Route } from 'react-router-dom';
+import { PaginaSuperadmin } from '../../superadmin/PaginaSuperadmin';
 import { P } from '../../php/runtime';
 import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
 import adminPortaLog from '../../php/pagine/admin/door-log';
@@ -126,4 +127,9 @@ export const rotteStaff = [
   pagina('/formatore/profile.php', esterniProfiloCommercialista),
   pagina('/consulente-lavoro/profile.php', esterniProfiloConsulente),
   pagina('/consulente-lavoro/hire-requests.php', esterniAssunzioni, { scarica: ['action'] }),
+  ...['/superadmin', '/superadmin/', '/superadmin/index.php'].map((x) => <Route key={x} path={x} element={<PaginaSuperadmin quale="index" />} />),
+  <Route key="sa-login" path="/superadmin/login.php" element={<PaginaSuperadmin quale="login" />} />,
+  <Route key="sa-totp" path="/superadmin/totp.php" element={<PaginaSuperadmin quale="totp" />} />,
+  <Route key="sa-clic" path="/superadmin/clic.php" element={<PaginaSuperadmin quale="clic" />} />,
+  <Route key="sa-logout" path="/superadmin/logout.php" element={<PaginaSuperadmin quale="logout" />} />,
 ];

@@ -22,7 +22,7 @@ export function apiDiPagina(percorso: string): string | null {
 }
 
 /** HTML del template con gli script eseguiti in ordine (come durante il caricamento della pagina PHP). */
-function Contenuto({ html }: { html: string }) {
+export function Contenuto({ html }: { html: string }) {
   const rif = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const box = rif.current;

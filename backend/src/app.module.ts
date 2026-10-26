@@ -6,6 +6,7 @@ import { opzioniDatabase } from './database/data-source';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompatModule } from './modules/compat/compat.module';
+import { SuperadminModule } from './modules/superadmin/superadmin.module';
 import { PagineModule } from './modules/pagine/pagine.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { WidgetModule } from './modules/widget/widget.module';
@@ -41,6 +42,7 @@ import { SaldiModule } from './modules/saldi/saldi.module';
     NotificheModule,
     DipendenteModule,
     CompatModule,
+    SuperadminModule,
     FerieModule,
     DocumentiModule,
     ComunicazioniModule,
