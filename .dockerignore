@@ -41,3 +41,19 @@ database/seed_demo_employees.php
 # Docker meta (lascio docker/ accessibile al build context!)
 # Dockerfile, docker-compose.yml e docker/ DEVONO essere disponibili al build.
 DEPLOY.md
+
+# Nuovo stack (Node): mai dentro le immagini dati veri, segreti locali o build vecchie
+**/.env
+**/.env.*
+!backend/.env.example
+tools/*.sql
+tools/*.zip
+**/dist
+**/*.tsbuildinfo
+backend/uploads
+backend/storage
+backend/test
+frontend/test
+.playwright-mcp
+*.mp4
+**/node_modules
