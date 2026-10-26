@@ -23,6 +23,15 @@ const costanti: Record<string, any> = { __DIR__: '', __FILE__: '', __LINE__: 0, 
 
 class Uscita extends Error {}
 
+/** Callable del PHP: closure, nome di funzione ('trim') o [classe, metodo]. */
+function chiamabile(f: any): (...a: any[]) => any {
+  if (typeof f === 'function') return f;
+  if (typeof f === 'string') return (...a: any[]) => P.chiama(f, a, {}, {});
+  const v = Array.isArray(f) ? f : f instanceof Map ? [...f.values()] : [];
+  if (v.length === 2) return (...a: any[]) => P.chiama(`${v[0]}::${v[1]}`, a, {}, {});
+  throw new Error('callable non supportato');
+}
+
 /** Data PHP minima (DateTime): istante + formattazione nell'ora di Roma. */
 class DataPhp {
   ms: number;
@@ -35,10 +44,23 @@ class DataPhp {
     this.ms = (P.strtotime(`${d} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`) as number) * 1000;
     return this;
   }
+  /** DateInterval di DateTime::diff: anni, mesi, giorni (di calendario) e giorni totali. */
   diff(o: DataPhp) {
+    const [da, a] = o.ms < this.ms ? [o, this] : [this, o];
+    const p = (x: DataPhp) => P.date('Y-n-j-G-i-s', x.ms / 1000).split('-').map(Number);
+    const [y1, m1, d1, h1, i1, s1] = p(da);
+    const [y2, m2, d2, h2, i2, s2] = p(a);
+    let sec = (h2 * 3600 + i2 * 60 + s2) - (h1 * 3600 + i1 * 60 + s1);
+    let g = d2 - d1;
+    let m = m2 - m1;
+    let y = y2 - y1;
+    if (sec < 0) { sec += 86400; g--; }
+    if (g < 0) { g += new Date(Date.UTC(y2, m2 - 1, 0)).getUTCDate(); m--; }
+    if (m < 0) { m += 12; y--; }
     const giorni = Math.floor(Math.abs(Date.parse(P.date('Y-m-d', o.ms / 1000) + 'T00:00:00Z') - Date.parse(P.date('Y-m-d', this.ms / 1000) + 'T00:00:00Z')) / 86400000);
-    return { days: giorni, invert: o.ms < this.ms ? 1 : 0 };
+    return { y, m, d: g, h: Math.floor(sec / 3600), i: Math.floor((sec % 3600) / 60), s: sec % 60, days: giorni, invert: o.ms < this.ms ? 1 : 0 };
   }
+
 }
 
 /** Parti di un istante nell'ora di Roma. */
@@ -132,9 +154,29 @@ export const P = {
     const v = o[k];
     return v === undefined ? null : v;
   },
-  set(o: any, k: any, v: any) { if (o instanceof Map) o.set(k, v); else if (o !== null && o !== undefined) o[k] = v; return v; },
-  auto(o: any, k: any) { let x = P.g(o, k); if (x === null) { x = new Map(); P.set(o, k, x); } return x; },
-  autov(V: any, k: string) { if (V[k] === null || V[k] === undefined) V[k] = new Map(); return V[k]; },
+  set(o: any, k: any, v: any) {
+    // Chiavi intere come in PHP ("2026" e 2026 sono la stessa chiave)
+    const kk = typeof k === 'string' && /^(0|-?[1-9]\d*)$/.test(k) ? Number(k) : typeof k === 'boolean' ? Number(k) : k;
+    if (o instanceof Map) o.set(kk, v); else if (o !== null && o !== undefined) o[kk] = v;
+    return v;
+  },
+  /** L'array (lista JS) resta lista solo se la chiave e' la prossima posizione: altrimenti diventa Map, come un array PHP. */
+  serveMappa(c: any, kk: any) {
+    if (!Array.isArray(c) || kk === undefined) return false;
+    const n = typeof kk === 'number' ? kk : P.numerico(kk) && /^(0|[1-9]\d*)$/.test(String(kk)) ? Number(kk) : NaN;
+    return !(n >= 0 && n <= c.length);
+  },
+  inMappa(c: any[]) { return new Map(c.map((v, i) => [i, v])); },
+  auto(o: any, k: any, kk?: any) {
+    let x = P.g(o, k);
+    if (x === null) { x = new Map(); P.set(o, k, x); } else if (P.serveMappa(x, kk)) { x = P.inMappa(x); P.set(o, k, x); }
+    return x;
+  },
+  autov(V: any, k: string, kk?: any) {
+    if (V[k] === null || V[k] === undefined) V[k] = new Map();
+    else if (P.serveMappa(V[k], kk)) V[k] = P.inMappa(V[k]);
+    return V[k];
+  },
   push(o: any, v: any) {
     if (Array.isArray(o)) { o.push(v); return v; }
     if (o instanceof Map) { let max = -1; for (const k of o.keys()) if (typeof k === 'number' && k > max) max = k; o.set(max + 1, v); return v; }
@@ -354,8 +396,8 @@ const FN: Record<string, Funzione> = {
   array_values: (a: any) => [...P.iter(a)].map(([, v]) => v),
   array_merge: (...a: any[]) => { const v = a.filter((x) => !(x && typeof x === 'object' && 'V' in x && 'F' in x)); if (v.every(Array.isArray)) return v.flat(); return P.assoc(v.flatMap((x) => [...P.iter(x)].map(([k, w]) => [typeof k === 'number' ? null : k, w] as [any, any]))); },
   array_slice: (a: any, o: any, l?: any) => { const e = [...P.iter(a)]; const s = P.int(o) < 0 ? e.length + P.int(o) : P.int(o); const r = e.slice(s, l === undefined || l === null ? undefined : s + P.int(l)); return Array.isArray(a) || r.every(([k]) => typeof k === 'number') ? r.map(([, v]) => v) : new Map(r); },
-  array_map: (f: any, a: any) => { if (Array.isArray(a)) return a.map((x) => f(x)); const r = new Map(); for (const [k, v] of P.iter(a)) r.set(k, f(v)); return r; },
-  array_filter: (a: any, f?: any) => { const r = new Map(); for (const [k, v] of P.iter(a)) if (f ? P.t(f(v)) : P.t(v)) r.set(k, v); return Array.isArray(a) && [...r.keys()].every((k, i) => k === i) ? [...r.values()] : r; },
+  array_map: (f0: any, a: any) => { const f = chiamabile(f0); if (Array.isArray(a)) return a.map((x) => f(x)); const r = new Map(); for (const [k, v] of P.iter(a)) r.set(k, f(v)); return r; },
+  array_filter: (a: any, f0?: any) => { const f = f0 === undefined || f0 === null ? undefined : chiamabile(f0); const r = new Map(); for (const [k, v] of P.iter(a)) if (f ? P.t(f(v)) : P.t(v)) r.set(k, v); return Array.isArray(a) && [...r.keys()].every((k, i) => k === i) ? [...r.values()] : r; },
   array_column: (a: any, c: any, k?: any) => { if (k === undefined || k === null) return [...P.iter(a)].map(([, r]) => P.g(r, c)); const m = new Map(); for (const [, r] of P.iter(a)) m.set(P.g(r, k), c === null ? r : P.g(r, c)); return m; },
   array_sum: (a: any) => [...P.iter(a)].reduce((s, [, v]) => s + P.n(v), 0),
   array_unique: (a: any) => { const visti = new Set<string>(); const r: any[] = []; for (const [, v] of P.iter(a)) { const k = P.s(v); if (!visti.has(k)) { visti.add(k); r.push(v); } } return r; },
@@ -391,6 +433,7 @@ const FN: Record<string, Funzione> = {
   bin2hex: (s: any) => [...new TextEncoder().encode(P.s(s))].map((x) => x.toString(16).padStart(2, '0')).join(''),
   random_bytes: (n: any) => String.fromCharCode(...crypto.getRandomValues(new Uint8Array(P.int(n)))),
   basename: (s: any, suf?: any) => { let b = P.s(s).replace(/\/+$/, '').split('/').pop() ?? ''; if (typeof suf === 'string' && b.endsWith(suf)) b = b.slice(0, -suf.length); return b; },
+  pi: () => Math.PI,
   pathinfo: (s: any, op?: any) => { const b = FN.basename(s); const i = b.lastIndexOf('.'); const ext = i >= 0 ? b.slice(i + 1) : ''; if (op === 4) return ext; if (op === 8) return i >= 0 ? b.slice(0, i) : b; return P.assoc([['basename', b], ['extension', ext], ['filename', i >= 0 ? b.slice(0, i) : b]]); },
   dirname: () => '',
   function_exists: () => true,
@@ -402,8 +445,8 @@ const FN: Record<string, Funzione> = {
   is_file: () => false,
   file_exists: () => false,
   error_log: () => true,
-  usort: (a: any, f: any) => { if (Array.isArray(a)) a.sort((x, y) => P.int(f(x, y))); return true; },
-  uasort: (a: any, f: any) => { if (a instanceof Map) { const e = [...a].sort(([, x], [, y]) => P.int(f(x, y))); a.clear(); e.forEach(([k, v]) => a.set(k, v)); } else if (Array.isArray(a)) a.sort((x, y) => P.int(f(x, y))); return true; },
+  usort: (a: any, f0: any) => { const f = chiamabile(f0); if (Array.isArray(a)) a.sort((x, y) => P.int(f(x, y))); return true; },
+  uasort: (a: any, f0: any) => { const f = chiamabile(f0); if (a instanceof Map) { const e = [...a].sort(([, x], [, y]) => P.int(f(x, y))); a.clear(); e.forEach(([k, v]) => a.set(k, v)); } else if (Array.isArray(a)) a.sort((x, y) => P.int(f(x, y))); return true; },
   sort: (a: any) => { if (Array.isArray(a)) a.sort((x, y) => P.cmp(x, y)); return true; },
   rsort: (a: any) => { if (Array.isArray(a)) a.sort((x, y) => P.cmp(y, x)); return true; },
   ksort: (a: any) => { if (a instanceof Map) { const e = [...a].sort(([x], [y]) => P.cmp(x, y)); a.clear(); e.forEach(([k, v]) => a.set(k, v)); } return true; },

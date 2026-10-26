@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createDecipheriv, createHash } from 'crypto';
+import * as fs from 'fs';
 import { DataSource } from 'typeorm';
 import { senzaIsolamento } from '../../common/database/isolamento';
 import { escapeHtml } from '../notifiche/mailer.service';
@@ -148,6 +149,84 @@ export class WrikeService {
       }
     } catch (e: any) {
       this.logger.warn(`passaggioAssunzione: ${e?.message ?? e}`);
+    }
+  }
+
+  /** Commento su un task; false se il task non esiste piu' (Wrike::addComment). */
+  private async commenta(userId: number, task: string, html: string): Promise<boolean> {
+    const i = await this.perUtente(userId);
+    if (!i || !i.token || !i.is_active) return false;
+    try {
+      await this.api(i.token, this.host(i), 'POST', `/tasks/${encodeURIComponent(task)}/comments`, { plainText: 'false', text: html });
+      return true;
+    } catch (e: any) {
+      await this.segnaErrore(userId, String(e?.message ?? e));
+      return false;
+    }
+  }
+
+  /**
+   * Task per una richiesta di assunzione inviata al consulente
+   * (Wrike::taskForHireRequest); al re-invio commenta il task esistente.
+   */
+  async taskPerAssunzione(consulenteId: number, richiesta: number, hr: Record<string, any>, reinvio: boolean, link: string): Promise<void> {
+    try {
+      const i = await this.perUtente(consulenteId);
+      if (!i || !i.is_active || !i.config.on_hire) return;
+      let chi = `${hr.employee_first_name ?? ''} ${hr.employee_last_name ?? ''}`.trim();
+      if (chi === '') chi = `richiesta #${richiesta}`;
+      const azienda = String(hr.employer_name ?? '');
+      const valore = (v: unknown) => escapeHtml(v === null || v === undefined ? '—' : String(v));
+      const esistente = i.config.hire_tasks?.[String(richiesta)];
+      if (esistente) {
+        const commento = `<b>${escapeHtml(azienda || "L'azienda")}</b> ha aggiornato la richiesta per <b>${escapeHtml(chi)}</b>. `
+          + `Ore settimanali: ${valore(hr.weekly_hours)} — Inizio: ${valore(hr.start_date)}. <a href="${escapeHtml(link)}">Vedi i dati aggiornati</a>`;
+        if (await this.commenta(consulenteId, esistente, commento)) return;
+      }
+      const base = chi + (azienda ? ` (${azienda})` : '');
+      const titolo = `${this.prefissoAssunzione(String(hr.status ?? 'awaiting_prospects'))} — ${base}`;
+      const descrizione = `<b>${escapeHtml(azienda)}</b> ha ${reinvio ? 'aggiornato la' : 'inviato una'} richiesta di simulazione/assunzione per <b>${escapeHtml(chi)}</b>.<br>`
+        + `Mansioni: ${valore(hr.role_description)}<br>Ore settimanali: ${valore(hr.weekly_hours)} — Inizio: ${valore(hr.start_date)}<br><br>`
+        + `<a href="${escapeHtml(link)}">Apri la richiesta sul gestionale</a>`;
+      const id = await this.creaTask(consulenteId, titolo, descrizione, 'High');
+      if (id) {
+        await this.salvaConfig(consulenteId, 'hire_tasks', String(richiesta), id);
+        await this.salvaConfig(consulenteId, 'hire_titles', String(richiesta), base);
+      }
+    } catch (e: any) {
+      this.logger.warn(`taskPerAssunzione: ${e?.message ?? e}`);
+    }
+  }
+
+  /**
+   * Prospetti approvati (Wrike::hireApproved): titolo "Da contrattualizzare",
+   * commento con i dati completi e documenti allegati al task.
+   */
+  async assunzioneApprovata(consulenteId: number, richiesta: number, righe: Array<[string, string]>, documenti: Array<{ percorso: string; nome: string }>): Promise<void> {
+    try {
+      const i = await this.perUtente(consulenteId);
+      if (!i || !i.is_active || !i.config.on_hire || !i.token) return;
+      const task = i.config.hire_tasks?.[String(richiesta)];
+      if (!task) return;
+      const host = this.host(i);
+      const base = i.config.hire_titles?.[String(richiesta)];
+      if (base) {
+        await this.api(i.token, host, 'PUT', `/tasks/${encodeURIComponent(task)}`, { title: [...`${this.prefissoAssunzione('approved')} — ${base}`].slice(0, 250).join('') })
+          .catch((e) => this.segnaErrore(consulenteId, String(e?.message ?? e)));
+      }
+      const elenco = righe.filter(([, v]) => String(v ?? '').trim() !== '').map(([k, v]) => `<li><b>${escapeHtml(k)}:</b> ${escapeHtml(String(v).trim())}</li>`).join('');
+      await this.commenta(consulenteId, task, `✅ <b>Prospetti approvati dall'azienda — dati completi per il contratto:</b><ul>${elenco}</ul>Carica ora il contratto da firmare.`);
+      for (const d of documenti) {
+        const dati = fs.readFileSync(d.percorso);
+        if (dati.length > 50 * 1024 * 1024) continue;
+        const r = await fetch(`${host.replace(/\/+$/, '')}/api/v4/tasks/${encodeURIComponent(task)}/attachments`, {
+          method: 'POST', body: dati, redirect: 'manual', signal: AbortSignal.timeout(30_000),
+          headers: { Authorization: `Bearer ${i.token}`, 'X-Requested-With': 'XMLHttpRequest', 'X-File-Name': d.nome.replace(/[^\x20-\x7E]/g, '_'), 'Content-Type': 'application/octet-stream' },
+        }).catch(() => null);
+        if (!r || r.status >= 400) this.logger.warn(`allegato non caricato su Wrike (richiesta ${richiesta})`);
+      }
+    } catch (e: any) {
+      this.logger.warn(`assunzioneApprovata: ${e?.message ?? e}`);
     }
   }
 

@@ -226,7 +226,7 @@ class Parser:
         # a e' un'espressione "lvalue": P.g(V.x, 'k') -> P.set(V.x, 'k', ...) ; V.x[] (P.push)
         if a.startswith('P.PUSH('):
             base = a[len('P.PUSH('):-1]
-            return f'P.push({base}, {b})'
+            return f'P.push({self.lvalue(base)}, {b})'
         if op == '=':
             return self.scrivi(a, b)
         if op == '??=':
@@ -239,17 +239,19 @@ class Parser:
         if m and a.count('P.g(') >= 1:
             # ultimo accesso: P.g(base, chiave) -> P.set(base, chiave, val)
             base, chiave = self.dividi_g(a)
-            return f'P.set({self.lvalue(base)}, {chiave}, {val})'
+            return f'P.set({self.lvalue(base, chiave)}, {chiave}, {val})'
         return f'({a} = {val})'
 
-    def lvalue(self, base):
-        # Il contenitore deve esistere (in PHP $a['x']['y'] = 1 crea gli array intermedi)
+    def lvalue(self, base, chiave=None):
+        # Il contenitore deve esistere (in PHP $a['x']['y'] = 1 crea gli array intermedi);
+        # con la chiave che si scrive, una lista usata con chiavi sparse diventa una mappa.
+        coda = f', {chiave}' if chiave is not None else ''
         if base.startswith('P.g('):
             b, k = self.dividi_g(base)
-            return f'P.auto({self.lvalue(b)}, {k})'
+            return f'P.auto({self.lvalue(b, k)}, {k}{coda})'
         m = re.fullmatch(r'(V|L\d+)\.(\w+)', base)
         if m:
-            return f'P.autov({m.group(1)}, {json.dumps(m.group(2))})'
+            return f'P.autov({m.group(1)}, {json.dumps(m.group(2))}{coda})'
         return base
 
     @staticmethod

@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DataSource } from 'typeorm';
-import { contenutoCoerente, fileSicuro } from '../../common/file/caricamenti';
+import { contenutoCoerente, DIMENSIONE_MASSIMA, estensione, ESTENSIONI_DOCUMENTI, fileSicuro, mimeDaContenuto } from '../../common/file/caricamenti';
 import { cartellaStorage, urlPubblico } from '../../config/app';
 import { MailerService, escapeHtml } from '../notifiche/mailer.service';
 import { PushService } from '../notifiche/push.service';
@@ -44,8 +44,11 @@ export class DocumentiService {
     const [e] = await this.ds.query('SELECT id, company_id, first_name, last_name, email FROM employees WHERE id = $1', [d.employee_id]);
     if (!e || !fs.existsSync(sorgente)) return { success: false, error: 'File sorgente non trovato' };
     const buf = fs.readFileSync(sorgente);
-    if (!contenutoCoerente('pdf', buf)) return { success: false, error: 'Tipo file non consentito' };
-    const nome = `${randomBytes(16).toString('hex')}.pdf`;
+    // Tipi dei documenti (ALLOWED_EXTENSIONS), riconosciuti dal contenuto come il finfo del PHP.
+    const ext = ESTENSIONI_DOCUMENTI.includes(estensione(d.original_name)) ? estensione(d.original_name) : 'pdf';
+    if (buf.length > DIMENSIONE_MASSIMA) return { success: false, error: `File troppo grande. Massimo ${DIMENSIONE_MASSIMA / 1024 / 1024}MB` };
+    if (!contenutoCoerente(ext, buf)) return { success: false, error: 'Tipo file non consentito' };
+    const nome = `${randomBytes(16).toString('hex')}.${ext}`;
     const dir = cartellaStorage('documents', String(d.employee_id), String(d.year), String(d.month));
     fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
     const dest = path.join(dir, nome);
@@ -59,8 +62,8 @@ export class DocumentiService {
     try {
       [{ id }] = await this.ds.query(
         `INSERT INTO documents (company_id, employee_id, type, title, description, file_path, file_name, original_name, file_size, mime_type, month, year, uploaded_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'application/pdf', $10, $11, $12) RETURNING id`,
-        [e.company_id, d.employee_id, d.type, d.title, d.description ?? null, dest, nome, d.original_name, buf.length, d.month, d.year, caricatoDa]);
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $13, $10, $11, $12) RETURNING id`,
+        [e.company_id, d.employee_id, d.type, d.title, d.description ?? null, dest, nome, d.original_name, buf.length, d.month, d.year, caricatoDa, mimeDaContenuto(dest, nome)]);
     } catch {
       fs.rmSync(dest, { force: true });
       return { success: false, error: 'Errore durante il salvataggio del documento' };

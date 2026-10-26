@@ -35,6 +35,20 @@ UTENTI_ESTERNI = [
     (r"\$assignedCompanyIds = \$current \? Tenant::getUserCompanyIds\(\(int\)\$current\['id'\]\) : \[\];", "$assignedCompanyIds = $__aziendeAssegnate;"),
 ]
 
+# Il template parte dalla configurazione di visibilita' (le closure prima dell'header servono al template).
+INIZIO_DIPENDENTI = "$visibilityConfig = FieldVisibility::getConfig();\n"
+DIPENDENTI = [
+    (r"\$search = \$_GET\['search'\].*?include dirname\(__DIR__\) \. '/includes/header-admin\.php';", ""),
+    (r'Database::fetchColumn\(\s*"SELECT timbratura_enabled FROM companies WHERE id = \?", \[\$__currCid\]\s*\)', "$__timbratureDb"),
+    (r'Database::fetchOne\("SELECT buoni_pasto_enabled, [^"]*", \[\$__wdCompId\]\)', "$__bpCompDb"),
+    (r'Database::fetchOne\("SELECT default_ccnl_id FROM companies WHERE id = \?", \[[^;]*?\]\)', "$__defaultCcnlDb"),
+    (r'Database::fetchAll\("SELECT id, name FROM departments WHERE company_id = \? AND is_active = TRUE ORDER BY name", \[\(int\)\$employee\[\'company_id\'\]\]\)', "$__deptsInlineDb"),
+]
+
+ASSUNZIONI = [
+    (r'Database::fetchAll\("SELECT id, name FROM departments WHERE company_id = \? AND is_active = TRUE ORDER BY name", \[[^;]*?\]\)', "$__deptsDb"),
+]
+
 # (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
@@ -55,6 +69,8 @@ PAGINE = [
     ('admin/presenze-export.php', 'pagine/admin/presenze-export', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/attendance.php', 'pagine/admin/attendance', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('includes/_chat-page.inc.php', 'pagine/staff/chat', "include __DIR__ . '/header-' . $__chatLayout . '.php';\n?>", "<?php\n$__chatFooter", []),
+    ('admin/employees.php', 'pagine/admin/employees', INIZIO_DIPENDENTI, FOOTER_ADMIN, DIPENDENTI),
+    ('admin/hire-requests.php', 'pagine/admin/hire-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, ASSUNZIONI),
     ('admin/_user-role-manager.inc.php', 'pagine/admin/user-role-manager', HEADER_ADMIN, FOOTER_ADMIN, UTENTI_ESTERNI),
 ]
 
@@ -89,7 +105,7 @@ def main():
         tratto = testo[a:b]
         for cerca, metti in sostituzioni:
             tratto, quante = re.subn(cerca, lambda _m: metti, tratto, flags=re.S)
-            if quante != 1:
+            if quante == 0:
                 raise SystemExit(f'{src}: sostituzione non trovata: {cerca}')
         if not inizio.rstrip().endswith('?>'):
             tratto = '<?php ' + tratto

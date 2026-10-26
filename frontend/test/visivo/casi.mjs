@@ -164,5 +164,16 @@ export const CASI = [
   { nome: 'admin-chat', percorso: '/admin/chat.php', attesa: 1500, ...come('hr.alfa') },
   { nome: 'admin-chat-aperta', percorso: '/admin/chat.php?conv=1', attesa: 1500, ...come('hr.alfa') },
   { nome: 'consulente-chat', percorso: '/consulente-lavoro/chat.php', attesa: 1500, ...come('studio.consulente') },
+  { nome: 'admin-dipendenti', percorso: '/admin/employees.php', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-dipendenti-ricerca', percorso: '/admin/employees.php?search=bell&message=updated', attesa: 1200, ...come('hr.alfa') },
+  { nome: 'admin-dipendenti-nuovo', percorso: '/admin/employees.php?action=new', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-dipendenti-modifica', percorso: '/admin/employees.php?action=edit&id=1', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-dipendenti-scheda', percorso: '/admin/employees.php?action=view&id=1', attesa: 1500, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-dipendenti-scheda-prova', percorso: '/admin/employees.php?action=view&id=3&probc=found&d=2026-12-01', attesa: 1500, ...come('hr.alfa') },
+  { nome: 'admin-assunzioni', percorso: '/admin/hire-requests.php', attesa: 1200, ...come('hr.beta'), paginaIntera: true },
+  { nome: 'admin-assunzioni-dettaglio', percorso: '/admin/hire-requests.php?id=1&sent=1&notified=1', attesa: 1200, ...come('hr.beta'), paginaIntera: true },
+  { nome: 'admin-assunzioni-nuova', percorso: '/admin/hire-requests.php?action=new', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-assunzioni-diretta', percorso: '/admin/hire-requests.php?action=direct', attesa: 1200, ...come('hr.alfa'), paginaIntera: true },
+  { nome: 'admin-assunzioni-vuota', percorso: '/admin/hire-requests.php?deleted=1', attesa: 1200, ...come('hr.alfa') },
 ];
 export { PW };

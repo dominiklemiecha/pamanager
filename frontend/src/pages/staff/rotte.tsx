@@ -9,6 +9,8 @@ import adminVisibilita from '../../php/pagine/admin/field-visibility';
 import adminPresenzeExport from '../../php/pagine/admin/presenze-export';
 import adminTimbratureGiorno from '../../php/pagine/admin/attendance';
 import adminUtentiEsterni from '../../php/pagine/admin/user-role-manager';
+import adminDipendenti from '../../php/pagine/admin/employees';
+import adminAssunzioni from '../../php/pagine/admin/hire-requests';
 import adminAziende from '../../php/pagine/admin/companies';
 import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
 import adminReparti from '../../php/pagine/admin/departments';
@@ -60,6 +62,8 @@ export const rotteStaff = [
   pagina('/admin/companies.php', adminAziende),
   pagina('/admin/communications.php', adminComunicazioni),
   pagina('/admin/field-visibility.php', adminVisibilita),
+  pagina('/admin/employees.php', adminDipendenti),
+  pagina('/admin/hire-requests.php', adminAssunzioni),
   pagina('/admin/attendance.php', adminTimbratureGiorno),
   pagina('/admin/accountant.php', adminUtentiEsterni, { prepara: conOspiti }),
   pagina('/admin/consulente-lavoro.php', adminUtentiEsterni, { prepara: conOspiti }),

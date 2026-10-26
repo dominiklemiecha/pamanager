@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpException, Post, Query, Req } from '@nestjs/common';
+import { decodificaCodiceFiscale } from '../../common/calcoli/codice-fiscale';
 import { Pubblico, Ruoli, Utente } from '../auth/decoratori';
 import type { RichiestaAutenticata, UtenteCorrente } from '../auth/auth.types';
 import { DipendenteService } from '../dipendente/dipendente.service';
@@ -12,6 +13,9 @@ import { PushService } from '../notifiche/push.service';
  * Tutti passano da sessione e CSRF come le altre rotte.
  */
 const errore = (message: string, status = 400) => new HttpException({ error: true, message }, status);
+
+/** Ultima chiamata a Nominatim: al massimo una al secondo (regole d'uso del servizio). */
+let ultimaRicercaIndirizzo = 0;
 
 @Controller('api')
 export class CompatController {
@@ -79,5 +83,45 @@ export class CompatController {
       default:
         throw errore('Azione non valida');
     }
+  }
+
+  /**
+   * Autocompilazione dei moduli di assunzione (api/lookup.php): dati di
+   * nascita dal codice fiscale, CAP/comune/provincia da un indirizzo.
+   * Correzioni: solo lo staff (prima bastava un qualsiasi accesso, anche da
+   * dipendente) e al massimo una ricerca di indirizzo al secondo verso
+   * Nominatim; gli errori restano { error } con codice 200 come nel PHP.
+   */
+  @Get('lookup.php')
+  @Ruoli('admin', 'accountant', 'admin_reparto', 'consulente_lavoro', 'formatore')
+  async ricerca(@Query('action') azione = '', @Query('cf') cf = '', @Query('q') q = '') {
+    if (azione === 'cf') {
+      const v = String(cf).trim();
+      if (v.length !== 16) return { error: 'CF deve essere 16 caratteri' };
+      return decodificaCodiceFiscale(v) ?? { error: 'Codice fiscale non valido' };
+    }
+    if (azione === 'address') {
+      const testo = String(q).trim().slice(0, 300);
+      if ([...testo].length < 4) return { error: 'Indirizzo troppo corto' };
+      if (Date.now() - ultimaRicercaIndirizzo < 1000) return { error: 'Servizio non disponibile' };
+      ultimaRicercaIndirizzo = Date.now();
+      const url = 'https://nominatim.openstreetmap.org/search?' + new URLSearchParams({ q: testo, format: 'jsonv2', countrycodes: 'it', addressdetails: '1', limit: '1', 'accept-language': 'it' });
+      let dati: any;
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'PAManager/1.0 (info@connecteed.com)' }, redirect: 'error', signal: AbortSignal.timeout(8000) });
+        dati = await r.json();
+      } catch {
+        return { error: 'Servizio non disponibile' };
+      }
+      if (!Array.isArray(dati) || !dati[0]) return { error: 'Indirizzo non trovato' };
+      const a = dati[0].address ?? {};
+      const via = String(a.road ?? '');
+      const civico = String(a.house_number ?? '');
+      return {
+        street: `${via}${civico ? `, ${civico}` : ''}`.trim(), cap: a.postcode ?? '', city: a.city ?? a.town ?? a.village ?? a.hamlet ?? a.municipality ?? '',
+        province: String(a.county ?? a.state_district ?? '').replace(/^Provincia\s+di\s+/i, ''), display: dati[0].display_name ?? '',
+      };
+    }
+    return { error: 'Azione non riconosciuta' };
   }
 }

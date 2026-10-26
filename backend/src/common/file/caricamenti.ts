@@ -21,6 +21,8 @@ export function contenutoCoerente(estensione: string, buf: Buffer): boolean {
     case 'jpg': case 'jpeg': return inizia(0xff, 0xd8, 0xff);
     case 'png': return inizia(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
     case 'gif': return buf.slice(0, 4).toString('latin1') === 'GIF8';
+    // HEIC/HEIF (foto dei telefoni): contenitore ISO con marca heic/mif1...
+    case 'heic': case 'heif': return buf.slice(4, 8).toString('latin1') === 'ftyp' && ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1'].includes(buf.slice(8, 12).toString('latin1'));
     case 'webp': return buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP';
     case 'doc': case 'xls': case 'ppt': return inizia(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1);
     case 'docx': case 'xlsx': case 'pptx': case 'odt': case 'ods': case 'zip': return inizia(0x50, 0x4b, 0x03, 0x04);
@@ -74,6 +76,9 @@ export function mimeDaContenuto(p: string, nome = ''): string {
   if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
   if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
   if (buf[0] === 0xd0 && buf[1] === 0xcf) return 'application/msword';
+  if (buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  if (buf.slice(4, 8).toString('latin1') === 'ftyp' && ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis'].includes(buf.slice(8, 12).toString('latin1'))) return 'image/heic';
+  if (buf.slice(4, 8).toString('latin1') === 'ftyp' && ['mif1', 'msf1'].includes(buf.slice(8, 12).toString('latin1'))) return 'image/heif';
   if (buf[0] === 0x50 && buf[1] === 0x4b) {
     const ext = estensione(nome || p);
     if (ext === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
