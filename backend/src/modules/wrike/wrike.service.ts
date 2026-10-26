@@ -23,8 +23,26 @@ export class WrikeService {
 
   private chiave(): Buffer {
     let segreto = process.env.APP_ENCRYPTION_KEY || '';
-    if (!segreto) segreto = `${process.env.LEGACY_DB_PASSWORD ?? ''}|${process.env.LEGACY_DB_NAME ?? ''}|wrike-v1`;
+    if (!segreto) segreto = this.segretoLegacy();
     return createHash('sha256').update(segreto).digest();
+  }
+
+  private segretoLegacy(): string {
+    return `${process.env.LEGACY_DB_PASSWORD ?? ''}|${process.env.LEGACY_DB_NAME ?? ''}|wrike-v1`;
+  }
+
+  /**
+   * Chiavi provate in lettura: quella attuale e, se diversa, quella del PHP
+   * (in produzione il PHP non aveva APP_ENCRYPTION_KEY e cifrava con le
+   * credenziali del database). Il tag GCM scarta la chiave sbagliata.
+   */
+  private chiaviLettura(): Buffer[] {
+    const chiavi = [this.chiave()];
+    if (process.env.LEGACY_DB_PASSWORD) {
+      const legacy = createHash('sha256').update(this.segretoLegacy()).digest();
+      if (!legacy.equals(chiavi[0])) chiavi.push(legacy);
+    }
+    return chiavi;
   }
 
   decifra(salvato: string): string | null {
@@ -32,13 +50,16 @@ export class WrikeService {
     if (!salvato.startsWith('gcm:')) return null;
     const raw = Buffer.from(salvato.slice(4), 'base64');
     if (raw.length < 29) return null;
-    try {
-      const d = createDecipheriv('aes-256-gcm', this.chiave(), raw.subarray(0, 12));
-      d.setAuthTag(raw.subarray(12, 28));
-      return Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString();
-    } catch {
-      return null;
+    for (const chiave of this.chiaviLettura()) {
+      try {
+        const d = createDecipheriv('aes-256-gcm', chiave, raw.subarray(0, 12));
+        d.setAuthTag(raw.subarray(12, 28));
+        return Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString();
+      } catch {
+        // chiave successiva
+      }
     }
+    return null;
   }
 
   cifra(testo: string): string {
