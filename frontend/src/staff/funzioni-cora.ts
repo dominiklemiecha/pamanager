@@ -202,3 +202,14 @@ P.estendi('Academy::actorLabel', (ev: any) => {
   const u = P.g(ev, 'actor_username');
   return (ATTORI_ACADEMY[tipo] ?? tipo) + (P.t(u) ? ` (${P.s(u)})` : '');
 });
+
+/** Area del responsabile di reparto. */
+P.estendi('LeaveRequest::countPendingByDepartment', daV('__pendingCountDept'));
+const GIORNI_IT = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+/** getItalianDate (helpers/validation.php): "Lunedì 26 Ottobre 2026", ora di Roma. */
+P.estendi('getItalianDate', (...a: any[]) => {
+  const [d = null] = argomenti(a);
+  const giorno = P.t(d) ? P.s(d).slice(0, 10) : new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date());
+  const x = new Date(`${giorno}T12:00:00Z`);
+  return `${GIORNI_IT[x.getUTCDay()]} ${x.getUTCDate()} ${MESI_IT[x.getUTCMonth() + 1]} ${x.getUTCFullYear()}`;
+});

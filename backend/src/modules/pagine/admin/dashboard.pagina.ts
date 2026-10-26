@@ -6,6 +6,7 @@ import { AcademyService } from '../../academy/academy.service';
 import { FerieService } from '../../ferie/ferie.service';
 import { ProvaService } from '../../prova/prova.service';
 import { ContestoPagina, PaginaPhp, Pagina, redirect, vista } from '../pagina';
+import { compleanni } from '../widget/compleanni';
 import { HeatmapService } from '../widget/heatmap.service';
 
 const e = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -105,15 +106,7 @@ export class DashboardAdminPagina implements Pagina {
     attivita.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
     // Compleanni di oggi e domani (widget-birthday-banner.php, l'HR non e' un festeggiato)
-    const oggi = oggiRoma();
-    const domani = new Date(`${oggi}T12:00:00Z`);
-    domani.setUTCDate(domani.getUTCDate() + 1);
-    const [mdOggi, mdDomani] = [oggi.slice(5), domani.toISOString().slice(5, 10)];
-    const compleanni = await this.ds.query(
-      `SELECT id, first_name, to_char(birth_date, 'MM-DD') AS md FROM employees WHERE is_active = true AND birth_date IS NOT NULL AND company_id = $1
-          AND to_char(birth_date, 'MM-DD') IN ($2, $3) ORDER BY id`, [cid, mdOggi, mdDomani]);
-    const todayOthers = compleanni.filter((r: any) => r.md === mdOggi).map((r: any) => r.first_name);
-    const tomorrowOthers = compleanni.filter((r: any) => r.md === mdDomani).map((r: any) => r.first_name);
+    const { todayOthers, tomorrowOthers } = await compleanni(this.ds, cid);
 
     const probation = await this.prova.daDecidere(cid);
     const [azienda] = await senzaIsolamento(() => this.ds.query('SELECT id, name FROM companies WHERE id = $1', [cid]));

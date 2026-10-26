@@ -183,6 +183,21 @@ export const CASI = [
   { nome: 'admin-academy-modello-nuovo', percorso: '/admin/academy-templates.php?new=1', attesa: 2000, ...come('hr.alfa') },
   { nome: 'consulente-academy', percorso: '/consulente-lavoro/academy.php', attesa: 1200, ...come('studio.consulente'), paginaIntera: true },
   { nome: 'formatore-academy-persone', percorso: '/formatore/academy.php?course=1&tab=people', attesa: 1200, ...come('formatore.alfa'), paginaIntera: true },
+  // Solo fino alla heatmap: sotto, il PHP va in errore (vedi genera-pagine.py, REPARTO_DASHBOARD).
+  { nome: 'reparto-dashboard', percorso: '/admin-reparto/', attesa: 1500, ...come('resp.commerciale'), misure: [[1512, 760]] },
+  { nome: 'reparto-dashboard-tutti', percorso: '/admin-reparto/index.php?scope=all', attesa: 1500, ...come('resp.commerciale'), misure: [[1512, 760]] },
+  { nome: 'reparto-dipendenti', percorso: '/admin-reparto/employees.php', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-dipendenti-ricerca', percorso: '/admin-reparto/employees.php?search=fer', attesa: 1200, ...come('resp.commerciale') },
+  { nome: 'reparto-ferie', percorso: '/admin-reparto/leave-requests.php', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-ferie-tutte', percorso: '/admin-reparto/leave-requests.php?status=all&message=approved', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-comunicazioni', percorso: '/admin-reparto/communications.php', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-password', percorso: '/admin-reparto/password-resets.php', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-documenti', percorso: '/admin-reparto/employee-documents.php?employee_id=1&ed_status=updated', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-academy', percorso: '/admin-reparto/academy.php', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-academy-persone', percorso: '/admin-reparto/academy.php?course=1', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-academy-registro', percorso: '/admin-reparto/academy.php?course=1&tab=log', attesa: 1200, ...come('resp.commerciale'), paginaIntera: true },
+  { nome: 'reparto-chat', percorso: '/admin-reparto/chat.php', attesa: 2000, ...come('resp.commerciale') },
+  { nome: 'reparto-calendario', percorso: '/admin-reparto/calendar.php', attesa: 2000, ...come('resp.commerciale') },
   { nome: 'admin-assunzioni-vuota', percorso: '/admin/hire-requests.php?deleted=1', attesa: 1200, ...come('hr.alfa') },
 ];
 export { PW };

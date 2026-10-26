@@ -56,6 +56,17 @@ ACADEMY = [
 ]
 FOOTER_INCLUDE = "<?php include __DIR__ . '/footer-admin.php'; ?>"
 
+HEADER_REPARTO = "include dirname(__DIR__) . '/includes/header-admin-reparto.php';\n?>"
+HEADER_REPARTO_PHP = "include dirname(__DIR__) . '/includes/header-admin-reparto.php';\n"
+# Dipendenti del reparto in tutta la pagina. Correzione: nel PHP il widget heatmap sovrascriveva
+# $employees e la lista dopo la heatmap andava in errore a meta' (pagina troncata).
+REPARTO_DASHBOARD = [
+    (r'\$employees\b', '$__deptEmployees'),
+]
+REPARTO_FERIE = [
+    (r"try \{\s*\$__sickLate = array_values\(array_filter\(.*?\} catch \(Throwable \$e\) \{ \$__sickLate = \[\]; \}", ""),
+]
+
 # (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
@@ -80,6 +91,12 @@ PAGINE = [
     ('admin/hire-requests.php', 'pagine/admin/hire-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, ASSUNZIONI),
     ('includes/_academy-staff.inc.php', 'pagine/staff/academy', INIZIO_ACADEMY, FOOTER_INCLUDE, ACADEMY),
     ('includes/_academy-templates.inc.php', 'pagine/staff/academy-templates', "include __DIR__ . '/header-admin.php';\n?>", FOOTER_INCLUDE, []),
+    ('admin-reparto/index.php', 'pagine/reparto/index', HEADER_REPARTO, FOOTER_ADMIN, REPARTO_DASHBOARD),
+    ('admin-reparto/employees.php', 'pagine/reparto/employees', HEADER_REPARTO, FOOTER_ADMIN, []),
+    ('admin-reparto/leave-requests.php', 'pagine/reparto/leave-requests', HEADER_REPARTO_PHP, FOOTER_ADMIN, REPARTO_FERIE),
+    ('admin-reparto/communications.php', 'pagine/reparto/communications', HEADER_REPARTO, FOOTER_ADMIN, []),
+    ('admin-reparto/password-resets.php', 'pagine/reparto/password-resets', HEADER_REPARTO, FOOTER_ADMIN, []),
+    ('admin-reparto/employee-documents.php', 'pagine/reparto/employee-documents', HEADER_REPARTO, FOOTER_ADMIN, []),
     ('admin/_user-role-manager.inc.php', 'pagine/admin/user-role-manager', HEADER_ADMIN, FOOTER_ADMIN, UTENTI_ESTERNI),
 ]
 

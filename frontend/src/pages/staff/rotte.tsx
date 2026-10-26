@@ -12,6 +12,12 @@ import adminUtentiEsterni from '../../php/pagine/admin/user-role-manager';
 import adminDipendenti from '../../php/pagine/admin/employees';
 import adminAssunzioni from '../../php/pagine/admin/hire-requests';
 import staffAcademy from '../../php/pagine/staff/academy';
+import repartoIndex from '../../php/pagine/reparto/index';
+import repartoDipendenti from '../../php/pagine/reparto/employees';
+import repartoFerie from '../../php/pagine/reparto/leave-requests';
+import repartoComunicazioni from '../../php/pagine/reparto/communications';
+import repartoPassword from '../../php/pagine/reparto/password-resets';
+import repartoDocumenti from '../../php/pagine/reparto/employee-documents';
 import staffModelliAttestato from '../../php/pagine/staff/academy-templates';
 import adminAziende from '../../php/pagine/admin/companies';
 import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
@@ -39,6 +45,15 @@ const soloRedirect = () => undefined;
 const conOspiti = (V: any) => {
   const gestite = new Set((V.accessibleCids ?? []).map(Number));
   V.isGuestUser = (u: any) => { const cid = Number(P.g(u, 'company_id') ?? 0); return cid > 0 && !gestite.has(cid); };
+};
+
+/** Responsabile senza reparto: il PHP mostrava solo questo avviso. */
+const conReparto = (render: (V: any, F: any) => void) => (V: any, F: any) => {
+  if (V.__senzaReparto) {
+    P.o(`<div style="padding: 2rem; text-align: center;"><h2>Nessun reparto assegnato</h2><p>Contatta l'amministratore per essere assegnato a un reparto.</p></div>`);
+    return;
+  }
+  render(V, F);
 };
 
 const pagina = (percorso: string, render: (V: any, F: any) => void, opz: { prepara?: (V: any) => void; scarica?: string[] } = {}) => (
@@ -76,4 +91,15 @@ export const rotteStaff = [
   pagina('/admin/documenti-aziendali.php', adminDocumentiAziendali, { scarica: ['download'] }),
   ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy.php`, staffAcademy, { scarica: ['export', 'zip'] })),
   ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy-templates.php`, staffModelliAttestato)),
+  pagina('/admin-reparto', conReparto(repartoIndex), { prepara: conSettimana }),
+  pagina('/admin-reparto/', conReparto(repartoIndex), { prepara: conSettimana }),
+  pagina('/admin-reparto/index.php', conReparto(repartoIndex), { prepara: conSettimana }),
+  pagina('/admin-reparto/employees.php', conReparto(repartoDipendenti)),
+  pagina('/admin-reparto/leave-requests.php', conReparto(repartoFerie), { scarica: ['download_attachment', 'download_cert'] }),
+  pagina('/admin-reparto/communications.php', conReparto(repartoComunicazioni)),
+  pagina('/admin-reparto/password-resets.php', conReparto(repartoPassword)),
+  pagina('/admin-reparto/employee-documents.php', repartoDocumenti, { scarica: ['download'] }),
+  pagina('/admin-reparto/academy.php', staffAcademy, { scarica: ['export', 'zip'] }),
+  pagina('/admin-reparto/chat.php', staffChat, { scarica: ['download_attachment', 'group_avatar'] }),
+  <Route key="admin-reparto/calendar" path="/admin-reparto/calendar.php" element={<CalendarioStaff />} />,
 ];

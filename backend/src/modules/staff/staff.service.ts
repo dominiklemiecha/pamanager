@@ -93,7 +93,8 @@ export class StaffService {
     const admin = ruolo === 'admin';
     const consulente = ruolo === 'consulente_lavoro';
     const formatore = ruolo === 'formatore';
-    const tipoChat = admin ? 'admin' : consulente ? 'consulente_lavoro' : 'accountant';
+    const reparto = ruolo === 'admin_reparto';
+    const tipoChat = admin ? 'admin' : consulente ? 'consulente_lavoro' : reparto ? 'admin_reparto' : 'accountant';
     const [me] = await senzaIsolamento(() => this.ds.query('SELECT name, photo_path, company_id FROM users WHERE id = $1', [u.id]));
 
     const sb = { emp: '', comm: '', pres: '', dept: '' };
@@ -135,8 +136,23 @@ export class StaffService {
       return out.toUpperCase();
     };
 
+    // Responsabile di reparto (header-admin-reparto.php): conteggi del suo reparto.
+    // Correzione: le richieste di reset contano solo i dipendenti dell'azienda.
+    let infoReparto: { nome: string; ferie: number; reset: number } | null = null;
+    if (reparto) {
+      const dep = u.departmentId ?? null;
+      const [d] = dep ? await this.ds.query('SELECT name FROM departments WHERE id = $1 AND company_id = $2', [dep, cid]) : [];
+      infoReparto = {
+        nome: d?.name ?? 'Nessun reparto',
+        ferie: dep ? await this.n(`SELECT COUNT(*)::int AS n FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id
+                                   WHERE e.company_id = $1 AND e.department_id = $2 AND lr.status = 'pending'`, [cid, dep]) : 0,
+        reset: dep ? await this.n(`SELECT COUNT(*)::int AS n FROM password_reset_requests prr JOIN employees e ON prr.user_type = 'employee' AND prr.user_id = e.id
+                                   WHERE prr.status = 'pending' AND e.department_id = $1 AND e.company_id = $2`, [dep, cid]) : 0,
+      };
+    }
+
     return {
-      ruolo, area: admin ? 'admin' : consulente ? 'consulente-lavoro' : formatore ? 'formatore' : 'accountant', nome: me?.name ?? '', iniziali: iniziali(me?.name ?? '') || 'U', foto: me?.photo_path ? '/' + String(me.photo_path).replace(/^\/+/, '') : '',
+      ruolo, area: admin ? 'admin' : consulente ? 'consulente-lavoro' : formatore ? 'formatore' : reparto ? 'admin-reparto' : 'accountant', reparto: infoReparto, nome: me?.name ?? '', iniziali: iniziali(me?.name ?? '') || 'U', foto: me?.photo_path ? '/' + String(me.photo_path).replace(/^\/+/, '') : '',
       contatori: {
         ferie: admin ? await this.n(`SELECT COUNT(*)::int AS n FROM leave_requests WHERE status = 'pending' AND company_id = $1`, [cid]) : 0,
         chat: formatore ? 0 : await this.chatNonLette(cid, tipoChat, u.id),

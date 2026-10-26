@@ -22,7 +22,8 @@ import { VisibilitaCampiPagina } from './admin/visibilita-campi.pagina';
 import { PresenzeExportPagina } from './admin/presenze-export.pagina';
 import { TimbratureAdminPagina } from './admin/timbrature.pagina';
 import { CommercialistiPagina, ConsulentiPagina, FormatoriPagina } from './admin/utenti-esterni.pagina';
-import { ChatAdminPagina, ChatCommercialistaPagina, ChatConsulentePagina } from './staff/chat.pagina';
+import { ChatAdminPagina, ChatCommercialistaPagina, ChatConsulentePagina, ChatRepartoPagina } from './staff/chat.pagina';
+import { AcademyRepartoPagina, ComunicazioniRepartoPagina, DashboardRepartoPagina, DipendentiRepartoPagina, DocumentiRepartoPagina, FerieRepartoPagina, PasswordRepartoPagina } from './reparto/reparto.pagina';
 import { DipendentiPagina } from './admin/dipendenti.pagina';
 import { AssunzioniPagina } from './admin/assunzioni.pagina';
 import { AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina } from './staff/academy.pagina';
@@ -44,6 +45,7 @@ import { HeatmapService } from './widget/heatmap.service';
     DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, VisibilitaCampiPagina, PresenzeExportPagina, TimbratureAdminPagina,
     CommercialistiPagina, ConsulentiPagina, FormatoriPagina,
     ChatAdminPagina, ChatCommercialistaPagina, ChatConsulentePagina, DipendentiPagina, AssunzioniPagina,
-    AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina],
+    AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina,
+    ChatRepartoPagina, AcademyRepartoPagina, ComunicazioniRepartoPagina, DashboardRepartoPagina, DipendentiRepartoPagina, DocumentiRepartoPagina, FerieRepartoPagina, PasswordRepartoPagina],
 })
 export class PagineModule {}

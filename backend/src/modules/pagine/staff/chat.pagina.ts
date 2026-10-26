@@ -138,6 +138,8 @@ abstract class ChatStaffPagina implements Pagina {
       const extra = g === 'employee'
         ? await this.ds.query(`SELECT e.id, e.email, e.fiscal_code, d.name AS department_name FROM employees e LEFT JOIN departments d ON d.id = e.department_id WHERE e.id = ANY($1::int[])`, [ids])
         : await senzaIsolamento(() => this.ds.query('SELECT id, username, email FROM users WHERE id = ANY($1::int[])', [ids]));
+      // Per il responsabile di reparto il PHP prendeva i dipendenti da Department::getEmployees (senza nome del reparto)
+      if (g === 'employee' && c.u.ruolo === 'admin_reparto') for (const x of extra) delete x.department_name;
       const per = new Map(extra.map((x: any) => [x.id, x]));
       out[g] = lista.map((x: any) => ({ ...x, ...(per.get(x.id) ?? {}) }));
     }
@@ -213,3 +215,7 @@ export class ChatCommercialistaPagina extends ChatStaffPagina { readonly ruoli =
 @PaginaPhp('consulente-lavoro/chat')
 export class ChatConsulentePagina extends ChatStaffPagina { readonly ruoli = ['consulente_lavoro']; }
 
+
+@Injectable()
+@PaginaPhp('admin-reparto/chat')
+export class ChatRepartoPagina extends ChatStaffPagina { readonly ruoli = ['admin_reparto']; }

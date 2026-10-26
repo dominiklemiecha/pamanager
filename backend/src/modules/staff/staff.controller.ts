@@ -8,7 +8,7 @@ import { StaffService } from './staff.service';
 
 /** Cornice dell'area staff e uscita da un'azienda (auth/leave-tenant.php). */
 @Controller('staff')
-@Ruoli('admin', 'accountant', 'consulente_lavoro', 'formatore')
+@Ruoli('admin', 'admin_reparto', 'accountant', 'consulente_lavoro', 'formatore')
 export class StaffController {
   constructor(private readonly staff: StaffService, private readonly ds: DataSource, private readonly audit: AuditService) {}
 

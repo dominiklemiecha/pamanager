@@ -2,6 +2,8 @@
 export interface CorniceStaff {
   ruolo: string;
   area: string;
+  /** Solo per il responsabile di reparto (header-admin-reparto.php). */
+  reparto: { nome: string; ferie: number; reset: number } | null;
   nome: string;
   iniziali: string;
   foto: string;
