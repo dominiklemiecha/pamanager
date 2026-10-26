@@ -213,3 +213,24 @@ P.estendi('getItalianDate', (...a: any[]) => {
   const x = new Date(`${giorno}T12:00:00Z`);
   return `${GIORNI_IT[x.getUTCDay()]} ${x.getUTCDate()} ${MESI_IT[x.getUTCMonth() + 1]} ${x.getUTCFullYear()}`;
 });
+
+/** Commercialista e consulente del lavoro. */
+P.estendi('Document::TYPES', () => P.assoc([['payslip', 'Busta Paga'], ['cud', 'CUD/CU'], ['other', 'Altro']]));
+/** Notification::url: link interni ricondotti all'area giusta, esterni lasciati com'erano. */
+P.estendi('Notification::url', (l: any) => {
+  const link = P.s(l).trim();
+  if (link === '') return '';
+  const m = /\/(employee|admin|admin-reparto|accountant|consulente-lavoro|superadmin)\/.*$/.exec(link);
+  if (m) return m[0];
+  if (/^https?:\/\//i.test(link)) return link;
+  return `/${link.replace(/^\/+/, '')}`;
+});
+P.estendi('getMonthsArray', () => new Map(MESI_IT.slice(1).map((m, i) => [i + 1, m] as [number, string])));
+/** formatFileSize (helpers/validation.php): "1.29 KB" con round a 2 decimali come il PHP. */
+P.estendi('formatFileSize', (b: any) => {
+  const u = ['B', 'KB', 'MB', 'GB'];
+  let n = P.int(b);
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return `${P.s(P.fn.round(n, 2))} ${u[i]}`;
+});

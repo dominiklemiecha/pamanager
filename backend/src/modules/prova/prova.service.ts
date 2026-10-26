@@ -29,6 +29,25 @@ export class ProvaService {
          OR (u.company_id IS NULL AND NOT EXISTS (SELECT 1 FROM user_companies uc2 WHERE uc2.user_id = u.id))) ORDER BY u.id`, [cid]);
   }
 
+  /**
+   * Fine prova letta dal contratto (Probation::applyContractSuggestion): si
+   * imposta solo se il dipendente non ne ha gia' una, e l'HR viene avvisato.
+   */
+  async suggerimentoDaContratto(employeeId: number, fine: string | null, cid: number): Promise<void> {
+    if (!fine) return;
+    const [e] = await this.ds.query('SELECT first_name, last_name, probation_end_date, probation_decision FROM employees WHERE id = $1 AND company_id = $2', [employeeId, cid]);
+    if (!e || e.probation_end_date || e.probation_decision) return;
+    const [, n] = await this.ds.query('UPDATE employees SET probation_end_date = $2 WHERE id = $1 AND probation_end_date IS NULL AND probation_decision IS NULL', [employeeId, fine]);
+    if (!n) return;
+    const chi = `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim();
+    for (const a of await this.adminAzienda(cid)) {
+      await this.notifiche.crea(cid, {
+        recipient_type: 'admin', recipient_id: a.id, type: 'probation_detected', title: 'Periodo di prova rilevato dal contratto',
+        message: `Per ${chi} e' stata rilevata una fine periodo di prova il ${dmy(fine)}. Verifica la data nella scheda del dipendente.`, link: `/admin/employees.php?id=${employeeId}`,
+      }).catch(() => undefined);
+    }
+  }
+
   /** Dipendenti nella finestra di avviso ancora senza decisione (widget dashboard). */
   async daDecidere(cid: number) {
     return this.ds.query(

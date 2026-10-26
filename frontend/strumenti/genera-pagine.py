@@ -67,6 +67,14 @@ REPARTO_FERIE = [
     (r"try \{\s*\$__sickLate = array_values\(array_filter\(.*?\} catch \(Throwable \$e\) \{ \$__sickLate = \[\]; \}", ""),
 ]
 
+# Consulente: elenco delle richieste e costante del logo Wrike (dichiarata prima dell'header nel PHP).
+CONSULENTE_ASSUNZIONI = [
+    (r"\$cid = class_exists\('Tenant'\) \? Tenant::currentCompanyId\(\) : 1;\s*\$rows = Database::fetchAll\(.*?\]\s*\);", ""),
+]
+CONSULENTE_PROFILO = [
+    (r"\A", "<?php define('WRIKE_NAVY', '#15243d'); ?>"),
+]
+
 # (file PHP, modulo generato, marcatore di inizio, marcatore di fine, sostituzioni regex)
 PAGINE = [
     ('admin/index.php', 'pagine/admin/index', HEADER_ADMIN, FOOTER_ADMIN, []),
@@ -97,6 +105,17 @@ PAGINE = [
     ('admin-reparto/communications.php', 'pagine/reparto/communications', HEADER_REPARTO, FOOTER_ADMIN, []),
     ('admin-reparto/password-resets.php', 'pagine/reparto/password-resets', HEADER_REPARTO, FOOTER_ADMIN, []),
     ('admin-reparto/employee-documents.php', 'pagine/reparto/employee-documents', HEADER_REPARTO, FOOTER_ADMIN, []),
+    ('accountant/index.php', 'pagine/esterni/index-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('consulente-lavoro/index.php', 'pagine/esterni/index-consulente', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('accountant/employees.php', 'pagine/esterni/employees', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('accountant/employee-documents.php', 'pagine/esterni/employee-documents', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('accountant/documents.php', 'pagine/esterni/documents', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('accountant/leave-requests.php', 'pagine/esterni/leave-requests-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('consulente-lavoro/leave-requests.php', 'pagine/esterni/leave-requests-consulente', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('accountant/presenze-export.php', 'pagine/esterni/presenze-export', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('accountant/profile.php', 'pagine/esterni/profile-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('consulente-lavoro/profile.php', 'pagine/esterni/profile-consulente', HEADER_ADMIN, FOOTER_ADMIN, CONSULENTE_PROFILO),
+    ('consulente-lavoro/hire-requests.php', 'pagine/esterni/hire-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, CONSULENTE_ASSUNZIONI),
     ('admin/_user-role-manager.inc.php', 'pagine/admin/user-role-manager', HEADER_ADMIN, FOOTER_ADMIN, UTENTI_ESTERNI),
 ]
 

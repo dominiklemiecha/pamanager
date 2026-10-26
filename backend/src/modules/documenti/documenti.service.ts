@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DataSource } from 'typeorm';
-import { contenutoCoerente, DIMENSIONE_MASSIMA, estensione, ESTENSIONI_DOCUMENTI, fileSicuro, mimeDaContenuto } from '../../common/file/caricamenti';
+import { contenutoCoerente, DIMENSIONE_MASSIMA, estensione, ESTENSIONI_DOCUMENTI, FileCaricato, fileSicuro, mimeDaContenuto } from '../../common/file/caricamenti';
 import { cartellaStorage, urlPubblico } from '../../config/app';
 import { MailerService, escapeHtml } from '../notifiche/mailer.service';
 import { PushService } from '../notifiche/push.service';
@@ -16,6 +16,7 @@ export type EsitoDownload =
   | { ok: true; contenuto: Buffer; nome: string; mime: string }
   | { ok: false; error: string };
 
+const MESI_DOC = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const pulisciNome = (n: string) => n.replace(/[^a-zA-Z0-9._-]/g, '_');
 
 /** "23/10/2026 14:05:09" ora di Roma (date('d/m/Y H:i:s') del PHP). */
@@ -83,6 +84,71 @@ export class DocumentiService {
       await this.mailer.inviaADipendente(d.employee_id, `Nuovo documento disponibile: ${etichetta} ${periodo}`, html, testo).catch(() => undefined);
     }
     return { success: true, id };
+  }
+
+  // ─── Lato commercialista e consulente (accountant/documents.php) ──────────
+
+  /** Document::getAll: documenti dell'azienda con filtri per periodo e tipo. */
+  elenco(cid: number, anno: number | null, mese: number | null, tipo: string | null) {
+    const p: unknown[] = [cid];
+    let sql = `SELECT d.id, d.company_id, d.employee_id, d.type, d.title, d.description, d.file_name, d.original_name, d.file_size, d.mime_type, d.month, d.year,
+                      d.uploaded_by, d.created_at, e.fiscal_code, e.first_name, e.last_name, concat(e.last_name, ' ', e.first_name) AS employee_name, u.name AS uploaded_by_name
+                 FROM documents d JOIN employees e ON d.employee_id = e.id JOIN users u ON d.uploaded_by = u.id WHERE d.company_id = $1`;
+    if (anno !== null) { p.push(anno); sql += ` AND d.year = $${p.length}`; }
+    if (mese !== null) { p.push(mese); sql += ` AND d.month = $${p.length}`; }
+    if (tipo !== null) { p.push(tipo); sql += ` AND d.type = $${p.length}`; }
+    return this.ds.query(`${sql} ORDER BY d.year DESC, d.month DESC, e.last_name ASC, d.id DESC`, p);
+  }
+
+  /**
+   * Document::upload da modulo. Correzione: il dipendente deve essere
+   * dell'azienda attiva e il file si riconosce dal contenuto.
+   */
+  async carica(f: FileCaricato | undefined, d: { employee_id: unknown; type: string; title: string; description: string; month: number; year: number },
+    cid: number, uid: number): Promise<{ success: true; id: number } | { success: false; error: string }> {
+    const eid = Number.parseInt(String(d.employee_id ?? ''), 10) || 0;
+    if (!eid) return { success: false, error: 'Dipendente non specificato' };
+    if (!['payslip', 'cud', 'other'].includes(d.type)) return { success: false, error: 'Tipo documento non valido' };
+    if (!d.month || d.month < 1 || d.month > 12) return { success: false, error: 'Mese non valido' };
+    if (!d.year || d.year < 2000 || d.year > 2100) return { success: false, error: 'Anno non valido' };
+    if (!(await this.ds.query('SELECT 1 FROM employees WHERE id = $1 AND company_id = $2', [eid, cid])).length) return { success: false, error: 'Dipendente non trovato' };
+    if (!f || !f.size) return { success: false, error: 'Seleziona un file da caricare' };
+    if (f.size > DIMENSIONE_MASSIMA) return { success: false, error: `File troppo grande. Massimo ${DIMENSIONE_MASSIMA / 1024 / 1024}MB` };
+    if (!ESTENSIONI_DOCUMENTI.includes(estensione(f.originalname))) return { success: false, error: 'Estensione file non consentita' };
+    const tmp = cartellaStorage('tmp');
+    fs.mkdirSync(tmp, { recursive: true, mode: 0o700 });
+    const p = path.join(tmp, `doc-${randomBytes(12).toString('hex')}`);
+    fs.writeFileSync(p, f.buffer, { mode: 0o600 });
+    try {
+      const titolo = d.title.trim() || `${({ payslip: 'Busta Paga', cud: 'CUD/CU', other: 'Altro' } as Record<string, string>)[d.type]} - ${MESI_DOC[d.month]} ${d.year}`;
+      const r = await this.caricaDaPercorso(p, { employee_id: eid, type: d.type as 'payslip' | 'cud' | 'other', month: d.month, year: d.year, title: titolo,
+        description: d.description || undefined, original_name: f.originalname, uploaded_by: uid });
+      return r.success ? { success: true, id: r.id! } : { success: false, error: r.error === 'Tipo file non consentito' ? 'Tipo file non consentito' : r.error ?? 'Errore durante il salvataggio del documento' };
+    } finally {
+      fs.rmSync(p, { force: true });
+    }
+  }
+
+  /** Document::delete. Correzione: solo documenti dell'azienda attiva (il PHP eliminava qualsiasi id). */
+  async elimina(id: number, cid: number, ctx: ContestoAudit & { tipo: string; id: number }): Promise<{ success: true } | { success: false; error: string }> {
+    const [d] = await this.ds.query('SELECT * FROM documents WHERE id = $1 AND company_id = $2', [id, cid]);
+    if (!d) return { success: false, error: 'Documento non trovato' };
+    try {
+      await this.ds.query('DELETE FROM documents WHERE id = $1', [id]);
+      const f = fileSicuro(d.file_path);
+      if (f) fs.rmSync(f, { force: true });
+      await this.audit.log('document_deleted', ctx.tipo, ctx.id, ctx, 'document', id, { ...d, file_path: undefined }, null);
+      return { success: true };
+    } catch {
+      return { success: false, error: "Errore durante l'eliminazione" };
+    }
+  }
+
+  /** Cartella di appoggio delle buste in attesa di conferma, per sessione. */
+  cartellaStaging(sessione: string): string {
+    const dir = cartellaStorage('payslip_staging', createHash('sha256').update(sessione).digest('hex').slice(0, 32));
+    fs.mkdirSync(dir, { recursive: true, mode: 0o750 });
+    return dir;
   }
 
   /** Dati della pagina Documenti del dipendente (documents.php + _cora/documents.inc.php). */

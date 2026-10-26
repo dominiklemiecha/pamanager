@@ -66,7 +66,11 @@ def lex_php(src):
             continue
         if c.isdigit() or (c == '.' and i + 1 < n and src[i + 1].isdigit()):
             m = re.compile(r'0x[0-9a-fA-F]+|\d+(?:_\d+)*(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+').match(src, i)
-            toks.append(Tok('num', m.group(0).replace('_', ''), i))
+            num = m.group(0).replace('_', '')
+            # Ottale del PHP (0775) -> 0o775 in JavaScript
+            if re.fullmatch(r'0[0-7]+', num):
+                num = '0o' + num[1:]
+            toks.append(Tok('num', num, i))
             i = m.end()
             continue
         if c.isalpha() or c == '_' or c == '\\':

@@ -13,6 +13,17 @@ import adminDipendenti from '../../php/pagine/admin/employees';
 import adminAssunzioni from '../../php/pagine/admin/hire-requests';
 import staffAcademy from '../../php/pagine/staff/academy';
 import repartoIndex from '../../php/pagine/reparto/index';
+import esterniIndexCommercialista from '../../php/pagine/esterni/index-accountant';
+import esterniIndexConsulente from '../../php/pagine/esterni/index-consulente';
+import esterniDipendenti from '../../php/pagine/esterni/employees';
+import esterniDocumentiDipendente from '../../php/pagine/esterni/employee-documents';
+import esterniDocumenti from '../../php/pagine/esterni/documents';
+import esterniFerieCommercialista from '../../php/pagine/esterni/leave-requests-accountant';
+import esterniFerieConsulente from '../../php/pagine/esterni/leave-requests-consulente';
+import esterniPresenze from '../../php/pagine/esterni/presenze-export';
+import esterniProfiloCommercialista from '../../php/pagine/esterni/profile-accountant';
+import esterniProfiloConsulente from '../../php/pagine/esterni/profile-consulente';
+import esterniAssunzioni from '../../php/pagine/esterni/hire-requests';
 import repartoDipendenti from '../../php/pagine/reparto/employees';
 import repartoFerie from '../../php/pagine/reparto/leave-requests';
 import repartoComunicazioni from '../../php/pagine/reparto/communications';
@@ -102,4 +113,17 @@ export const rotteStaff = [
   pagina('/admin-reparto/academy.php', staffAcademy, { scarica: ['export', 'zip'] }),
   pagina('/admin-reparto/chat.php', staffChat, { scarica: ['download_attachment', 'group_avatar'] }),
   <Route key="admin-reparto/calendar" path="/admin-reparto/calendar.php" element={<CalendarioStaff />} />,
+  ...['/accountant', '/accountant/', '/accountant/index.php'].map((x) => pagina(x, esterniIndexCommercialista)),
+  ...['/consulente-lavoro', '/consulente-lavoro/', '/consulente-lavoro/index.php'].map((x) => pagina(x, esterniIndexConsulente)),
+  ...['/formatore', '/formatore/', '/formatore/index.php'].map((x) => pagina(x, soloRedirect)),
+  ...['accountant', 'consulente-lavoro'].map((a) => pagina(`/${a}/employees.php`, esterniDipendenti)),
+  ...['accountant', 'consulente-lavoro'].map((a) => pagina(`/${a}/employee-documents.php`, esterniDocumentiDipendente, { scarica: ['download'] })),
+  ...['accountant', 'consulente-lavoro'].map((a) => pagina(`/${a}/documents.php`, esterniDocumenti)),
+  pagina('/accountant/leave-requests.php', esterniFerieCommercialista, { scarica: ['download_cert'] }),
+  pagina('/consulente-lavoro/leave-requests.php', esterniFerieConsulente, { scarica: ['download_cert'] }),
+  ...['accountant', 'consulente-lavoro'].map((a) => pagina(`/${a}/presenze-export.php`, esterniPresenze, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } })),
+  pagina('/accountant/profile.php', esterniProfiloCommercialista),
+  pagina('/formatore/profile.php', esterniProfiloCommercialista),
+  pagina('/consulente-lavoro/profile.php', esterniProfiloConsulente),
+  pagina('/consulente-lavoro/hire-requests.php', esterniAssunzioni, { scarica: ['action'] }),
 ];

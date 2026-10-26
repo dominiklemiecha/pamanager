@@ -7,6 +7,8 @@ import { ImpostazioniModule } from '../impostazioni/impostazioni.module';
 import { ChatModule } from '../chat/chat.module';
 import { AnagraficaModule } from '../anagrafica/anagrafica.module';
 import { AssunzioniModule } from '../assunzioni/assunzioni.module';
+import { WrikeModule } from '../wrike/wrike.module';
+import { AssunzioniConsulentePagina, DashboardCommercialistaPagina, DashboardConsulentePagina, DipendentiCommercialistaPagina, DipendentiConsulentePagina, DocumentiCommercialistaPagina, DocumentiConsulentePagina, DocumentiDipendenteCommercialistaPagina, DocumentiDipendenteConsulentePagina, FerieCommercialistaPagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeCommercialistaPagina, PresenzeConsulentePagina, ProfiloCommercialistaPagina, ProfiloConsulentePagina, ProfiloFormatorePagina } from './esterni/esterni.pagina';
 import { ContattiModule } from '../contatti/contatti.module';
 import { PresenzeModule } from '../presenze/presenze.module';
 import { ProfiloModule } from '../profilo/profilo.module';
@@ -37,7 +39,7 @@ import { HeatmapService } from './widget/heatmap.service';
 
 /** Pagine staff portate dal PHP (vedi pagina.ts). */
 @Module({
-  imports: [FerieModule, ProvaModule, AcademyModule, AuthModule, ProfiloModule, UtentiModule, ComunicazioniModule, DocumentiModule, ImpostazioniModule, PresenzeModule, ChatModule, ContattiModule, AnagraficaModule, AssunzioniModule],
+  imports: [FerieModule, ProvaModule, AcademyModule, AuthModule, ProfiloModule, UtentiModule, ComunicazioniModule, DocumentiModule, ImpostazioniModule, PresenzeModule, ChatModule, ContattiModule, AnagraficaModule, AssunzioniModule, WrikeModule],
   controllers: [PagineController, PagineLegacyController],
   providers: [MotorePagine, HeatmapService, DashboardAdminPagina, DecisioneProvaPagina, FerieAdminPagina,
     OrarioLavorativoPagina, TimbratureImpostazioniPagina, BuoniPastoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, ProfiloStaffPagina, PasswordResetPagina,
@@ -46,6 +48,7 @@ import { HeatmapService } from './widget/heatmap.service';
     CommercialistiPagina, ConsulentiPagina, FormatoriPagina,
     ChatAdminPagina, ChatCommercialistaPagina, ChatConsulentePagina, DipendentiPagina, AssunzioniPagina,
     AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina,
-    ChatRepartoPagina, AcademyRepartoPagina, ComunicazioniRepartoPagina, DashboardRepartoPagina, DipendentiRepartoPagina, DocumentiRepartoPagina, FerieRepartoPagina, PasswordRepartoPagina],
+    ChatRepartoPagina, AcademyRepartoPagina, ComunicazioniRepartoPagina, DashboardRepartoPagina, DipendentiRepartoPagina, DocumentiRepartoPagina, FerieRepartoPagina, PasswordRepartoPagina,
+    AssunzioniConsulentePagina, DashboardCommercialistaPagina, DashboardConsulentePagina, DipendentiCommercialistaPagina, DipendentiConsulentePagina, DocumentiCommercialistaPagina, DocumentiConsulentePagina, DocumentiDipendenteCommercialistaPagina, DocumentiDipendenteConsulentePagina, FerieCommercialistaPagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeCommercialistaPagina, PresenzeConsulentePagina, ProfiloCommercialistaPagina, ProfiloConsulentePagina, ProfiloFormatorePagina],
 })
 export class PagineModule {}

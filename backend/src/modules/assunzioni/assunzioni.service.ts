@@ -585,4 +585,129 @@ export class AssunzioniService {
     }
     return { success: true };
   }
+
+  // ─── Lato consulente del lavoro (consulente-lavoro/hire-requests.php) ──────
+
+  /**
+   * Richiesta visibile al consulente. Correzione: solo quelle assegnate a lui
+   * o ancora senza consulente (il PHP apriva qualsiasi richiesta
+   * dell'azienda, anche quelle di un altro consulente); mai le bozze.
+   */
+  async perConsulente(id: number, cid: number, uid: number): Promise<Dati | null> {
+    const [r] = await this.ds.query(
+      `SELECT * FROM hire_requests WHERE id = $1 AND company_id = $2 AND status <> 'draft' AND (assigned_consulente_user_id = $3 OR assigned_consulente_user_id IS NULL)`, [id, cid, uid]);
+    return r ?? null;
+  }
+
+  elencoConsulente(cid: number, uid: number): Promise<Dati[]> {
+    return this.ds.query(
+      `SELECT hr.*, u.name AS created_by_name FROM hire_requests hr LEFT JOIN users u ON u.id = hr.created_by_user_id
+        WHERE hr.company_id = $1 AND hr.status <> 'draft' AND (hr.assigned_consulente_user_id = $2 OR hr.assigned_consulente_user_id IS NULL)
+        ORDER BY hr.created_at DESC, hr.id DESC`, [cid, uid]);
+  }
+
+  /** Admin dell'azienda da avvisare (correzione: non quelli di altre aziende). */
+  private adminAzienda(cid: number) {
+    return this.ds.query(
+      `SELECT u.id FROM users u WHERE u.role = 'admin' AND u.is_active = true AND (u.company_id = $1
+         OR EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = $1)
+         OR (u.company_id IS NULL AND NOT EXISTS (SELECT 1 FROM user_companies uc2 WHERE uc2.user_id = u.id))) ORDER BY u.id`, [cid]);
+  }
+
+  /** File del consulente (prospetti, contratto) controllati prima di salvare. */
+  private controllaFile(lista: FileCaricato[], categoria: string, soloPdf: boolean): string | null {
+    for (const f of lista) {
+      const ext = estensione(f.originalname);
+      if (soloPdf ? ext !== 'pdf' : !ESTENSIONI.includes(ext)) return soloPdf ? 'Il contratto deve essere un PDF' : `Estensione non consentita per ${categoria}: .${ext}`;
+      if (f.size > 20 * 1024 * 1024) return `File ${categoria} troppo grande (max 20MB)`;
+      if (!contenutoCoerente(ext, f.buffer)) return `File ${categoria} non valido: il contenuto non corrisponde al tipo`;
+    }
+    return null;
+  }
+
+  /** Prospetti di assunzione (HireRequest::addProspects). */
+  async aggiungiProspetti(id: number, file: FileCaricato[], nomi: string[], cid: number, uid: number): Promise<{ success: true } | Errore> {
+    const hr = await this.perConsulente(id, cid, uid);
+    if (!hr) return { success: false, error: 'Richiesta non trovata' };
+    if (!['awaiting_prospects', 'prospects_review'].includes(hr.status)) return { success: false, error: 'Non puoi caricare prospetti in questo stato' };
+    const lista = file.filter((f) => f && f.size);
+    if (!lista.length) return { success: false, error: 'Nessun file caricato' };
+    const err = this.controllaFile(lista, 'prospect', false);
+    if (err) return { success: false, error: `Errore upload: ${err}` };
+    const ok = await this.conAllegati(async (m, scritti) => {
+      const dir = cartellaUpload('hire-requests', String(id), 'prospect');
+      fs.mkdirSync(dir, { recursive: true, mode: 0o775 });
+      for (const [i, f] of lista.entries()) {
+        const nome = `${randomBytes(8).toString('hex')}.${estensione(f.originalname)}`;
+        const dest = path.join(dir, nome);
+        fs.writeFileSync(dest, f.buffer, { mode: 0o640 });
+        scritti.push(dest);
+        const visibile = testo(nomi[i]);
+        await m.query(
+          `INSERT INTO hire_request_files (hire_request_id, category, file_path, original_name, display_name, mime_type, file_size, uploaded_by_user_id)
+           VALUES ($1, 'prospect', $2, $3, $4, $5, $6, $7)`,
+          [id, `hire-requests/${id}/prospect/${nome}`, [...f.originalname].slice(0, 255).join(''), visibile === '' ? null : [...visibile].slice(0, 255).join(''),
+            f.mimetype ? f.mimetype.slice(0, 120) : null, f.size, uid]);
+      }
+      if (hr.status !== 'prospects_review') await m.query(`UPDATE hire_requests SET status = 'prospects_review', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+      return true;
+    });
+    if (!ok) return { success: false, error: 'Errore upload' };
+    for (const a of await this.adminAzienda(cid)) {
+      await this.notifiche.crea(cid, {
+        recipient_type: 'admin', recipient_id: a.id, type: 'hire_prospects_uploaded', title: 'Prospetti assunzione da approvare',
+        message: `Il consulente ha caricato i prospetti per ${hr.employee_first_name} ${hr.employee_last_name}`, link: `/admin/hire-requests.php?id=${id}`,
+      }).catch(() => undefined);
+    }
+    await this.wrike.passaggioAssunzione(hr.assigned_consulente_user_id || uid, id,
+      "📎 <b>Prospetti caricati</b> dal consulente: in attesa di approvazione da parte dell'azienda.", false, 'prospects_review');
+    return { success: true };
+  }
+
+  /** Contratto da firmare, sostituisce il precedente (HireRequest::addContract). */
+  async aggiungiContratto(id: number, f: FileCaricato | undefined, cid: number, uid: number,
+    fineProva: (percorso: string, inizio: string | null) => Promise<string | null>, suggerisci: (employeeId: number, fine: string | null) => Promise<void>): Promise<{ success: true } | Errore> {
+    const hr = await this.perConsulente(id, cid, uid);
+    if (!hr) return { success: false, error: 'Richiesta non trovata' };
+    if (hr.status !== 'approved' && hr.status !== 'contract_pending') return { success: false, error: 'Stato non valido per caricare contratto' };
+    if (!f || !f.size || !f.originalname) return { success: false, error: 'File contratto obbligatorio' };
+    const err = this.controllaFile([f], 'contract', true);
+    if (err) return { success: false, error: err };
+    const vecchi = await this.allegati(id, 'contract');
+    const dir = cartellaUpload('hire-requests', String(id), 'contract');
+    fs.mkdirSync(dir, { recursive: true, mode: 0o775 });
+    const dest = path.join(dir, `${randomBytes(8).toString('hex')}.pdf`);
+    const ok = await this.conAllegati(async (m, scritti) => {
+      fs.writeFileSync(dest, f.buffer, { mode: 0o640 });
+      scritti.push(dest);
+      await m.query(`DELETE FROM hire_request_files WHERE hire_request_id = $1 AND category = 'contract'`, [id]);
+      await m.query(
+        `INSERT INTO hire_request_files (hire_request_id, category, file_path, original_name, mime_type, file_size, uploaded_by_user_id)
+         VALUES ($1, 'contract', $2, $3, 'application/pdf', $4, $5)`, [id, `hire-requests/${id}/contract/${path.basename(dest)}`, [...f.originalname].slice(0, 255).join(''), f.size, uid]);
+      await m.query(`UPDATE hire_requests SET status = 'contract_pending', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+      return true;
+    });
+    if (!ok) return { success: false, error: 'Errore upload' };
+    for (const v of vecchi) { const p = this.percorso(v.file_path); if (p) fs.rmSync(p, { force: true }); }
+    // Fine del periodo di prova letta dal contratto, proposta all'HR (mai sopra una data gia' presente)
+    if (hr.employee_id) {
+      try { await suggerisci(hr.employee_id, await fineProva(dest, hr.start_date ?? null)); } catch (e: any) { this.logger.warn(`periodo di prova dal contratto: ${e?.message ?? e}`); }
+    }
+    if (hr.assigned_consulente_user_id) {
+      await this.wrike.passaggioAssunzione(hr.assigned_consulente_user_id, id, '📄 <b>Contratto caricato</b>: in attesa della firma del dipendente.', false, 'contract_pending');
+    }
+    if (hr.employee_id) {
+      await this.notifiche.crea(cid, {
+        recipient_type: 'employee', recipient_id: hr.employee_id, type: 'contract_to_sign', title: 'Contratto da firmare',
+        message: "Il tuo contratto e' pronto. Aprilo e firmalo dal portale.", link: `/employee/contract-sign.php?id=${id}`,
+      }).catch(() => undefined);
+    }
+    for (const a of await this.adminAzienda(cid)) {
+      await this.notifiche.crea(cid, {
+        recipient_type: 'admin', recipient_id: a.id, type: 'contract_uploaded', title: 'Contratto caricato',
+        message: `Il consulente ha caricato il contratto per ${hr.employee_first_name} ${hr.employee_last_name}. In attesa firma dipendente.`, link: `/admin/hire-requests.php?id=${id}`,
+      }).catch(() => undefined);
+    }
+    return { success: true };
+  }
 }

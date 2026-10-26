@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createDecipheriv, createHash } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import * as fs from 'fs';
 import { DataSource } from 'typeorm';
 import { senzaIsolamento } from '../../common/database/isolamento';
@@ -39,6 +39,81 @@ export class WrikeService {
     } catch {
       return null;
     }
+  }
+
+  cifra(testo: string): string {
+    const iv = randomBytes(12);
+    const c = createCipheriv('aes-256-gcm', this.chiave(), iv);
+    const ct = Buffer.concat([c.update(testo, 'utf8'), c.final()]);
+    return 'gcm:' + Buffer.concat([iv, c.getAuthTag(), ct]).toString('base64');
+  }
+
+  /**
+   * Collega l'account Wrike del consulente (Wrike::connect): il token si
+   * prova sui datacenter e si salva cifrato. Correzione: l'errore del
+   * database non esce al browser.
+   */
+  async collega(userId: number, token: string): Promise<{ success: true } | { success: false; error: string }> {
+    const t = token.trim();
+    if (t === '') return { success: false, error: 'Token mancante' };
+    if (t.length < 20) return { success: false, error: 'Il token sembra troppo corto: copia il "Permanent access token" completo' };
+    let trovato: { host: string; account_name: string; me_id: string | null } | null = null;
+    let errore = 'Token non valido';
+    for (const host of HOSTS) {
+      try {
+        const r = await this.api(t, host, 'GET', '/contacts', { me: 'true' });
+        const c = r?.data?.[0];
+        if (c) { trovato = { host, account_name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(), me_id: c.id ?? null }; break; }
+      } catch (e: any) {
+        errore = String(e?.message ?? e);
+      }
+    }
+    if (!trovato) return { success: false, error: `Connessione fallita: ${errore}` };
+    const esistente = await this.perUtente(userId);
+    const config: Record<string, any> = { ...(esistente?.config ?? {}), host: trovato.host, account_name: trovato.account_name, me_id: trovato.me_id };
+    if (config.on_hire === undefined) config.on_hire = 1;
+    if (config.on_chat === undefined) config.on_chat = 0;
+    try {
+      await senzaIsolamento(() => esistente
+        ? this.ds.query(`UPDATE user_integrations SET access_token = $2, config = $3, is_active = true, last_error = NULL, last_success_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [esistente.id, this.cifra(t), JSON.stringify(config)])
+        : this.ds.query(`INSERT INTO user_integrations (user_id, provider, access_token, config, is_active, last_error, last_success_at) VALUES ($1, 'wrike', $2, $3, true, NULL, CURRENT_TIMESTAMP)`,
+          [userId, this.cifra(t), JSON.stringify(config)]));
+    } catch (e: any) {
+      this.logger.error(`salvataggio integrazione Wrike: ${e?.message ?? e}`);
+      return { success: false, error: 'Errore salvataggio' };
+    }
+    return { success: true };
+  }
+
+  async scollega(userId: number): Promise<void> {
+    await senzaIsolamento(() => this.ds.query(`DELETE FROM user_integrations WHERE user_id = $1 AND provider = 'wrike'`, [userId])).catch(() => undefined);
+  }
+
+  /** Cartelle dove creare le attivita' (Wrike::getFolders). */
+  async cartelle(userId: number): Promise<Array<{ id: string; title: string }>> {
+    const i = await this.perUtente(userId);
+    if (!i || !i.token) return [];
+    try {
+      const r = await this.api(i.token, this.host(i), 'GET', '/folders');
+      const out: Array<{ id: string; title: string }> = [];
+      for (const f of r?.data ?? []) {
+        if (f.scope === 'WsRoot') out.push({ id: f.id, title: '(Radice account)' });
+        else if (f.scope === 'WsFolder') out.push({ id: f.id, title: f.title ?? f.id });
+      }
+      return out;
+    } catch (e: any) {
+      await this.segnaErrore(userId, String(e?.message ?? e));
+      return [];
+    }
+  }
+
+  async impostazioni(userId: number, cartella: string | null, nomeCartella: string | null, assunzioni: boolean, chat: boolean): Promise<{ success: true } | { success: false; error: string }> {
+    const i = await this.perUtente(userId);
+    if (!i) return { success: false, error: 'Integrazione non configurata' };
+    const config = { ...i.config, folder_id: cartella || null, folder_name: nomeCartella || null, on_hire: assunzioni ? 1 : 0, on_chat: chat ? 1 : 0 };
+    await senzaIsolamento(() => this.ds.query('UPDATE user_integrations SET config = $2 WHERE id = $1', [i.id, JSON.stringify(config)]));
+    return { success: true };
   }
 
   async perUtente(userId: number): Promise<Integrazione | null> {
