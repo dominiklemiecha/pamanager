@@ -63,6 +63,23 @@ describe('API a token per il CRM', () => {
     postgres(`UPDATE users SET mfa_enabled = false WHERE username = 'studio.commercialista'`);
     expect(b.status).toBe(403);
   });
+
+  it('correzione: rinnovo e presenze col ruolo attuale, rinnovo limitato a 24 ore', async () => {
+    const t = (await login(NODE_URL, 'studio.commercialista')).corpo.token;
+    const rinnova = (tok: string) => json(NODE_URL, '/api/auth.php', { method: 'POST', body: JSON.stringify({ action: 'refresh' }), headers: { Authorization: `Bearer ${tok}` } });
+    const r = await rinnova(t);
+    expect(r.status).toBe(200);
+    const corpo = (tok: string) => JSON.parse(Buffer.from(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+    expect(corpo(r.corpo.token).orig_iat).toBe(corpo(t).iat);
+    const ruolo = postgres(`SELECT role FROM users WHERE username = 'studio.commercialista'`)[0].role;
+    postgres(`UPDATE users SET role = 'formatore' WHERE username = 'studio.commercialista'`);
+    try {
+      expect((await json(NODE_URL, '/api/attendance.php', { headers: { Authorization: `Bearer ${r.corpo.token}` } })).status).toBe(403);
+      expect((await rinnova(r.corpo.token)).status).toBe(403);
+    } finally {
+      postgres(`UPDATE users SET role = '${ruolo}' WHERE username = 'studio.commercialista'`);
+    }
+  });
 });
 
 describe('porta NFC', () => {
@@ -100,6 +117,18 @@ describe('timbratura da carta', () => {
     const carta = await n.b.chiama('/punch.php?c=beta');
     const cartaPhp = await p.b.chiama('/punch.php?c=beta');
     expect(err(carta.testo)).toBe(err(cartaPhp.testo));
+  });
+
+  it('correzione: senza carta niente timbratura; da un altro sito serve la conferma', async () => {
+    const n = await nodeEntra('sara.montanari');
+    const conta = () => Number(postgres(`SELECT COUNT(*) AS n FROM attendance_punches p JOIN employees e ON e.id = p.employee_id WHERE e.first_name = 'Sara'`)[0].n);
+    const prima = conta();
+    const vuota = await n.b.chiama('/punch.php');
+    expect(vuota.testo).toContain('Carta non valida per la tua azienda.');
+    const esterno = await n.b.chiama('/punch.php?c=alfa', { header: { 'Sec-Fetch-Site': 'cross-site' } });
+    expect(esterno.testo).toContain('Confermi la timbratura?');
+    expect(esterno.testo).toContain('href="/punch.php?c=alfa"');
+    expect(conta()).toBe(prima);
   });
 
   it('senza accesso: al login con ritorno alla timbratura', async () => {

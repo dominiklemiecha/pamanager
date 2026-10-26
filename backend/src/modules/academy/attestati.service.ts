@@ -13,6 +13,7 @@ import { cartellaStorage, urlPubblico } from '../../config/app';
 import { ETICHETTE_EVENTI as ETICHETTE_EVENTI_PUBBLICHE } from './academy-staff.service';
 import { AcademyService, Attore } from './academy.service';
 import JSZip = require('jszip');
+import sanitizeHtml = require('sanitize-html');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp: (input?: any) => any = require('sharp');
 
@@ -31,11 +32,42 @@ const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 const taglia = (s: string, n: number) => [...s].slice(0, n).join('');
 const NAVY = '#0b3aa4';
 
-/** strip_tags con i tag ammessi e senza attributi evento/link (AcademyCertificate::cleanHtml). */
+const COLORE_CSS = [/^#[0-9a-f]{3,6}$/i, /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i];
+const STILI_TESTO = {
+  color: COLORE_CSS,
+  'font-weight': [/^(normal|bold|[1-9]00)$/i],
+  'font-style': [/^(normal|italic)$/i],
+  'text-decoration': [/^[a-z -]+$/i],
+  'text-decoration-line': [/^[a-z -]+$/i],
+  'font-size': [/^\d+(\.\d+)?(px|pt|em|%)$/i],
+  'text-align': [/^(left|center|right|justify)$/i],
+};
+
+/**
+ * Tag ammessi del testo dell'attestato (AcademyCertificate::cleanHtml).
+ * Correzione: il PHP (e il primo porting) toglievano gli attributi evento con
+ * una regex che pretendeva uno spazio prima: <div/onfocus=...> passava e
+ * l'editor dei modelli lo eseguiva all'HR. Qui solo stili di testo e i
+ * colori di <font>, nessun altro attributo.
+ */
 export function pulisciHtml(html: string): string {
-  let h = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<\/?([a-zA-Z0-9]+)\b[^>]*>/g, (t, nome: string) => (TAG_AMMESSI.includes(nome.toLowerCase()) ? t : ''));
-  h = h.replace(/\s(on\w+|href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  return h.replace(/javascript:/gi, '');
+  return sanitizeHtml(html, {
+    allowedTags: TAG_AMMESSI,
+    allowedAttributes: { span: ['style'], div: ['style'], p: ['style'], font: ['color', 'size', 'face'] },
+    allowedStyles: { '*': STILI_TESTO },
+    disallowedTagsMode: 'discard',
+    nonTextTags: ['script', 'style', 'textarea', 'option', 'noscript', 'title', 'template', 'iframe', 'object'],
+    allowedSchemes: [],
+    transformTags: {
+      font: (tag, a) => {
+        const attribs: sanitizeHtml.Attributes = {};
+        if (a.color && COLORE_CSS.some((r) => r.test(a.color))) attribs.color = a.color;
+        if (a.size && /^[1-7]$/.test(a.size)) attribs.size = a.size;
+        if (a.face && /^[\w ,'-]{1,60}$/.test(a.face)) attribs.face = a.face;
+        return { tagName: tag, attribs };
+      },
+    },
+  });
 }
 
 /** Solo campi noti e HTML dei testi ridotto ai tag ammessi (sanitizeLayout). */
@@ -55,6 +87,13 @@ export function pulisciLayout(layout: unknown[]): Elemento[] {
     locked: !!el.locked && el.locked !== '0',
     visible: !('visible' in el) || (!!el.visible && el.visible !== '0'),
   }));
+}
+
+/** Layout salvato -> layout ripulito per l'editor (anche i modelli arrivati dal PHP). */
+export function layoutSicuro(json: string | null | undefined): string {
+  let layout: unknown;
+  try { layout = JSON.parse(String(json ?? '[]')); } catch { return '[]'; }
+  return JSON.stringify(layout && typeof layout === 'object' ? pulisciLayout(Object.values(layout)) : []);
 }
 
 /** Nome del file di un'immagine caricata nell'Academy (niente indirizzi esterni). */
@@ -144,10 +183,11 @@ export class AttestatiService {
   private readonly logger = new Logger('Attestati');
   constructor(private readonly ds: DataSource, private readonly academy: AcademyService) {}
 
-  modelli(cid: number) {
-    return this.ds.query(
+  async modelli(cid: number) {
+    const righe = await this.ds.query(
       `SELECT t.*, (SELECT COUNT(*) FROM academy_courses c WHERE c.certificate_template_id = t.id)::int AS course_count
          FROM academy_certificate_templates t WHERE t.company_id = $1 ORDER BY t.name, t.id`, [cid]);
+    return righe.map((t: any) => ({ ...t, layout_json: layoutSicuro(t.layout_json) }));
   }
 
   async modello(id: number, cid: number) {

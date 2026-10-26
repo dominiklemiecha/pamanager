@@ -120,6 +120,10 @@ describe('dettaglio del reparto', () => {
     const b = await phpPost(p, pag(mariadb), { action: 'remove_admin', user_id: uid(mariadb) });
     expect(await nodePost(n, api(postgres), { action: 'remove_admin', user_id: uid(postgres) })).toEqual({ redirect: b.redirect!.replace(/id=\d+/, `id=${rep(postgres, 'Commerciale')}`) });
     expect(utente(postgres)).toEqual(utente(mariadb));
+    // Correzione: il PHP lasciava l'account attivo da commercialista (accesso a tutta l'azienda)
+    expect(mariadb(`SELECT is_active FROM users WHERE username = 'resp.nuovo'`)[0].is_active).toBe('1');
+    expect(postgres(`SELECT is_active FROM users WHERE username = 'resp.nuovo'`)[0].is_active).toBe('f');
+    expect((await new Node().login('resp.nuovo', 'Responsabile!2026')).esito).not.toBe('ok');
   });
 
   it('correzione: password sotto la politica comune e utenti di altri non toccabili', async () => {

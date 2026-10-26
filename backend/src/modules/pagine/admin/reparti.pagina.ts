@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { senzaIsolamento } from '../../../common/database/isolamento';
 import { AuditService } from '../../audit/audit.service';
+import { SessioniService } from '../../auth/sessioni.service';
 import { UtentiService } from '../../utenti/utenti.service';
 import { ContestoPagina, PaginaPhp, Pagina, redirect, vista } from '../pagina';
 
@@ -11,7 +12,7 @@ type Ctx = ContestoPagina['audit'];
 /** Reparti dell'azienda (Department.php): ogni operazione resta nell'azienda attiva. */
 @Injectable()
 export class RepartiService {
-  constructor(private readonly ds: DataSource, private readonly audit: AuditService) {}
+  constructor(private readonly ds: DataSource, private readonly audit: AuditService, private readonly sessioni: SessioniService) {}
 
   elenco(cid: number, soloAttivi = true) {
     return this.ds.query(
@@ -110,8 +111,11 @@ export class RepartiService {
 
   /**
    * Department::removeAdmin: il responsabile torna senza reparto (ruolo
-   * "accountant", come nel PHP). Correzione: solo un responsabile di questo
-   * reparto (il PHP cambiava il ruolo di qualsiasi utente, anche di altre aziende).
+   * "accountant", come nel PHP). Correzioni: solo un responsabile di questo
+   * reparto (il PHP cambiava il ruolo di qualsiasi utente, anche di altre
+   * aziende); l'account viene disattivato e le sue sessioni chiuse, perche'
+   * da commercialista vedrebbe buste paga e certificati di tutta l'azienda
+   * invece del solo reparto. L'HR puo' riattivarlo dagli utenti esterni.
    */
   async rimuoviResponsabile(userId: number, repartoId: number, cid: number, ctx: Ctx): Promise<Esito> {
     const [u] = await senzaIsolamento(() => this.ds.query(
@@ -119,7 +123,8 @@ export class RepartiService {
         WHERE u.id = $1 AND u.role = 'admin_reparto' AND u.department_id = $2 AND d.company_id = $3`, [userId, repartoId, cid]));
     if (!u) return { success: false, error: 'Utente non trovato' };
     try {
-      await senzaIsolamento(() => this.ds.query(`UPDATE users SET role = 'accountant', department_id = NULL WHERE id = $1`, [userId]));
+      await senzaIsolamento(() => this.ds.query(`UPDATE users SET role = 'accountant', department_id = NULL, is_active = false WHERE id = $1`, [userId]));
+      await this.sessioni.chiudiTutte('user', userId, 'accesso_revocato');
       await this.audit.log('admin_removed', ctx.tipo, ctx.id, ctx, 'department', u.department_id ?? 0, null, { user_id: userId, user_name: u.name });
       return { success: true };
     } catch {

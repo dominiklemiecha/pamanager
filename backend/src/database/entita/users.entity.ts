@@ -51,6 +51,9 @@ export class Users {
   @Column({ name: 'is_active', type: 'boolean', nullable: true })
   isActive!: boolean | null;
 
+  @Column({ name: 'is_global', type: 'boolean', default: false })
+  isGlobal!: boolean;
+
   @Column({ name: 'created_at', type: 'timestamptz', nullable: true })
   createdAt!: Date | null;
 

@@ -41,7 +41,7 @@ export class SuperadminController {
   constructor(private readonly sa: SuperadminService, private readonly ds: DataSource, private readonly limiti: LimitiDbService) {}
 
   private token(req: RichiestaAutenticata) { return req.cookies?.[COOKIE] as string | undefined; }
-  private imposta(res: Response, t: string) { res.cookie(COOKIE, t, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' }); }
+  private imposta(res: Response, t: string) { res.cookie(COOKIE, t, { httpOnly: true, sameSite: 'strict', secure: !['development', 'test'].includes(String(process.env.APP_ENV ?? '').toLowerCase()), path: '/' }); }
   private richiedi(req: RichiestaAutenticata) {
     if (!this.sa.configurato()) throw new HttpException({ statusCode: 503, message: 'Superadmin non configurato.' }, 503);
     if (this.sa.fase(this.token(req)) !== 'completa') throw new HttpException({ statusCode: 401, message: 'Accesso richiesto', fase: this.sa.fase(this.token(req)) ?? 'nessuna' }, 401);

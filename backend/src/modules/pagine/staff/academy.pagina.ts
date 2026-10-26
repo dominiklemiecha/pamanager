@@ -5,7 +5,7 @@ import { senzaIsolamento } from '../../../common/database/isolamento';
 import type { FileCaricato } from '../../../common/file/caricamenti';
 import { AcademyStaffService, MATERIALE_MAX } from '../../academy/academy-staff.service';
 import { Attore } from '../../academy/academy.service';
-import { AttestatiService, layoutPredefinito } from '../../academy/attestati.service';
+import { AttestatiService, layoutPredefinito, layoutSicuro } from '../../academy/attestati.service';
 import { ContestoPagina, EsitoPagina, filePagina, json, Pagina, PaginaPhp, redirect, vista } from '../pagina';
 
 const AREE: Record<string, string> = { admin: 'admin', consulente_lavoro: 'consulente-lavoro', admin_reparto: 'admin-reparto', formatore: 'formatore' };
@@ -271,7 +271,7 @@ export abstract class ModelliAttestatoPagina implements Pagina {
     return vista('Modelli attestato', {
       __role: c.u.ruolo, area: AREE[c.u.ruolo] ?? 'admin', self: this.self(c), _GET: { ...q, ok: undefined, err: undefined },
       okMessage: ammesso(String(c.query.ok ?? ''), OK_MODELLI), errMessage: o.errore ?? '', edit, editMode,
-      layoutJson: edit ? (edit.layout_json || '[]') : JSON.stringify(layoutPredefinito()), orientation: edit?.orientation ?? 'landscape', previewSets: anteprime,
+      layoutJson: edit ? layoutSicuro(edit.layout_json) : JSON.stringify(layoutPredefinito()), orientation: edit?.orientation ?? 'landscape', previewSets: anteprime,
       __templates: await this.attestati.modelli(cid), __sampleValues: esempio, __defaultLayout: layoutPredefinito(), __companyName: az?.name ?? '',
     });
   }

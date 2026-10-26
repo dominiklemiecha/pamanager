@@ -15,6 +15,15 @@ function totp(segreto: string) {
   return String((h.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, '0');
 }
 
+/** Ogni codice vale una volta sola: si aspetta il successivo se e' gia' stato usato. */
+const usati = new Set<string>();
+async function codiceNuovo() {
+  let c = totp(SEGRETO);
+  while (usati.has(c)) { await new Promise((r) => setTimeout(r, 1000)); c = totp(SEGRETO); }
+  usati.add(c);
+  return c;
+}
+
 /** Client con cookie e CSRF per le rotte /api/v1/superadmin. */
 class Sa {
   cookie = new Map<string, string>();
@@ -33,7 +42,7 @@ class Sa {
   }
   async entra() {
     await this.chiama('POST', '/api/v1/superadmin/login', { username: 'sa.prova', password: 'Prova!Cora2026' });
-    return this.chiama('POST', '/api/v1/superadmin/totp', { code: totp(SEGRETO) });
+    return this.chiama('POST', '/api/v1/superadmin/totp', { code: await codiceNuovo() });
   }
 }
 
@@ -46,10 +55,15 @@ describe('accesso', () => {
     expect((await s.chiama('POST', '/api/v1/superadmin/login', { username: 'sa.prova', password: 'Prova!Cora2026' })).j).toEqual({ ok: true, fase: 'password' });
     expect((await s.chiama('GET', '/api/v1/superadmin/tenant')).status).toBe(401);
     expect((await s.chiama('POST', '/api/v1/superadmin/totp', { code: '000000' })).j.ok).toBe(false);
-    expect((await s.chiama('POST', '/api/v1/superadmin/totp', { code: totp(SEGRETO) })).j).toEqual({ ok: true, fase: 'completa' });
+    const codice = await codiceNuovo();
+    expect((await s.chiama('POST', '/api/v1/superadmin/totp', { code: codice })).j).toEqual({ ok: true, fase: 'completa' });
     expect((await s.chiama('GET', '/api/v1/superadmin/tenant')).status).toBe(200);
     await s.chiama('POST', '/api/v1/superadmin/esci');
     expect((await s.chiama('GET', '/api/v1/superadmin/tenant')).status).toBe(401);
+    // Correzione: lo stesso codice non vale una seconda volta (il PHP lo riaccettava per 90 secondi).
+    const altra = new Sa();
+    await altra.chiama('POST', '/api/v1/superadmin/login', { username: 'sa.prova', password: 'Prova!Cora2026' });
+    expect((await altra.chiama('POST', '/api/v1/superadmin/totp', { code: codice })).j.ok).toBe(false);
   });
 
   it('un utente normale non entra nel pannello', async () => {

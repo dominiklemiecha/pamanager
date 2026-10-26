@@ -8,7 +8,9 @@ const RUOLI_CAMBIO = ['admin', 'accountant', 'consulente_lavoro'];
 
 /**
  * Aziende accessibili allo staff, come Tenant.php:
- *  - admin globale "vero" (company_id NULL e nessuna riga in user_companies): tutte le attive;
+ *  - admin globale (users.is_global): tutte le attive. Correzione: il PHP lo
+ *    deduceva da company_id NULL e nessuna riga in user_companies, quindi un
+ *    admin rimasto senza aziende diventava admin di tutte;
  *  - admin, commercialista, consulente: azienda dell'account + quelle di user_companies;
  *  - responsabile di reparto e formatore: solo l'azienda dell'account.
  * I dipendenti non passano di qui: la loro azienda e' quella della scheda.
@@ -19,8 +21,8 @@ export class TenantService {
 
   async adminGlobale(u: Account): Promise<boolean> {
     if (u.role !== 'admin' || u.companyId !== null) return false;
-    const [r] = await senzaIsolamento(() => this.ds.query('SELECT COUNT(*)::int AS n FROM user_companies WHERE user_id = $1', [u.id]));
-    return r.n === 0;
+    const [r] = await senzaIsolamento(() => this.ds.query('SELECT is_global FROM users WHERE id = $1', [u.id]));
+    return r?.is_global === true;
   }
 
   async accessibili(u: Account): Promise<number[]> {

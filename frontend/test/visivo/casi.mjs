@@ -30,6 +30,16 @@ function totp(segreto) {
   const o = h[h.length - 1] & 15;
   return String((h.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, '0');
 }
+/** Il backend accetta ogni codice una volta sola: per ogni sistema si aspetta quello successivo. */
+const codiciUsati = new Map();
+async function codiceNuovo(base) {
+  const usati = codiciUsati.get(base) ?? new Set();
+  let c = totp('JBSWY3DPEHPK3PXP');
+  while (usati.has(c)) { await new Promise((r) => setTimeout(r, 1000)); c = totp('JBSWY3DPEHPK3PXP'); }
+  usati.add(c);
+  codiciUsati.set(base, usati);
+  return c;
+}
 /** Superadmin di prova: password, poi codice. */
 async function entraSa(page, base) {
   await page.goto(base + '/superadmin/login.php');
@@ -38,7 +48,7 @@ async function entraSa(page, base) {
   await page.fill('input[name=password]', PW);
   await Promise.all([page.waitForURL(/totp\.php/), page.click('button')]);
   await page.waitForSelector('input[name=code]');
-  await page.fill('input[name=code]', totp('JBSWY3DPEHPK3PXP'));
+  await page.fill('input[name=code]', await codiceNuovo(base));
   await Promise.all([page.waitForURL(/index\.php/), page.click('button')]);
   await page.waitForLoadState('networkidle');
 }

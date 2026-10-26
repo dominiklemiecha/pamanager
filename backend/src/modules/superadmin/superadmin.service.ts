@@ -78,9 +78,17 @@ export class SuperadminService {
     return false;
   }
 
+  /** Codici gia' accettati: ognuno vale una volta sola nella sua finestra di 90 secondi. */
+  private readonly codiciUsati = new Map<string, number>();
+
   controllaCodice(codice: string): boolean {
     const s = this.valori('SUPERADMIN_TOTP_SECRET')[0];
-    return !!s && verificaTotp(s, codice.replace(/\s+/g, ''));
+    const c = codice.replace(/\s+/g, '');
+    const ora = Date.now();
+    for (const [k, scade] of this.codiciUsati) if (scade < ora) this.codiciUsati.delete(k);
+    if (!s || this.codiciUsati.has(c) || !verificaTotp(s, c)) return false;
+    this.codiciUsati.set(c, ora + 90_000);
+    return true;
   }
 
   // ─── Sessione (cookie dedicato, solo impronta nel server) ─────────────────
@@ -107,17 +115,17 @@ export class SuperadminService {
 
   private q(sql: string, p: unknown[] = []) { return senzaIsolamento(() => this.ds.query(sql, p)); }
 
-  private async aziendeAdmin(userId: number, principale: number | null) {
+  private async aziendeAdmin(userId: number, principale: number | null, globale: boolean) {
     const collegate: number[] = (await this.q('SELECT company_id FROM user_companies WHERE user_id = $1', [userId])).map((r: any) => r.company_id);
-    if (principale === null && !collegate.length) return this.q('SELECT id, name, is_active FROM companies ORDER BY name, id');
+    if (globale) return this.q('SELECT id, name, is_active FROM companies ORDER BY name, id');
     const ids = [...new Set([...(principale !== null ? [principale] : []), ...collegate.filter((x) => x > 0)])];
     return ids.length ? this.q('SELECT id, name, is_active FROM companies WHERE id = ANY($1::int[]) ORDER BY name, id', [ids]) : [];
   }
 
   async elencoAdmin() {
-    const admin = await this.q(`SELECT id, username, name, email, company_id, is_active, last_login, created_at FROM users WHERE role = 'admin' ORDER BY created_at DESC, id DESC`);
+    const admin = await this.q(`SELECT id, username, name, email, company_id, is_global, is_active, last_login, created_at FROM users WHERE role = 'admin' ORDER BY created_at DESC, id DESC`);
     for (const a of admin) {
-      a.companies = await this.aziendeAdmin(a.id, a.company_id);
+      a.companies = await this.aziendeAdmin(a.id, a.company_id, a.is_global === true);
       const ids = a.companies.map((c: any) => c.id);
       a.employees_count = ids.length ? (await this.q('SELECT COUNT(*)::int AS n FROM employees WHERE is_active = true AND company_id = ANY($1::int[])', [ids]))[0].n : 0;
     }
@@ -186,7 +194,7 @@ export class SuperadminService {
   async stato(userId: number, attivo: boolean): Promise<Esito> {
     const [u] = await this.q(`SELECT id, company_id FROM users WHERE id = $1 AND role = 'admin'`, [userId]);
     if (!u) return { success: false, error: 'Admin non trovato' };
-    const aziende = await this.aziendeAdmin(userId, u.company_id);
+    const aziende = await this.aziendeAdmin(userId, u.company_id, false);
     await senzaIsolamento(() => this.ds.transaction(async (m) => {
       await m.query('UPDATE users SET is_active = $2 WHERE id = $1', [userId, attivo]);
       for (const c of aziende) await m.query('UPDATE companies SET is_active = $2 WHERE id = $1', [c.id, attivo]);
@@ -196,11 +204,10 @@ export class SuperadminService {
   }
 
   async elimina(userId: number): Promise<Esito> {
-    const [u] = await this.q(`SELECT id, company_id FROM users WHERE id = $1 AND role = 'admin'`, [userId]);
+    const [u] = await this.q(`SELECT id, company_id, is_global FROM users WHERE id = $1 AND role = 'admin'`, [userId]);
     if (!u) return { success: false, error: 'Admin non trovato' };
-    const collegate = await this.q('SELECT 1 FROM user_companies WHERE user_id = $1 LIMIT 1', [userId]);
-    if (u.company_id === null && !collegate.length) return { success: false, error: "Admin globale: assegnagli prima le aziende da eliminare (altrimenti verrebbero eliminate tutte)" };
-    const aziende = await this.aziendeAdmin(userId, u.company_id);
+    if (u.is_global) return { success: false, error: "Admin globale: assegnagli prima le aziende da eliminare (altrimenti verrebbero eliminate tutte)" };
+    const aziende = await this.aziendeAdmin(userId, u.company_id, false);
     try {
       await senzaIsolamento(() => this.ds.transaction(async (m) => {
         for (const c of aziende) {

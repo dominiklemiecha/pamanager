@@ -21,8 +21,9 @@ export class StaffController {
   @Post('lascia-azienda')
   @HttpCode(200)
   @Ruoli('accountant', 'consulente_lavoro')
-  async lascia(@Body() b: { company_id?: number }, @Req() req: RichiestaAutenticata, @Utente() u: UtenteCorrente) {
-    const cid = Number(b?.company_id) || 0;
+  async lascia(@Body() b: { azienda?: number }, @Req() req: RichiestaAutenticata, @Utente() u: UtenteCorrente) {
+    // "azienda", non company_id: bodyGuard toglie sempre company_id dai corpi.
+    const cid = Number(b?.azienda) || 0;
     if (cid <= 0) throw new HttpException({ statusCode: 400, message: 'Azienda non valida' }, 400);
     const ids: number[] = (await senzaIsolamento(() => this.ds.query('SELECT company_id FROM user_companies WHERE user_id = $1', [u.id]))).map((r: any) => r.company_id);
     if (!ids.includes(cid)) throw new HttpException({ statusCode: 400, message: 'Non sei collegato a questa azienda' }, 400);

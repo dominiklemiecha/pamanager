@@ -4,7 +4,7 @@ import { senzaIsolamento } from '../../../common/database/isolamento';
 import type { FileCaricato } from '../../../common/file/caricamenti';
 import { PasswordService } from '../../auth/password.service';
 import { ProfiloService } from '../../profilo/profilo.service';
-import { schedeConfigurazione } from '../comune';
+import { schedeConfigurazione, emailStaffOccupata } from '../comune';
 import { ContestoPagina, PaginaPhp, Pagina, redirect, vista } from '../pagina';
 
 const MESSAGGI: Record<string, string> = {
@@ -35,6 +35,7 @@ export class ProfiloStaffPagina implements Pagina {
         if (nome === '') return this.dati(c, 'Nome obbligatorio');
         if (email !== '' && (!EMAIL.test(email) || email.length > 100)) return this.dati(c, 'Email non valida');
         if (nome.length > 100) return this.dati(c, 'Nome troppo lungo (max 100 caratteri)');
+        if (await emailStaffOccupata(this.ds, email, id)) return this.dati(c, 'Email gia in uso da un altro account');
         await senzaIsolamento(() => this.ds.query('UPDATE users SET name = $2, email = $3 WHERE id = $1', [id, nome, email || null]));
         return redirect('/admin/profile.php?message=updated');
       }

@@ -69,7 +69,14 @@ describe('pagina', () => {
     const b = (await n.get('/chat')).json;
     expect(a).toBeTruthy();
     for (const k of ['me', 'open', 'editMinutes']) expect(b[k]).toEqual(a[k]);
-    expect(b.conversations).toEqual(a.conversations);
+    // Correzione: il PHP imposta MySQL sull'offset di oggi (Database.php), quindi
+    // dopo un cambio d'ora sbaglia di un'ora i messaggi scritti prima del cambio
+    const senzaOra = (cs: any[]) => cs.map((c) => ({ ...c, lastMessageAt: undefined }));
+    expect(senzaOra(b.conversations)).toEqual(senzaOra(a.conversations));
+    b.conversations.forEach((c: any, i: number) => {
+      const scarto = Math.abs(Date.parse(c.lastMessageAt) - Date.parse(a.conversations[i].lastMessageAt));
+      expect([0, 3600000]).toContain(Number.isNaN(scarto) ? 0 : scarto);
+    });
     expect(b.contacts).toEqual(a.contacts);
   });
 

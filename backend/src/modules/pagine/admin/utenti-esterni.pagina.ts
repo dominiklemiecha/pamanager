@@ -63,7 +63,16 @@ abstract class UtentiEsterniPagina implements Pagina {
     return (await this.elenco(c, accessibili)).find((u: any) => u.id === id) ?? null;
   }
 
-  private ospite(u: { company_id: number | null }, accessibili: number[]) { return !!u.company_id && !accessibili.includes(u.company_id); }
+  /**
+   * Utente che appartiene anche ad aziende fuori dalla portata dell'admin:
+   * dati, password e stato non si toccano. Correzione: il PHP guardava solo
+   * l'azienda principale, cosi' il tenant proprietario poteva reimpostare la
+   * password di un consulente collegato ad altri tenant ed entrare nei loro dati.
+   */
+  private async ospite(u: { id: number; company_id: number | null }, accessibili: number[]): Promise<boolean> {
+    if (u.company_id && !accessibili.includes(u.company_id)) return true;
+    return (await this.collegamenti(u.id)).some((x) => !accessibili.includes(x));
+  }
 
   private async collegamenti(id: number): Promise<number[]> {
     return (await this.q('SELECT company_id FROM user_companies WHERE user_id = $1 ORDER BY company_id', [id])).map((r: any) => r.company_id);
@@ -127,7 +136,7 @@ abstract class UtentiEsterniPagina implements Pagina {
         if (!id) break;
         const u = await this.bersaglio(c, id, accessibili);
         if (!u) return this.dati(c, { azione: 'list', errore: 'Utente non trovato' });
-        if (this.ospite(u, accessibili)) {
+        if (await this.ospite(u, accessibili)) {
           if (MULTI_COMPANY) await this.collega(id, lista(corpo['company_ids[]'] ?? corpo.company_ids), accessibili);
           return redirect(`${base}?message=updated`);
         }
@@ -140,7 +149,7 @@ abstract class UtentiEsterniPagina implements Pagina {
         if (!id) break;
         const u = await this.bersaglio(c, id, accessibili);
         if (!u) return this.dati(c, { errore: 'Utente non trovato' });
-        if (this.ospite(u, accessibili)) return this.dati(c, { errore: `Non puoi eliminare un ${minuscolo} condiviso da un altro tenant. Usa "Rimuovi dalle mie aziende".` });
+        if (await this.ospite(u, accessibili)) return this.dati(c, { errore: `Non puoi eliminare un ${minuscolo} condiviso da un altro tenant. Usa "Rimuovi dalle mie aziende".` });
         try {
           await this.q('DELETE FROM users WHERE id = $1', [id]);
         } catch {
@@ -153,7 +162,7 @@ abstract class UtentiEsterniPagina implements Pagina {
         if (!id) break;
         const u = await this.bersaglio(c, id, accessibili);
         if (!u) return this.dati(c, { errore: 'Utente non trovato' });
-        if (this.ospite(u, accessibili)) return this.dati(c, { errore: `Non puoi resettare la password di un ${minuscolo} condiviso.` });
+        if (await this.ospite(u, accessibili)) return this.dati(c, { errore: `Non puoi resettare la password di un ${minuscolo} condiviso.` });
         const password = passwordTemporanea(12);
         await this.q('UPDATE users SET password_hash = $2, failed_attempts = 0, locked_until = NULL, must_change_password = true WHERE id = $1', [id, await hashPassword(password)]);
         await this.audit.log('password_reset', 'admin', c.u.id, c.audit, 'user', id);
@@ -193,7 +202,7 @@ abstract class UtentiEsterniPagina implements Pagina {
       case 'toggle_active': {
         if (!id) break;
         const u = await this.bersaglio(c, id, accessibili);
-        if (!u || this.ospite(u, accessibili)) return this.dati(c, { errore: 'Utente non trovato' });
+        if (!u || await this.ospite(u, accessibili)) return this.dati(c, { errore: 'Utente non trovato' });
         await this.q('UPDATE users SET is_active = $2 WHERE id = $1', [id, !u.is_active]);
         if (u.is_active) await this.sessioni.chiudiTutte('user', id, 'account_disattivato');
         await this.audit.log('user_updated', 'admin', c.u.id, c.audit, 'user', id, u, { is_active: !u.is_active ? 1 : 0 });

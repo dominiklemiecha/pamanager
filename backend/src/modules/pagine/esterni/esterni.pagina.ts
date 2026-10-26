@@ -24,6 +24,7 @@ import { WrikeService } from '../../wrike/wrike.service';
 import { PresenzeExportPagina } from '../admin/presenze-export.pagina';
 import { scaricaDocumentoPersonale } from '../admin/documenti-aziendali.pagina';
 import { ContestoPagina, EsitoPagina, json, Pagina, PaginaPhp, redirect, vista } from '../pagina';
+import { emailStaffOccupata } from '../comune';
 
 const intero = (v: unknown) => Number.parseInt(String(v ?? ''), 10) || 0;
 const AREA: Record<string, string> = { accountant: 'accountant', consulente_lavoro: 'consulente-lavoro', formatore: 'formatore' };
@@ -344,6 +345,7 @@ export abstract class ProfiloEsternoPagina implements Pagina {
         if (nome === '') return this.dati(c, 'Nome obbligatorio');
         if (email !== '' && (!EMAIL.test(email) || email.length > 100)) return this.dati(c, 'Email non valida');
         if (nome.length > 100) return this.dati(c, 'Nome troppo lungo (max 100 caratteri)');
+        if (await emailStaffOccupata(this.ds, email, id)) return this.dati(c, 'Email gia in uso da un altro account');
         await senzaIsolamento(() => this.ds.query('UPDATE users SET name = $2, email = $3 WHERE id = $1', [id, nome, email || null]));
         return redirect(`${self}?message=updated`);
       }

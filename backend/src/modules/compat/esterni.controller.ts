@@ -117,8 +117,47 @@ export class EsterniController {
       res.redirect(302, `/auth/login.php?return=${encodeURIComponent(ritorno)}`);
       return;
     }
+    res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    // Correzione: senza carta il PHP timbrava comunque (nessun controllo dell'azienda).
+    if (s === '') { res.send(this.paginaTimbratura({ success: false, error: 'Carta non valida per la tua azienda.' })); return; }
+    // Correzione: un link da un altro sito timbrava per conto del dipendente
+    // collegato. La carta NFC apre l'indirizzo direttamente (Sec-Fetch-Site
+    // "none"); da altri siti serve una conferma con un tocco.
+    const sito = String(req.headers['sec-fetch-site'] ?? '');
+    if (sito !== '' && sito !== 'none' && sito !== 'same-origin') { res.send(this.paginaConferma(s)); return; }
     const r = await this.timbratura.daCarta(u.id, s, req.ip ?? null, String(req.headers['user-agent'] ?? ''));
-    res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).send(this.paginaTimbratura(r));
+    res.send(this.paginaTimbratura(r));
+  }
+
+  /** Richiesta arrivata da un altro sito: la timbratura parte solo col tocco del dipendente. */
+  private paginaConferma(slug: string): string {
+    const href = `/punch.php?c=${encodeURIComponent(slug)}`;
+    return `<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timbratura</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+.box { max-width: 320px; width: 100%; }
+h1 { font-size: 20px; margin-bottom: 10px; }
+p { font-size: 14px; color: #475569; margin-bottom: 22px; }
+a.btn { display: inline-block; background: #0b3aa4; color: #fff; text-decoration: none; font-weight: 600; padding: 14px 28px; border-radius: 12px; }
+a.annulla { display: block; margin-top: 16px; font-size: 13px; color: #64748b; }
+</style>
+</head>
+<body>
+    <div class="box">
+        <h1>Confermi la timbratura?</h1>
+        <p>La richiesta arriva da un altro sito. Timbra solo se hai appena avvicinato il telefono alla carta.</p>
+        <a class="btn" href="${esc(href)}">Timbra adesso</a>
+        <a class="annulla" href="/employee/">Annulla</a>
+    </div>
+</body>
+</html>`;
   }
 
   private paginaTimbratura(r: Awaited<ReturnType<TimbraturaService['daCarta']>>): string {

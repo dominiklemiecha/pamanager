@@ -45,6 +45,18 @@ if (env('CONFERMA_PRODUZIONE') !== 'si' && (!LOCALI.includes(SRC.host) || !LOCAL
 
 const BLOCCO = 1000;
 
+/**
+ * Colonne che esistono solo nel nuovo schema: non si copiano e non entrano
+ * nell'impronta; a copia finita si riempiono dai dati copiati.
+ */
+const SOLO_NODE = {
+  users: {
+    // Admin globale esplicito: nel PHP era "company_id NULL e nessuna azienda collegata".
+    is_global: `UPDATE users u SET is_global = true WHERE u.role = 'admin' AND u.company_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id)`,
+  },
+};
+
 function pad(n) { return String(n).padStart(2, '0'); }
 
 /** Valore MariaDB -> valore da passare a Postgres, secondo il tipo delle due colonne. */
@@ -112,7 +124,8 @@ async function main() {
   const esito = [];
   let errori = 0;
   for (const t of tabelle) {
-    const colDst = (await dst.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`, [t])).rows;
+    const colDst = (await dst.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`, [t])).rows
+      .filter((c) => !(c.column_name in (SOLO_NODE[t] ?? {})));
     if (!nomiSrc.has(t)) {
       esito.push([t, 0, 0, 'assente nella sorgente (resta vuota)']);
       continue;
@@ -184,6 +197,15 @@ async function main() {
       }
     }
     esito.push([t, tutteSrc.length, tutteDst.length, ok ? 'identica' : 'DIVERSA']);
+  }
+
+  if (!SOLO_VERIFICA) {
+    for (const [t, colonne] of Object.entries(SOLO_NODE)) {
+      for (const [c, sql] of Object.entries(colonne)) {
+        const r = await dst.query(sql);
+        console.log(`${t}.${c}: ${r.rowCount} righe impostate`);
+      }
+    }
   }
 
   console.log('\nTabella'.padEnd(34) + 'MariaDB'.padStart(9) + 'Postgres'.padStart(10) + '  Esito');

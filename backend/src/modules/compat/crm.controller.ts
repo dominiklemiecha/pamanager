@@ -22,10 +22,12 @@ let segretoLocale: string | null = null;
 function segreto(): string {
   const s = process.env.JWT_SECRET || '';
   if (s) return s;
-  if (process.env.NODE_ENV === 'production') throw errore('Server configuration error', 500);
+  if (!['development', 'test'].includes(String(process.env.APP_ENV ?? '').toLowerCase())) throw errore('Server configuration error', 500);
   segretoLocale ??= randomBytes(32).toString('hex');
   return segretoLocale;
 }
+/** Rinnovi del token ammessi fino a 24 ore dal login, poi serve un login nuovo. */
+const RINNOVO_MAX = 24 * 3600;
 const scadenza = () => Number.parseInt(process.env.JWT_EXPIRY ?? '', 10) || 3600;
 
 /** Token HS256 compatibile con quello del PHP (classe JWT di api/index.php). */
@@ -84,8 +86,21 @@ export class CrmController {
       return { valid: true, payload: x, expires_in: x.exp - Math.floor(Date.now() / 1000) };
     }
     if (azione === 'refresh') {
+      // Correzione: il PHP rifirmava i dati del vecchio token all'infinito
+      // (ruolo tolto o account cambiato restavano validi). Qui si rileggono
+      // dal database e il rinnovo vale al massimo RINNOVO_MAX dal login.
       const x = await this.richiedi(req);
-      return { success: true, token: firmaToken({ user_id: x.user_id ?? null, employee_id: x.employee_id ?? null, user_type: x.user_type, role: x.role ?? null, username: x.username ?? null, fiscal_code: x.fiscal_code ?? null }) };
+      const inizio = Number(x.orig_iat ?? x.iat) || 0;
+      if (Math.floor(Date.now() / 1000) - inizio > RINNOVO_MAX) throw errore('Sessione scaduta: effettua di nuovo il login', 401);
+      if (x.user_type === 'employee') {
+        const [e] = await senzaIsolamento(() => this.ds.query('SELECT id, username, fiscal_code FROM employees WHERE id = $1 AND is_active = true', [Number(x.employee_id) || 0]));
+        if (!e) throw errore('Token non valido o scaduto', 401);
+        return { success: true, token: firmaToken({ user_id: null, employee_id: e.id, user_type: 'employee', role: null, username: e.username, fiscal_code: e.fiscal_code, orig_iat: inizio }) };
+      }
+      const [u] = await senzaIsolamento(() => this.ds.query('SELECT id, username, role FROM users WHERE id = $1 AND is_active = true', [Number(x.user_id) || 0]));
+      if (!u) throw errore('Token non valido o scaduto', 401);
+      if (u.role === 'formatore') throw errore('Questo profilo non ha accesso alle API', 403);
+      return { success: true, token: firmaToken({ user_id: u.id, employee_id: null, user_type: 'user', role: u.role, username: u.username, fiscal_code: null, orig_iat: inizio }) };
     }
     if (azione !== 'login' && azione !== 'login_employee') throw errore('Azione non valida');
     const username = String(b.username ?? '');
@@ -132,15 +147,17 @@ export class CrmController {
   async presenze(@Query() q: Record<string, string>, @Req() req: RichiestaAutenticata, @Res() res: Response) {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     const x = await this.richiedi(req);
-    if (x.user_type !== 'user' || !['admin', 'accountant'].includes(String(x.role ?? ''))) throw errore('Non autorizzato', 403);
+    if (x.user_type !== 'user') throw errore('Non autorizzato', 403);
     const slug = String(process.env.CRM_COMPANY_SLUG ?? '').trim() || 'connecteed';
     const [az] = await senzaIsolamento(() => this.ds.query(
       `SELECT id, name, slug, timbratura_enabled FROM companies WHERE is_active = true AND (slug = $1 OR name ILIKE $1) ORDER BY (slug = $1) DESC, id ASC LIMIT 1`, [slug]));
     if (!az) throw errore(`Azienda non trovata per slug "${slug}"`, 404);
-    const [u] = await senzaIsolamento(() => this.ds.query('SELECT id, company_id, role FROM users WHERE id = $1 AND is_active = true', [Number(x.user_id) || 0]));
+    const [u] = await senzaIsolamento(() => this.ds.query('SELECT id, company_id, role, is_global FROM users WHERE id = $1 AND is_active = true', [Number(x.user_id) || 0]));
     if (!u) throw errore('Utente non valido', 401);
+    // Correzione: il ruolo e' quello attuale nel database, non quello scritto nel token.
+    if (!['admin', 'accountant'].includes(String(u.role ?? ''))) throw errore('Non autorizzato', 403);
     const extra: number[] = (await senzaIsolamento(() => this.ds.query('SELECT company_id FROM user_companies WHERE user_id = $1', [u.id]))).map((r: any) => r.company_id);
-    const globale = u.company_id === null && !extra.length;
+    const globale = u.is_global === true;
     if (!globale && u.company_id !== az.id && !extra.includes(az.id)) throw errore('Non autorizzato su questa azienda', 403);
     const ruolo = u.role;
 

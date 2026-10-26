@@ -214,7 +214,11 @@ describe('modelli di attestato', () => {
     const ra = riga(mariadb);
     const rb = riga(postgres);
     expect(rb.orientation).toBe(ra.orientation);
-    expect(JSON.parse(rb.layout_json)).toEqual(JSON.parse(ra.layout_json));
+    // Correzione: il testo dentro <script> si scarta (il PHP toglieva solo i tag e lasciava "x")
+    const la = JSON.parse(ra.layout_json);
+    expect(la[0].content).toBe('<b>{NOME_COGNOME}</b>xa');
+    la[0].content = '<b>{NOME_COGNOME}</b>a';
+    expect(JSON.parse(rb.layout_json)).toEqual(la);
   });
 
   it('duplica ed elimina', async () => {

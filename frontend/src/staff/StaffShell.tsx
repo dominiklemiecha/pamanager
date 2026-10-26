@@ -90,7 +90,7 @@ export function StaffShell({ pagina, titolo, cornice, stile, script = [], global
           await api.post('/auth/azienda', { azienda: Number(bottone?.value ?? dati.get('id')) });
           location.reload();
         } else {
-          await api.post('/staff/lascia-azienda', { company_id: Number(dati.get('company_id')) });
+          await api.post('/staff/lascia-azienda', { azienda: Number(dati.get('company_id')) });
           location.assign(`/${cornice.area}/?tenant=left`);
         }
       } catch (err: any) {
