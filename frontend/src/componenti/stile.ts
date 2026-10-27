@@ -55,20 +55,27 @@ export function useCss(...href: string[]): void {
 /**
  * Fogli condivisi tra pagine: cambiando pagina senza ricaricare, quelli che
  * servono anche alla nuova restano al loro posto (gia' caricati, niente
- * attesa); gli altri si tolgono appena la nuova pagina e' montata.
+ * attesa); gli altri si disattivano appena la nuova pagina e' montata e,
+ * gia' scaricati, si riattivano subito quando una pagina li richiede.
  */
-const fogli = new Map<string, { el: HTMLLinkElement; usi: number; fine: () => void }>();
+const fogli = new Map<string, { el: HTMLLinkElement; usi: number; fine: () => void; caricato: boolean }>();
 
 function prendiFoglio(h: string) {
   const f = fogli.get(h);
-  if (f) { f.usi++; return; }
+  if (f) {
+    f.usi++;
+    if (f.el.sheet) f.el.sheet.disabled = false;
+    return;
+  }
   const el = document.createElement('link');
   el.rel = 'stylesheet';
   el.href = h;
   el.setAttribute('data-cora', '');
   const fine = inAttesa(el);
+  const nuovo = { el, usi: 1, fine, caricato: false };
+  el.addEventListener('load', () => { nuovo.caricato = true; });
   document.head.appendChild(el);
-  fogli.set(h, { el, usi: 1, fine });
+  fogli.set(h, nuovo);
 }
 
 function lasciaFoglio(h: string) {
@@ -77,6 +84,8 @@ function lasciaFoglio(h: string) {
   f.usi--;
   queueMicrotask(() => {
     if (f.usi > 0 || fogli.get(h) !== f) return;
+    // Disattivato sul foglio (non sul <link>, che lo riscaricherebbe alla riattivazione).
+    if (f.caricato && f.el.sheet) { f.el.sheet.disabled = true; return; }
     fogli.delete(h);
     f.el.remove();
     // Un foglio tolto prima di arrivare non manda piu' "load": non si aspetta.

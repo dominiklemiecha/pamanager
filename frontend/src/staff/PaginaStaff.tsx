@@ -7,6 +7,9 @@ import { StaffShell, useCorniceStaff } from './StaffShell';
 import { useCorniceHr } from '../cora/HrShell';
 import { CorniceClassicaHr, ricolora } from '../pages/hr/Classica';
 import { segnaScriptPhp } from '../services/navigazione';
+import { prendiPrecaricato } from '../cora/datiHr';
+import { scriptInBlocco, tracciaScriptPhp } from '../services/scriptPhp';
+import { useLocation } from 'react-router-dom';
 
 type Render = (V: any, F: any) => void;
 /** Template della pagina: la funzione, o come caricarla quando serve. */
@@ -27,19 +30,23 @@ export function apiDiPagina(percorso: string): string | null {
   return `/pagine/${m[1]}/${m[2] ?? 'index'}`;
 }
 
-/** HTML del template con gli script eseguiti in ordine (come durante il caricamento della pagina PHP). */
-export function Contenuto({ html }: { html: string }) {
+/**
+ * HTML del template con gli script eseguiti in ordine (come durante il caricamento della pagina PHP).
+ * `pulita`: la cornice toglie gli effetti degli script all'uscita (services/scriptPhp),
+ * quindi si cambia pagina senza ricaricare; altrimenti la pagina dopo ricarica l'app.
+ */
+export function Contenuto({ html, pulita = false }: { html: string; pulita?: boolean }) {
   const rif = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const box = rif.current;
     if (!box) return;
     box.innerHTML = html;
     for (const vecchio of Array.from(box.querySelectorAll('script'))) {
-      segnaScriptPhp();
+      if (pulita) tracciaScriptPhp(); else segnaScriptPhp();
       const s = document.createElement('script');
       for (const a of Array.from(vecchio.attributes)) s.setAttribute(a.name, a.value);
       if (vecchio.src) s.async = false;
-      s.text = vecchio.text;
+      s.text = pulita && !vecchio.src && !vecchio.type ? scriptInBlocco(vecchio.text) : vecchio.text;
       vecchio.replaceWith(s);
     }
     // Nel PHP gli script misuravano la pagina gia' completa: qui la cornice si
@@ -55,7 +62,7 @@ export function Contenuto({ html }: { html: string }) {
     });
     osserva.observe(contenitore);
     return () => osserva.disconnect();
-  }, [html]);
+  }, [html, pulita]);
   return <div ref={rif} style={{ display: 'contents' }} />;
 }
 
@@ -67,12 +74,22 @@ export function Contenuto({ html }: { html: string }) {
  * `scarica` elenca i parametri GET con cui la pagina PHP serviva un file:
  * quei link vanno direttamente al backend.
  */
-export function PaginaStaff({ render, prepara, scarica = [] }: { render: Template; prepara?: (V: any) => void; scarica?: string[] }) {
+export function PaginaStaff(props: { render: Template; prepara?: (V: any) => void; scarica?: string[] }) {
+  // Ogni indirizzo (anche solo i parametri) e' una pagina nuova, come nel PHP:
+  // dati, script e cornice ripartono da capo.
+  const l = useLocation();
+  return <PaginaStaffDi key={l.pathname + l.search} {...props} />;
+}
+
+function PaginaStaffDi({ render, prepara, scarica = [] }: { render: Template; prepara?: (V: any) => void; scarica?: string[] }) {
   const percorso = location.pathname;
   const indirizzo = apiDiPagina(percorso);
   const download = (u: URL) => scarica.some((k) => u.searchParams.has(k));
   if (download(new URL(location.href))) location.replace('/api/v1' + indirizzo + location.search);
-  const dati = useMemo(() => api.get(indirizzo + location.search), [indirizzo]);
+  const dati = useMemo(() => {
+    const pronti = location.search ? null : prendiPrecaricato(indirizzo!);
+    return pronti ? pronti.then((data) => ({ data })) : api.get(indirizzo + location.search);
+  }, [indirizzo]);
   const cornice = useCorniceStaff(dati);
   // HR con la vista Cora: anche le pagine classiche stanno nella cornice Cora.
   const hrArea = /^\/admin(\/|$)/.test(percorso);
@@ -151,6 +168,10 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Templat
         const h = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
         if (!h.has('X-CSRF-Token')) h.set('X-CSRF-Token', leggiCsrf());
         init = { ...init, headers: h, credentials: init?.credentials ?? 'same-origin' };
+        // POST verso una pagina dell'area (es. fetch('') della chat): nel PHP
+        // rispondeva la pagina stessa, qui il suo ramo POST nel backend.
+        const pagina = /^\/(api|realtime|uploads|assets)\//.test(url.pathname) ? null : apiDiPagina(url.pathname);
+        if (pagina) input = input instanceof Request ? new Request('/api/v1' + pagina + url.search, input) : '/api/v1' + pagina + url.search;
       }
       return fetchNativo(input, init);
     };
@@ -196,14 +217,14 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Templat
     if (corniceHr.coraHr) {
       return (
         <CorniceClassicaHr file={pagina} titolo={stato.titolo} cornice={cornice} corniceHr={corniceHr}>
-          <Contenuto html={htmlCora} />
+          <Contenuto html={htmlCora} pulita />
         </CorniceClassicaHr>
       );
     }
   }
   return (
     <StaffShell pagina={pagina} titolo={stato.titolo} cornice={cornice}>
-      <Contenuto html={html} />
+      <Contenuto html={html} pulita />
     </StaffShell>
   );
 }

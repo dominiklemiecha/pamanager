@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import css from '../pages/condivise/calendario.css?inline';
 import { DatiCalendario, htmlContatti, htmlGriglia } from '../pages/condivise/calendario-html';
 import { htmlModale } from '../pages/condivise/calendario-modale';
+import { useLocation } from 'react-router-dom';
 import { api } from '../services/api';
+import { prendiPrecaricato } from '../cora/datiHr';
 import { StaffShell, useCorniceStaff } from './StaffShell';
 import { useCorniceHr } from '../cora/HrShell';
 import { CorniceClassicaHr, ricolora } from '../pages/hr/Classica';
@@ -13,8 +15,17 @@ import { CorniceClassicaHr, ricolora } from '../pages/hr/Classica';
  * cornice dello staff.
  */
 export default function CalendarioStaff() {
+  // Vista o giorno diversi (parametri dell'indirizzo): pagina nuova, come nel PHP.
+  const l = useLocation();
+  return <Calendario key={l.pathname + l.search} />;
+}
+
+function Calendario() {
   const q = useMemo(() => new URLSearchParams(location.search), []);
-  const dati = useMemo(() => api.get('/calendario', { params: { view: q.get('view') ?? undefined, d: q.get('d') ?? undefined } }), [q]);
+  const dati = useMemo(() => {
+    const pronti = location.search ? null : prendiPrecaricato('/calendario');
+    return pronti ? pronti.then((data) => ({ data })) : api.get('/calendario', { params: { view: q.get('view') ?? undefined, d: q.get('d') ?? undefined } });
+  }, [q]);
   const cornice = useCorniceStaff(dati);
   const hrArea = location.pathname.startsWith('/admin/');
   const corniceHr = useCorniceHr(hrArea);

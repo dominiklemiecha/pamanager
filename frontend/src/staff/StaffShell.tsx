@@ -6,15 +6,22 @@ import { api } from '../services/api';
 import { htmlPiede } from './piede';
 import { htmlTestata } from './testata';
 import type { CorniceStaff } from './tipi';
-import { segnaScriptPhp } from '../services/navigazione';
+import { pulisciScriptPhp, tracciaScriptPhp } from '../services/scriptPhp';
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Host+Grotesk:wght@400;500;600;700&display=swap';
 
+/**
+ * Ultima cornice ricevuta: finche' l'app resta aperta (cambio azienda e uscita
+ * ricaricano la pagina) le pagine successive si disegnano subito con questa e
+ * intanto chiedono quella aggiornata.
+ */
+let ultimaCornice: CorniceStaff | null = null;
+
 /** Dati della cornice dello staff; la pagina si disegna quando ci sono. */
 export function useCorniceStaff(dopo?: Promise<unknown>): CorniceStaff | null {
-  const [c, setC] = useState<CorniceStaff | null>(null);
+  const [c, setC] = useState<CorniceStaff | null>(ultimaCornice);
   useEffect(() => {
-    Promise.resolve(dopo).catch(() => undefined).then(() => api.get('/staff/cornice')).then((r) => setC(r.data)).catch(() => undefined);
+    Promise.resolve(dopo).catch(() => undefined).then(() => api.get('/staff/cornice')).then((r) => { ultimaCornice = r.data; setC(r.data); }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return c;
@@ -22,7 +29,6 @@ export function useCorniceStaff(dopo?: Promise<unknown>): CorniceStaff | null {
 
 function carica(src: string, attr: Record<string, string> = {}): Promise<void> {
   return new Promise((ok) => {
-    segnaScriptPhp();
     const s = document.createElement('script');
     s.src = src;
     s.async = false;
@@ -50,6 +56,8 @@ export function useRisorseStaff({ cornice, stile, script = [], globali = {}, css
     const w = window as any;
     if (w.__staffScript) return;
     w.__staffScript = true;
+    tracciaScriptPhp();
+    let uscita = false;
     w.PAM = { baseUrl: '' };
     Object.assign(w, globali);
     const csrf = decodeURIComponent(document.cookie.match(/(?:^|;\s*)cora_csrf=([^;]+)/)?.[1] ?? '');
@@ -57,8 +65,12 @@ export function useRisorseStaff({ cornice, stile, script = [], globali = {}, css
     if (!meta) { meta = document.createElement('meta'); meta.name = 'csrf-token'; document.head.appendChild(meta); }
     meta.content = csrf;
     (async () => {
-      for (const s of ['/assets/js/staff-cornice.js', ...script, '/assets/js/app.js', '/assets/js/push.js', '/assets/js/availability-heatmap.js']) await carica(s);
-      if (cornice.ruolo === 'admin') await carica('/assets/js/click-log.js', { 'data-endpoint': '/api/ui-click.php' });
+      for (const s of ['/assets/js/staff-cornice.js', ...script, '/assets/js/app.js', '/assets/js/push.js', '/assets/js/availability-heatmap.js']) {
+        if (uscita) return;
+        await carica(s);
+      }
+      if (cornice.ruolo === 'admin' && !uscita) await carica('/assets/js/click-log.js', { 'data-endpoint': '/api/ui-click.php' });
+      if (uscita) return;
       document.dispatchEvent(new Event('DOMContentLoaded'));
       caricaWidget(cornice.widget);
     })();
@@ -84,7 +96,13 @@ export function useRisorseStaff({ cornice, stile, script = [], globali = {}, css
       }
     };
     document.addEventListener('submit', invio);
-    return () => document.removeEventListener('submit', invio);
+    // Uscita dalla pagina: via gli effetti degli script, la prossima li riesegue da capo.
+    return () => {
+      uscita = true;
+      document.removeEventListener('submit', invio);
+      pulisciScriptPhp();
+      w.__staffScript = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

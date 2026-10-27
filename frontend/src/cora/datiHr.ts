@@ -42,7 +42,25 @@ const DATI_PAGINA: Record<string, string> = {
   '/admin/documenti-aziendali': '/hr/documenti-aziendali',
   '/admin/consulente-lavoro': '/hr/accessi?ruolo=consulente_lavoro',
   '/admin/formatori': '/hr/accessi?ruolo=formatore',
+  // Pagine classiche del dock (GET senza effetti: nessuna conversazione aperta)
+  '/admin/chat': '/pagine/admin/chat',
+  '/admin/academy': '/pagine/admin/academy',
+  '/admin/calendar': '/calendario',
 };
+
+/**
+ * Dati precaricati di una pagina classica, usati una volta sola e solo se
+ * recenti (la pagina li usa all'apertura come la risposta della sua richiesta).
+ */
+export function prendiPrecaricato<T>(percorso: string): Promise<T> | null {
+  const gia = inCorso.get(percorso);
+  const v = visti.get(percorso);
+  visti.delete(percorso);
+  // Ancora in arrivo: alla risposta non resta in memoria (gia' usata).
+  if (gia) return gia.then((d) => { visti.delete(percorso); return d as T; });
+  if (v && Date.now() - v.quando < 15000) return Promise.resolve(v.dati as T);
+  return null;
+}
 
 /** Precarica i dati della pagina di un link (passaggio del mouse, tocco) se non sono recenti. */
 export function precaricaPagina(href: string): void {
