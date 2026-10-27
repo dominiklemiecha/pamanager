@@ -546,3 +546,5 @@ select.cora-input { appearance: auto; }
     .hr-griglia-campi { grid-template-columns: 1fr; }
 }
 .hr-url code { font-family: var(--cora-font); }
+.hr-azienda-gestisci { color: var(--cora-ink-2); text-decoration: none; border-top: 1px solid var(--cora-line); }
+.hr-azienda-gestisci:first-child { border-top: 0; }

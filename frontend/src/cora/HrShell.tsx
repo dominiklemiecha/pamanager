@@ -46,11 +46,13 @@ const DOCK: Array<[string, string, string, string]> = [
   ['ferie', 'Ferie', 'dock-ferie.svg', '/admin/leave-requests'],
   ['archivio', 'Archivio', 'dock-archivio.svg', '/admin/communications'],
   ['chat', 'Chat', 'dock-chat.svg', '/admin/chat'],
+  ['calendario', 'Calendario', 'dock-calendario.svg', '/admin/calendar'],
+  ['academy', 'Academy', 'dock-academy.svg', '/admin/academy'],
   ['accessi', 'Accessi esterni', 'dock-accessi.svg', '/admin/consulente-lavoro'],
 ];
 /** Foglio "Altro" del telefono (Figma "Menu mobile · Altro aperto · HR"). */
-const ALTRO = ['archivio', 'accessi', 'chat'];
-const SOTTO: Record<string, string> = { archivio: 'Comunicazioni e documenti', accessi: 'Consulenti e formatori' };
+const ALTRO = ['archivio', 'accessi', 'chat', 'calendario', 'academy'];
+const SOTTO: Record<string, string> = { archivio: 'Comunicazioni e documenti', accessi: 'Consulenti e formatori', calendario: 'Eventi e riunioni', academy: 'Corsi e attestati' };
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 
 function AnelloModuli() {
@@ -90,7 +92,8 @@ function SelettoreAzienda({ c }: { c: CorniceHr }) {
       </span>
     </>
   );
-  if (!altre.length) return <div className="hr-azienda">{testo}</div>;
+  // Come nel selettore classico: l'HR ha sempre "Gestisci aziende" in fondo al menu.
+  if (!altre.length && c.ruolo !== 'admin') return <div className="hr-azienda">{testo}</div>;
   return (
     <div className={'hr-azienda' + (aperto ? ' is-open' : '')}>
       <button type="button" className="hr-azienda-btn" aria-haspopup="true" aria-expanded={aperto} onClick={() => setAperto(!aperto)}>
@@ -105,6 +108,7 @@ function SelettoreAzienda({ c }: { c: CorniceHr }) {
               {a.attivita > 0 && <span className="cora-dock-badge">{a.attivita > 9 ? '9+' : a.attivita}</span>}
             </button>
           ))}
+          {c.ruolo === 'admin' && <a className="hr-azienda-item hr-azienda-gestisci" role="menuitem" href="/admin/companies">Gestisci aziende</a>}
         </div>
       )}
     </div>
@@ -251,10 +255,10 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
     // API per le pagine e la guida (come il window.Cora di cora.js).
     (window as any).Cora = { toast: toastCora, more: (a: boolean) => setAltro(!!a) };
     caricaWidget(cornice.widget as any);
-    // Ingresso a cascata degli elementi .cora-reveal, solo alla prima apertura.
-    if (!document.body.classList.contains('cora-revealed')) {
-      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('cora-revealed')));
-    }
+    // Ingresso a cascata degli elementi .cora-reveal (frame "Intro" del Figma)
+    // a ogni pagina, anche cambiando pagina senza ricaricare.
+    document.body.classList.remove('cora-revealed');
+    requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('cora-revealed')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Dati delle pagine pronti prima del clic: a browser libero quelli del dock,

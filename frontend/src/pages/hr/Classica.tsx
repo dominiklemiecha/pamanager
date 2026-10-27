@@ -34,9 +34,9 @@ const SEZIONI: Record<string, { pagina: string; titolo: string; schede?: Array<[
   'password-resets': { pagina: 'profilo', titolo: 'Profilo e configurazione', schede: SCHEDE_PROFILO, attiva: 'Reset password' },
   'work-schedule': { pagina: 'profilo', titolo: 'Profilo e configurazione', schede: SCHEDE_PROFILO, attiva: 'Orario lavorativo' },
   'buoni-pasto': { pagina: 'profilo', titolo: 'Profilo e configurazione', schede: SCHEDE_PROFILO, attiva: 'Buoni pasto' },
-  calendar: { pagina: '', titolo: 'Calendario' },
-  academy: { pagina: '', titolo: 'Academy' },
-  'academy-templates': { pagina: '', titolo: 'Academy' },
+  calendar: { pagina: 'calendario', titolo: 'Calendario' },
+  academy: { pagina: 'academy', titolo: 'Academy' },
+  'academy-templates': { pagina: 'academy', titolo: 'Academy' },
   companies: { pagina: '', titolo: 'Aziende' },
 };
 
