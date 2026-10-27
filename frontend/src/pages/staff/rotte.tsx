@@ -7,6 +7,7 @@ import { FerieHr } from '../hr/Ferie';
 import { AccessiHr } from '../hr/Accessi';
 import { BuoniPastoHr, OrarioHr, ProfiloHr, ResetPasswordHr, TimbratureImpostazioniHr } from '../hr/Profilo';
 import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
+import { ChatHr } from '../hr/Chat';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
 const adminBuoniPasto: Template = { carica: () => import('../../php/pagine/admin/buoni-pasto') };
@@ -94,7 +95,9 @@ export const rotteStaff = [
     classica={{ render: adminUtentiEsterni, prepara: conOspiti }} usaCora={(q) => !q.has('action') && !q.has('id')} />} />,
   <Route key="/admin/formatori" path="/admin/formatori" element={<SceltaHr cora={(c) => <AccessiHr cornice={c} ruolo="formatore" />}
     classica={{ render: adminUtentiEsterni, prepara: conOspiti }} usaCora={(q) => !q.has('action') && !q.has('id')} />} />,
-  ...['admin', 'consulente-lavoro'].map((a) => pagina(`/${a}/chat`, staffChat, { scarica: ['download_attachment', 'group_avatar'] })),
+  // HR: chat Cora (come il dipendente); ?classica=1 per quella del PHP.
+  hr('/admin/chat', ChatHr, { render: staffChat, scarica: ['download_attachment', 'group_avatar'] }, (q) => !q.has('classica')),
+  pagina('/consulente-lavoro/chat', staffChat, { scarica: ['download_attachment', 'group_avatar'] }),
   ...['admin', 'consulente-lavoro'].map((a) => <Route key={`${a}/calendar`} path={`/${a}/calendar`} element={<CalendarioStaff />} />),
   pagina('/admin/presenze-export', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),
   hr('/admin/documenti-aziendali', DocumentiHr, { render: adminDocumentiAziendali, scarica: ['download'] }, (q) => !q.has('classica')),

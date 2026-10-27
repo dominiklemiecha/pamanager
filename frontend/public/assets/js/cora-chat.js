@@ -2005,4 +2005,6 @@
     if (document.readyState === 'complete') avviaRealtime(); else window.addEventListener('load', avviaRealtime);
     if (cfg.open && conv(cfg.open)) openConversation(cfg.open);
     window.addEventListener('pagehide', function () { segnalaChatAperta(null); });
+    // Uscita dalla pagina senza ricaricare l'app (vista Cora dell'HR): socket chiuso come lasciando la pagina.
+    window.addEventListener('cora:uscita', function () { segnalaChatAperta(null); fermaRealtime(); });
 })();

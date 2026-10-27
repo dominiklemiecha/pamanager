@@ -17,6 +17,11 @@ const timer = new Set<number>();
 const intervalli = new Set<number>();
 const nodi = new Set<Node>();
 let installato = false;
+/**
+ * Falso dopo l'uscita da una pagina con script, finche' non se ne apre un'altra:
+ * le risposte ancora in arrivo non riavviano timer e listener della pagina lasciata.
+ */
+let attivi = true;
 
 /** Vero se la chiamata in corso arriva da uno script del vecchio PHP. */
 function daScriptPhp(): boolean {
@@ -32,8 +37,9 @@ function daScriptPhp(): boolean {
   return false;
 }
 
-/** Bersagli globali: i listener sugli altri elementi spariscono con gli elementi. */
-const globale = (t: EventTarget) => t === window || t === document || t === document.body || t === document.documentElement;
+/** Bersagli globali (e matchMedia): i listener sugli altri elementi spariscono con gli elementi. */
+const globale = (t: EventTarget) => t === window || t === document || t === document.body || t === document.documentElement
+  || (typeof MediaQueryList !== 'undefined' && t instanceof MediaQueryList);
 
 function installa(): void {
   if (installato) return;
@@ -42,19 +48,22 @@ function installa(): void {
 
   const aggiungi = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function (this: EventTarget, tipo: string, fn: EventListenerOrEventListenerObject | null, opzioni?: boolean | AddEventListenerOptions) {
-    if (fn && globale(this) && daScriptPhp()) ascolti.push({ dove: this, tipo, fn, opzioni });
+    if (fn && globale(this) && daScriptPhp()) {
+      if (!attivi) return undefined;
+      ascolti.push({ dove: this, tipo, fn, opzioni });
+    }
     return aggiungi.call(this, tipo, fn, opzioni);
   };
 
   const st = w.setTimeout, si = w.setInterval, ct = w.clearTimeout, ci = w.clearInterval;
   w.setTimeout = function (...a: unknown[]) {
     const id = st.apply(window, a);
-    if (daScriptPhp()) timer.add(id);
+    if (daScriptPhp()) { if (attivi) timer.add(id); else ct.call(window, id); }
     return id;
   };
   w.setInterval = function (...a: unknown[]) {
     const id = si.apply(window, a);
-    if (daScriptPhp()) intervalli.add(id);
+    if (daScriptPhp()) { if (attivi) intervalli.add(id); else ci.call(window, id); }
     return id;
   };
   w.clearTimeout = function (id: number) { timer.delete(id); return ct.call(window, id); };
@@ -95,10 +104,19 @@ function installa(): void {
 /** Da chiamare prima di eseguire gli script di una pagina del vecchio PHP. */
 export function tracciaScriptPhp(): void {
   installa();
+  attivi = true;
+}
+
+/** Pagina con script che non vengono tolti (al cambio pagina l'app si ricarica): restano liberi. */
+export function scriptPhpLiberi(): void {
+  attivi = true;
 }
 
 /** Toglie listener, timer e nodi lasciati dagli script del vecchio PHP. */
 export function pulisciScriptPhp(): void {
+  // Avviso agli script (es. la chat chiude il socket in tempo reale), prima di togliere i loro listener.
+  window.dispatchEvent(new Event('cora:uscita'));
+  attivi = false;
   for (const a of ascolti.splice(0)) a.dove.removeEventListener(a.tipo, a.fn, a.opzioni);
   timer.forEach((id) => clearTimeout(id));
   intervalli.forEach((id) => clearInterval(id));

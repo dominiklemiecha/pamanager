@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { percorsoPulito } from './indirizzi';
+import { scriptPhpLiberi } from './scriptPhp';
 
 /**
  * Cambio pagina senza ricaricare l'app (niente nuovo download di script,
@@ -15,6 +16,7 @@ let paginaConScript = false;
 /** Da chiamare quando una pagina esegue gli script del vecchio PHP. */
 export function segnaScriptPhp(): void {
   paginaConScript = true;
+  scriptPhpLiberi();
 }
 
 /** Indirizzi che non sono pagine dell'app: restano richieste normali. */

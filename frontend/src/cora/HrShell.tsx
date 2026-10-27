@@ -168,7 +168,7 @@ function Campanella({ cornice }: { cornice: CorniceHr }) {
 }
 
 /** Barra in alto dell'HR. */
-export function HrTopbar({ titolo, sottotitolo = '', centro, cornice }: { titolo: string; sottotitolo?: ReactNode; centro?: ReactNode; cornice: CorniceHr }) {
+export function HrTopbar({ titolo, sottotitolo = '', centro, azioni, cornice }: { titolo: string; sottotitolo?: ReactNode; centro?: ReactNode; azioni?: ReactNode; cornice: CorniceHr }) {
   return (
     <header className="cora-topbar">
       <a href="/admin/" className="cora-topbar-logo" aria-label="Cora · Home" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-mobile.svg') }} />
@@ -177,7 +177,7 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, cornice }: { titolo
         {sottotitolo !== '' && <p>{sottotitolo}</p>}
       </div>
       {centro && <div className="cora-topbar-center">{centro}</div>}
-      <div className="cora-topbar-actions"><SelettoreAzienda c={cornice} /></div>
+      <div className="cora-topbar-actions">{azioni}<SelettoreAzienda c={cornice} /></div>
       <div className="cora-topbar-user">
         <Campanella cornice={cornice} />
         <a href="/admin/profile" className="cora-avatar hr-avatar" title={cornice.nome}>
