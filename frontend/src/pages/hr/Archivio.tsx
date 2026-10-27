@@ -6,7 +6,7 @@ import { api } from '../../services/api';
 import { azione, MenuRiga, Modale, S, SezioneHr, toast, useDati } from './comune';
 
 /** Archivio dell'HR: comunicazioni e documenti aziendali (Figma 920:7762, 920:8094, 920:8497). */
-const SCHEDE: Array<[string, string]> = [['Comunicazioni', '/admin/communications.php'], ['Documenti', '/admin/documenti-aziendali.php']];
+const SCHEDE: Array<[string, string]> = [['Comunicazioni', '/admin/communications'], ['Documenti', '/admin/documenti-aziendali']];
 const SOTTOTITOLO = 'Comunicazioni e documenti condivisi con i dipendenti, con letture e scadenze.';
 const logo = <span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />;
 const giorno = (ymd: string | null) => (ymd ? `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}/${ymd.slice(0, 4)}` : '—');
@@ -38,7 +38,7 @@ export function ComunicazioniHr({ cornice }: { cornice: CorniceHr }) {
   };
   return (
     <SezioneHr cornice={cornice} pagina="archivio" titolo="Archivio" sottotitolo={SOTTOTITOLO} schede={SCHEDE} attiva="Comunicazioni"
-      azioni={<a className="cora-btn cora-btn-primary" href="/admin/communications.php?action=new">{logo}Nuova comunicazione</a>}>
+      azioni={<a className="cora-btn cora-btn-primary" href="/admin/communications?action=new">{logo}Nuova comunicazione</a>}>
       <div className="cora-card hr-elenco">
         <div className="hr-toolbar">
           <label className="cora-search hr-cerca"><S n="ic-search.svg" /><input type="search" placeholder="Cerca per titolo…" value={cerca} onChange={(e) => setCerca(e.target.value)} /></label>
@@ -59,7 +59,7 @@ export function ComunicazioniHr({ cornice }: { cornice: CorniceHr }) {
             const [st, sc] = STATO_COM[c.stato];
             return (
               <div key={c.id} className="hr-riga">
-                <a className="hr-persona" href={`/admin/communications.php?action=view&id=${c.id}`}>
+                <a className="hr-persona" href={`/admin/communications?action=view&id=${c.id}`}>
                   <span className="hr-icona-riga"><S n="ic-mega.svg" /></span>
                   <span><strong>{c.titolo}</strong>{c.reparto && <small>Reparto {c.reparto}</small>}</span>
                 </a>
@@ -72,8 +72,8 @@ export function ComunicazioniHr({ cornice }: { cornice: CorniceHr }) {
                 </span>
                 <span><span className={`hr-badge is-${sc}`}><i />{st}</span></span>
                 <MenuRiga voci={[
-                  { etichetta: 'Apri con le letture', href: `/admin/communications.php?action=view&id=${c.id}` },
-                  { etichetta: 'Modifica', href: `/admin/communications.php?action=edit&id=${c.id}` },
+                  { etichetta: 'Apri con le letture', href: `/admin/communications?action=view&id=${c.id}` },
+                  { etichetta: 'Modifica', href: `/admin/communications?action=edit&id=${c.id}` },
                   { etichetta: c.stato === 'bozza' ? 'Pubblica' : 'Riporta in bozza', azione: () => esegui(c, 'toggle_publish') },
                   { etichetta: 'Elimina', azione: () => esegui(c, 'delete'), pericolo: true },
                 ]} />

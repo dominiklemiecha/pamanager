@@ -47,7 +47,7 @@ export default function Comunicazioni() {
     return (
       <CoraShell pagina="communications" titolo={aperta.title} cornice={cornice}>
         {q.get('message') === 'ack' && <span data-cora-flash="" data-title="Lettura confermata" data-message="L’HR vedrà che hai letto questa comunicazione." hidden />}
-        <a className="cora-back cora-reveal" style={{ '--i': 0 } as React.CSSProperties} href="/employee/communications.php"><I n="ic-arr-l.svg" />Torna alle comunicazioni</a>
+        <a className="cora-back cora-reveal" style={{ '--i': 0 } as React.CSSProperties} href="/employee/communications"><I n="ic-arr-l.svg" />Torna alle comunicazioni</a>
 
         <article className="cora-card cora-comm cora-reveal" style={{ '--i': 1 } as React.CSSProperties}>
           <span className={`cora-prio-pill is-${p}`}><I n={`ic-flag-${p === 'high' ? 'alta-sm' : BANDIERA[p]}.svg`} />{ETICHETTA[p]}</span>
@@ -122,7 +122,7 @@ export default function Comunicazioni() {
               <h2 className="cora-section-h is-flag"><I n={`ic-flag-${BANDIERA[p]}.svg`} />{ETICHETTA[p]}</h2>
               <div className="cora-comm-grid">
                 {lista.map((c) => (
-                  <a key={c.id} className="cora-comm-card" href={`/employee/communications.php?id=${c.id}`}
+                  <a key={c.id} className="cora-comm-card" href={`/employee/communications?id=${c.id}`}
                     data-cora-filterable="" data-tags={p + (!c.is_read ? ' unread' : '')}>
                     <span className="cora-row-ic"><I n="ic-mega.svg" /></span>
                     <span className="cora-row-txt">

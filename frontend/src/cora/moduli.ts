@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { indirizzoPulito } from '../services/indirizzi';
 import { api } from '../services/api';
 
 /**
@@ -50,7 +51,7 @@ export function useInvioModuli(gestori: Record<string, { url: (dati: FormData) =
         // Parametri da conservare (es. ?id= della comunicazione aperta).
         for (const k of gestori[chiave].mantieni ?? []) { const v = prima.get(k); if (v !== null) u.searchParams.set(k, v); }
         u.searchParams.set('message', gestori[chiave].messaggio);
-        location.assign(u.pathname + u.search);
+        location.assign(indirizzoPulito(u.pathname + u.search));
       } catch (err: any) {
         const valori: Record<string, string> = {};
         dati.forEach((v, k) => { if (typeof v === 'string') valori[k] = v; });
@@ -62,7 +63,7 @@ export function useInvioModuli(gestori: Record<string, { url: (dati: FormData) =
         const u = new URL(location.href);
         u.searchParams.delete('message');
         u.searchParams.delete('new');
-        location.assign(u.pathname + u.search);
+        location.assign(indirizzoPulito(u.pathname + u.search));
       }
     };
     document.addEventListener('submit', invio);

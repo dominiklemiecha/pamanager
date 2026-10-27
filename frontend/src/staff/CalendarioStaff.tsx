@@ -16,7 +16,7 @@ export default function CalendarioStaff() {
   const cornice = useCorniceStaff(dati);
   const [d, setD] = useState<DatiCalendario | null>(null);
   useEffect(() => {
-    dati.then((r) => setD(r.data)).catch((e) => { if (e?.response?.status === 403) location.replace('/auth/login.php'); });
+    dati.then((r) => setD(r.data)).catch((e) => { if (e?.response?.status === 403) location.replace('/auth/login'); });
   }, [dati]);
   const html = useMemo(() => (d ? htmlGriglia(d, false) + '\n\n<!-- Modal Add/Detail Event -->\n' + htmlModale(htmlContatti(d)) : ''), [d]);
   if (!cornice || !d) return null;

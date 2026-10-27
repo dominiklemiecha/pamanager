@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { esegui, P } from '../php/runtime';
 import { api } from '../services/api';
 import './funzioni-cora';
+import { indirizzoPulito } from '../services/indirizzi';
 import { StaffShell, useCorniceStaff } from './StaffShell';
 
 type Render = (V: any, F: any) => void;
@@ -14,9 +15,9 @@ P.estendi('CSRF::token', () => leggiCsrf());
 P.estendi('CSRF::getToken', () => leggiCsrf());
 P.estendi('CSRF::generate', () => leggiCsrf());
 
-/** Indirizzo API della pagina PHP: /admin/index.php -> /pagine/admin/index. */
+/** Indirizzo API della pagina PHP: /admin/ -> /pagine/admin/index. */
 export function apiDiPagina(percorso: string): string | null {
-  const m = /^\/([a-z-]+)\/(?:([a-z0-9-]+)\.php)?$/.exec(percorso);
+  const m = /^\/([a-z-]+)\/(?:([a-z0-9-]+?)(?:\.php)?)?$/.exec(percorso);
   if (!m) return null;
   return `/pagine/${m[1]}/${m[2] ?? 'index'}`;
 }
@@ -70,7 +71,7 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
   const [stato, setStato] = useState<{ titolo: string; V: any } | null>(null);
 
   const mostra = (d: any) => {
-    if (d?.redirect) { location.assign(new URL(d.redirect, location.href).toString()); return; }
+    if (d?.redirect) { location.assign(indirizzoPulito(d.redirect)); return; }
     const V = d.V ?? {};
     prepara?.(V);
     setStato({ titolo: d.titolo, V });
@@ -78,7 +79,7 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
 
   useEffect(() => {
     dati.then((r) => mostra(r.data)).catch((e) => {
-      if (e?.response?.status === 403) location.replace('/auth/login.php');
+      if (e?.response?.status === 403) location.replace('/auth/login');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dati]);
@@ -115,7 +116,7 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
       (async () => {
         try {
           const r = await api.post(api2 + destinazione.search, corpo);
-          if (r.data?.redirect) location.assign(new URL(r.data.redirect, destinazione).toString());
+          if (r.data?.redirect) location.assign(indirizzoPulito(r.data.redirect, destinazione.toString()));
           else {
             // Come il PHP: la pagina ridisegnata dopo il POST riparte dall'alto.
             mostra(r.data);

@@ -31,8 +31,8 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(undefined, (err) => {
   const d = err?.response?.data;
   if (err?.response?.status === 403 && d?.must_change_password && location.pathname.startsWith('/employee/')
-    && location.pathname !== '/employee/change-password.php') {
-    location.replace('/employee/change-password.php');
+    && location.pathname !== '/employee/change-password') {
+    location.replace('/employee/change-password');
   }
   return Promise.reject(err);
 });

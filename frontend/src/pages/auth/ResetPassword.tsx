@@ -55,7 +55,7 @@ export default function ResetPassword() {
               <p>La tua password è stata reimpostata con successo. Ora puoi accedere con la nuova password.</p>
             </div>
             <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-              <a href="/auth/login.php" className="btn btn-primary">Vai al Login</a>
+              <a href="/auth/login" className="btn btn-primary">Vai al Login</a>
             </div>
           </>
         ) : !dati.valido ? (
@@ -68,7 +68,7 @@ export default function ResetPassword() {
               <p>Questo link per il reset password non è valido o è scaduto. Richiedi un nuovo link di reset.</p>
             </div>
             <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-              <a href="/auth/forgot-password.php" className="btn btn-primary">Richiedi Nuovo Reset</a>
+              <a href="/auth/forgot-password" className="btn btn-primary">Richiedi Nuovo Reset</a>
             </div>
           </>
         ) : (
@@ -108,7 +108,7 @@ export default function ResetPassword() {
         )}
 
         <div className="login-footer">
-          <a href="/auth/login.php" className="back-link">Torna al login</a>
+          <a href="/auth/login" className="back-link">Torna al login</a>
         </div>
       </div>
     </div>

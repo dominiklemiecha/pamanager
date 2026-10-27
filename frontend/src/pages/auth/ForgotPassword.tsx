@@ -48,7 +48,7 @@ export default function ForgotPassword() {
               <p>{messaggio}</p>
             </div>
             <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-              <a href="/auth/login.php" className="btn btn-primary">Torna al Login</a>
+              <a href="/auth/login" className="btn btn-primary">Torna al Login</a>
             </div>
           </>
         ) : (
@@ -73,7 +73,7 @@ export default function ForgotPassword() {
         )}
 
         <div className="login-footer">
-          <a href="/auth/login.php" className="back-link">Torna al login</a>
+          <a href="/auth/login" className="back-link">Torna al login</a>
         </div>
       </div>
     </div>

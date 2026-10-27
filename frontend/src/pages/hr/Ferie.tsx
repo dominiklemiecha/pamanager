@@ -71,7 +71,7 @@ export function FerieHr({ cornice }: { cornice: CorniceHr }) {
   const menu = (r: Richiesta) => [
     ...(r.allegato ? [{ etichetta: 'Scarica allegato', href: `/api/v1/pagine/admin/leave-requests?download_attachment=${r.id}` }] : []),
     ...(r.certificato ? [{ etichetta: 'Scarica certificato', href: `/api/v1/pagine/admin/leave-requests?download_cert=${r.id}` }] : []),
-    { etichetta: r.tipo === 'malattia' ? 'Modifica o carica documenti' : 'Modifica', href: '/admin/leave-requests.php?classica=1' },
+    { etichetta: r.tipo === 'malattia' ? 'Modifica o carica documenti' : 'Modifica', href: '/admin/leave-requests?classica=1' },
     { etichetta: 'Elimina', azione: () => elimina(r), pericolo: true },
   ];
   const riga = (r: Richiesta, conAzioni: boolean) => (

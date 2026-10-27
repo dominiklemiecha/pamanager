@@ -10,8 +10,8 @@ import { inviaPagina, Modale, S, SezioneHr, toast, useDati, Volto } from './comu
  * 13745). Ogni scheda usa la pagina esistente (stessi dati e stesse azioni).
  */
 const SCHEDE: Array<[string, string]> = [
-  ['Profilo', '/admin/profile.php'], ['Timbrature', '/admin/punch-settings.php'], ['Reset password', '/admin/password-resets.php'],
-  ['Orario lavorativo', '/admin/work-schedule.php'], ['Buoni pasto', '/admin/buoni-pasto.php'],
+  ['Profilo', '/admin/profile'], ['Timbrature', '/admin/punch-settings'], ['Reset password', '/admin/password-resets'],
+  ['Orario lavorativo', '/admin/work-schedule'], ['Buoni pasto', '/admin/buoni-pasto'],
 ];
 const logo = <span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />;
 const GIORNI: Array<[string, string]> = [['mon', 'Lun'], ['tue', 'Mar'], ['wed', 'Mer'], ['thu', 'Gio'], ['fri', 'Ven'], ['sat', 'Sab'], ['sun', 'Dom']];
@@ -88,7 +88,7 @@ export function ProfiloHr({ cornice }: { cornice: CorniceHr }) {
       </div>
       <div className="cora-card hr-sessione">
         <div><h2>Sessione</h2><p>Esci da questa sessione. Dovrai inserire di nuovo le credenziali al prossimo accesso.</p></div>
-        <a className="cora-btn cora-btn-danger" href="/auth/logout.php"><S n="ic-logout.svg" />Esci dall'account</a>
+        <a className="cora-btn cora-btn-danger" href="/auth/logout"><S n="ic-logout.svg" />Esci dall'account</a>
       </div>
     </Sezione>
   );

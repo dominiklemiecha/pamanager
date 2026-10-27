@@ -21,7 +21,7 @@ const CFG: Record<Ruolo, { pagina: string; etichetta: string; plurale: string; m
   consulente_lavoro: { pagina: 'admin/consulente-lavoro', etichetta: 'consulente', plurale: 'Consulenti del lavoro', multi: true },
   formatore: { pagina: 'admin/formatori', etichetta: 'formatore', plurale: 'Formatori', multi: false },
 };
-const SCHEDE: Array<[string, string]> = [['Consulenti del lavoro', '/admin/consulente-lavoro.php'], ['Formatori', '/admin/formatori.php']];
+const SCHEDE: Array<[string, string]> = [['Consulenti del lavoro', '/admin/consulente-lavoro'], ['Formatori', '/admin/formatori']];
 const logo = <span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />;
 const testo = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d.textContent ?? ''; };
 

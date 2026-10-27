@@ -104,7 +104,7 @@ export default function Profilo() {
               <div><dt>IBAN</dt><dd>{d.iban}</dd></div>
             </dl>
             <span className="cora-hint">Per modificare questi dati scrivi all’HR.</span>
-            <a className="cora-btn cora-btn-secondary" href="/employee/chat.php?with_admin=1"><I n="ic-chat.svg" />Scrivi all’HR</a>
+            <a className="cora-btn cora-btn-secondary" href="/employee/chat?with_admin=1"><I n="ic-chat.svg" />Scrivi all’HR</a>
           </section>
         </div>
 
@@ -153,7 +153,7 @@ export default function Profilo() {
               <h2 className="cora-box-h">Sessione</h2>
               <p className="cora-box-p">Esci da questa sessione. Dovrai inserire di nuovo le credenziali al prossimo accesso.</p>
             </div>
-            <div><a className="cora-btn cora-btn-danger" href="/auth/logout.php"><I n="ic-logout.svg" />Esci dall’account</a></div>
+            <div><a className="cora-btn cora-btn-danger" href="/auth/logout"><I n="ic-logout.svg" />Esci dall’account</a></div>
           </section>
         </div>
       </div>

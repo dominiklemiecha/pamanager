@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from 'react';
 import { useSessione } from '../../componenti/sessione';
 import { useCss, useClasseBody, useTitolo } from '../../componenti/stile';
 import { CoraShell, useCornice } from '../../cora/CoraShell';
+import { indirizzoPulito } from '../../services/indirizzi';
 import { api } from '../../services/api';
 
 interface Errore { errore?: string; errori?: string[] }
@@ -17,7 +18,7 @@ function useModulo() {
       const { data } = await api.post('/auth/password', {
         attuale: String(f.get('current_password') ?? ''), nuova: String(f.get('new_password') ?? ''), conferma: String(f.get('confirm_password') ?? ''),
       });
-      location.assign(data?.destinazione ?? '/employee/change-password.php?success=1');
+      location.assign(indirizzoPulito(data?.destinazione ?? '/employee/change-password?success=1'));
     } catch (err: any) {
       const d = err?.response?.data ?? {};
       setErrore(d.errori?.length ? { errori: d.errori } : { errore: d.message ?? 'Errore durante il cambio password' });
@@ -76,7 +77,7 @@ function Obbligatoria() {
           <button type="submit" className="btn btn-primary btn-block">Imposta Password</button>
         </form>
         <div className="login-footer">
-          <a href="/auth/logout.php" className="back-link">Esci</a>
+          <a href="/auth/logout" className="back-link">Esci</a>
         </div>
       </div>
     </div>
@@ -129,6 +130,6 @@ function Volontaria() {
 export default function CambioPassword() {
   const s = useSessione();
   if (!s.caricata) return null;
-  if (!s.utente) { location.replace('/auth/login.php'); return null; }
+  if (!s.utente) { location.replace('/auth/login'); return null; }
   return s.deveCambiarePassword ? <Obbligatoria /> : <Volontaria />;
 }

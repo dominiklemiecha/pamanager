@@ -46,21 +46,21 @@ export function PaginaSuperadmin({ quale }: { quale: Quale }) {
     (async () => {
       if (quale === 'logout') {
         await api.post('/superadmin/esci').catch(() => undefined);
-        vai('/superadmin/login.php', { replace: true });
+        vai('/superadmin/login', { replace: true });
         return;
       }
       const s = (await api.get('/superadmin/stato')).data;
       if (!s.configurato) { if (vivo) setErrore('Superadmin non configurato.'); return; }
       if (quale === 'login' || quale === 'totp') {
-        if (s.fase === 'completa') { vai('/superadmin/index.php', { replace: true }); return; }
-        if (quale === 'totp' && s.fase !== 'password') { vai('/superadmin/login.php', { replace: true }); return; }
+        if (s.fase === 'completa') { vai('/superadmin/', { replace: true }); return; }
+        if (quale === 'totp' && s.fase !== 'password') { vai('/superadmin/login', { replace: true }); return; }
         if (vivo) setV({ error: '' });
         return;
       }
-      if (s.fase !== 'completa') { vai('/superadmin/login.php', { replace: true }); return; }
+      if (s.fase !== 'completa') { vai('/superadmin/login', { replace: true }); return; }
       const r = await api.get(quale === 'index' ? '/superadmin/tenant' : `/superadmin/clic${location.search}`);
       if (vivo) setV(r.data.V);
-    })().catch(() => vai('/superadmin/login.php', { replace: true }));
+    })().catch(() => vai('/superadmin/login', { replace: true }));
     return () => { vivo = false; };
   }, [quale, vai]);
 
@@ -74,8 +74,8 @@ export function PaginaSuperadmin({ quale }: { quale: Quale }) {
       delete dati.csrf_token;
       if (quale === 'login' || quale === 'totp') {
         const r = (await api.post(`/superadmin/${quale}`, dati)).data;
-        if (r.ok) vai(r.fase === 'completa' ? '/superadmin/index.php' : '/superadmin/totp.php');
-        else if (r.fase === 'nessuna') vai('/superadmin/login.php');
+        if (r.ok) vai(r.fase === 'completa' ? '/superadmin/' : '/superadmin/totp');
+        else if (r.fase === 'nessuna') vai('/superadmin/login');
         else setV({ error: r.error ?? '' });
         return;
       }
@@ -88,7 +88,7 @@ export function PaginaSuperadmin({ quale }: { quale: Quale }) {
       const a = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
       if (!a) return;
       const u = new URL(a.href, location.href);
-      if (u.pathname.endsWith('/superadmin/clic.php') && u.searchParams.has('export')) {
+      if (u.pathname.endsWith('/superadmin/clic') && u.searchParams.has('export')) {
         e.preventDefault();
         location.assign(`/api/v1/superadmin/clic/export${u.search}`);
       }

@@ -6,6 +6,7 @@ import { TESTA_CLASSICA, useTesta } from '../../componenti/testa';
 import { api } from '../../services/api';
 import css from './cora-login.css?inline';
 import { svgCora } from '../../cora/svg';
+import { indirizzoPulito } from '../../services/indirizzi';
 import { InstallaApp } from './InstallaApp';
 
 /** Login unico (auth/login.php) con la grafica Cora (Figma 1142:35866 e 1140:28372). */
@@ -24,7 +25,7 @@ export default function Login() {
   const [invio, setInvio] = useState(false);
 
   useEffect(() => {
-    if (sessione.mfa) naviga('/auth/mfa-verify.php', { replace: true });
+    if (sessione.mfa) naviga('/auth/mfa-verify', { replace: true });
   }, [sessione.mfa, naviga]);
 
   // Chi e' gia' dentro va alla sua pagina, come nel PHP.
@@ -39,10 +40,10 @@ export default function Login() {
       const { data } = await api.post('/auth/login', { username, password, ...(ritorno ? { ritorno } : {}) });
       if (data.mfa) {
         await sessione.ricarica();
-        naviga('/auth/mfa-verify.php', { replace: true });
+        naviga('/auth/mfa-verify', { replace: true });
       } else {
         // Pagina nuova come dopo il redirect del PHP.
-        window.location.assign(data.destinazione);
+        window.location.assign(indirizzoPulito(data.destinazione));
       }
     } catch (err) {
       setErrore(messaggioErrore(err, 'Credenziali non valide'));
@@ -98,7 +99,7 @@ export default function Login() {
               </div>
 
               <div className="cl-opzioni">
-                <a href="/auth/forgot-password.php">Password dimenticata?</a>
+                <a href="/auth/forgot-password">Password dimenticata?</a>
               </div>
 
               <button type="submit" className="cl-btn" disabled={invio}>Accedi</button>

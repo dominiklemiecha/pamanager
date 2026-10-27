@@ -38,11 +38,11 @@ const TESTA_CORA = {
 /** Voci del dock: solo pagine che esistono gia' per l'HR. */
 const DOCK: Array<[string, string, string, string]> = [
   ['index', 'Home', 'dock-home.svg', '/admin/'],
-  ['dipendenti', 'Dipendenti', 'dock-dipendenti.svg', '/admin/employees.php'],
-  ['ferie', 'Ferie', 'dock-ferie.svg', '/admin/leave-requests.php'],
-  ['archivio', 'Archivio', 'dock-archivio.svg', '/admin/communications.php'],
-  ['chat', 'Chat', 'dock-chat.svg', '/admin/chat.php'],
-  ['accessi', 'Accessi esterni', 'dock-accessi.svg', '/admin/consulente-lavoro.php'],
+  ['dipendenti', 'Dipendenti', 'dock-dipendenti.svg', '/admin/employees'],
+  ['ferie', 'Ferie', 'dock-ferie.svg', '/admin/leave-requests'],
+  ['archivio', 'Archivio', 'dock-archivio.svg', '/admin/communications'],
+  ['chat', 'Chat', 'dock-chat.svg', '/admin/chat'],
+  ['accessi', 'Accessi esterni', 'dock-accessi.svg', '/admin/consulente-lavoro'],
 ];
 /** Foglio "Altro" del telefono (Figma "Menu mobile · Altro aperto · HR"). */
 const ALTRO = ['archivio', 'accessi', 'chat'];
@@ -137,7 +137,7 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, cornice }: { titolo
             ))}
           </div>
         </div>
-        <a href="/admin/profile.php" className="cora-avatar hr-avatar" title={cornice.nome}>
+        <a href="/admin/profile" className="cora-avatar hr-avatar" title={cornice.nome}>
           {cornice.foto ? <img src={cornice.foto} alt="" decoding="async" /> : <span>{cornice.iniziali}</span>}
         </a>
       </div>
@@ -249,12 +249,12 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
             );
           })}
           <span className="hr-more-sep" aria-hidden="true" />
-          <a className={'cora-more-item' + (pagina === 'profilo' ? ' is-active' : '')} href="/admin/profile.php">
+          <a className={'cora-more-item' + (pagina === 'profilo' ? ' is-active' : '')} href="/admin/profile">
             <span className="cora-more-ic"><span className="cora-avatar">{cornice.foto ? <img src={cornice.foto} alt="" /> : cornice.iniziali}</span></span>
             <span className="hr-more-txt"><span className="cora-more-label">{cornice.nome}</span><span className="hr-more-sub">Profilo e configurazione</span></span>
             <S n="ic-chev-r.svg" c="cora-more-chev" />
           </a>
-          <a className="cora-more-item hr-more-esci" href="/auth/logout.php">
+          <a className="cora-more-item hr-more-esci" href="/auth/logout">
             <span className="cora-more-ic"><I n="ic-logout.svg" t /></span>
             <span className="cora-more-label">Esci dall'account</span>
           </a>

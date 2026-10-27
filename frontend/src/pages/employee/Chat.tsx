@@ -15,7 +15,7 @@ export default function Chat() {
   useEffect(() => {
     dati.then((r) => {
       // "Scrivi all'HR": si apre la chat con l'HR (redirect a ?conv= nel PHP).
-      if (r.data?.vaiA) { location.replace(`/employee/chat.php?conv=${r.data.vaiA}`); return; }
+      if (r.data?.vaiA) { location.replace(`/employee/chat?conv=${r.data.vaiA}`); return; }
       setCfg(r.data);
     }).catch(() => undefined);
   }, [dati]);

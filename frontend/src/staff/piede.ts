@@ -7,16 +7,16 @@ export function htmlPiede(d: CorniceStaff, p: string): string {
 <nav class="bottom-nav" aria-label="Menu principale">
     <div class="bottom-nav-grid">
         ${d.area === 'formatore' ? `
-        <a class="bn-item ${p === 'academy' ? 'active' : ''}" href="/formatore/academy.php">
+        <a class="bn-item ${p === 'academy' ? 'active' : ''}" href="/formatore/academy">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
             <span class="bn-label">Academy</span>
             ${c.attestati ? `<span class="bn-badge">${c.attestati}</span>` : ''}
         </a>
-        <a class="bn-item ${p === 'academy-templates' ? 'active' : ''}" href="/formatore/academy-templates.php">
+        <a class="bn-item ${p === 'academy-templates' ? 'active' : ''}" href="/formatore/academy-templates">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg></div>
             <span class="bn-label">Modelli</span>
         </a>
-        <a class="bn-item ${p === 'profile' ? 'active' : ''}" href="/formatore/profile.php">
+        <a class="bn-item ${p === 'profile' ? 'active' : ''}" href="/formatore/profile">
             <div class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></div>
             <span class="bn-label">Profilo</span>
         </a>
@@ -61,7 +61,7 @@ export function htmlPiede(d: CorniceStaff, p: string): string {
         </button>
     </div>
     <div class="sheet-section">
-        <a class="sheet-item" href="/auth/logout.php">
+        <a class="sheet-item" href="/auth/logout">
             <div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg></div>
             <span>Esci</span>
         </a>

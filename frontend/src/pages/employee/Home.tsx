@@ -146,7 +146,7 @@ function HomeContenuto(props: {
         <span className="cora-bday-text">{festa.testo}</span>
       </span>
       <span className="cora-bday-actions">
-        {!festa.me && <a className="cora-bday-cta" href="/employee/chat.php">Fai gli auguri</a>}
+        {!festa.me && <a className="cora-bday-cta" href="/employee/chat">Fai gli auguri</a>}
         <button type="button" className="cora-bday-close" data-cora-bday-close aria-label="Chiudi" dangerouslySetInnerHTML={{ __html: svgCora('ic-x.svg') }} />
       </span>
     </div>
@@ -183,7 +183,7 @@ function HomeContenuto(props: {
                     <span>{etichetta}</span>
                   </div>
                   {s.inAttesa > 0 && (
-                    <a className="cora-donut-pending" href="/employee/leave-requests.php?status=pending"
+                    <a className="cora-donut-pending" href="/employee/leave-requests?status=pending"
                       title={`${s.inAttesa} richiest${s.inAttesa === 1 ? 'a' : 'e'} in attesa`} dangerouslySetInnerHTML={{ __html: svgCora('ic-orologio.svg') }} />
                   )}
                 </div>
@@ -199,7 +199,7 @@ function HomeContenuto(props: {
       </section>
 
       <section className="cora-home-row cora-home-actions cora-reveal" style={{ '--i': 1 } as React.CSSProperties} data-tour="quick-actions">
-        <a className="cora-card cora-quick" href="/employee/leave-requests.php?new=ferie">
+        <a className="cora-card cora-quick" href="/employee/leave-requests?new=ferie">
           <span className="cora-quick-txt"><strong>Richiedi ferie</strong><span>Crea una nuova richiesta</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
         </a>
@@ -223,7 +223,7 @@ function HomeContenuto(props: {
             </div>
           </div>
         </div>
-        <a className="cora-card cora-quick" href="/employee/leave-requests.php?new=permesso">
+        <a className="cora-card cora-quick" href="/employee/leave-requests?new=permesso">
           <span className="cora-quick-txt"><strong>Richiedi permesso</strong><span>Ore o intera giornata</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
         </a>
@@ -233,7 +233,7 @@ function HomeContenuto(props: {
         <div className={'cora-card cora-list-card' + (d.comunicazioni.length ? '' : ' is-empty')}>
           <div className="cora-card-h">
             <h2>Avvisi</h2>
-            {d.comunicazioni.length > 0 && <a href="/employee/communications.php" className="cora-see-all">Vedi tutti <S n="ic-arr-r.svg" /></a>}
+            {d.comunicazioni.length > 0 && <a href="/employee/communications" className="cora-see-all">Vedi tutti <S n="ic-arr-r.svg" /></a>}
           </div>
           {!d.comunicazioni.length ? (
             <div className="cora-list-empty">
@@ -244,7 +244,7 @@ function HomeContenuto(props: {
           ) : (
             <div className="cora-rows">
               {d.comunicazioni.map((c) => (
-                <a key={c.id} className="cora-row" href={`/employee/communications.php?id=${c.id}`}>
+                <a key={c.id} className="cora-row" href={`/employee/communications?id=${c.id}`}>
                   <span className="cora-row-ic" dangerouslySetInnerHTML={{ __html: svgCora('ic-comunicazioni.svg') }} />
                   <span className="cora-row-txt">
                     <strong>{c.titolo}</strong>
@@ -261,7 +261,7 @@ function HomeContenuto(props: {
         <div className={'cora-card cora-list-card' + (d.documenti.length ? '' : ' is-empty')}>
           <div className="cora-card-h">
             <h2>Documenti recenti</h2>
-            <a href="/employee/documents.php" className="cora-see-all">Vedi tutti <S n="ic-arr-r.svg" /></a>
+            <a href="/employee/documents" className="cora-see-all">Vedi tutti <S n="ic-arr-r.svg" /></a>
           </div>
           {!d.documenti.length ? (
             <div className="cora-list-empty">
@@ -288,7 +288,7 @@ function HomeContenuto(props: {
         <div className={'cora-card cora-list-card cora-list-narrow' + (d.richieste.length ? '' : ' is-empty')}>
           <div className="cora-card-h">
             <h2>Le tue ultime richieste</h2>
-            <a href="/employee/leave-requests.php" className="cora-see-all">Vedi tutte <S n="ic-arr-r.svg" /></a>
+            <a href="/employee/leave-requests" className="cora-see-all">Vedi tutte <S n="ic-arr-r.svg" /></a>
           </div>
           {!d.richieste.length ? (
             <div className="cora-list-empty">
@@ -299,7 +299,7 @@ function HomeContenuto(props: {
           ) : (
             <div className="cora-rows">
               {d.richieste.map((l) => (
-                <a key={l.id} className="cora-row" href="/employee/leave-requests.php">
+                <a key={l.id} className="cora-row" href="/employee/leave-requests">
                   <span className="cora-row-ic" dangerouslySetInnerHTML={{ __html: svgCora('ic-ferie-permessi.svg') }} />
                   <span className="cora-row-txt">
                     <strong>{TIPI_ASSENZA[l.leave_type] ?? l.leave_type.charAt(0).toUpperCase() + l.leave_type.slice(1)}</strong>

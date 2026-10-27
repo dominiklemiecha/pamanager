@@ -4,6 +4,7 @@ import { messaggioErrore, useSessione } from '../../componenti/sessione';
 import { useFoglioEsterno, useStile, useTitolo } from '../../componenti/stile';
 import { TESTA_CLASSICA, useTesta } from '../../componenti/testa';
 import { api } from '../../services/api';
+import { indirizzoPulito } from '../../services/indirizzi';
 import css from './login.css?inline';
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Host+Grotesk:wght@500;600;700;800&display=swap';
@@ -21,14 +22,14 @@ export default function MfaVerify() {
   const [codice, setCodice] = useState('');
   const [errore, setErrore] = useState('');
 
-  if (sessione.caricata && !sessione.mfa) return <Navigate to={sessione.destinazione ?? '/auth/login.php'} replace />;
+  if (sessione.caricata && !sessione.mfa) return <Navigate to={sessione.destinazione ?? '/auth/login'} replace />;
 
   async function verifica(e: FormEvent) {
     e.preventDefault();
     setErrore('');
     try {
       const { data } = await api.post('/auth/mfa', { codice });
-      window.location.assign(data.destinazione);
+      window.location.assign(indirizzoPulito(data.destinazione));
     } catch (err) {
       setErrore(messaggioErrore(err, 'Codice non valido'));
     }
@@ -36,7 +37,7 @@ export default function MfaVerify() {
 
   async function annulla() {
     await api.post('/auth/logout', {}).catch(() => undefined);
-    window.location.assign('/auth/login.php');
+    window.location.assign('/auth/login');
   }
 
   return (

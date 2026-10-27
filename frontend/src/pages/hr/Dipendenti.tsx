@@ -33,8 +33,8 @@ export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
     <SezioneHr cornice={cornice} pagina="dipendenti" titolo="Dipendenti" sottotitolo={`Anagrafica, accessi e contatti · ${attivi} dipendent${attivi === 1 ? 'e' : 'i'} attiv${attivi === 1 ? 'o' : 'i'}`}
       schede={SCHEDE_DIPENDENTI} attiva="Anagrafica"
       azioni={<>
-        <a className="cora-btn cora-btn-secondary" href="/admin/employees.php?action=new"><S n="ic-uplus.svg" />Crea dipendente</a>
-        <a className="cora-btn cora-btn-primary" href="/admin/hire-requests.php?action=new"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Nuova assunzione</a>
+        <a className="cora-btn cora-btn-secondary" href="/admin/employees?action=new"><S n="ic-uplus.svg" />Crea dipendente</a>
+        <a className="cora-btn cora-btn-primary" href="/admin/hire-requests?action=new"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Nuova assunzione</a>
       </>}>
       <div className="cora-card hr-elenco">
         <div className="hr-toolbar">
@@ -58,7 +58,7 @@ export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
           {!righe.length && <div className="hr-vuoto">Nessun dipendente trovato</div>}
           {righe.map((x) => (
             <div key={x.id} className="hr-riga">
-              <a className="hr-persona" href={`/admin/employees.php?action=view&id=${x.id}`}>
+              <a className="hr-persona" href={`/admin/employees?action=view&id=${x.id}`}>
                 <Volto p={x} />
                 <span><strong>{nome(x.nome)} {nome(x.cognome)}</strong><small>{x.email || x.username}</small></span>
               </a>
@@ -66,9 +66,9 @@ export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
               <span className="hr-forte">{x.reparto || '—'}</span>
               <span><span className={`hr-badge is-${x.stato}`}><i />{x.etichetta}</span></span>
               <MenuRiga voci={[
-                { etichetta: 'Apri scheda', href: `/admin/employees.php?action=view&id=${x.id}` },
-                { etichetta: 'Modifica', href: `/admin/employees.php?action=edit&id=${x.id}` },
-                { etichetta: 'Documenti', href: `/admin/employee-documents.php?employee_id=${x.id}` },
+                { etichetta: 'Apri scheda', href: `/admin/employees?action=view&id=${x.id}` },
+                { etichetta: 'Modifica', href: `/admin/employees?action=edit&id=${x.id}` },
+                { etichetta: 'Documenti', href: `/admin/employee-documents?employee_id=${x.id}` },
               ]} />
             </div>
           ))}
@@ -93,8 +93,8 @@ export function AssunzioniHr({ cornice }: { cornice: CorniceHr }) {
     <SezioneHr cornice={cornice} pagina="dipendenti" titolo="Dipendenti" sottotitolo="Avvia nuove assunzioni e segui i prospetti del consulente fino alla firma del contratto."
       schede={SCHEDE_DIPENDENTI} attiva="Assunzioni"
       azioni={<>
-        <a className="cora-btn cora-btn-secondary" href="/admin/hire-requests.php?action=direct"><S n="ic-firma.svg" />Assunzione diretta</a>
-        <a className="cora-btn cora-btn-primary" href="/admin/hire-requests.php?action=new"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Nuova assunzione</a>
+        <a className="cora-btn cora-btn-secondary" href="/admin/hire-requests?action=direct"><S n="ic-firma.svg" />Assunzione diretta</a>
+        <a className="cora-btn cora-btn-primary" href="/admin/hire-requests?action=new"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Nuova assunzione</a>
       </>}>
       <div className="cora-card hr-elenco">
         {!d.length ? (
@@ -113,14 +113,14 @@ export function AssunzioniHr({ cornice }: { cornice: CorniceHr }) {
             <div className="hr-riga hr-intestazione"><span>Candidato</span><span>Contratto</span><span>Inizio</span><span>Stato</span><span /></div>
             {d.map((a) => (
               <div key={a.id} className="hr-riga">
-                <a className="hr-persona" href={`/admin/hire-requests.php?id=${a.id}`}>
+                <a className="hr-persona" href={`/admin/hire-requests?id=${a.id}`}>
                   <Volto p={{ id: a.id, nome: a.nome || '?', cognome: a.cognome, foto: '' }} />
                   <span><strong>{nome(a.nome)} {nome(a.cognome)}</strong><small>{a.ruolo || (a.consulente ? `Consulente: ${a.consulente}` : 'Creata ' + dataBreve(a.creata))}</small></span>
                 </a>
                 <span className="hr-forte">{a.contratto || '—'}</span>
                 <span>{a.inizio ? dataBreve(a.inizio) : '—'}</span>
                 <span><span className={`hr-badge is-${TONO_ASSUNZIONE[a.stato] ?? 'neutro'}`}><i />{a.etichetta}</span></span>
-                <MenuRiga voci={[{ etichetta: 'Apri richiesta', href: `/admin/hire-requests.php?id=${a.id}` }]} />
+                <MenuRiga voci={[{ etichetta: 'Apri richiesta', href: `/admin/hire-requests?id=${a.id}` }]} />
               </div>
             ))}
           </div>
@@ -153,13 +153,13 @@ export function PresenzeHr({ cornice }: { cornice: CorniceHr }) {
   return (
     <SezioneHr cornice={cornice} pagina="dipendenti" titolo="Dipendenti" sottotitolo="Timbrature e presenze della giornata, esportabili per il consulente del lavoro."
       schede={SCHEDE_DIPENDENTI} attiva="Presenze"
-      azioni={<a className="cora-btn cora-btn-primary" href="/admin/presenze-export.php"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Esporta presenze</a>}>
+      azioni={<a className="cora-btn cora-btn-primary" href="/admin/presenze-export"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Esporta presenze</a>}>
       {!d.attive ? (
         <div className="cora-card hr-vuoto-grande">
           <span className="cora-empty-ic"><S n="ic-orologio.svg" /></span>
           <h3>Timbrature non attive</h3>
           <p>Attiva la timbratura per vedere entrate e uscite dei dipendenti.</p>
-          <a className="cora-btn cora-btn-primary" href="/admin/punch-settings.php">Impostazioni timbrature</a>
+          <a className="cora-btn cora-btn-primary" href="/admin/punch-settings">Impostazioni timbrature</a>
         </div>
       ) : (
         <>
@@ -199,7 +199,7 @@ export function PresenzeHr({ cornice }: { cornice: CorniceHr }) {
                   <span>{x.entrata ?? '—'}</span>
                   <span>{x.uscita ?? '—'}</span>
                   <span className="hr-forte">{durata(x.minuti)}</span>
-                  <MenuRiga voci={[{ etichetta: 'Modifica timbrature', href: `/admin/attendance.php?d=${d.giorno}&classica=1` }]} />
+                  <MenuRiga voci={[{ etichetta: 'Modifica timbrature', href: `/admin/attendance?d=${d.giorno}&classica=1` }]} />
                 </div>
               ))}
             </div>

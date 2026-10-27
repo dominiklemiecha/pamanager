@@ -43,7 +43,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/employees.php" class="nav-item `;
+  h += `/admin/employees" class="nav-item `;
   h += String((p === 'employees' ? 'active' : ''));
   h += `" data-tooltip="Dipendenti">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -63,7 +63,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/hire-requests.php" class="nav-item `;
+  h += `/admin/hire-requests" class="nav-item `;
   h += String((p === 'hire-requests' ? 'active' : ''));
   h += `" data-tooltip="Assunzioni">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
@@ -83,7 +83,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/leave-requests.php" class="nav-item `;
+  h += `/admin/leave-requests" class="nav-item `;
   h += String((p === 'leave-requests' ? 'active' : ''));
   h += `" data-tooltip="Ferie e Permessi">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -103,7 +103,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/communications.php" class="nav-item `;
+  h += `/admin/communications" class="nav-item `;
   h += String((p === 'communications' ? 'active' : ''));
   h += `" data-tooltip="Comunicazioni">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
@@ -116,7 +116,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/documenti-aziendali.php" class="nav-item `;
+  h += `/admin/documenti-aziendali" class="nav-item `;
   h += String((p === 'documenti-aziendali' ? 'active' : ''));
   h += `" data-tooltip="Documenti aziendali">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/></svg>
@@ -127,7 +127,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/academy.php" class="nav-item `;
+  h += `/admin/academy" class="nav-item `;
   h += String((['academy', 'academy-templates', 'formatori'].includes(p) ? 'active' : ''));
   h += `" data-tooltip="Academy">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
@@ -147,7 +147,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/chat.php" class="nav-item `;
+  h += `/admin/chat" class="nav-item `;
   h += String((p === 'chat' ? 'active' : ''));
   h += `" data-tooltip="Chat">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -165,7 +165,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/calendar.php" class="nav-item `;
+  h += `/admin/calendar" class="nav-item `;
   h += String((p === 'calendar' ? 'active' : ''));
   h += `" data-tooltip="Calendario">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -194,7 +194,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/departments.php" class="nav-item `;
+  h += `/admin/departments" class="nav-item `;
   h += String((p === 'departments' ? 'active' : ''));
   h += `" data-tooltip="Reparti">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
@@ -207,7 +207,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/admin/consulente-lavoro.php" class="nav-item `;
+  h += `/admin/consulente-lavoro" class="nav-item `;
   h += String((p === 'consulente-lavoro' ? 'active' : ''));
   h += `" data-tooltip="Consulenti lavoro">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -220,7 +220,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
   h += `
                 <a href="`;
   h += String('');
-  h += `/admin/profile.php" class="nav-item `;
+  h += `/admin/profile" class="nav-item `;
   h += String((['password-resets','smtp-settings','work-schedule','profile'].includes(p) ? 'active' : ''));
   h += `" data-tooltip="Configurazione">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
@@ -234,7 +234,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
   h += `
                 <a href="`;
   h += String('');
-  h += `/formatore/academy.php" class="nav-item `;
+  h += `/formatore/academy" class="nav-item `;
   h += String((p === 'academy' ? 'active' : ''));
   h += `" data-tooltip="Academy">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
@@ -254,7 +254,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/formatore/academy-templates.php" class="nav-item `;
+  h += `/formatore/academy-templates" class="nav-item `;
   h += String((p === 'academy-templates' ? 'active' : ''));
   h += `" data-tooltip="Modelli attestato">
                     <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg>
@@ -265,7 +265,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/formatore/profile.php" class="nav-item `;
+  h += `/formatore/profile" class="nav-item `;
   h += String((p === 'profile' ? 'active' : ''));
   h += `" data-tooltip="Profilo">
                     <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
@@ -290,7 +290,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/employees.php" class="nav-item `;
+  h += `/consulente-lavoro/employees" class="nav-item `;
   h += String((p === 'employees' ? 'active' : ''));
   h += `" data-tooltip="Anagrafica">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -301,7 +301,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/hire-requests.php" class="nav-item `;
+  h += `/consulente-lavoro/hire-requests" class="nav-item `;
   h += String((p === 'hire-requests' ? 'active' : ''));
   h += `" data-tooltip="Assunzioni">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
@@ -321,7 +321,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/documents.php" class="nav-item `;
+  h += `/consulente-lavoro/documents" class="nav-item `;
   h += String((p === 'documents' ? 'active' : ''));
   h += `" data-tooltip="Buste paga/CUD">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -332,7 +332,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/employee-documents.php" class="nav-item `;
+  h += `/consulente-lavoro/employee-documents" class="nav-item `;
   h += String((p === 'employee-documents' ? 'active' : ''));
   h += `" data-tooltip="Documenti dipendente">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
@@ -343,7 +343,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/academy.php" class="nav-item `;
+  h += `/consulente-lavoro/academy" class="nav-item `;
   h += String((['academy', 'academy-templates'].includes(p) ? 'active' : ''));
   h += `" data-tooltip="Academy">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
@@ -363,7 +363,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/leave-requests.php" class="nav-item `;
+  h += `/consulente-lavoro/leave-requests" class="nav-item `;
   h += String((p === 'leave-requests' ? 'active' : ''));
   h += `" data-tooltip="Ferie e Permessi">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -374,7 +374,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/presenze-export.php" class="nav-item `;
+  h += `/consulente-lavoro/presenze-export" class="nav-item `;
   h += String((p === 'presenze-export' ? 'active' : ''));
   h += `" data-tooltip="Presenze">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16V8m5 8V4m5 12v-6"/></svg>
@@ -385,7 +385,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/chat.php" class="nav-item `;
+  h += `/consulente-lavoro/chat" class="nav-item `;
   h += String((p === 'chat' ? 'active' : ''));
   h += `" data-tooltip="Chat">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -403,7 +403,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/calendar.php" class="nav-item `;
+  h += `/consulente-lavoro/calendar" class="nav-item `;
   h += String((p === 'calendar' ? 'active' : ''));
   h += `" data-tooltip="Calendario">
                     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -423,7 +423,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </a>
                 <a href="`;
   h += String('');
-  h += `/consulente-lavoro/profile.php" class="nav-item `;
+  h += `/consulente-lavoro/profile" class="nav-item `;
   h += String((p === 'profile' ? 'active' : ''));
   h += `" data-tooltip="Profilo">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -559,7 +559,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
   h += `
                         <a href="`;
   h += String('');
-  h += `/admin/companies.php" class="tenant-menu-item" style="border-top:1px solid var(--border);">
+  h += `/admin/companies" class="tenant-menu-item" style="border-top:1px solid var(--border);">
                             <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;color:var(--muted);margin-right:var(--sp-2);"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
                             <div class="info"><div class="n">Gestisci aziende</div></div>
                         </a>
@@ -623,7 +623,7 @@ export function htmlTestata(d: CorniceStaff, p: string): string {
                 </div>
                 <form method="get" action="`;
   h += String('');
-  h += `/admin/presenze-export.php" class="pres-modal-form" onsubmit="closePresenzeModal();">
+  h += `/admin/presenze-export" class="pres-modal-form" onsubmit="closePresenzeModal();">
                     <input type="hidden" name="action" value="download">
                     <div class="pres-grid">
                         <label>

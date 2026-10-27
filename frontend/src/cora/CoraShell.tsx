@@ -59,12 +59,12 @@ const TESTA_CORA = {
 
 const DOCK: Array<[string, string, string, string]> = [
   ['index', 'Home', 'dock-home.svg', '/employee/'],
-  ['documents', 'Documenti', 'dock-documenti.svg', '/employee/documents.php'],
-  ['leave-requests', 'Richieste', 'dock-richieste.svg', '/employee/leave-requests.php'],
-  ['communications', 'Avvisi', 'dock-avvisi.svg', '/employee/communications.php'],
-  ['academy', 'Academy', 'dock-academy.svg', '/employee/academy.php'],
-  ['calendar', 'Calendario', 'dock-calendario.svg', '/employee/calendar.php'],
-  ['chat', 'Chat', 'dock-chat.svg', '/employee/chat.php'],
+  ['documents', 'Documenti', 'dock-documenti.svg', '/employee/documents'],
+  ['leave-requests', 'Richieste', 'dock-richieste.svg', '/employee/leave-requests'],
+  ['communications', 'Avvisi', 'dock-avvisi.svg', '/employee/communications'],
+  ['academy', 'Academy', 'dock-academy.svg', '/employee/academy'],
+  ['calendar', 'Calendario', 'dock-calendario.svg', '/employee/calendar'],
+  ['chat', 'Chat', 'dock-chat.svg', '/employee/chat'],
 ];
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 const ALTRO = ['communications', 'calendar', 'chat', 'academy'];
@@ -110,7 +110,7 @@ export function Topbar({ titolo, sottotitolo = '', azioni, centro, cornice }: { 
             ))}
           </div>
         </div>
-        <a href="/employee/profile.php" className="cora-avatar" data-tour="profile-link" title={`${cornice.nome} ${cornice.cognome}`}>
+        <a href="/employee/profile" className="cora-avatar" data-tour="profile-link" title={`${cornice.nome} ${cornice.cognome}`}>
           {cornice.foto ? <img src={cornice.foto} alt="" decoding="async" /> : <span>{iniziali(cornice.nome, cornice.cognome)}</span>}
         </a>
       </div>
@@ -277,7 +277,7 @@ export function CoraShell({ pagina, titolo, css = [], stile, script = [], global
           <div className="cora-more-grip" aria-hidden="true" />
           {[...ALTRO, 'profile'].map((k) => {
             const v = DOCK.find((d) => d[0] === k);
-            const [label, icona, href] = k === 'profile' ? ['Profilo', '', '/employee/profile.php'] : [v![1], v![2], v![3]];
+            const [label, icona, href] = k === 'profile' ? ['Profilo', '', '/employee/profile'] : [v![1], v![2], v![3]];
             const [puntino, numero] = segnali(c, k);
             const attivo = pagina === k;
             return (
@@ -311,8 +311,8 @@ export function useCornice(dopo?: Promise<unknown>): Cornice | null {
   useEffect(() => {
     Promise.resolve(dopo).catch(() => undefined).then(() => api.get('/dipendente/cornice')).then((r) => {
       // Contratto da firmare: prima la firma, poi il resto del portale (header-employee.php).
-      if (r.data?.contrattoDaFirmare && !['/employee/contract-sign.php', '/employee/change-password.php'].includes(location.pathname)) {
-        location.replace(`/employee/contract-sign.php?id=${r.data.contrattoDaFirmare}`);
+      if (r.data?.contrattoDaFirmare && !['/employee/contract-sign', '/employee/change-password'].includes(location.pathname)) {
+        location.replace(`/employee/contract-sign?id=${r.data.contrattoDaFirmare}`);
         return;
       }
       setC(r.data);

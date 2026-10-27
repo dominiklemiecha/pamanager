@@ -75,15 +75,15 @@ export default function HomeHr({ cornice }: { cornice: CorniceHr }) {
         <Richieste d={d} aggiorna={(r) => setD({ ...d, ...r })} />
       </section>
       <section className="cora-home-row cora-reveal" style={{ '--i': 2 } as React.CSSProperties}>
-        <a className="cora-card cora-quick" href="/admin/hire-requests.php?action=new">
+        <a className="cora-card cora-quick" href="/admin/hire-requests?action=new">
           <span className="cora-quick-txt"><strong>Nuova assunzione</strong><span>Avvia il flusso con il consulente</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
         </a>
-        <a className="cora-card cora-quick" href="/admin/documents.php">
+        <a className="cora-card cora-quick" href="/admin/documents">
           <span className="cora-quick-txt"><strong>Carica busta paga</strong><span>Cedolini e CU del mese</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
         </a>
-        <a className="cora-card cora-quick" href="/admin/communications.php?action=new">
+        <a className="cora-card cora-quick" href="/admin/communications?action=new">
           <span className="cora-quick-txt"><strong>Nuovo avviso</strong><span>Invia una comunicazione ai dipendenti</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
         </a>
@@ -111,7 +111,7 @@ function Compleanni({ persone }: { persone: Persona[] }) {
         <span className="cora-bday-text">Oggi è il compleanno di {nomi.join(', ')}{ultimo}</span>
       </span>
       <span className="cora-bday-actions">
-        <a className="cora-bday-cta" href="/admin/chat.php">Fai gli auguri</a>
+        <a className="cora-bday-cta" href="/admin/chat">Fai gli auguri</a>
         <button type="button" className="cora-bday-close" aria-label="Chiudi" onClick={() => { setChiuso(true); try { localStorage.setItem(chiave, '1'); } catch { /* niente */ } }}
           dangerouslySetInnerHTML={{ __html: svgCora('ic-x.svg') }} />
       </span>
@@ -140,7 +140,7 @@ function PresenzeOggi({ d }: { d: DatiHome }) {
             <span>in ufficio</span>
           </div>
           {d.inAttesa > 0 && (
-            <a className="cora-donut-pending" href="/admin/leave-requests.php" title={`${d.inAttesa} richiest${d.inAttesa === 1 ? 'a' : 'e'} in attesa`}
+            <a className="cora-donut-pending" href="/admin/leave-requests" title={`${d.inAttesa} richiest${d.inAttesa === 1 ? 'a' : 'e'} in attesa`}
               dangerouslySetInnerHTML={{ __html: svgCora('ic-orologio.svg') }} />
           )}
         </div>
@@ -181,7 +181,7 @@ function Richieste({ d, aggiorna }: { d: DatiHome; aggiorna: (r: Partial<DatiHom
       <div className="cora-card-h">
         <h2>Richieste da approvare</h2>
         {d.inAttesa > 0 && <span className="hr-chip">{d.inAttesa} in attesa</span>}
-        <a href="/admin/leave-requests.php" className="cora-see-all">Vedi tutte <S n="ic-arr-r.svg" /></a>
+        <a href="/admin/leave-requests" className="cora-see-all">Vedi tutte <S n="ic-arr-r.svg" /></a>
       </div>
       {!d.richieste.length ? (
         <div className="cora-list-empty">
@@ -227,7 +227,7 @@ function PresenzeSettimana({ iniziale }: { iniziale: Settimana }) {
   const scrivi = async (id: number) => {
     try {
       const r = await api.post(`/hr/chat/${id}`);
-      location.href = `/admin/chat.php?conv=${r.data.conversazione}`;
+      location.href = `/admin/chat?conv=${r.data.conversazione}`;
     } catch (e: any) {
       toast('Chat non disponibile', e?.response?.data?.message ?? '', 'error');
     }

@@ -31,7 +31,7 @@ export default function Academy() {
   useEffect(() => {
     api.get('/dipendente/academy', { params: idCorso ? { course: idCorso } : {} }).then((r) => setD(r.data))
       // Corso non assegnato: si torna all'elenco, come il PHP.
-      .catch((e) => { if (e?.response?.status === 404) location.replace('/employee/academy.php'); });
+      .catch((e) => { if (e?.response?.status === 404) location.replace('/employee/academy'); });
   }, [idCorso]);
 
   if (!cornice || !d) return null;
@@ -82,13 +82,13 @@ export default function Academy() {
   const avvia = async (e: FormEvent) => {
     e.preventDefault();
     await api.post(`/dipendente/academy/${idCorso}/avvia`, {}).catch(() => undefined);
-    location.assign(`/employee/academy.php?course=${idCorso}`);
+    location.assign(`/employee/academy?course=${idCorso}`);
   };
   const completa = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const dich = new FormData(e.currentTarget).get('declaration');
     const r = await api.post(`/dipendente/academy/${idCorso}/completa`, { declaration: !!dich }).catch(() => ({ data: { ok: false, errore: 'altro' } }));
-    location.assign(`/employee/academy.php?course=${idCorso}` + (r.data.ok ? '&done=1' : `&err=${r.data.errore}`));
+    location.assign(`/employee/academy?course=${idCorso}` + (r.data.ok ? '&done=1' : `&err=${r.data.errore}`));
   };
   const fine = a.completed_at ? `${dmy(a.completed_at)} alle ${String(a.completed_at).slice(11, 16)}` : '';
 
@@ -96,7 +96,7 @@ export default function Academy() {
     <CoraShell stile={css} pagina="academy" titolo={corso.title} cornice={cornice} classica
       script={a.started_at ? ['/assets/js/cora-academy.js'] : []} globali={{ CORA_ACADEMY: { total: materiali.length, opened: aperti } }}>
       <div className="welcome-card ea-hero">
-        <a className="ea-back" href="/employee/academy.php">&larr; I miei corsi</a>
+        <a className="ea-back" href="/employee/academy">&larr; I miei corsi</a>
         <h2>{corso.title}</h2>
         <p>
           <span className={`badge badge-dot ${BADGE[stato]}`}>{d.etichette[stato]}</span>

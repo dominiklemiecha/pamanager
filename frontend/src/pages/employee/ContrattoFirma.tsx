@@ -65,7 +65,7 @@ function Firma({ v }: { v: Vista }) {
     const firma = String(new FormData(e.currentTarget).get('signature') ?? '');
     try {
       await api.post(`/dipendente/contratto/${v.id}/firma`, { signature: firma });
-      location.assign(`/employee/contract-sign.php?id=${v.id}&signed=1`);
+      location.assign(`/employee/contract-sign?id=${v.id}&signed=1`);
     } catch (err: any) {
       setErrore(err?.response?.data?.message ?? 'Errore firma');
     }

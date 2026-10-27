@@ -151,5 +151,5 @@ export function MenuRiga({ voci }: { voci: Array<{ etichetta: string; href?: str
 }
 
 export const SCHEDE_DIPENDENTI: Array<[string, string]> = [
-  ['Anagrafica', '/admin/employees.php'], ['Assunzioni', '/admin/hire-requests.php'], ['Presenze', '/admin/attendance.php'], ['Reparti', '/admin/departments.php'],
+  ['Anagrafica', '/admin/employees'], ['Assunzioni', '/admin/hire-requests'], ['Presenze', '/admin/attendance'], ['Reparti', '/admin/departments'],
 ];
