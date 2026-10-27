@@ -65,6 +65,11 @@ export class HrController {
     return this.hr.documentiAziendali(u.companyId!);
   }
 
+  @Get('accessi')
+  accessi(@Query('ruolo') ruolo: string, @Utente() u: UtenteCorrente) {
+    return this.hr.accessi(u, ruolo === 'formatore' ? 'formatore' : 'consulente_lavoro');
+  }
+
   /** Approvazione dalla dashboard (quick_approve di admin/index.php). */
   @Post('richieste/:id/approva')
   @HttpCode(200)

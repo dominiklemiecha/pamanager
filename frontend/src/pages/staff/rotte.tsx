@@ -4,6 +4,7 @@ import { IndiceHr } from '../hr/Indice';
 import { SceltaHr } from '../hr/comune';
 import { AnagraficaHr, AssunzioniHr, PresenzeHr, RepartiHr } from '../hr/Dipendenti';
 import { FerieHr } from '../hr/Ferie';
+import { AccessiHr } from '../hr/Accessi';
 import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
@@ -88,8 +89,10 @@ export const rotteStaff = [
   hr('/admin/employees.php', AnagraficaHr, { render: adminDipendenti }, (q) => !q.has('action') && !q.has('id')),
   hr('/admin/hire-requests.php', AssunzioniHr, { render: adminAssunzioni }, (q) => !q.has('action') && !q.has('id')),
   hr('/admin/attendance.php', PresenzeHr, { render: adminTimbratureGiorno }, (q) => !q.has('classica')),
-  pagina('/admin/consulente-lavoro.php', adminUtentiEsterni, { prepara: conOspiti }),
-  pagina('/admin/formatori.php', adminUtentiEsterni, { prepara: conOspiti }),
+  <Route key="/admin/consulente-lavoro.php" path="/admin/consulente-lavoro.php" element={<SceltaHr cora={(c) => <AccessiHr cornice={c} ruolo="consulente_lavoro" />}
+    classica={{ render: adminUtentiEsterni, prepara: conOspiti }} usaCora={(q) => !q.has('action') && !q.has('id')} />} />,
+  <Route key="/admin/formatori.php" path="/admin/formatori.php" element={<SceltaHr cora={(c) => <AccessiHr cornice={c} ruolo="formatore" />}
+    classica={{ render: adminUtentiEsterni, prepara: conOspiti }} usaCora={(q) => !q.has('action') && !q.has('id')} />} />,
   ...['admin', 'consulente-lavoro'].map((a) => pagina(`/${a}/chat.php`, staffChat, { scarica: ['download_attachment', 'group_avatar'] })),
   ...['admin', 'consulente-lavoro'].map((a) => <Route key={`${a}/calendar`} path={`/${a}/calendar.php`} element={<CalendarioStaff />} />),
   pagina('/admin/presenze-export.php', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),

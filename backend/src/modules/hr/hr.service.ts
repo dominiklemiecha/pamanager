@@ -4,6 +4,7 @@ import { contaGiorniLavorativi } from '../../common/calcoli/orario';
 import { oggiRoma } from '../../common/calcoli/php';
 import { senzaIsolamento } from '../../common/database/isolamento';
 import type { UtenteCorrente } from '../auth/auth.types';
+import { TenantService } from '../auth/tenant.service';
 import { STATI as STATI_ASSUNZIONE } from '../assunzioni/assunzioni.service';
 import { TIPI } from '../ferie/ferie.service';
 import { ComunicazioniAdminService } from '../comunicazioni/comunicazioni-admin.service';
@@ -39,7 +40,8 @@ function statoAssenza(tipo: string): StatoGiorno {
 export class HrService {
   constructor(private readonly ds: DataSource, private readonly staff: StaffService, private readonly notifiche: NotificheService,
     private readonly heatmap: HeatmapService, private readonly prova: ProvaService,
-    private readonly comunicazioniAdmin: ComunicazioniAdminService, private readonly personali: DocumentiPersonaliService) {}
+    private readonly comunicazioniAdmin: ComunicazioniAdminService, private readonly personali: DocumentiPersonaliService,
+    private readonly tenant: TenantService) {}
 
   /** Vista Cora attiva per l'HR (HR_CORA_UI=1). */
   attiva(): boolean {
@@ -339,6 +341,38 @@ export class HrService {
         destinatari: g.employee_count, scaricati: g.downloaded_count, scadenza: g.expires_on ? String(g.expires_on instanceof Date ? g.expires_on.toISOString() : g.expires_on).slice(0, 10) : null,
         visibile: !!g.visible_to_employee, notificheInCoda: g.pending_notifications, campione: g.sample_id,
       })),
+    };
+  }
+
+  /**
+   * Accessi esterni (admin/consulente-lavoro.php, admin/formatori.php): stessi
+   * utenti della pagina classica, con le aziende collegate e se sono condivisi
+   * con altri tenant (in quel caso dati e password non si toccano).
+   */
+  async accessi(u: UtenteCorrente, ruolo: 'consulente_lavoro' | 'formatore') {
+    const cid = u.companyId!;
+    const accessibili = await this.tenant.accessibili({ id: u.id, role: u.ruolo, companyId: u.companyIdAccount ?? null });
+    const acc = accessibili.length ? accessibili : [cid];
+    const condivisi = ruolo === 'consulente_lavoro';
+    const utenti = await senzaIsolamento(() => this.ds.query(
+      `SELECT DISTINCT u.id, u.username, u.name, u.email, u.is_active, u.last_login, u.company_id,
+              ARRAY(SELECT uc.company_id FROM user_companies uc WHERE uc.user_id = u.id ORDER BY uc.company_id) AS collegate
+         FROM users u WHERE (u.company_id = $1 ${condivisi ? 'OR u.id IN (SELECT user_id FROM user_companies WHERE company_id = ANY($3::int[]))' : ''})
+          AND u.role = $2 ORDER BY u.name ASC`, condivisi ? [cid, ruolo, acc] : [cid, ruolo]));
+    const aziende = accessibili.length ? await senzaIsolamento(() => this.ds.query(
+      `SELECT c.id, c.name, (SELECT COUNT(*) FROM employees e WHERE e.company_id = c.id AND e.is_active = true)::int AS dipendenti
+         FROM companies c WHERE c.is_active = true AND c.id = ANY($1::int[]) ORDER BY c.name`, [accessibili])) : [];
+    return {
+      aziende,
+      utenti: utenti.map((x: any) => {
+        const collegate: number[] = (x.collegate ?? []).map(Number);
+        const tutte = [...new Set([...(x.company_id ? [x.company_id] : []), ...collegate])];
+        return {
+          id: x.id, nome: x.name, username: x.username, email: x.email ?? '', attivo: !!x.is_active, ultimoAccesso: iso(x.last_login),
+          aziende: tutte.length, collegate: collegate.filter((c) => accessibili.includes(c)),
+          condiviso: tutte.some((c) => !accessibili.includes(c)),
+        };
+      }),
     };
   }
 }
