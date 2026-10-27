@@ -237,7 +237,7 @@ i.is-absent { background: var(--cora-error); }
     .cora-home-saldi::-webkit-scrollbar { display: none; }
     .cora-home-saldi .cora-saldo { flex: 0 0 304px; padding: 24px; gap: 20px; scroll-snap-align: start; }
     .cora-saldo-body { flex-direction: column; align-items: stretch; gap: 14px; }
-    .cora-donut, .cora-donut svg { width: 150px; height: 150px; }
+    .cora-donut, .cora-donut > svg { width: 150px; height: 150px; }
     .cora-donut { align-self: center; }
     .cora-donut-val strong { font-size: 37.5px; }
     .cora-donut-val span { font-size: 11.08px; }
@@ -649,7 +649,7 @@ i.is-absent { background: var(--cora-error); }
     .cora-saldo h2 { font-size: 18px; }
     .cora-saldo-body { gap: 24px; }
     .cora-donut { width: 136px; height: 136px; }
-    .cora-donut svg { width: 136px; height: 136px; }
+    .cora-donut > svg { width: 136px; height: 136px; }
     .cora-donut-val strong { font-size: 34px; }
     .cora-donut-val span { font-size: 12px; }
     .cora-donut-pending { left: 104px; top: 4px; }
