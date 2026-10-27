@@ -70,6 +70,16 @@ export class HrController {
     return this.hr.accessi(u, ruolo === 'formatore' ? 'formatore' : 'consulente_lavoro');
   }
 
+  @Get('buoni-pasto')
+  buoniPasto(@Utente() u: UtenteCorrente) {
+    return this.hr.anteprimaBuoni(u.companyId!);
+  }
+
+  @Get('richieste-reset')
+  richiesteReset(@Utente() u: UtenteCorrente) {
+    return this.hr.richiesteReset(u.companyId!);
+  }
+
   /** Approvazione dalla dashboard (quick_approve di admin/index.php). */
   @Post('richieste/:id/approva')
   @HttpCode(200)

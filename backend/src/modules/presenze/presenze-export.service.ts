@@ -49,6 +49,13 @@ export class PresenzeExportService {
     await s.carica();
     return s.xlsx();
   }
+
+  /** Buoni pasto del mese per dipendente, con lo stesso calcolo dell'export (null se i buoni non sono attivi). */
+  async buoniMese(cid: number, mese: number, anno: number) {
+    const s = new Lavoro(this.ds, this.saldi, cid, mese, anno);
+    await s.carica();
+    return s.buoniPerDipendente();
+  }
 }
 
 class Lavoro {
@@ -157,6 +164,12 @@ class Lavoro {
         if (c === '') celle.set(ymd, 'FE'); else if (!c.includes('FE')) celle.set(ymd, `${c}/FE`);
       }
     }
+  }
+
+  async buoniPerDipendente() {
+    const out: Array<{ id: number; nome: string; cognome: string; buoni: number | null }> = [];
+    for (const e of this.dipendenti) out.push({ id: Number(e.id), nome: e.first_name, cognome: e.last_name, buoni: await this.buoniPasto(e) });
+    return out;
   }
 
   private async buoniPasto(e: any): Promise<number | null> {

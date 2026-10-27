@@ -56,6 +56,22 @@ export async function azione(pagina: string, campi: Record<string, string | numb
   }
 }
 
+/** Azione su una pagina del gestionale con la risposta completa (dati della pagina o redirect). */
+export async function inviaPagina(pagina: string, campi: Record<string, string | number | Blob> | FormData): Promise<{ redirect: string | null; V: any; errore: string }> {
+  let fd = campi;
+  if (!(campi instanceof FormData)) {
+    fd = new FormData();
+    for (const [k, v] of Object.entries(campi)) (fd as FormData).append(k, v instanceof Blob ? v : String(v));
+  }
+  try {
+    const r = await api.post(`/pagine/${pagina}`, fd);
+    const testo = (html: unknown) => { const d = document.createElement('div'); d.innerHTML = String(html ?? ''); return d.textContent ?? ''; };
+    return { redirect: r.data?.redirect ?? null, V: r.data?.V ?? null, errore: testo(r.data?.V?.error) };
+  } catch (e: any) {
+    return { redirect: null, V: null, errore: e?.response?.data?.message ?? 'Operazione non riuscita' };
+  }
+}
+
 /** Intestazione delle sezioni (titolo, sottomenu a pillole e azioni a destra). */
 export function SezioneHr({ cornice, pagina, titolo, sottotitolo, schede, attiva, azioni, children }: {
   cornice: CorniceHr; pagina: string; titolo: string; sottotitolo: string;

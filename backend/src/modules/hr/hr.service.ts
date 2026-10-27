@@ -10,6 +10,7 @@ import { TIPI } from '../ferie/ferie.service';
 import { ComunicazioniAdminService } from '../comunicazioni/comunicazioni-admin.service';
 import { DocumentiPersonaliService } from '../documenti/documenti-personali.service';
 import { NotificheService } from '../notifiche/notifiche.service';
+import { PresenzeExportService } from '../presenze/presenze-export.service';
 import { compleanni } from '../pagine/widget/compleanni';
 import { HeatmapService } from '../pagine/widget/heatmap.service';
 import { ProvaService } from '../prova/prova.service';
@@ -41,7 +42,7 @@ export class HrService {
   constructor(private readonly ds: DataSource, private readonly staff: StaffService, private readonly notifiche: NotificheService,
     private readonly heatmap: HeatmapService, private readonly prova: ProvaService,
     private readonly comunicazioniAdmin: ComunicazioniAdminService, private readonly personali: DocumentiPersonaliService,
-    private readonly tenant: TenantService) {}
+    private readonly tenant: TenantService, private readonly presenzeExport: PresenzeExportService) {}
 
   /** Vista Cora attiva per l'HR (HR_CORA_UI=1). */
   attiva(): boolean {
@@ -374,5 +375,28 @@ export class HrService {
         };
       }),
     };
+  }
+
+  /** Anteprima dei buoni pasto del mese in corso (stesso calcolo dell'export presenze). */
+  async anteprimaBuoni(cid: number) {
+    const oggi = oggiRoma();
+    const [anno, mese] = [Number(oggi.slice(0, 4)), Number(oggi.slice(5, 7))];
+    const righe = (await this.presenzeExport.buoniMese(cid, mese, anno)).filter((r) => r.buoni !== null);
+    const media = righe.length ? Math.round(righe.reduce((s, r) => s + (r.buoni ?? 0), 0) / righe.length) : 0;
+    return { mese, anno, attivi: righe.length > 0, media, dipendenti: righe };
+  }
+
+  /** Richieste "Password dimenticata?" in attesa, solo di account di questa azienda. */
+  async richiesteReset(cid: number) {
+    const righe = await senzaIsolamento(() => this.ds.query(
+      `SELECT prr.id, prr.user_type, prr.created_at,
+              COALESCE(TRIM(e.first_name || ' ' || e.last_name), u.name) AS nome
+         FROM password_reset_requests prr
+         LEFT JOIN employees e ON prr.user_type = 'employee' AND e.id = prr.user_id
+         LEFT JOIN users u ON prr.user_type <> 'employee' AND u.id = prr.user_id
+        WHERE prr.status = 'pending' AND ((prr.user_type = 'employee' AND e.company_id = $1) OR (prr.user_type <> 'employee' AND u.company_id = $1))
+        ORDER BY prr.created_at DESC, prr.id DESC`, [cid]));
+    const TIPO: Record<string, string> = { employee: 'Dipendente', admin: 'Amministratore', consulente_lavoro: 'Consulente del lavoro', formatore: 'Formatore' };
+    return righe.map((r: any) => ({ id: r.id, nome: r.nome ?? '', tipo: TIPO[r.user_type] ?? r.user_type, richiesta: iso(r.created_at) }));
   }
 }

@@ -5,6 +5,7 @@ import { SceltaHr } from '../hr/comune';
 import { AnagraficaHr, AssunzioniHr, PresenzeHr, RepartiHr } from '../hr/Dipendenti';
 import { FerieHr } from '../hr/Ferie';
 import { AccessiHr } from '../hr/Accessi';
+import { BuoniPastoHr, OrarioHr, ProfiloHr, ResetPasswordHr, TimbratureImpostazioniHr } from '../hr/Profilo';
 import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
@@ -74,14 +75,14 @@ export const rotteStaff = [
     <Route key={x} path={x} element={<IndiceHr classica={{ render: adminIndex, prepara: conSettimana }} />} />
   )),
   hr('/admin/leave-requests.php', FerieHr, { render: adminFerie, scarica: ['download_attachment', 'download_cert'] }, (q) => !q.has('classica')),
-  pagina('/admin/work-schedule.php', adminOrario),
-  pagina('/admin/punch-settings.php', adminTimbrature),
-  pagina('/admin/buoni-pasto.php', adminBuoniPasto),
+  hr('/admin/work-schedule.php', OrarioHr, { render: adminOrario }, (q) => !q.has('classica')),
+  hr('/admin/punch-settings.php', TimbratureImpostazioniHr, { render: adminTimbrature }, (q) => !q.has('classica')),
+  hr('/admin/buoni-pasto.php', BuoniPastoHr, { render: adminBuoniPasto }, (q) => !q.has('classica')),
   pagina('/admin/door-settings.php', adminPorta),
   pagina('/admin/door-log.php', adminPortaLog),
   pagina('/admin/smtp-settings.php', soloRedirect),
-  pagina('/admin/profile.php', adminProfilo),
-  pagina('/admin/password-resets.php', adminPassword),
+  hr('/admin/profile.php', ProfiloHr, { render: adminProfilo }, (q) => !q.has('classica')),
+  hr('/admin/password-resets.php', ResetPasswordHr, { render: adminPassword }, (q) => !q.has('classica')),
   hr('/admin/departments.php', RepartiHr, { render: adminReparti }, (q) => !q.has('edit') && q.get('action') !== 'new'),
   pagina('/admin/department-detail.php', adminRepartoDettaglio),
   pagina('/admin/companies.php', adminAziende),

@@ -78,3 +78,36 @@ it('solo l\'HR', async () => {
     expect((await n.get('/hr/home')).status).toBe(403);
   }
 });
+
+describe('pagine della vista Cora', () => {
+  const PERCORSI = ['/hr/dipendenti', '/hr/assunzioni', '/hr/presenze', '/hr/reparti', '/hr/ferie', '/hr/comunicazioni', '/hr/documenti-aziendali',
+    '/hr/accessi?ruolo=consulente_lavoro', '/hr/accessi?ruolo=formatore', '/hr/buoni-pasto', '/hr/richieste-reset'];
+
+  it("rispondono all'HR senza dati segreti", async () => {
+    const n = await entra('hr.alfa');
+    for (const p of PERCORSI) {
+      const r = await n.get(p);
+      expect([p, r.status]).toEqual([p, 200]);
+      expect(JSON.stringify(r.json)).not.toMatch(/password_hash|mfa_secret|nfc_uid|iban|file_path|attachment_path/);
+    }
+  });
+
+  it("solo dati dell'azienda attiva", async () => {
+    const n = await entra('hr.alfa');
+    const dip = (await n.get('/hr/dipendenti')).json.dipendenti.map((x: any) => x.id).sort();
+    expect(dip).toEqual(postgres('SELECT id FROM employees WHERE company_id = 1 ORDER BY id').map((r) => Number(r.id)).sort());
+    const rep = (await n.get('/hr/reparti')).json.reparti.map((x: any) => x.id).sort();
+    expect(rep).toEqual(postgres('SELECT id FROM departments WHERE company_id = 1 ORDER BY id').map((r) => Number(r.id)).sort());
+    const ferie = (await n.get('/hr/ferie')).json.richieste.map((x: any) => x.id);
+    const altre = postgres('SELECT id FROM leave_requests WHERE company_id <> 1').map((r) => Number(r.id));
+    expect(ferie.some((id: number) => altre.includes(id))).toBe(false);
+  });
+
+  it('vietate a consulenti, formatori e dipendenti', async () => {
+    for (const u of ['studio.consulente', 'formatore.alfa', 'giulia.ferraresi']) {
+      const n = await entra(u);
+      for (const p of PERCORSI) expect([u, p, (await n.get(p)).status]).toEqual([u, p, 403]);
+    }
+  });
+});
+
