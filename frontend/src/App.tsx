@@ -1,23 +1,23 @@
-import { ReactNode } from 'react';
+import { lazy, ReactNode, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { SessioneProvider, useSessione } from './componenti/sessione';
 import { percorsoPulito } from './services/indirizzi';
-import ForgotPassword from './pages/auth/ForgotPassword';
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 import Login from './pages/auth/Login';
-import Logout from './pages/auth/Logout';
-import MfaVerify from './pages/auth/MfaVerify';
-import ResetPassword from './pages/auth/ResetPassword';
-import Academy from './pages/employee/Academy';
-import Calendario from './pages/employee/Calendario';
-import CambioPassword from './pages/employee/CambioPassword';
-import Chat from './pages/employee/Chat';
-import Comunicazioni from './pages/employee/Comunicazioni';
-import ContrattoFirma from './pages/employee/ContrattoFirma';
-import Disiscrizione from './pages/employee/Disiscrizione';
-import Documenti from './pages/employee/Documenti';
-import Home from './pages/employee/Home';
-import Profilo from './pages/employee/Profilo';
-import Richieste from './pages/employee/Richieste';
+const Logout = lazy(() => import('./pages/auth/Logout'));
+const MfaVerify = lazy(() => import('./pages/auth/MfaVerify'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+const Academy = lazy(() => import('./pages/employee/Academy'));
+const Calendario = lazy(() => import('./pages/employee/Calendario'));
+const CambioPassword = lazy(() => import('./pages/employee/CambioPassword'));
+const Chat = lazy(() => import('./pages/employee/Chat'));
+const Comunicazioni = lazy(() => import('./pages/employee/Comunicazioni'));
+const ContrattoFirma = lazy(() => import('./pages/employee/ContrattoFirma'));
+const Disiscrizione = lazy(() => import('./pages/employee/Disiscrizione'));
+const Documenti = lazy(() => import('./pages/employee/Documenti'));
+const Home = lazy(() => import('./pages/employee/Home'));
+const Profilo = lazy(() => import('./pages/employee/Profilo'));
+const Richieste = lazy(() => import('./pages/employee/Richieste'));
 import Stato from './pages/Stato';
 import { rotteStaff } from './pages/staff/rotte';
 
@@ -44,6 +44,7 @@ export default function App() {
   return (
     <SessioneProvider>
       <SenzaPhp>
+      <Suspense fallback={null}>
       <Routes>
         <Route path="/" element={<Radice />} />
         <Route path="/auth/login" element={<Login />} />
@@ -67,6 +68,7 @@ export default function App() {
         {rotteStaff}
         <Route path="*" element={<Stato />} />
       </Routes>
+      </Suspense>
       </SenzaPhp>
     </SessioneProvider>
   );

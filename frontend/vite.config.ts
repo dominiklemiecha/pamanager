@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { phpStatici } from './vite-php-statici';
 
-export default defineConfig({
+const config = defineConfig({
   plugins: [react(), phpStatici()],
   resolve: {
     alias: {
@@ -68,3 +68,8 @@ export default defineConfig({
     },
   },
 });
+
+// `vite preview` (build di produzione in locale) usa gli stessi inoltri al backend.
+config.preview = { port: 5181, host: true, proxy: config.server?.proxy };
+
+export default config;

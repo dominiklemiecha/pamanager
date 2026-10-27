@@ -46,16 +46,21 @@ export function useTitolo(titolo: string): void {
  */
 export function useCss(...href: string[]): void {
   useLayoutEffect(() => {
+    const fini: Array<() => void> = [];
     const nodi = href.map((h) => {
       const el = document.createElement('link');
       el.rel = 'stylesheet';
       el.href = h;
       el.setAttribute('data-cora', '');
-      inAttesa(el);
+      fini.push(inAttesa(el));
       document.head.appendChild(el);
       return el;
     });
-    return () => nodi.forEach((n) => n.remove());
+    // Un foglio tolto prima di arrivare non manda piu' "load": non si aspetta.
+    return () => {
+      nodi.forEach((n) => n.remove());
+      fini.forEach((f) => f());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, href);
 }
@@ -66,7 +71,7 @@ export function useCss(...href: string[]): void {
  * dopo il primo disegno). Dopo 3 secondi si mostra comunque.
  */
 let attesi = 0;
-function inAttesa(el: HTMLLinkElement) {
+function inAttesa(el: HTMLLinkElement): () => void {
   attesi++;
   document.documentElement.classList.add('cora-stili-in-arrivo');
   let fatto = false;
@@ -79,6 +84,7 @@ function inAttesa(el: HTMLLinkElement) {
   el.addEventListener('load', fine);
   el.addEventListener('error', fine);
   setTimeout(fine, 3000);
+  return fine;
 }
 
 /** Classe sul <body> per la durata della pagina (es. "login-page", "cora-body"). */

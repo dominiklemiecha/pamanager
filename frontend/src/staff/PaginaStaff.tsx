@@ -6,6 +6,8 @@ import { indirizzoPulito } from '../services/indirizzi';
 import { StaffShell, useCorniceStaff } from './StaffShell';
 
 type Render = (V: any, F: any) => void;
+/** Template della pagina: la funzione, o come caricarla quando serve. */
+export type Template = Render | { carica: () => Promise<{ default: Render }> };
 
 const leggiCsrf = () => decodeURIComponent(document.cookie.match(/(?:^|;\s*)cora_csrf=([^;]+)/)?.[1] ?? '');
 
@@ -61,7 +63,7 @@ export function Contenuto({ html }: { html: string }) {
  * `scarica` elenca i parametri GET con cui la pagina PHP serviva un file:
  * quei link vanno direttamente al backend.
  */
-export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render; prepara?: (V: any) => void; scarica?: string[] }) {
+export function PaginaStaff({ render, prepara, scarica = [] }: { render: Template; prepara?: (V: any) => void; scarica?: string[] }) {
   const percorso = location.pathname;
   const indirizzo = apiDiPagina(percorso);
   const download = (u: URL) => scarica.some((k) => u.searchParams.has(k));
@@ -171,8 +173,15 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Render;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const html = useMemo(() => (stato ? esegui(render, stato.V) : ''), [stato, render]);
-  if (!cornice || !stato) return null;
+  // Template scaricato a parte (in parallelo ai dati), non nel bundle iniziale.
+  const [fn, setFn] = useState<Render | null>(() => (typeof render === 'function' ? render : null));
+  useEffect(() => {
+    if (typeof render === 'function') setFn(() => render);
+    else render.carica().then((m) => setFn(() => m.default));
+  }, [render]);
+
+  const html = useMemo(() => (stato && fn ? esegui(fn, stato.V) : ''), [stato, fn]);
+  if (!cornice || !stato || !fn) return null;
   const pagina = percorso.split('/').pop()?.replace(/\.php$/, '') || 'index';
   return (
     <StaffShell pagina={pagina} titolo={stato.titolo} cornice={cornice}>

@@ -9,39 +9,39 @@ import { BuoniPastoHr, OrarioHr, ProfiloHr, ResetPasswordHr, TimbratureImpostazi
 import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
-import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
-import adminPortaLog from '../../php/pagine/admin/door-log';
-import adminPorta from '../../php/pagine/admin/door-settings';
-import adminComunicazioni from '../../php/pagine/admin/communications';
-import adminDocumentiAziendali from '../../php/pagine/admin/documenti-aziendali';
-import adminPresenzeExport from '../../php/pagine/admin/presenze-export';
-import adminTimbratureGiorno from '../../php/pagine/admin/attendance';
-import adminUtentiEsterni from '../../php/pagine/admin/user-role-manager';
-import adminDipendenti from '../../php/pagine/admin/employees';
-import adminAssunzioni from '../../php/pagine/admin/hire-requests';
-import staffAcademy from '../../php/pagine/staff/academy';
-import esterniIndexConsulente from '../../php/pagine/esterni/index-consulente';
-import esterniDipendenti from '../../php/pagine/esterni/employees';
-import esterniDocumentiDipendente from '../../php/pagine/esterni/employee-documents';
-import esterniDocumenti from '../../php/pagine/esterni/documents';
-import esterniFerieConsulente from '../../php/pagine/esterni/leave-requests-consulente';
-import esterniPresenze from '../../php/pagine/esterni/presenze-export';
-import esterniProfiloFormatore from '../../php/pagine/esterni/profile-accountant';
-import esterniProfiloConsulente from '../../php/pagine/esterni/profile-consulente';
-import esterniAssunzioni from '../../php/pagine/esterni/hire-requests';
-import staffModelliAttestato from '../../php/pagine/staff/academy-templates';
-import adminAziende from '../../php/pagine/admin/companies';
-import adminRepartoDettaglio from '../../php/pagine/admin/department-detail';
-import adminReparti from '../../php/pagine/admin/departments';
-import adminIndex from '../../php/pagine/admin/index';
-import adminFerie from '../../php/pagine/admin/leave-requests';
-import adminPassword from '../../php/pagine/admin/password-resets';
-import adminProfilo from '../../php/pagine/admin/profile';
-import adminTimbrature from '../../php/pagine/admin/punch-settings';
-import adminOrario from '../../php/pagine/admin/work-schedule';
-import staffChat from '../../php/pagine/staff/chat';
+const adminBuoniPasto: Template = { carica: () => import('../../php/pagine/admin/buoni-pasto') };
+const adminPortaLog: Template = { carica: () => import('../../php/pagine/admin/door-log') };
+const adminPorta: Template = { carica: () => import('../../php/pagine/admin/door-settings') };
+const adminComunicazioni: Template = { carica: () => import('../../php/pagine/admin/communications') };
+const adminDocumentiAziendali: Template = { carica: () => import('../../php/pagine/admin/documenti-aziendali') };
+const adminPresenzeExport: Template = { carica: () => import('../../php/pagine/admin/presenze-export') };
+const adminTimbratureGiorno: Template = { carica: () => import('../../php/pagine/admin/attendance') };
+const adminUtentiEsterni: Template = { carica: () => import('../../php/pagine/admin/user-role-manager') };
+const adminDipendenti: Template = { carica: () => import('../../php/pagine/admin/employees') };
+const adminAssunzioni: Template = { carica: () => import('../../php/pagine/admin/hire-requests') };
+const staffAcademy: Template = { carica: () => import('../../php/pagine/staff/academy') };
+const esterniIndexConsulente: Template = { carica: () => import('../../php/pagine/esterni/index-consulente') };
+const esterniDipendenti: Template = { carica: () => import('../../php/pagine/esterni/employees') };
+const esterniDocumentiDipendente: Template = { carica: () => import('../../php/pagine/esterni/employee-documents') };
+const esterniDocumenti: Template = { carica: () => import('../../php/pagine/esterni/documents') };
+const esterniFerieConsulente: Template = { carica: () => import('../../php/pagine/esterni/leave-requests-consulente') };
+const esterniPresenze: Template = { carica: () => import('../../php/pagine/esterni/presenze-export') };
+const esterniProfiloFormatore: Template = { carica: () => import('../../php/pagine/esterni/profile-accountant') };
+const esterniProfiloConsulente: Template = { carica: () => import('../../php/pagine/esterni/profile-consulente') };
+const esterniAssunzioni: Template = { carica: () => import('../../php/pagine/esterni/hire-requests') };
+const staffModelliAttestato: Template = { carica: () => import('../../php/pagine/staff/academy-templates') };
+const adminAziende: Template = { carica: () => import('../../php/pagine/admin/companies') };
+const adminRepartoDettaglio: Template = { carica: () => import('../../php/pagine/admin/department-detail') };
+const adminReparti: Template = { carica: () => import('../../php/pagine/admin/departments') };
+const adminIndex: Template = { carica: () => import('../../php/pagine/admin/index') };
+const adminFerie: Template = { carica: () => import('../../php/pagine/admin/leave-requests') };
+const adminPassword: Template = { carica: () => import('../../php/pagine/admin/password-resets') };
+const adminProfilo: Template = { carica: () => import('../../php/pagine/admin/profile') };
+const adminTimbrature: Template = { carica: () => import('../../php/pagine/admin/punch-settings') };
+const adminOrario: Template = { carica: () => import('../../php/pagine/admin/work-schedule') };
+const staffChat: Template = { carica: () => import('../../php/pagine/staff/chat') };
 import CalendarioStaff from '../../staff/CalendarioStaff';
-import { PaginaStaff } from '../../staff/PaginaStaff';
+import { PaginaStaff, type Template } from '../../staff/PaginaStaff';
 
 /** Date della settimana del widget presenze come DateTime (il template usa ->format). */
 const conSettimana = (V: any) => {
@@ -59,7 +59,7 @@ const conOspiti = (V: any) => {
 };
 
 
-const pagina = (percorso: string, render: (V: any, F: any) => void, opz: { prepara?: (V: any) => void; scarica?: string[] } = {}) => (
+const pagina = (percorso: string, render: Template, opz: { prepara?: (V: any) => void; scarica?: string[] } = {}) => (
   <Route key={percorso} path={percorso} element={<PaginaStaff render={render} {...opz} />} />
 );
 
