@@ -1,0 +1,93 @@
+/* Login Cora (Figma 1142:35866 desktop, 1140:28372 telefono). */
+@font-face { font-family: "Satoshi"; src: url("/assets/fonts/satoshi/Satoshi-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Satoshi"; src: url("/assets/fonts/satoshi/Satoshi-Medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Satoshi"; src: url("/assets/fonts/satoshi/Satoshi-Bold.woff2") format("woff2"); font-weight: 600 700; font-display: swap; }
+
+* { box-sizing: border-box; }
+body {
+    margin: 0; min-height: 100vh; background: #f6f8f7; color: #080808;
+    font-family: 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+}
+.cl-wrap { display: grid; grid-template-columns: minmax(0, 704fr) minmax(0, 792fr); gap: 0; min-height: 100vh; padding: 16px; }
+
+.cl-hero {
+    position: relative; overflow: hidden; border-radius: 12px; padding: 58px 48px;
+    background: #f3f3f3 url("/assets/images/cora/login-sfondo.svg") no-repeat center bottom / 100% auto;
+}
+.cl-hero h2 { margin: 0 0 16px; font-size: 40px; line-height: 48px; font-weight: 400; color: #080808; }
+.cl-hero p { margin: 0; max-width: 520px; font-size: 16px; line-height: 1.4; color: rgba(8, 8, 8, .75); }
+
+.cl-lato { display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+.cl-form { width: 100%; max-width: 512px; display: flex; flex-direction: column; gap: 60px; }
+.cl-logo svg { width: 60px; height: 60px; display: block; }
+.cl-campi { display: flex; flex-direction: column; gap: 24px; }
+.cl-titolo h1 { margin: 0 0 8px; font-size: 54px; line-height: normal; font-weight: 500; color: #080808; }
+.cl-titolo p { margin: 0; font-size: 14px; line-height: 20px; color: #8c8279; }
+.cl-campo { display: flex; flex-direction: column; gap: 6px; }
+.cl-campo label { font-size: 12px; line-height: 16px; color: #8c8279; }
+.cl-input {
+    display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px;
+    background: #fff; border: 1px solid #e8e0d6; border-radius: 4px; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.cl-input:focus-within { border-color: #080808; box-shadow: 0 0 0 3px rgba(8, 8, 8, .06); }
+.cl-input input {
+    flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; padding: 0;
+    font: inherit; font-size: 14px; line-height: 20px; color: #080808;
+}
+.cl-input input::placeholder { color: #b9b0a6; }
+.cl-input .cl-ic, .cl-input .cl-ic svg { display: inline-flex; width: 18px; height: 18px; flex-shrink: 0; }
+.cl-occhio { display: inline-flex; border: 0; background: transparent; padding: 0; cursor: pointer; opacity: .8; }
+.cl-occhio:hover { opacity: 1; }
+.cl-occhio svg { width: 16px; height: 16px; }
+.cl-occhio.is-on { opacity: 1; }
+.cl-opzioni { display: flex; justify-content: flex-end; }
+.cl-opzioni a { font-size: 14px; line-height: 20px; color: #c25a0c; text-decoration: none; }
+.cl-opzioni a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cl-btn {
+    width: 100%; height: 40px; border: 0; border-radius: 99px; cursor: pointer;
+    background: #080808; color: #f3f3f3; font: inherit; font-size: 16px; font-weight: 600;
+    transition: background .15s ease, transform .12s ease;
+}
+.cl-btn:hover { background: #262626; }
+.cl-btn:active { transform: scale(.99); }
+.cl-btn[disabled] { opacity: .6; cursor: default; }
+.cl-info { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 20px; color: #8c8279; }
+.cl-info svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+.cl-errore {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px;
+    background: #ffedec; color: #c9123b; font-size: 14px;
+}
+.cl-errore svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* Installazione dell'app (InstallaApp) */
+.pwa-install { margin-top: 0; }
+.pwa-install-btn {
+    width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border-radius: 99px;
+    border: 1px solid #e8e0d6; background: #fff; color: #080808; font: inherit; font-size: 14px; cursor: pointer;
+}
+.pwa-install-btn svg { width: 16px; height: 16px; }
+.ios-install-guide { padding: 14px 16px; border-radius: 12px; background: #fff; border: 1px solid #e8e0d6; font-size: 13px; color: #4f5c59; }
+.ios-install-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #080808; margin-bottom: 8px; }
+.ios-install-title svg { width: 16px; height: 16px; }
+.ios-install-steps { display: flex; flex-direction: column; gap: 6px; }
+.ios-step { display: flex; align-items: center; gap: 8px; }
+.ios-step-num {
+    width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: #fff1de; color: #ae6b00; font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+
+@media (max-width: 960px) {
+    .cl-wrap { grid-template-columns: 1fr; padding: 16px; gap: 24px; }
+    .cl-hero { min-height: 240px; padding: 24px 20px; background-size: cover; }
+    .cl-hero h2 { font-size: 22px; line-height: 30px; margin-bottom: 14px; }
+    .cl-hero p { font-size: 14px; line-height: 20px; color: #080808; }
+    .cl-lato { padding: 0; align-items: flex-start; }
+    .cl-form { gap: 28px; max-width: none; }
+    .cl-logo svg { width: 32px; height: 32px; }
+    .cl-campi { gap: 18px; }
+    .cl-titolo h1 { font-size: 32px; margin-bottom: 6px; }
+    .cl-input { height: 44px; border-radius: 8px; }
+    .cl-input input { font-size: 16px; }
+    .cl-btn { height: 44px; }
+}

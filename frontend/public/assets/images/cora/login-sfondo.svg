@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="704" height="864" viewBox="0 0 704 864" preserveAspectRatio="xMidYMax slice">
+  <!-- Pannello del login (Figma 1138:35774 "Hero · Mesh gradient"): ellissi sfocate su fondo chiaro -->
+  <defs>
+    <filter id="a" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="67.76"/></filter>
+    <filter id="b" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="58.08"/></filter>
+    <filter id="c" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="81.31"/></filter>
+    <filter id="d" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="30"/></filter>
+  </defs>
+  <rect width="704" height="864" fill="#F3F3F3"/>
+  <ellipse cx="35.2" cy="772.68" rx="316.8" ry="169.4" fill="#F99A3D" filter="url(#a)"/>
+  <ellipse cx="668.8" cy="850.12" rx="281.6" ry="145.2" fill="#FBC58A" fill-opacity="0.75" filter="url(#b)"/>
+  <ellipse cx="352" cy="482.28" rx="422.4" ry="203.28" fill="#F3F3F3" filter="url(#c)"/>
+  <ellipse cx="352" cy="801.72" rx="492.8" ry="87.12" fill="#FF9400" filter="url(#d)"/>
+</svg>
