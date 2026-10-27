@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { dataBreve, nome } from '../../cora/formato';
 import type { CorniceHr } from '../../cora/HrShell';
 import { svgCora } from '../../cora/svg';
@@ -139,11 +139,40 @@ interface RigaPresenza {
 interface DatiPresenze { attive: boolean; giorno: string; oggi: string; totale?: number; presenti?: number; senza?: number; ore?: number; righe?: RigaPresenza[]; reparti?: Array<{ id: number; name: string }> }
 const durata = (m: number | null) => (m === null ? '—' : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`);
 
+const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+
+/** Export presenze (come la modale della testata classica): Excel del mese scelto. */
+function EsportaPresenze({ aperta, chiudi }: { aperta: boolean; chiudi: () => void }) {
+  const ora = new Date();
+  const anno = ora.getFullYear();
+  return (
+    <Modale aperta={aperta} chiudi={chiudi} titolo="Export presenze" sottotitolo="Scarica il file Excel mensile (ferie, ROL, malattia).">
+      <form className="hr-form" method="get" action="/api/v1/pagine/admin/presenze-export" onSubmit={() => setTimeout(chiudi)}>
+        <input type="hidden" name="action" value="download" />
+        <label className="cora-field"><span className="cora-label">Mese</span>
+          <select className="cora-input" name="month" defaultValue={ora.getMonth() + 1}>
+            {MESI.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select></label>
+        <label className="cora-field"><span className="cora-label">Anno</span>
+          <select className="cora-input" name="year" defaultValue={anno}>
+            {[anno - 1, anno, anno + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+          </select></label>
+        <div className="hr-form-azioni">
+          <button type="button" className="cora-btn cora-btn-ghost" onClick={chiudi}>Annulla</button>
+          <button type="submit" className="cora-btn cora-btn-primary"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Scarica Excel</button>
+        </div>
+      </form>
+    </Modale>
+  );
+}
+
 export function PresenzeHr({ cornice }: { cornice: CorniceHr }) {
   const [giorno, setGiorno] = useState(() => new URLSearchParams(location.search).get('d') ?? '');
   const [d] = useDati<DatiPresenze>(`/hr/presenze?d=${encodeURIComponent(giorno)}`);
   const [cerca, setCerca] = useState('');
   const [reparto, setReparto] = useState('');
+  const [esporta, setEsporta] = useState(false);
+  const chiudiEsporta = useCallback(() => setEsporta(false), []);
   if (!d) return null;
   const righe = (d.righe ?? []).filter((x) => {
     const q = cerca.trim().toLowerCase();
@@ -153,7 +182,8 @@ export function PresenzeHr({ cornice }: { cornice: CorniceHr }) {
   return (
     <SezioneHr cornice={cornice} pagina="dipendenti" titolo="Dipendenti" sottotitolo="Timbrature e presenze della giornata, esportabili per il consulente del lavoro."
       schede={SCHEDE_DIPENDENTI} attiva="Presenze"
-      azioni={<a className="cora-btn cora-btn-primary" href="/admin/presenze-export"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Esporta presenze</a>}>
+      azioni={<button type="button" className="cora-btn cora-btn-primary" onClick={() => setEsporta(true)}><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Esporta presenze</button>}>
+      <EsportaPresenze aperta={esporta} chiudi={chiudiEsporta} />
       {!d.attive ? (
         <div className="cora-card hr-vuoto-grande">
           <span className="cora-empty-ic"><S n="ic-orologio.svg" /></span>
