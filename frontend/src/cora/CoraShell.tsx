@@ -4,6 +4,7 @@ import { useTesta } from '../componenti/testa';
 import { api } from '../services/api';
 import { fa, iniziali } from './formato';
 import { svgCora } from './svg';
+import { segnaScriptPhp } from '../services/navigazione';
 
 /**
  * Cornice delle pagine Cora del dipendente (header.inc.php + footer.inc.php).
@@ -135,6 +136,7 @@ function AnelloModuli() {
 /** Carica uno script in ordine, una sola volta per pagina caricata. */
 function carica(src: string): Promise<void> {
   return new Promise((ok) => {
+    segnaScriptPhp();
     const s = document.createElement('script');
     s.src = src;
     s.async = false;

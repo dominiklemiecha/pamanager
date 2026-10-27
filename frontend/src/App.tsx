@@ -2,6 +2,7 @@ import { lazy, ReactNode, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { SessioneProvider, useSessione } from './componenti/sessione';
 import { percorsoPulito } from './services/indirizzi';
+import { useNavigazioneVeloce } from './services/navigazione';
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 import Login from './pages/auth/Login';
 const Logout = lazy(() => import('./pages/auth/Logout'));
@@ -41,6 +42,7 @@ function SenzaPhp({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  useNavigazioneVeloce();
   return (
     <SessioneProvider>
       <SenzaPhp>

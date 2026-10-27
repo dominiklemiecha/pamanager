@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import './funzioni-cora';
 import { indirizzoPulito } from '../services/indirizzi';
 import { StaffShell, useCorniceStaff } from './StaffShell';
+import { segnaScriptPhp } from '../services/navigazione';
 
 type Render = (V: any, F: any) => void;
 /** Template della pagina: la funzione, o come caricarla quando serve. */
@@ -32,6 +33,7 @@ export function Contenuto({ html }: { html: string }) {
     if (!box) return;
     box.innerHTML = html;
     for (const vecchio of Array.from(box.querySelectorAll('script'))) {
+      segnaScriptPhp();
       const s = document.createElement('script');
       for (const a of Array.from(vecchio.attributes)) s.setAttribute(a.name, a.value);
       if (vecchio.src) s.async = false;

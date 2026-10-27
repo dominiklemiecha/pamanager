@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useLayoutEffect, useState } from 'react';
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useClasseBody, useCss, useTitolo } from '../componenti/stile';
 import { useTesta } from '../componenti/testa';
 import { api } from '../services/api';
@@ -6,12 +7,15 @@ import type { CorniceStaff } from '../staff/tipi';
 import { caricaWidget } from './CoraShell';
 import { fa } from './formato';
 import { svgCora } from './svg';
+import { precaricaDock, precaricaPagina } from './datiHr';
+import { toastCora } from './toast';
 
 /**
  * Cornice della vista Cora dell'HR (Figma "Modulo Cora · HR", sezione 2):
  * barra in alto con saluto, selettore azienda, campanella e avatar; dock in
- * basso con le aree dell'HR e l'anello dei moduli Cora. Campanella e anello
- * li gestisce lo stesso cora.js della vista dipendente.
+ * basso con le aree dell'HR e l'anello dei moduli Cora. Campanella, anello,
+ * foglio "Altro" e toast sono qui in React (stesso comportamento di cora.js),
+ * cosi' si cambia pagina senza ricaricare l'app.
  */
 export interface CorniceHr extends CorniceStaff {
   coraHr: boolean;
@@ -107,6 +111,58 @@ function SelettoreAzienda({ c }: { c: CorniceHr }) {
   );
 }
 
+/** Chiude un menu a tendina al clic fuori da `selettore` o con Esc. */
+function useChiudiFuori(aperto: boolean, selettore: string, chiudi: () => void) {
+  useEffect(() => {
+    if (!aperto) return;
+    const clic = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest?.(selettore)) chiudi(); };
+    const tasto = (e: KeyboardEvent) => { if (e.key === 'Escape') chiudi(); };
+    document.addEventListener('click', clic);
+    document.addEventListener('keydown', tasto);
+    return () => { document.removeEventListener('click', clic); document.removeEventListener('keydown', tasto); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aperto, selettore]);
+}
+
+/** Campanella: all'apertura le notifiche diventano lette. */
+function Campanella({ cornice }: { cornice: CorniceHr }) {
+  const [aperta, setAperta] = useState(false);
+  const [punto, setPunto] = useState(cornice.notificheNonLette > 0);
+  const segnate = useRef(false);
+  useChiudiFuori(aperta, '.cora-bell', () => setAperta(false));
+  const apri = () => {
+    const ora = !aperta;
+    setAperta(ora);
+    if (ora && punto && !segnate.current) {
+      segnate.current = true;
+      api.post('/api/notifications-read.php', null, { baseURL: '' }).then(() => {
+        setPunto(false);
+        if (cache) cache = { ...cache, notificheNonLette: 0, notifiche: cache.notifiche.map((n) => ({ ...n, letta: true })) };
+      }).catch(() => undefined);
+    }
+  };
+  return (
+    <div className={'cora-bell' + (aperta ? ' is-open' : '')}>
+      <button type="button" className="cora-icon-btn hr-icon-btn" aria-haspopup="true" aria-expanded={aperta} aria-label="Notifiche" onClick={apri}>
+        <I n="ic-bell.svg" />
+        {punto && <span className="cora-bell-dot" />}
+      </button>
+      <div className="cora-bell-menu" role="menu">
+        <div className="cora-bell-head">Notifiche</div>
+        {cornice.notifiche.length === 0 ? (
+          <div className="cora-bell-empty">Nessuna notifica</div>
+        ) : cornice.notifiche.map((n) => (
+          <a key={n.id} className={'cora-bell-item' + (n.letta ? '' : ' is-unread')} href={n.link !== '' ? n.link : '#'}>
+            <span className="t">{n.titolo}</span>
+            {n.messaggio && <span className="m">{n.messaggio}</span>}
+            <span className="d">{fa(n.creata)}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Barra in alto dell'HR. */
 export function HrTopbar({ titolo, sottotitolo = '', centro, cornice }: { titolo: string; sottotitolo?: ReactNode; centro?: ReactNode; cornice: CorniceHr }) {
   return (
@@ -119,24 +175,7 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, cornice }: { titolo
       {centro && <div className="cora-topbar-center">{centro}</div>}
       <div className="cora-topbar-actions"><SelettoreAzienda c={cornice} /></div>
       <div className="cora-topbar-user">
-        <div className="cora-bell" data-cora-bell>
-          <button type="button" className="cora-icon-btn hr-icon-btn" aria-haspopup="true" aria-expanded="false" aria-label="Notifiche">
-            <I n="ic-bell.svg" />
-            {cornice.notificheNonLette > 0 && <span className="cora-bell-dot" data-cora-bell-dot />}
-          </button>
-          <div className="cora-bell-menu" role="menu">
-            <div className="cora-bell-head">Notifiche</div>
-            {cornice.notifiche.length === 0 ? (
-              <div className="cora-bell-empty">Nessuna notifica</div>
-            ) : cornice.notifiche.map((n) => (
-              <a key={n.id} className={'cora-bell-item' + (n.letta ? '' : ' is-unread')} href={n.link !== '' ? n.link : '#'}>
-                <span className="t">{n.titolo}</span>
-                {n.messaggio && <span className="m">{n.messaggio}</span>}
-                <span className="d">{fa(n.creata)}</span>
-              </a>
-            ))}
-          </div>
-        </div>
+        <Campanella cornice={cornice} />
         <a href="/admin/profile" className="cora-avatar hr-avatar" title={cornice.nome}>
           {cornice.foto ? <img src={cornice.foto} alt="" decoding="async" /> : <span>{cornice.iniziali}</span>}
         </a>
@@ -145,19 +184,56 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, cornice }: { titolo
   );
 }
 
-/** Script della vista Cora (campanella, anello dei moduli), una volta per pagina. */
-function useScript(cornice: CorniceHr) {
+/** Anello dei moduli (voce Cora del dock e della barra del telefono). */
+function VoceModuli({ classe, bottone }: { classe: string; bottone: (p: { 'aria-expanded': boolean; onClick: () => void }) => ReactNode }) {
+  const [aperto, setAperto] = useState(false);
+  useChiudiFuori(aperto, '.cora-dock-cora', () => setAperto(false));
+  return (
+    <div className={classe + (aperto ? ' is-open' : '')}>
+      {bottone({ 'aria-expanded': aperto, onClick: () => setAperto(!aperto) })}
+      <AnelloModuli />
+    </div>
+  );
+}
+
+/** Foglio "Altro" del telefono, con la stessa animazione di cora.js. */
+function useFoglioAltro(): [boolean, boolean, (aperto: boolean) => void] {
+  const [visibile, setVisibile] = useState(false);
+  const [aperto, setAperto] = useState(false);
+  const stato = useRef(false);
+  const imposta = (a: boolean) => {
+    stato.current = a;
+    if (a) {
+      setVisibile(true);
+      requestAnimationFrame(() => setAperto(true));
+    } else {
+      setAperto(false);
+      setTimeout(() => { if (!stato.current) setVisibile(false); }, 220);
+    }
+  };
   useEffect(() => {
-    const w = window as any;
-    if (w.__coraScript) return;
-    w.__coraScript = true;
-    w.PAM = { baseUrl: '' };
-    const s = document.createElement('script');
-    s.src = '/assets/js/cora.js';
-    s.onload = () => { document.dispatchEvent(new Event('DOMContentLoaded')); caricaWidget(cornice.widget as any); };
-    document.body.appendChild(s);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!visibile) return;
+    const tasto = (e: KeyboardEvent) => { if (e.key === 'Escape') imposta(false); };
+    document.addEventListener('keydown', tasto);
+    return () => document.removeEventListener('keydown', tasto);
+  }, [visibile]);
+  return [visibile, aperto, imposta];
+}
+
+/** Dock scorrevole su telefono: voce attiva visibile, dissolvenza solo se c'e' altro a destra. */
+function useDockScorrevole() {
+  const rif = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const d = rif.current;
+    if (!d) return;
+    const attiva = d.querySelector<HTMLElement>('.is-active');
+    if (attiva && d.scrollWidth > d.clientWidth) d.scrollLeft = Math.max(0, attiva.offsetLeft - d.clientWidth / 2 + attiva.offsetWidth / 2);
+    const fine = () => d.classList.toggle('is-end', d.scrollLeft + d.clientWidth >= d.scrollWidth - 2);
+    d.addEventListener('scroll', fine, { passive: true });
+    fine();
+    return () => d.removeEventListener('scroll', fine);
   }, []);
+  return rif;
 }
 
 export function HrShell({ pagina, titolo, children, cornice }: { pagina: string; titolo: string; children: ReactNode; cornice: CorniceHr }) {
@@ -166,7 +242,36 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
   useTitolo(`${titolo} · Cora`);
   useTesta(TESTA_CORA);
   useLayoutEffect(() => { document.body.dataset.page = pagina; }, [pagina]);
-  useScript(cornice);
+  const [altroVisibile, altroAperto, setAltro] = useFoglioAltro();
+  const dock = useDockScorrevole();
+  const { key } = useLocation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setAltro(false), [key]);
+  useEffect(() => {
+    // API per le pagine e la guida (come il window.Cora di cora.js).
+    (window as any).Cora = { toast: toastCora, more: (a: boolean) => setAltro(!!a) };
+    caricaWidget(cornice.widget as any);
+    // Ingresso a cascata degli elementi .cora-reveal, solo alla prima apertura.
+    if (!document.body.classList.contains('cora-revealed')) {
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('cora-revealed')));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Dati delle pagine pronti prima del clic: a browser libero quelli del dock,
+  // al passaggio del mouse (o al tocco) quelli del link.
+  useEffect(() => {
+    precaricaDock();
+    const sopra = (e: Event) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (a) precaricaPagina(a.href);
+    };
+    document.addEventListener('pointerover', sopra, { passive: true });
+    document.addEventListener('touchstart', sopra, { passive: true });
+    return () => {
+      document.removeEventListener('pointerover', sopra);
+      document.removeEventListener('touchstart', sopra);
+    };
+  }, []);
   const badge = (k: string) => (k === 'chat' ? cornice.contatori.chat : k === 'ferie' ? cornice.contatori.ferie : 0);
 
   return (
@@ -175,7 +280,7 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
         <main className="cora-main">{children}</main>
       </div>
       <nav className="cora-dock hr-dock" aria-label="Menu principale">
-        <div className="cora-dock-items">
+        <div className="cora-dock-items" ref={dock}>
           {DOCK.map(([k, label, icona, href]) => {
             const attivo = pagina === k;
             const n = badge(k);
@@ -189,28 +294,26 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
           })}
         </div>
         <span className="cora-dock-sep" aria-hidden="true" />
-        <div className="cora-dock-cora" data-cora-modules>
-          <button type="button" className="cora-dock-item" aria-expanded="false" aria-label="Moduli Cora">
+        <VoceModuli classe="cora-dock-cora" bottone={(p) => (
+          <button type="button" className="cora-dock-item" aria-label="Moduli Cora" {...p}>
             <S n="dock-cora.svg" c="cora-dock-icon cora-dock-logo" />
             <span className="cora-dock-label">Cora</span>
           </button>
-          <AnelloModuli />
-        </div>
+        )} />
       </nav>
       <nav className="cora-tabbar" aria-label="Menu principale">
         {(['index', 'dipendenti', 'cora', 'ferie', 'altro'] as const).map((k) => {
           if (k === 'cora') {
             return (
-              <div key={k} className="cora-tabbar-cora cora-dock-cora" data-cora-modules>
-                <button type="button" className="cora-tabbar-btn" aria-expanded="false" aria-label="Moduli Cora" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
-                <AnelloModuli />
-              </div>
+              <VoceModuli key={k} classe="cora-tabbar-cora cora-dock-cora" bottone={(p) => (
+                <button type="button" className="cora-tabbar-btn" aria-label="Moduli Cora" {...p} dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
+              )} />
             );
           }
           if (k === 'altro') {
             const attivo = ALTRO.includes(pagina) || pagina === 'profilo';
             return (
-              <button key={k} type="button" className={'cora-dock-item' + (attivo ? ' is-active' : '')} data-cora-more aria-haspopup="dialog" aria-expanded="false">
+              <button key={k} type="button" className={'cora-dock-item' + (attivo ? ' is-active' : '')} aria-haspopup="dialog" aria-expanded={altroVisibile} onClick={() => setAltro(!altroVisibile)}>
                 <S n="dock-altro.svg" t c="cora-dock-icon" />
                 <span className="cora-dock-label">Altro</span>
                 {cornice.contatori.chat > 0 && <span className="cora-dock-dot" />}
@@ -229,7 +332,8 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
         })}
       </nav>
 
-      <div className="cora-more" data-cora-more-sheet hidden>
+      <div className={'cora-more' + (altroAperto ? ' is-open' : '')} hidden={!altroVisibile}
+        onClick={(e) => { if (!(e.target as HTMLElement).closest('.cora-more-box')) setAltro(false); }}>
         <div className="cora-more-box" role="dialog" aria-modal="true" aria-label="Altre sezioni">
           <div className="cora-more-grip" aria-hidden="true" />
           <h2 className="hr-more-titolo">Altro</h2>
@@ -266,9 +370,12 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
   );
 }
 
-/** Dati della cornice HR; null finche' non arrivano. */
+/** Ultima cornice ricevuta: la pagina successiva si disegna subito e intanto la aggiorna. */
+let cache: CorniceHr | null = null;
+
+/** Dati della cornice HR; null solo alla prima apertura, finche' non arrivano. */
 export function useCorniceHr(): CorniceHr | null {
-  const [c, setC] = useState<CorniceHr | null>(null);
-  useEffect(() => { api.get('/hr/cornice').then((r) => setC(r.data)).catch(() => undefined); }, []);
+  const [c, setC] = useState<CorniceHr | null>(cache);
+  useEffect(() => { api.get('/hr/cornice').then((r) => { cache = r.data; setC(r.data); }).catch(() => undefined); }, []);
   return c;
 }

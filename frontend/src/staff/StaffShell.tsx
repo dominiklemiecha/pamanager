@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { htmlPiede } from './piede';
 import { htmlTestata } from './testata';
 import type { CorniceStaff } from './tipi';
+import { segnaScriptPhp } from '../services/navigazione';
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Host+Grotesk:wght@400;500;600;700&display=swap';
 
@@ -21,6 +22,7 @@ export function useCorniceStaff(dopo?: Promise<unknown>): CorniceStaff | null {
 
 function carica(src: string, attr: Record<string, string> = {}): Promise<void> {
   return new Promise((ok) => {
+    segnaScriptPhp();
     const s = document.createElement('script');
     s.src = src;
     s.async = false;

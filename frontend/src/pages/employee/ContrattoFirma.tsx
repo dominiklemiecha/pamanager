@@ -4,6 +4,7 @@ import { CoraShell, useCornice } from '../../cora/CoraShell';
 import { api } from '../../services/api';
 import cssBenvenuto from './contratto-benvenuto.css?inline';
 import cssFirma from './contratto-firma.css?inline';
+import { segnaScriptPhp } from '../../services/navigazione';
 
 interface Vista { id: number; stato: string; azienda: string; contratto: boolean; firma: { uploaded_at: string; signed_ip: string; signature_hash: string } | null }
 
@@ -16,6 +17,7 @@ const dmyhm = (s: string | null | undefined) => {
 function useScript(src: string) {
   useEffect(() => {
     if (document.querySelector(`script[src="${src}"]`)) return;
+    segnaScriptPhp();
     const s = document.createElement('script');
     s.src = src;
     document.body.appendChild(s);

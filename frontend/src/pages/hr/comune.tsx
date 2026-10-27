@@ -1,14 +1,16 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { iniziali } from '../../cora/formato';
+import { datoVisto, scaricaDato } from '../../cora/datiHr';
 import { CorniceHr, HrShell, HrTopbar, useCorniceHr } from '../../cora/HrShell';
 import { svgCora } from '../../cora/svg';
+import { toastCora } from '../../cora/toast';
 import { api } from '../../services/api';
 import { PaginaStaff } from '../../staff/PaginaStaff';
 
 /** Pezzi comuni delle pagine Cora dell'HR. */
 export const S = ({ n, t }: { n: string; t?: boolean }) => <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svgCora(n, t) }} />;
-export const toast = (titolo: string, testo = '', tipo = '') => (window as any).Cora?.toast(titolo, testo, tipo);
+export const toast = toastCora;
 
 export interface Persona { id: number; nome: string; cognome: string; foto: string }
 export function Volto({ p, classe = 'hr-volto' }: { p: Persona; classe?: string }) {
@@ -31,12 +33,16 @@ export function SceltaHr({ cora, classica, usaCora = () => true }: {
   return cornice.coraHr && usaCora(new URLSearchParams(search)) ? <>{cora(cornice)}</> : <PaginaStaff {...classica} />;
 }
 
-/** Dati di una pagina: carica, ricarica dopo un'azione. */
+/**
+ * Dati di una pagina: carica, ricarica dopo un'azione. Se la pagina e' gia'
+ * stata vista (o precaricata) si disegna subito e intanto si aggiorna.
+ */
 export function useDati<T>(percorso: string): [T | null, () => Promise<void>] {
-  const [d, setD] = useState<T | null>(null);
-  const carica = useCallback(async () => { const r = await api.get(percorso); setD(r.data); }, [percorso]);
-  useEffect(() => { carica().catch(() => undefined); }, [carica]);
-  return [d, carica];
+  const [d, setD] = useState<T | null>(() => datoVisto<T>(percorso));
+  // Dopo un'azione serve una richiesta nuova, non un precaricamento partito prima.
+  const ricarica = useCallback(async () => { setD(await scaricaDato<T>(percorso, true)); }, [percorso]);
+  useEffect(() => { scaricaDato<T>(percorso).then(setD).catch(() => undefined); }, [percorso]);
+  return [d, ricarica];
 }
 
 /**

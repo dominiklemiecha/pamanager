@@ -46,23 +46,42 @@ export function useTitolo(titolo: string): void {
  */
 export function useCss(...href: string[]): void {
   useLayoutEffect(() => {
-    const fini: Array<() => void> = [];
-    const nodi = href.map((h) => {
-      const el = document.createElement('link');
-      el.rel = 'stylesheet';
-      el.href = h;
-      el.setAttribute('data-cora', '');
-      fini.push(inAttesa(el));
-      document.head.appendChild(el);
-      return el;
-    });
-    // Un foglio tolto prima di arrivare non manda piu' "load": non si aspetta.
-    return () => {
-      nodi.forEach((n) => n.remove());
-      fini.forEach((f) => f());
-    };
+    href.forEach(prendiFoglio);
+    return () => href.forEach(lasciaFoglio);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, href);
+}
+
+/**
+ * Fogli condivisi tra pagine: cambiando pagina senza ricaricare, quelli che
+ * servono anche alla nuova restano al loro posto (gia' caricati, niente
+ * attesa); gli altri si tolgono appena la nuova pagina e' montata.
+ */
+const fogli = new Map<string, { el: HTMLLinkElement; usi: number; fine: () => void }>();
+
+function prendiFoglio(h: string) {
+  const f = fogli.get(h);
+  if (f) { f.usi++; return; }
+  const el = document.createElement('link');
+  el.rel = 'stylesheet';
+  el.href = h;
+  el.setAttribute('data-cora', '');
+  const fine = inAttesa(el);
+  document.head.appendChild(el);
+  fogli.set(h, { el, usi: 1, fine });
+}
+
+function lasciaFoglio(h: string) {
+  const f = fogli.get(h);
+  if (!f) return;
+  f.usi--;
+  queueMicrotask(() => {
+    if (f.usi > 0 || fogli.get(h) !== f) return;
+    fogli.delete(h);
+    f.el.remove();
+    // Un foglio tolto prima di arrivare non manda piu' "load": non si aspetta.
+    f.fine();
+  });
 }
 
 /**

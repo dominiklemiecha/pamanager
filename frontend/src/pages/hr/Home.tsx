@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { dataBreve, fa, iniziali, nome } from '../../cora/formato';
 import { CorniceHr, HrShell, HrTopbar } from '../../cora/HrShell';
 import { svgCora } from '../../cora/svg';
+import { toastCora } from '../../cora/toast';
+import { datoVisto, salvaDato, scaricaDato } from '../../cora/datiHr';
 import { api } from '../../services/api';
 
 type Stato = 'disponibile' | 'occupato' | 'ferie' | 'permesso' | 'malattia' | 'assente' | 'smart';
@@ -50,7 +52,7 @@ function ora() {
   const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
   return h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
 }
-const toast = (titolo: string, testo = '', tipo = '') => (window as any).Cora?.toast(titolo, testo, tipo);
+const toast = toastCora;
 
 function Volto({ p, classe = 'hr-volto' }: { p: Persona; classe?: string }) {
   return <span className={classe}>{p.foto ? <img src={p.foto} alt="" loading="lazy" /> : iniziali(p.nome, p.cognome)}</span>;
@@ -58,8 +60,9 @@ function Volto({ p, classe = 'hr-volto' }: { p: Persona; classe?: string }) {
 
 /** Dashboard dell'HR (Figma "Dashboard Hr", 744:521). */
 export default function HomeHr({ cornice }: { cornice: CorniceHr }) {
-  const [d, setD] = useState<DatiHome | null>(null);
-  useEffect(() => { api.get('/hr/home').then((r) => setD(r.data)).catch(() => undefined); }, []);
+  const [d, setDati] = useState<DatiHome | null>(() => datoVisto<DatiHome>('/hr/home'));
+  const setD = (x: DatiHome) => { salvaDato('/hr/home', x); setDati(x); };
+  useEffect(() => { scaricaDato<DatiHome>('/hr/home').then(setDati).catch(() => undefined); }, []);
   if (!d) return null;
   const sottotitolo = [
     d.inAttesa > 0 ? `Hai ${d.inAttesa} richiest${d.inAttesa === 1 ? 'a' : 'e'} da approvare` : 'Nessuna richiesta da approvare',
