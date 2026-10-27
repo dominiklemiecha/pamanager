@@ -1,6 +1,9 @@
 import { Route } from 'react-router-dom';
 import { PaginaSuperadmin } from '../../superadmin/PaginaSuperadmin';
 import { IndiceHr } from '../hr/Indice';
+import { SceltaHr } from '../hr/comune';
+import { AnagraficaHr, AssunzioniHr, PresenzeHr, RepartiHr } from '../hr/Dipendenti';
+import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
 import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
 import adminPortaLog from '../../php/pagine/admin/door-log';
@@ -56,6 +59,12 @@ const pagina = (percorso: string, render: (V: any, F: any) => void, opz: { prepa
   <Route key={percorso} path={percorso} element={<PaginaStaff render={render} {...opz} />} />
 );
 
+/** Pagina dell'HR con la vista Cora (se attiva) e la pagina classica per il resto. */
+const hr = (percorso: string, Cora: (p: { cornice: CorniceHr }) => React.ReactNode, classica: React.ComponentProps<typeof PaginaStaff>,
+  usaCora?: (q: URLSearchParams) => boolean) => (
+  <Route key={percorso} path={percorso} element={<SceltaHr cora={(c) => <Cora cornice={c} />} classica={classica} usaCora={usaCora} />} />
+);
+
 /** Pagine dell'area staff (stessi indirizzi del PHP). */
 export const rotteStaff = [
   ...['/admin', '/admin/', '/admin/index.php'].map((x) => (
@@ -70,13 +79,13 @@ export const rotteStaff = [
   pagina('/admin/smtp-settings.php', soloRedirect),
   pagina('/admin/profile.php', adminProfilo),
   pagina('/admin/password-resets.php', adminPassword),
-  pagina('/admin/departments.php', adminReparti),
+  hr('/admin/departments.php', RepartiHr, { render: adminReparti }, (q) => !q.has('edit') && q.get('action') !== 'new'),
   pagina('/admin/department-detail.php', adminRepartoDettaglio),
   pagina('/admin/companies.php', adminAziende),
   pagina('/admin/communications.php', adminComunicazioni),
-  pagina('/admin/employees.php', adminDipendenti),
-  pagina('/admin/hire-requests.php', adminAssunzioni),
-  pagina('/admin/attendance.php', adminTimbratureGiorno),
+  hr('/admin/employees.php', AnagraficaHr, { render: adminDipendenti }, (q) => !q.has('action') && !q.has('id')),
+  hr('/admin/hire-requests.php', AssunzioniHr, { render: adminAssunzioni }, (q) => !q.has('action') && !q.has('id')),
+  hr('/admin/attendance.php', PresenzeHr, { render: adminTimbratureGiorno }, (q) => !q.has('classica')),
   pagina('/admin/consulente-lavoro.php', adminUtentiEsterni, { prepara: conOspiti }),
   pagina('/admin/formatori.php', adminUtentiEsterni, { prepara: conOspiti }),
   ...['admin', 'consulente-lavoro'].map((a) => pagina(`/${a}/chat.php`, staffChat, { scarica: ['download_attachment', 'group_avatar'] })),

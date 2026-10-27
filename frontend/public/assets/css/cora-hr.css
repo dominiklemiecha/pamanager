@@ -203,3 +203,195 @@
     .hr-donut-val small { font-size: 16px; }
     .hr-presenze, .hr-richieste { padding: 18px 20px; }
 }
+
+/* =====================================================================
+   Sezioni (Dipendenti, Ferie, Archivio, Accessi esterni)
+   ===================================================================== */
+.hr-sottomenu { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+.hr-schede { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--cora-surface); }
+.hr-spazio { flex: 1; }
+.hr-azioni { display: flex; gap: 10px; flex-wrap: wrap; }
+.hr-azioni .cora-btn svg { width: 16px; height: 16px; }
+.hr-btn-logo, .hr-btn-logo svg { display: inline-flex; width: 16px; height: 16px; }
+.hr-corpo { display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; }
+
+.hr-elenco { padding: 24px; display: flex; flex-direction: column; gap: 8px; }
+.hr-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.hr-cerca { width: 420px; max-width: 100%; height: 40px; }
+.hr-select {
+    height: 40px; padding: 0 36px 0 14px; border-radius: 999px; border: 1px solid var(--cora-line);
+    background: var(--cora-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 16 16'%3E%3Cpath stroke='%234F5C59' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.33' d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 14px center;
+    appearance: none; font: inherit; font-size: 14px; font-weight: 500; color: var(--cora-ink); cursor: pointer;
+}
+.hr-data { padding-right: 14px; background-image: none; }
+
+/* Tabelle */
+.hr-tabella { display: flex; flex-direction: column; }
+.hr-riga { display: grid; gap: 16px; align-items: center; min-height: 60px; padding: 0 16px; border-radius: 12px; font-size: 14px; color: var(--cora-ink-2); }
+.hr-riga:not(.hr-intestazione):hover { background: var(--cora-surface-soft); }
+.hr-intestazione { min-height: 0; padding-top: 6px; padding-bottom: 6px; font-size: 12px; color: var(--cora-ink-3); }
+.hr-tab-anagrafica .hr-riga { grid-template-columns: minmax(220px, 360px) minmax(150px, 260px) minmax(110px, 200px) minmax(130px, 1fr) 32px; }
+.hr-tab-assunzioni .hr-riga { grid-template-columns: minmax(220px, 360px) minmax(140px, 260px) minmax(100px, 200px) minmax(150px, 1fr) 32px; }
+.hr-tab-presenze .hr-riga { grid-template-columns: minmax(220px, 300px) minmax(100px, 160px) minmax(140px, 170px) 100px 100px minmax(80px, 1fr) 32px; }
+.hr-persona { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hr-persona > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hr-persona strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-persona small { font-size: 12px; font-weight: 400; color: var(--cora-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a.hr-persona:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+.hr-persona .hr-volto { width: 36px; height: 36px; font-size: 12px; }
+.hr-cf { font-size: 13px; font-weight: 400; color: var(--cora-ink-2); }
+.hr-forte { color: var(--cora-ink); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-vuoto { padding: 24px 16px; text-align: center; font-size: 14px; color: var(--cora-ink-3); }
+
+.hr-badge {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--cora-surface-soft); color: var(--cora-ink-2);
+}
+.hr-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.hr-badge.is-presente, .hr-badge.is-ok, .hr-badge.is-p-dentro { background: var(--cora-success-soft); color: var(--cora-success); }
+.hr-badge.is-occupato, .hr-badge.is-attesa, .hr-badge.is-smart { background: var(--cora-warning-soft); color: var(--cora-warning); }
+.hr-badge.is-errore, .hr-badge.is-p-senza { background: var(--cora-error-soft); color: var(--cora-error); }
+.hr-badge.is-cessato { color: var(--cora-ink-3); }
+
+/* Menu "..." */
+.hr-menu { position: relative; justify-self: end; }
+.hr-menu-btn {
+    width: 32px; height: 32px; border: 0; border-radius: 8px; padding: 0; cursor: pointer; background: transparent;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.hr-menu-btn:hover, .hr-menu.is-open .hr-menu-btn { background: var(--cora-line); }
+.hr-menu-btn svg { width: 18px; height: 18px; }
+.hr-menu-lista {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 70; min-width: 190px;
+    background: var(--cora-surface); border-radius: 12px; padding: 6px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, .12); animation: cora-pop .14s ease-out;
+    display: flex; flex-direction: column;
+}
+.hr-menu-lista a, .hr-menu-lista button {
+    display: block; width: 100%; padding: 9px 12px; border-radius: 8px; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 14px; font-weight: 500; color: var(--cora-ink); text-align: left; white-space: nowrap;
+}
+.hr-menu-lista a:hover, .hr-menu-lista button:hover { background: var(--cora-surface-soft); }
+.hr-menu-lista .is-pericolo { color: var(--cora-error); }
+
+/* Stato vuoto con i passaggi (Assunzioni) */
+.hr-vuoto-grande { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 24px; text-align: center; }
+.hr-vuoto-grande h3 { font-size: 18px; font-weight: 500; color: var(--cora-ink); }
+.hr-vuoto-grande p { font-size: 14px; color: var(--cora-ink-3); max-width: 640px; }
+.hr-passi { width: 100%; display: flex; gap: 16px; align-items: stretch; margin-top: 12px; }
+.hr-passo { flex: 1; display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 12px; background: var(--cora-surface-soft); text-align: left; }
+.hr-passo b {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cora-surface); color: var(--cora-ink-2); font-size: 13px; font-weight: 600;
+}
+.hr-passo.is-primo b { background: var(--cora-accent); color: var(--cora-surface); }
+.hr-passo span { display: flex; flex-direction: column; gap: 2px; }
+.hr-passo strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); }
+.hr-passo small { font-size: 12px; color: var(--cora-ink-2); }
+
+/* Riquadri numerici (Presenze) */
+.hr-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.hr-kpi .cora-card { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; min-height: 88px; }
+.hr-kpi-t { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--cora-ink-2); }
+.hr-kpi-v { font-size: 13px; color: var(--cora-ink-3); }
+.hr-kpi-v b { font-size: 24px; font-weight: 500; color: var(--cora-ink); margin-right: 6px; }
+.hr-barra { display: block; height: 4px; border-radius: 999px; background: var(--cora-accent-soft); overflow: hidden; }
+.hr-barra i { display: block; height: 100%; background: var(--cora-accent); border-radius: 999px; }
+.hr-pallino { width: 8px; height: 8px; border-radius: 50%; background: var(--cora-ink-3); }
+.hr-pallino.is-errore { background: var(--cora-error); }
+
+/* Reparti */
+.hr-reparti { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.hr-reparto {
+    display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 16px;
+    border: 1px solid var(--cora-line); background: var(--cora-surface); text-align: left;
+}
+.hr-reparto.is-inattivo { opacity: .7; }
+.hr-reparto-h { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.hr-reparto-lettera {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cora-accent-soft); color: var(--cora-warning); font-size: 16px; font-weight: 600;
+}
+.hr-reparto-nome { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hr-reparto-nome strong { font-size: 16px; font-weight: 500; color: var(--cora-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-reparto-nome small { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--cora-ink-3); }
+.hr-reparto-nome small i { width: 6px; height: 6px; border-radius: 50%; background: var(--cora-success); }
+.is-inattivo .hr-reparto-nome small i { background: var(--cora-ink-3); }
+.hr-reparto-h .hr-menu-btn { background: var(--cora-surface-soft); border-radius: 999px; }
+.hr-reparto-volti { display: flex; min-height: 24px; }
+.hr-volto-mini { width: 24px; height: 24px; font-size: 9px; border: 2px solid var(--cora-surface); margin-left: -6px; }
+.hr-volto-mini:first-child { margin-left: 0; }
+.hr-volto-36 { width: 36px; height: 36px; font-size: 12px; }
+.hr-reparto-f {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding-top: 12px; border-top: 1px solid var(--cora-line); font-size: 13px; color: var(--cora-ink-2);
+}
+.hr-reparto-f > span { display: inline-flex; align-items: center; gap: 6px; }
+.hr-reparto-f svg { width: 16px; height: 16px; }
+.hr-link { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; cursor: pointer; padding: 0; font: inherit; font-size: 13px; font-weight: 500; color: var(--cora-ink); }
+.hr-link svg { width: 14px; height: 14px; }
+.hr-reparto-nuovo {
+    align-items: center; justify-content: center; gap: 6px; min-height: 180px; cursor: pointer;
+    border: 1.5px dashed var(--cora-line); background: transparent; font: inherit; text-align: center;
+}
+.hr-reparto-nuovo:hover { background: var(--cora-surface-soft); }
+.hr-reparto-nuovo strong { font-size: 15px; font-weight: 500; color: var(--cora-ink); }
+.hr-reparto-nuovo small { font-size: 12px; color: var(--cora-ink-3); }
+.hr-piu {
+    width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cora-surface-soft); font-size: 22px; font-weight: 400; color: var(--cora-ink); margin-bottom: 6px;
+}
+
+/* Moduli nelle modali */
+.hr-form { display: flex; flex-direction: column; gap: 14px; }
+.hr-form-azioni { display: flex; justify-content: flex-end; gap: 10px; }
+.hr-errore { padding: 10px 14px; border-radius: 12px; background: var(--cora-error-soft); color: var(--cora-error); font-size: 13px; }
+.hr-modale-titolo { font-size: 22px !important; }
+.hr-aggiungi { display: flex; gap: 10px; align-items: flex-start; }
+.hr-combo { position: relative; flex: 1; min-width: 0; }
+.hr-combo .hr-cerca { width: 100%; }
+.hr-combo-lista {
+    position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 5; max-height: 260px; overflow-y: auto;
+    background: var(--cora-surface); border-radius: 12px; padding: 6px; box-shadow: 0 14px 32px rgba(0, 0, 0, .12);
+}
+.hr-combo-lista button {
+    width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px;
+    background: transparent; cursor: pointer; font: inherit; text-align: left;
+}
+.hr-combo-lista button:hover { background: var(--cora-surface-soft); }
+.hr-combo-lista span, .hr-membro > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hr-combo-lista strong, .hr-membro strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); }
+.hr-combo-lista small, .hr-membro small { font-size: 12px; color: var(--cora-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-conteggio { font-size: 13px; color: var(--cora-ink-3); }
+.hr-membri { display: flex; flex-direction: column; }
+.hr-membro { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--cora-line); }
+.hr-membro:last-child { border-bottom: 0; }
+.hr-membro > span:nth-child(2) { flex: 1; }
+.hr-rimuovi {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 0; cursor: pointer;
+    background: var(--cora-surface-soft); font: inherit; font-size: 13px; color: var(--cora-ink-2);
+}
+.hr-rimuovi:hover { color: var(--cora-error); }
+.hr-rimuovi svg { width: 14px; height: 14px; }
+
+@media (max-width: 1100px) {
+    .hr-tabella { overflow-x: auto; }
+    .hr-tabella .hr-riga { min-width: 860px; }
+    .hr-kpi { grid-template-columns: 1fr; }
+    .hr-passi { flex-direction: column; }
+}
+@media (max-width: 820px) {
+    .hr-sottomenu { align-items: stretch; }
+    .hr-schede { overflow-x: auto; }
+    .hr-azioni { width: 100%; }
+    .hr-azioni .cora-btn { flex: 1; justify-content: center; }
+    .hr-elenco { padding: 16px; }
+    .hr-cerca { width: 100%; }
+    .hr-aggiungi { flex-direction: column; align-items: stretch; }
+}
+
+/* I link con aspetto di bottone tengono il colore del bottone (cora.css da ai link color: inherit) */
+.cora-body a.cora-btn-primary { color: var(--cora-surface); }
+.cora-body a.cora-btn-secondary { color: var(--cora-ink); }
+.cora-modal-h > .hr-reparto-h { flex-direction: row; align-items: center; gap: 12px; }
+.cora-modal-h > .hr-reparto-h .hr-reparto-lettera { width: 48px; height: 48px; font-size: 18px; }

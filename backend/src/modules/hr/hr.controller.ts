@@ -30,6 +30,26 @@ export class HrController {
     return this.hr.settimana(u.companyId!, String(w ?? ''));
   }
 
+  @Get('dipendenti')
+  dipendenti(@Utente() u: UtenteCorrente) {
+    return this.hr.dipendenti(u.companyId!);
+  }
+
+  @Get('assunzioni')
+  assunzioni(@Utente() u: UtenteCorrente) {
+    return this.hr.assunzioni(u.companyId!);
+  }
+
+  @Get('presenze')
+  presenze(@Query('d') d: string, @Utente() u: UtenteCorrente) {
+    return this.hr.presenze(u.companyId!, String(d ?? ''));
+  }
+
+  @Get('reparti')
+  reparti(@Utente() u: UtenteCorrente) {
+    return this.hr.reparti(u.companyId!);
+  }
+
   /** Approvazione dalla dashboard (quick_approve di admin/index.php). */
   @Post('richieste/:id/approva')
   @HttpCode(200)

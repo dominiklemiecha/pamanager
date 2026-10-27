@@ -4,6 +4,7 @@ import { contaGiorniLavorativi } from '../../common/calcoli/orario';
 import { oggiRoma } from '../../common/calcoli/php';
 import { senzaIsolamento } from '../../common/database/isolamento';
 import type { UtenteCorrente } from '../auth/auth.types';
+import { STATI as STATI_ASSUNZIONE } from '../assunzioni/assunzioni.service';
 import { TIPI } from '../ferie/ferie.service';
 import { NotificheService } from '../notifiche/notifiche.service';
 import { compleanni } from '../pagine/widget/compleanni';
@@ -149,5 +150,126 @@ export class HrService {
       if (!lr.created_by_admin) voci.push({ tipo: 'richiesta', titolo: `Nuova richiesta di ${tipo}`, meta: chi, data: iso(lr.created_at) });
     }
     return voci.sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0)).slice(0, 8);
+  }
+
+  /** Stato di oggi di ogni dipendente: assenza approvata o smart working. */
+  private async statiOggi(cid: number): Promise<Map<number, { stato: string; etichetta: string }>> {
+    const oggi = oggiRoma();
+    const out = new Map<number, { stato: string; etichetta: string }>();
+    for (const r of await this.ds.query(
+      `SELECT DISTINCT ON (employee_id) employee_id, leave_type FROM leave_requests
+        WHERE company_id = $1 AND status = 'approved' AND start_date <= $2 AND end_date >= $2 ORDER BY employee_id, id`, [cid, oggi])) {
+      out.set(r.employee_id, r.leave_type === 'smart_working'
+        ? { stato: 'smart', etichetta: 'Smart working' }
+        : { stato: 'assente', etichetta: TIPI[r.leave_type] ?? 'Assente' });
+    }
+    return out;
+  }
+
+  /** Anagrafica (admin/employees.php, elenco): attivi e cessati, con lo stato di oggi. */
+  async dipendenti(cid: number) {
+    const stati = await this.statiOggi(cid);
+    const righe = await this.ds.query(
+      `SELECT e.id, e.first_name, e.last_name, e.email, e.username, e.fiscal_code, e.photo_path, e.is_active, e.availability_status,
+              e.department_id, d.name AS reparto
+         FROM employees e LEFT JOIN departments d ON d.id = e.department_id
+        WHERE e.company_id = $1 ORDER BY e.is_active DESC, e.last_name, e.first_name, e.id`, [cid]);
+    const reparti = await this.ds.query('SELECT id, name FROM departments WHERE company_id = $1 ORDER BY name', [cid]);
+    return {
+      reparti,
+      dipendenti: righe.map((e: any) => {
+        let s = stati.get(e.id) ?? { stato: 'presente', etichetta: 'In presenza' };
+        if (!stati.has(e.id) && e.availability_status === 'in_call') s = { stato: 'occupato', etichetta: 'In chiamata' };
+        if (!stati.has(e.id) && e.availability_status === 'in_meeting') s = { stato: 'occupato', etichetta: 'In riunione' };
+        if (!e.is_active) s = { stato: 'cessato', etichetta: 'Non attivo' };
+        return {
+          id: e.id, nome: e.first_name, cognome: e.last_name, email: e.email ?? '', username: e.username ?? '', cf: e.fiscal_code ?? '',
+          foto: foto(e.photo_path), attivo: !!e.is_active, repartoId: e.department_id, reparto: e.reparto ?? '', ...s,
+        };
+      }),
+    };
+  }
+
+  /** Assunzioni (admin/hire-requests.php, elenco). */
+  async assunzioni(cid: number) {
+    const righe = await this.ds.query(
+      `SELECT h.id, h.status, h.employee_first_name, h.employee_last_name, h.start_date::text AS start_date, h.created_at,
+              h.contract_indeterminato, h.contract_determinato, h.contract_apprendistato, h.contract_tirocinio, h.role_description, u.name AS consulente
+         FROM hire_requests h LEFT JOIN users u ON u.id = h.assigned_consulente_user_id
+        WHERE h.company_id = $1 ORDER BY h.created_at DESC, h.id DESC`, [cid]);
+    const contratto = (h: any) => [h.contract_indeterminato && 'Indeterminato', h.contract_determinato && 'Determinato',
+      h.contract_apprendistato && 'Apprendistato', h.contract_tirocinio && 'Tirocinio'].filter(Boolean).join(', ');
+    return righe.map((h: any) => ({
+      id: h.id, stato: h.status, etichetta: STATI_ASSUNZIONE[h.status] ?? h.status, nome: h.employee_first_name ?? '', cognome: h.employee_last_name ?? '',
+      inizio: h.start_date, contratto: contratto(h), ruolo: h.role_description ?? '', consulente: h.consulente ?? '', creata: iso(h.created_at),
+    }));
+  }
+
+  /** Timbrature del giorno (admin/attendance.php): entrata, uscita, ore lavorate, stato. */
+  async presenze(cid: number, giorno: string) {
+    const oggi = oggiRoma();
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(giorno) && !Number.isNaN(Date.parse(`${giorno}T12:00:00Z`)) ? giorno : oggi;
+    const [az] = await senzaIsolamento(() => this.ds.query('SELECT timbratura_enabled FROM companies WHERE id = $1', [cid]));
+    if (az && az.timbratura_enabled === false) return { attive: false, giorno: day, oggi };
+    const dip = await this.ds.query(
+      `SELECT e.id, e.first_name, e.last_name, e.email, e.photo_path, e.department_id, d.name AS reparto FROM employees e
+         LEFT JOIN departments d ON d.id = e.department_id WHERE e.company_id = $1 AND e.is_active = true ORDER BY e.last_name, e.first_name`, [cid]);
+    const timbrature = await this.ds.query(
+      `SELECT employee_id, kind, to_char(punch_at AT TIME ZONE 'Europe/Rome', 'HH24:MI') AS ora, punch_at FROM attendance_punches
+        WHERE company_id = $1 AND (punch_at AT TIME ZONE 'Europe/Rome')::date = $2 ORDER BY punch_at, id`, [cid, day]);
+    const assenze = new Map<number, string>();
+    for (const r of await this.ds.query(
+      `SELECT DISTINCT ON (employee_id) employee_id, leave_type FROM leave_requests WHERE company_id = $1 AND status = 'approved'
+          AND start_date <= $2 AND end_date >= $2 ORDER BY employee_id, id`, [cid, day])) assenze.set(r.employee_id, TIPI[r.leave_type] ?? r.leave_type);
+    const per = new Map<number, any[]>();
+    for (const t of timbrature) {
+      if (!per.has(t.employee_id)) per.set(t.employee_id, []);
+      per.get(t.employee_id)!.push(t);
+    }
+    let presenti = 0;
+    let senza = 0;
+    let ore = 0;
+    const righe = dip.map((e: any) => {
+      const lista = per.get(e.id) ?? [];
+      let aperta: number | null = null;
+      let secondi = 0;
+      for (const t of lista) {
+        const s = new Date(t.punch_at).getTime() / 1000;
+        if (t.kind === 'in') aperta = s;
+        else if (t.kind === 'out' && aperta !== null) { secondi += s - aperta; aperta = null; }
+      }
+      const dentro = aperta !== null;
+      if (aperta !== null && day === oggi) secondi += Date.now() / 1000 - aperta;
+      ore += secondi / 3600;
+      const entrata = lista.find((t: any) => t.kind === 'in')?.ora ?? null;
+      const uscita = dentro ? null : [...lista].reverse().find((t: any) => t.kind === 'out')?.ora ?? null;
+      let stato = 'uscito';
+      let etichetta = 'Uscito';
+      if (!lista.length) {
+        if (assenze.has(e.id)) { stato = 'assente'; etichetta = assenze.get(e.id)!; } else { stato = 'senza'; etichetta = 'Senza timbratura'; senza++; }
+      } else if (dentro) { stato = 'dentro'; etichetta = 'In sede'; presenti++; }
+      return {
+        id: e.id, nome: e.first_name, cognome: e.last_name, email: e.email ?? '', foto: foto(e.photo_path), repartoId: e.department_id, reparto: e.reparto ?? '',
+        stato, etichetta, entrata, uscita, minuti: lista.length ? Math.round(secondi / 60) : null,
+      };
+    });
+    const reparti = await this.ds.query('SELECT id, name FROM departments WHERE company_id = $1 ORDER BY name', [cid]);
+    return { attive: true, giorno: day, oggi, totale: dip.length, presenti, senza, ore: Math.round(ore), righe, reparti };
+  }
+
+  /** Reparti con i loro dipendenti (admin/departments.php e department-detail.php). */
+  async reparti(cid: number) {
+    const reparti = await this.ds.query('SELECT id, name, code, description, is_active FROM departments WHERE company_id = $1 ORDER BY name', [cid]);
+    const dip = await this.ds.query(
+      `SELECT id, first_name, last_name, email, fiscal_code, photo_path, department_id FROM employees
+        WHERE company_id = $1 AND is_active = true ORDER BY last_name, first_name`, [cid]);
+    const persona = (e: any) => ({ id: e.id, nome: e.first_name, cognome: e.last_name, email: e.email ?? '', cf: e.fiscal_code ?? '', foto: foto(e.photo_path), repartoId: e.department_id });
+    return {
+      reparti: reparti.map((r: any) => ({
+        id: r.id, nome: r.name, codice: r.code, descrizione: r.description ?? '', attivo: !!r.is_active,
+        dipendenti: dip.filter((e: any) => e.department_id === r.id).map(persona),
+      })),
+      dipendenti: dip.map(persona),
+    };
   }
 }
