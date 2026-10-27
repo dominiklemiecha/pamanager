@@ -1,5 +1,6 @@
 import { Route } from 'react-router-dom';
 import { PaginaSuperadmin } from '../../superadmin/PaginaSuperadmin';
+import { IndiceHr } from '../hr/Indice';
 import { P } from '../../php/runtime';
 import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
 import adminPortaLog from '../../php/pagine/admin/door-log';
@@ -57,9 +58,9 @@ const pagina = (percorso: string, render: (V: any, F: any) => void, opz: { prepa
 
 /** Pagine dell'area staff (stessi indirizzi del PHP). */
 export const rotteStaff = [
-  pagina('/admin', adminIndex, { prepara: conSettimana }),
-  pagina('/admin/', adminIndex, { prepara: conSettimana }),
-  pagina('/admin/index.php', adminIndex, { prepara: conSettimana }),
+  ...['/admin', '/admin/', '/admin/index.php'].map((x) => (
+    <Route key={x} path={x} element={<IndiceHr classica={{ render: adminIndex, prepara: conSettimana }} />} />
+  )),
   pagina('/admin/leave-requests.php', adminFerie, { scarica: ['download_attachment', 'download_cert'] }),
   pagina('/admin/work-schedule.php', adminOrario),
   pagina('/admin/punch-settings.php', adminTimbrature),

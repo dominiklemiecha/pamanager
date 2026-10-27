@@ -39,10 +39,10 @@ export class CompatController {
   }
 
   @Post('notifications-read.php')
-  @Ruoli('employee')
+  @Ruoli('employee', 'admin')
   @HttpCode(200)
   async notificheLette(@Utente() u: UtenteCorrente) {
-    await this.notifiche.segnaTutteLette('employee', u.id);
+    await this.notifiche.segnaTutteLette(u.tipo === 'employee' ? 'employee' : u.ruolo, u.id);
     return { success: true };
   }
 

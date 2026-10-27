@@ -13,6 +13,7 @@ import { WidgetModule } from './modules/widget/widget.module';
 import { ContrattoModule } from './modules/contratto/contratto.module';
 import { AcademyModule } from './modules/academy/academy.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { HrModule } from './modules/hr/hr.module';
 import { CalendarioModule } from './modules/calendario/calendario.module';
 import { ComunicazioniModule } from './modules/comunicazioni/comunicazioni.module';
 import { DocumentiModule } from './modules/documenti/documenti.module';
@@ -49,6 +50,7 @@ import { SaldiModule } from './modules/saldi/saldi.module';
     ProfiloModule,
     CalendarioModule,
     ChatModule,
+    HrModule,
     AcademyModule,
     ContrattoModule,
     WidgetModule,
