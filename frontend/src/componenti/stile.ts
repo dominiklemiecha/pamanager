@@ -51,12 +51,34 @@ export function useCss(...href: string[]): void {
       el.rel = 'stylesheet';
       el.href = h;
       el.setAttribute('data-cora', '');
+      inAttesa(el);
       document.head.appendChild(el);
       return el;
     });
     return () => nodi.forEach((n) => n.remove());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, href);
+}
+
+/**
+ * Pagina nascosta finche' i suoi fogli di stile non sono arrivati: senza,
+ * per un attimo si vedeva il contenuto senza stile (i <link> si aggiungono
+ * dopo il primo disegno). Dopo 3 secondi si mostra comunque.
+ */
+let attesi = 0;
+function inAttesa(el: HTMLLinkElement) {
+  attesi++;
+  document.documentElement.classList.add('cora-stili-in-arrivo');
+  let fatto = false;
+  const fine = () => {
+    if (fatto) return;
+    fatto = true;
+    attesi = Math.max(0, attesi - 1);
+    if (attesi === 0) document.documentElement.classList.remove('cora-stili-in-arrivo');
+  };
+  el.addEventListener('load', fine);
+  el.addEventListener('error', fine);
+  setTimeout(fine, 3000);
 }
 
 /** Classe sul <body> per la durata della pagina (es. "login-page", "cora-body"). */
