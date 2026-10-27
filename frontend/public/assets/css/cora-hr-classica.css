@@ -1,0 +1,102 @@
+/*
+ * Pagine classiche dell'HR dentro la cornice Cora (schede, moduli, chat,
+ * academy... che il Figma non ridisegna): i componenti del vecchio tema
+ * prendono i colori, i raggi e il font della vista Cora. I token valgono
+ * su tutto il body perche' modali e menu degli script finiscono li'.
+ */
+body.hr-classica-body {
+    /* Scala "primary" del vecchio tema: il nero e i grigi di Cora */
+    --primary-50: #f6f8f7;
+    --primary-100: #e2eae9;
+    --primary-200: #cfd9d7;
+    --primary-300: #a9b7b4;
+    --primary-400: #4f5c59;
+    --primary-500: #262626;
+    --primary-600: #080808;
+    --primary-700: #262626;
+    --primary-800: #080808;
+    --primary-900: #080808;
+    --navy: #080808;
+    --navy-dark: #262626;
+    --navy-darker: #080808;
+    --navy-soft: #f6f8f7;
+    --aqua: #080808;
+    --aqua-50: #f6f8f7;
+    --mint: #f6f8f7;
+
+    --ink: var(--cora-ink);
+    --ink-2: var(--cora-ink-2);
+    --ink-3: var(--cora-ink-3);
+    --accent: var(--cora-ink);
+    --accent-dark: #262626;
+    --accent-hover: #262626;
+    --accent-soft: var(--cora-surface-soft);
+    --accent-border: var(--cora-line);
+    --primary-color: var(--cora-ink);
+    --primary-dark: #262626;
+    --primary-light: var(--cora-ink-2);
+    --info-color: var(--cora-ink);
+    --info-50: var(--cora-surface-soft);
+    --info-600: var(--cora-ink);
+
+    /* Stati con la palette Cora */
+    --success: var(--cora-success);
+    --success-soft: var(--cora-success-soft);
+    --success-border: #b3e6d1;
+    --success-500: var(--cora-success);
+    --success-600: var(--cora-success);
+    --success-700: #00663f;
+    --success-50: var(--cora-success-soft);
+    --success-200: #b3e6d1;
+    --success-300: #80d4b1;
+    --success-color: var(--cora-success);
+    --warning: var(--cora-warning);
+    --warning-soft: var(--cora-warning-soft);
+    --warning-500: var(--cora-accent);
+    --warning-600: var(--cora-warning);
+    --warning-700: var(--cora-accent-ink);
+    --warning-50: var(--cora-warning-soft);
+    --warning-300: #ffc980;
+    --danger: var(--cora-error);
+    --danger-soft: var(--cora-error-soft);
+    --danger-border: #f5b8c5;
+    --danger-500: var(--cora-error);
+
+    /* Superfici, bordi, raggi e font */
+    --bg: var(--cora-surface-soft);
+    --surface: var(--cora-surface);
+    --surface-alt: var(--cora-surface-soft);
+    --border: var(--cora-line);
+    --border-strong: #cfd9d7;
+    --r-md: 10px;
+    --r-lg: 16px;
+    --r-xl: 20px;
+    --font: var(--cora-font);
+    --font-family: var(--cora-font);
+    background: var(--cora-surface-soft);
+}
+
+.hr-classica { font-family: var(--cora-font); color: var(--cora-ink); }
+.hr-classica .card,
+.hr-classica .table-wrap,
+.hr-classica .table-container { border-color: var(--cora-line); border-radius: 16px; box-shadow: none; }
+
+/* Colori scritti a mano nel vecchio tema */
+.hr-classica .welcome-card { border-left-color: var(--cora-accent); }
+.hr-classica .welcome-card h1, .hr-classica .welcome-card h2 { color: var(--cora-ink); }
+.hr-classica .welcome-card .btn { background: var(--cora-ink); border-color: var(--cora-ink); }
+.hr-classica .welcome-card .btn:hover { background: #262626; border-color: #262626; }
+.hr-classica .stat-icon.blue { background: var(--cora-surface-soft); color: var(--cora-ink); }
+
+/* Pulsanti come quelli Cora: neri, angoli arrotondati */
+.hr-classica .btn { border-radius: 10px; }
+.hr-classica .btn-primary { background: var(--cora-ink); border-color: var(--cora-ink); color: var(--cora-surface); }
+.hr-classica .btn-primary:hover { background: #262626; border-color: #262626; }
+
+/* Dentro la cornice Cora il contenuto non ha i margini della pagina classica */
+.hr-classica .app-content { padding: 0; }
+
+/* Stato "approvato": nel vecchio tema era il blu del marchio, in Cora e' il verde */
+.hr-classica .lp-status.approved,
+.hr-classica .status-approved,
+.hr-classica .badge.approved { background: var(--cora-success-soft); color: var(--cora-success); }

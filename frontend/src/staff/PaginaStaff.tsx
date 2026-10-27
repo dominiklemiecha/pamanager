@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import './funzioni-cora';
 import { indirizzoPulito } from '../services/indirizzi';
 import { StaffShell, useCorniceStaff } from './StaffShell';
+import { useCorniceHr } from '../cora/HrShell';
+import { CorniceClassicaHr, ricolora } from '../pages/hr/Classica';
 import { segnaScriptPhp } from '../services/navigazione';
 
 type Render = (V: any, F: any) => void;
@@ -72,6 +74,9 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Templat
   if (download(new URL(location.href))) location.replace('/api/v1' + indirizzo + location.search);
   const dati = useMemo(() => api.get(indirizzo + location.search), [indirizzo]);
   const cornice = useCorniceStaff(dati);
+  // HR con la vista Cora: anche le pagine classiche stanno nella cornice Cora.
+  const hrArea = /^\/admin(\/|$)/.test(percorso);
+  const corniceHr = useCorniceHr(hrArea);
   const [stato, setStato] = useState<{ titolo: string; V: any } | null>(null);
 
   const mostra = (d: any) => {
@@ -183,8 +188,19 @@ export function PaginaStaff({ render, prepara, scarica = [] }: { render: Templat
   }, [render]);
 
   const html = useMemo(() => (stato && fn ? esegui(fn, stato.V) : ''), [stato, fn]);
+  const htmlCora = useMemo(() => ricolora(html), [html]);
   if (!cornice || !stato || !fn) return null;
   const pagina = percorso.split('/').pop()?.replace(/\.php$/, '') || 'index';
+  if (hrArea && cornice.ruolo === 'admin') {
+    if (!corniceHr) return null;
+    if (corniceHr.coraHr) {
+      return (
+        <CorniceClassicaHr file={pagina} titolo={stato.titolo} cornice={cornice} corniceHr={corniceHr}>
+          <Contenuto html={htmlCora} />
+        </CorniceClassicaHr>
+      );
+    }
+  }
   return (
     <StaffShell pagina={pagina} titolo={stato.titolo} cornice={cornice}>
       <Contenuto html={html} />

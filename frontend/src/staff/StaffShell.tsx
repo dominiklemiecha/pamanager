@@ -37,30 +37,15 @@ function carica(src: string, attr: Record<string, string> = {}): Promise<void> {
 const Html = ({ html }: { html: string }) => <div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: html }} />;
 
 /**
- * Cornice dell'area staff (header-admin.php + footer-admin.php): menu laterale
- * per ruolo, selettore azienda, finestra Export presenze, barra in basso su
- * telefono e script del footer. `pagina` e' il nome del file PHP senza
- * estensione (per la voce attiva del menu). `stile` e' lo <style> della pagina.
+ * Fogli di stile, font, script del footer PHP e cambio azienda dell'area staff:
+ * servono alle pagine convertite sia nella cornice classica sia in quella Cora dell'HR.
  */
-export function StaffShell({ pagina, titolo, cornice, stile, script = [], globali = {}, children }: {
-  pagina: string; titolo: string; cornice: CorniceStaff; stile?: string; script?: string[]; globali?: Record<string, unknown>; children: ReactNode;
-}) {
-  useCss('https://rsms.me/inter/inter.css', '/assets/css/theme.css', '/assets/css/components.css', '/assets/css/style.css', '/assets/css/mobile-staff.css');
+export function useRisorseStaff({ cornice, stile, script = [], globali = {}, css = [] }: {
+  cornice: CorniceStaff; stile?: string; script?: string[]; globali?: Record<string, unknown>; css?: string[];
+}): void {
+  useCss('https://rsms.me/inter/inter.css', '/assets/css/theme.css', '/assets/css/components.css', '/assets/css/style.css', ...css);
   useFoglioEsterno(FONT);
   useStile(...(stile ? [stile] : []));
-  useClasseBody('admin-body');
-  useTesta({ ...TESTA_CLASSICA, themeColor: '#2563eb' });
-  useLayoutEffect(() => { document.title = titolo; }, [titolo]);
-
-  const testata = useMemo(() => htmlTestata(cornice, pagina), [cornice, pagina]);
-  // La testata va divisa: menu laterale (figlio di .app) e testata (dentro .app-main).
-  const [laterale, interno] = useMemo(() => {
-    const corpo = testata.slice(testata.indexOf('<div class="app">') + '<div class="app">'.length);
-    const i = corpo.indexOf('<div class="app-main">');
-    const resto = corpo.slice(i + '<div class="app-main">'.length).replace(/<script>[\s\S]*?<\/script>/g, '');
-    return [corpo.slice(0, i), resto];
-  }, [testata]);
-
   useEffect(() => {
     const w = window as any;
     if (w.__staffScript) return;
@@ -102,6 +87,30 @@ export function StaffShell({ pagina, titolo, cornice, stile, script = [], global
     return () => document.removeEventListener('submit', invio);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+}
+
+/**
+ * Cornice dell'area staff (header-admin.php + footer-admin.php): menu laterale
+ * per ruolo, selettore azienda, finestra Export presenze, barra in basso su
+ * telefono e script del footer. `pagina` e' il nome del file PHP senza
+ * estensione (per la voce attiva del menu). `stile` e' lo <style> della pagina.
+ */
+export function StaffShell({ pagina, titolo, cornice, stile, script = [], globali = {}, children }: {
+  pagina: string; titolo: string; cornice: CorniceStaff; stile?: string; script?: string[]; globali?: Record<string, unknown>; children: ReactNode;
+}) {
+  useRisorseStaff({ cornice, stile, script, globali, css: ['/assets/css/mobile-staff.css'] });
+  useClasseBody('admin-body');
+  useTesta({ ...TESTA_CLASSICA, themeColor: '#2563eb' });
+  useLayoutEffect(() => { document.title = titolo; }, [titolo]);
+
+  const testata = useMemo(() => htmlTestata(cornice, pagina), [cornice, pagina]);
+  // La testata va divisa: menu laterale (figlio di .app) e testata (dentro .app-main).
+  const [laterale, interno] = useMemo(() => {
+    const corpo = testata.slice(testata.indexOf('<div class="app">') + '<div class="app">'.length);
+    const i = corpo.indexOf('<div class="app-main">');
+    const resto = corpo.slice(i + '<div class="app-main">'.length).replace(/<script>[\s\S]*?<\/script>/g, '');
+    return [corpo.slice(0, i), resto];
+  }, [testata]);
 
   return (
     <>

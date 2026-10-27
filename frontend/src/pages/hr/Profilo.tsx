@@ -9,7 +9,7 @@ import { inviaPagina, Modale, S, SezioneHr, toast, useDati, Volto } from './comu
  * Profilo e configurazione dell'HR (Figma 995:12853, 13079, 13292, 13506,
  * 13745). Ogni scheda usa la pagina esistente (stessi dati e stesse azioni).
  */
-const SCHEDE: Array<[string, string]> = [
+export const SCHEDE: Array<[string, string]> = [
   ['Profilo', '/admin/profile'], ['Timbrature', '/admin/punch-settings'], ['Reset password', '/admin/password-resets'],
   ['Orario lavorativo', '/admin/work-schedule'], ['Buoni pasto', '/admin/buoni-pasto'],
 ];

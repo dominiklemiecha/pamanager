@@ -374,8 +374,10 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
 let cache: CorniceHr | null = null;
 
 /** Dati della cornice HR; null solo alla prima apertura, finche' non arrivano. */
-export function useCorniceHr(): CorniceHr | null {
-  const [c, setC] = useState<CorniceHr | null>(cache);
-  useEffect(() => { api.get('/hr/cornice').then((r) => { cache = r.data; setC(r.data); }).catch(() => undefined); }, []);
+export function useCorniceHr(attiva = true): CorniceHr | null {
+  const [c, setC] = useState<CorniceHr | null>(attiva ? cache : null);
+  useEffect(() => {
+    if (attiva) api.get('/hr/cornice').then((r) => { cache = r.data; setC(r.data); }).catch(() => undefined);
+  }, [attiva]);
   return c;
 }

@@ -6,7 +6,7 @@ import { api } from '../../services/api';
 import { azione, MenuRiga, Modale, S, SezioneHr, toast, useDati } from './comune';
 
 /** Archivio dell'HR: comunicazioni e documenti aziendali (Figma 920:7762, 920:8094, 920:8497). */
-const SCHEDE: Array<[string, string]> = [['Comunicazioni', '/admin/communications'], ['Documenti', '/admin/documenti-aziendali']];
+export const SCHEDE: Array<[string, string]> = [['Comunicazioni', '/admin/communications'], ['Documenti', '/admin/documenti-aziendali']];
 const SOTTOTITOLO = 'Comunicazioni e documenti condivisi con i dipendenti, con letture e scadenze.';
 const logo = <span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />;
 const giorno = (ymd: string | null) => (ymd ? `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}/${ymd.slice(0, 4)}` : '—');
