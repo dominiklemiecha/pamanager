@@ -155,7 +155,7 @@ export class CrmController {
     const [u] = await senzaIsolamento(() => this.ds.query('SELECT id, company_id, role, is_global FROM users WHERE id = $1 AND is_active = true', [Number(x.user_id) || 0]));
     if (!u) throw errore('Utente non valido', 401);
     // Correzione: il ruolo e' quello attuale nel database, non quello scritto nel token.
-    if (!['admin', 'accountant'].includes(String(u.role ?? ''))) throw errore('Non autorizzato', 403);
+    if (String(u.role ?? '') !== 'admin') throw errore('Non autorizzato', 403);
     const extra: number[] = (await senzaIsolamento(() => this.ds.query('SELECT company_id FROM user_companies WHERE user_id = $1', [u.id]))).map((r: any) => r.company_id);
     const globale = u.is_global === true;
     if (!globale && u.company_id !== az.id && !extra.includes(az.id)) throw errore('Non autorizzato su questa azienda', 403);
@@ -201,7 +201,7 @@ export class CrmController {
       `SELECT lr.employee_id, lr.leave_type, lr.start_date, lr.end_date, lr.is_full_day, lr.start_time, lr.end_time FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
         WHERE e.company_id = $1 AND e.is_active = true AND lr.status = 'approved' AND lr.start_date <= $2 AND lr.end_date >= $3${filtro ? ' AND lr.employee_id = $4' : ''}
         ORDER BY lr.start_date ASC, lr.id ASC`, filtro ? [az.id, a, da, filtro] : [az.id, a, da]));
-    const maschera = !['admin', 'accountant'].includes(ruolo);
+    const maschera = ruolo !== 'admin';
     const assenzaGiorno = new Map<string, any>();
     for (const l of assenze) {
       const ini = String(l.start_date) > da ? String(l.start_date) : da;

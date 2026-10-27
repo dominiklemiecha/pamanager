@@ -13,7 +13,6 @@ import { AnagraficaService } from '../../anagrafica/anagrafica.service';
 import { periodoDiProva } from '../../anagrafica/prova-contratto';
 import { DocumentiPersonaliService } from '../../documenti/documenti-personali.service';
 import { DocumentiService } from '../../documenti/documenti.service';
-import { VisibilitaCampiService } from '../../impostazioni/impostazioni.service';
 import { escapeHtml, MailerService } from '../../notifiche/mailer.service';
 import { SaldiService, TIPI_SALDO } from '../../saldi/saldi.service';
 import { ContestoPagina, json, PaginaPhp, Pagina, redirect, vista } from '../pagina';
@@ -48,7 +47,7 @@ const tentativiHr = new Map<number, { n: number; t: number }>();
 export class DipendentiPagina implements Pagina {
   readonly ruoli = ['admin'];
   constructor(private readonly ds: DataSource, private readonly anagrafica: AnagraficaService, private readonly saldi: SaldiService,
-    private readonly documenti: DocumentiService, private readonly personali: DocumentiPersonaliService, private readonly visibilita: VisibilitaCampiService,
+    private readonly documenti: DocumentiService, private readonly personali: DocumentiPersonaliService,
     private readonly mailer: MailerService) {}
 
   /** Campi del modulo comuni a creazione e modifica. */
@@ -75,10 +74,6 @@ export class DipendentiPagina implements Pagina {
     d.buoni_pasto_sw_eligible_override = sw === '' ? null : Number.parseInt(sw, 10) || 0;
     d.buoni_pasto_excluded = corpo.buoni_pasto_excluded !== undefined ? 1 : 0;
     return d;
-  }
-
-  private async salvaVisibilita(c: ContestoPagina, corpo: Record<string, any>) {
-    if (corpo.visibility && typeof corpo.visibility === 'object') await this.visibilita.salva(c.u.companyId!, corpo.visibility, c.u.id);
   }
 
   private async salvaSaldi(id: number, cid: number, corpo: Record<string, any>, uid: number, conNote: boolean) {
@@ -111,7 +106,6 @@ export class DipendentiPagina implements Pagina {
       case 'create': {
         const d = this.datiModulo(corpo);
         const r = await this.anagrafica.crea(d, cid, c.audit);
-        await this.salvaVisibilita(c, corpo);
         if (!r.success) return this.dati(c, { azione: 'new', errore: r.error, post: corpo });
         await this.salvaSaldi(r.id, cid, corpo, c.u.id, false);
         if (r.email_sent) return redirect('/admin/employees.php?message=created&email=sent');
@@ -122,7 +116,6 @@ export class DipendentiPagina implements Pagina {
       case 'update': {
         if (!id) break;
         const d = { ...this.datiModulo(corpo), is_active: corpo.is_active !== undefined };
-        await this.salvaVisibilita(c, corpo);
         const r = await this.anagrafica.aggiorna(id, d, cid, c.audit);
         if (r.success) {
           await this.salvaSaldi(id, cid, corpo, c.u.id, true);
@@ -254,10 +247,8 @@ export class DipendentiPagina implements Pagina {
       action, id, message, error: o.errore ?? '', generatedPassword: o.password ?? null, search, onlyActive,
       user: { id: c.u.id }, _GET: q, _POST: o.post ?? {}, __cid: cid,
       departments: await this.ds.query(
-        `SELECT d.*, (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.is_active = true)::int AS employee_count,
-                (SELECT COUNT(*) FROM users u WHERE u.department_id = d.id AND u.role = 'admin_reparto' AND u.is_active = true)::int AS admin_count
+        `SELECT d.*, (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.is_active = true)::int AS employee_count
            FROM departments d WHERE d.company_id = $1 AND d.is_active = true ORDER BY d.name ASC`, [cid]),
-      visibilityConfig: await this.visibilita.configurazione(cid),
     };
     const [az] = await senzaIsolamento(() => this.ds.query(
       `SELECT timbratura_enabled, buoni_pasto_enabled, buoni_pasto_min_hours_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible, smart_working_days,

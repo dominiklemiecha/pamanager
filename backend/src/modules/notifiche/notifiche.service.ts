@@ -74,7 +74,7 @@ export class NotificheService {
   static url(link: string | null | undefined): string {
     const l = String(link ?? '').trim();
     if (!l) return '';
-    const m = /\/(employee|admin|admin-reparto|accountant|consulente-lavoro|superadmin)\/.*$/.exec(l);
+    const m = /\/(employee|admin|consulente-lavoro|superadmin)\/.*$/.exec(l);
     if (m) return m[0];
     if (/^https?:\/\//i.test(l)) return l;
     return '/' + l.replace(/^\/+/, '');

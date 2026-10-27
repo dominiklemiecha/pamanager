@@ -8,7 +8,7 @@ import { Attore } from '../../academy/academy.service';
 import { AttestatiService, layoutPredefinito, layoutSicuro } from '../../academy/attestati.service';
 import { ContestoPagina, EsitoPagina, filePagina, json, Pagina, PaginaPhp, redirect, vista } from '../pagina';
 
-const AREE: Record<string, string> = { admin: 'admin', consulente_lavoro: 'consulente-lavoro', admin_reparto: 'admin-reparto', formatore: 'formatore' };
+const AREE: Record<string, string> = { admin: 'admin', consulente_lavoro: 'consulente-lavoro', formatore: 'formatore' };
 
 /**
  * Messaggi che la pagina mette nell'indirizzo (?ok=...): solo questi si
@@ -29,7 +29,6 @@ const ammesso = (testo: string, regole: RegExp[]) => (regole.some((r) => r.test(
  * Academy dello staff (includes/_academy-staff.inc.php, admin/academy.php,
  * consulente-lavoro/academy.php, formatore/academy.php): elenco corsi, corso
  * con schede info/materiali/partecipanti/registro, esportazioni e attestati.
- * Il responsabile di reparto vede solo il suo reparto in sola lettura.
  */
 @Injectable()
 export abstract class AcademyStaffPagina implements Pagina {
@@ -38,9 +37,8 @@ export abstract class AcademyStaffPagina implements Pagina {
   constructor(protected readonly ds: DataSource, protected readonly staff: AcademyStaffService, protected readonly attestati: AttestatiService) {}
 
   private ambito(c: ContestoPagina) {
-    const sola = c.u.ruolo === 'admin_reparto';
     const area = AREE[c.u.ruolo];
-    return { sola, reparto: sola ? (c.u.departmentId ?? 0) : null, area, self: `/${area}/academy.php` };
+    return { area, self: `/${area}/academy.php` };
   }
 
   /** Esportazione del registro (?export=csv|pdf) e ZIP degli attestati (?zip=1). */
@@ -48,12 +46,11 @@ export abstract class AcademyStaffPagina implements Pagina {
     const q = c.query;
     const corso = intero(q.course);
     if (corso <= 0 || (q.export === undefined && q.zip === undefined)) return false;
-    const { reparto } = this.ambito(c);
     const cid = c.u.companyId!;
     if (q.export !== undefined) {
       const co = await this.staff.corso(corso, cid);
       if (!co) { res.status(404).type('text/plain').send('Corso non trovato'); return true; }
-      const eventi = await this.staff.eventi(cid, corso, q.assignment !== undefined ? intero(q.assignment) : null, reparto);
+      const eventi = await this.staff.eventi(cid, corso, q.assignment !== undefined ? intero(q.assignment) : null);
       const base = `registro_${co.title}`.replace(/[^A-Za-z0-9_-]/g, '_');
       if (q.export === 'pdf') {
         const pdf = await this.staff.pdfEventi(eventi, `Registro frequenza - ${co.title}`, cid);
@@ -64,15 +61,14 @@ export abstract class AcademyStaffPagina implements Pagina {
       }
       return true;
     }
-    const z = await this.attestati.zip(corso, String(q.ids ?? '').split(',').map(intero), reparto, cid);
+    const z = await this.attestati.zip(corso, String(q.ids ?? '').split(',').map(intero), cid);
     if ('errore' in z) { res.status(404).type('text/plain').send(z.errore); return true; }
     res.set({ 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${z.nome}"`, 'Content-Length': String(z.dati.length) }).send(z.dati);
     return true;
   }
 
   async azione(c: ContestoPagina, corpo: Record<string, any>, file: Record<string, FileCaricato[]>) {
-    const { sola, self } = this.ambito(c);
-    if (sola) return json('Sola lettura', 403);
+    const { self } = this.ambito(c);
     const cid = c.u.companyId!;
     const corso = intero(c.query.course ?? corpo.course_id);
     const a = attore(c);
@@ -146,7 +142,7 @@ export abstract class AcademyStaffPagina implements Pagina {
   }
 
   async dati(c: ContestoPagina, o: { query?: Record<string, string>; errore?: string; ok?: string } = {}): Promise<EsitoPagina> {
-    const { sola, reparto, area, self } = this.ambito(c);
+    const { area, self } = this.ambito(c);
     const cid = c.u.companyId!;
     const q = o.query ?? c.query;
     const _GET: Record<string, string> = { ...q };
@@ -155,37 +151,34 @@ export abstract class AcademyStaffPagina implements Pagina {
     const corsoId = intero(q.course);
     let tab = String(q.tab ?? 'people');
     const V: Record<string, unknown> = {
-      __user: { id: c.u.id, role: c.u.ruolo, department_id: c.u.departmentId ?? null }, __role: c.u.ruolo, readOnly: sola, deptScope: reparto, area, self,
+      __user: { id: c.u.id, role: c.u.ruolo, department_id: c.u.departmentId ?? null }, __role: c.u.ruolo, readOnly: false, deptScope: null, area, self,
       courseId: corsoId, _GET, okMessage: o.ok ?? ammesso(String(c.query.ok ?? ''), OK_ACADEMY), errMessage: o.errore ?? '', course: null,
     };
     if (corsoId > 0) {
       const corso = await this.staff.corso(corsoId, cid);
       if (!corso) return this.dati(c, { query: {}, errore: 'Corso non trovato' });
-      if (sola) tab = ['people', 'log'].includes(tab) ? tab : 'people';
-      const assegnazioni = await this.staff.assegnazioni(corsoId, cid, reparto);
+      const assegnazioni = await this.staff.assegnazioni(corsoId, cid);
       Object.assign(V, {
         course: corso, materials: await this.staff.materiali(corsoId, cid), assignments: assegnazioni,
-        pendingNotify: sola ? 0 : await this.staff.notificheInCoda(corsoId, cid),
+        pendingNotify: await this.staff.notificheInCoda(corsoId, cid),
         missingCerts: assegnazioni.filter((x: any) => x.completed_at && !x.certificate_id).length, withCerts: assegnazioni.filter((x: any) => x.certificate_id).length,
       });
       if (tab === 'log') {
         const la = q.assignment !== undefined ? intero(q.assignment) : null;
         V.logAssignment = la;
-        V.events = await this.staff.eventi(cid, corsoId, la, reparto);
+        V.events = await this.staff.eventi(cid, corsoId, la);
         V.chain = await this.staff.catena(cid);
         V.__logAssignmentRow = la !== null ? await this.staff.assegnazione(la, cid) : null;
       }
-      if (tab === 'info' || tab === 'people') V.templates = sola ? [] : await this.attestati.modelli(cid);
-      if (tab === 'people' && !sola) {
+      if (tab === 'info' || tab === 'people') V.templates = await this.attestati.modelli(cid);
+      if (tab === 'people') {
         const assegnati = new Set(assegnazioni.map((x: any) => x.employee_id));
         V.assignable = (await this.staff.dipendentiAttivi(cid)).filter((e: any) => !assegnati.has(e.id));
         V.departments = await this.ds.query('SELECT id, name FROM departments WHERE company_id = $1 ORDER BY name', [cid]);
       }
     } else {
-      let corsi = await this.staff.corsi(cid, reparto);
-      if (sola) corsi = corsi.filter((x: any) => x.assigned_count > 0);
-      V.courses = corsi;
-      V.templates = sola ? [] : await this.attestati.modelli(cid);
+      V.courses = await this.staff.corsi(cid);
+      V.templates = await this.attestati.modelli(cid);
       V.formatoriCount = c.u.ruolo === 'admin' ? await this.staff.formatori(cid) : 0;
     }
     V.tab = tab;

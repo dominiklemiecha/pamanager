@@ -29,8 +29,7 @@ export interface DatiComunicazione {
 }
 
 /**
- * Comunicazioni dal lato dell'HR e del responsabile di reparto
- * (Communication.php). Ogni operazione resta nell'azienda di lavoro.
+ * Comunicazioni dal lato dell'HR (Communication.php). Ogni operazione resta nell'azienda di lavoro.
  */
 @Injectable()
 export class ComunicazioniAdminService {
@@ -39,7 +38,7 @@ export class ComunicazioniAdminService {
     private readonly mailer: MailerService) {}
 
   /** Communication::getAll: con letture e destinatari attivi. */
-  elenco(cid: number, ricerca = '', repartoId: number | null = null) {
+  elenco(cid: number, ricerca = '') {
     const p: unknown[] = [cid];
     let sql = `SELECT c.id, c.company_id, c.title, c.priority, c.is_published, c.publish_date, c.expire_date, c.is_global, c.department_id,
         c.created_by, c.created_at, u.name AS author_name, d.name AS department_name, d.code AS department_code,
@@ -51,7 +50,6 @@ export class ComunicazioniAdminService {
       FROM communications c JOIN users u ON c.created_by = u.id LEFT JOIN departments d ON c.department_id = d.id
       WHERE c.company_id = $1`;
     if (ricerca) { p.push(`%${ricerca}%`); sql += ` AND (c.title ILIKE $${p.length} OR c.content ILIKE $${p.length})`; }
-    if (repartoId !== null) { p.push(repartoId); sql += ` AND (c.is_global = true OR c.department_id = $${p.length})`; }
     return this.ds.query(`${sql} ORDER BY c.created_at DESC, c.id DESC`, p);
   }
 

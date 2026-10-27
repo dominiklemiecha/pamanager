@@ -20,7 +20,7 @@ const valida = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Dat
  * e azioni dello script della pagina (stesse risposte JSON del PHP).
  */
 @Controller('calendario')
-@Ruoli('employee', 'admin', 'admin_reparto', 'accountant', 'consulente_lavoro')
+@Ruoli('employee', 'admin', 'consulente_lavoro')
 export class CalendarioController {
   constructor(private readonly calendario: CalendarioService, private readonly contatti: ContattiService) {}
 

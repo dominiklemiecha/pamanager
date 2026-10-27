@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 
-export type RuoloStaff = 'admin' | 'accountant' | 'admin_reparto' | 'consulente_lavoro' | 'formatore';
+export type RuoloStaff = 'admin' | 'consulente_lavoro' | 'formatore';
 export type Ruolo = RuoloStaff | 'employee';
 
 /** Chi sta facendo la richiesta, ricavato dalla sessione a ogni chiamata. */
@@ -35,8 +35,6 @@ export interface RichiestaAutenticata extends Request {
  */
 export const INATTIVITA: Record<string, number> = {
   admin: 600,
-  accountant: 600,
-  admin_reparto: 600,
   formatore: 600,
   employee: 900,
 };
@@ -47,7 +45,7 @@ export const DURATA_MASSIMA = 1800;
 export const MAX_TENTATIVI = 5;
 export const BLOCCO_SECONDI = 900;
 /** Ruoli staff con MFA obbligatoria se configurata sull'account (MFA_REQUIRED_ROLES). */
-export const RUOLI_MFA: Ruolo[] = ['admin', 'accountant'];
+export const RUOLI_MFA: Ruolo[] = ['admin'];
 
 export const COOKIE_SESSIONE = 'cora_sessione';
 export const COOKIE_CSRF = 'cora_csrf';

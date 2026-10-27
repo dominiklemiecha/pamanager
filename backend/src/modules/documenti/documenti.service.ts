@@ -56,7 +56,7 @@ export class DocumentiService {
     fs.writeFileSync(dest, buf, { mode: 0o640 });
     let caricatoDa = d.uploaded_by;
     if (caricatoDa <= 0) {
-      const [a] = await this.ds.query(`SELECT id FROM users WHERE role = 'admin' AND is_active = true AND (company_id = $1 OR company_id IS NULL) ORDER BY id LIMIT 1`, [e.company_id]);
+      const [a] = await this.ds.query(`SELECT id FROM users WHERE role = 'admin' AND is_active = true AND (company_id = $1 OR is_global) ORDER BY id LIMIT 1`, [e.company_id]);
       caricatoDa = a?.id ?? 1;
     }
     let id: number;
@@ -86,7 +86,7 @@ export class DocumentiService {
     return { success: true, id };
   }
 
-  // ─── Lato commercialista e consulente (accountant/documents.php) ──────────
+  // ─── Lato consulente (consulente-lavoro/documents.php) ──────────
 
   /** Document::getAll: documenti dell'azienda con filtri per periodo e tipo. */
   elenco(cid: number, anno: number | null, mese: number | null, tipo: string | null) {
@@ -221,15 +221,12 @@ export class DocumentiService {
 
   /**
    * Chi puo' scaricare: il dipendente solo i suoi (e i personali solo se
-   * visibili); lo staff solo nell'azienda in cui lavora; il responsabile di
-   * reparto solo il suo reparto (il PHP non lo controllava sulle buste paga:
-   * falla corretta).
+   * visibili); lo staff solo nell'azienda in cui lavora.
    */
   private async puoVedere(d: any, u: UtenteCorrente, personale: boolean): Promise<boolean> {
     if (u.tipo === 'employee') return d.employee_id === u.id && (!personale || d.visible_to_employee === true);
     if (d.company_id !== u.companyId) return false;
-    if (u.ruolo === 'admin_reparto') return d.department_id === u.departmentId;
-    return ['admin', 'accountant', 'consulente_lavoro'].includes(u.ruolo);
+    return ['admin', 'consulente_lavoro'].includes(u.ruolo);
   }
 
   private async testoFiligrana(u: UtenteCorrente, ctx: ContestoAudit, id: number): Promise<string> {

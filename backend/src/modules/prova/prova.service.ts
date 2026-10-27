@@ -26,7 +26,7 @@ export class ProvaService {
     return this.ds.query(
       `SELECT u.id, u.name, u.email FROM users u WHERE u.role = 'admin' AND u.is_active = true AND (u.company_id = $1
          OR EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = $1)
-         OR (u.company_id IS NULL AND NOT EXISTS (SELECT 1 FROM user_companies uc2 WHERE uc2.user_id = u.id))) ORDER BY u.id`, [cid]);
+         OR u.is_global) ORDER BY u.id`, [cid]);
   }
 
   /**

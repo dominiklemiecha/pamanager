@@ -43,9 +43,7 @@ class ResetDto {
 const CASA: Record<string, string> = {
   employee: '/employee/',
   admin: '/admin/',
-  admin_reparto: '/admin-reparto/',
   consulente_lavoro: '/consulente-lavoro/',
-  accountant: '/accountant/',
   formatore: '/formatore/academy.php',
 };
 
@@ -151,14 +149,14 @@ export class AuthController {
 
   /** Aziende tra cui lo staff puo' scegliere (selettore in alto). */
   @Get('aziende')
-  @Ruoli('admin', 'accountant', 'consulente_lavoro', 'admin_reparto', 'formatore')
+  @Ruoli('admin', 'consulente_lavoro', 'formatore')
   async aziende(@Utente() u: UtenteCorrente) {
     const acc = { id: u.id, role: u.ruolo, companyId: u.companyIdAccount };
     return { corrente: u.companyId, puoCambiare: await this.tenant.puoCambiare(acc), accessibili: await this.tenant.accessibili(acc) };
   }
 
   @Post('azienda')
-  @Ruoli('admin', 'accountant', 'consulente_lavoro')
+  @Ruoli('admin', 'consulente_lavoro')
   @HttpCode(200)
   async cambiaAzienda(@Body() dto: AziendaDto, @Utente() u: UtenteCorrente) {
     if (!(await this.tenant.verificaCambio({ id: u.id, role: u.ruolo, companyId: u.companyIdAccount }, dto.azienda))) {

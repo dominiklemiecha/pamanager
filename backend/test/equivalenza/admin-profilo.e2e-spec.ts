@@ -57,8 +57,7 @@ describe('dati dell\'account', () => {
 
   it('solo staff', async () => {
     expect((await (await nodeEntra('giulia.ferraresi')).get(API)).status).toBe(403);
-    expect((await (await nodeEntra('resp.commerciale')).get(API)).status).toBe(403);
-    expect((await (await nodeEntra('studio.commercialista')).get(API)).status).toBe(200);
+    expect((await (await nodeEntra('studio.consulente')).get(API)).status).toBe(200);
   });
 });
 

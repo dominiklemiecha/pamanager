@@ -15,7 +15,6 @@ import { leggiBustaPaga } from '../../documenti/busta-paga';
 import { DocumentiPersonaliService } from '../../documenti/documenti-personali.service';
 import { DocumentiService } from '../../documenti/documenti.service';
 import { FerieService } from '../../ferie/ferie.service';
-import { VisibilitaCampiService } from '../../impostazioni/impostazioni.service';
 import { NotificheService } from '../../notifiche/notifiche.service';
 import { PresenzeExportService } from '../../presenze/presenze-export.service';
 import { ProvaService } from '../../prova/prova.service';
@@ -27,12 +26,9 @@ import { ContestoPagina, EsitoPagina, json, Pagina, PaginaPhp, redirect, vista }
 import { emailStaffOccupata } from '../comune';
 
 const intero = (v: unknown) => Number.parseInt(String(v ?? ''), 10) || 0;
-const AREA: Record<string, string> = { accountant: 'accountant', consulente_lavoro: 'consulente-lavoro', formatore: 'formatore' };
-const area = (c: ContestoPagina) => AREA[c.u.ruolo] ?? 'accountant';
+const AREA: Record<string, string> = { consulente_lavoro: 'consulente-lavoro', formatore: 'formatore' };
+const area = (c: ContestoPagina) => AREA[c.u.ruolo] ?? 'consulente-lavoro';
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
-/** Campi dell'anagrafica che la visibilita' puo' nascondere al commercialista. */
-const CAMPI_NASCONDIBILI = ['username', 'fiscal_code', 'first_name', 'last_name', 'email', 'phone', 'address', 'birth_date', 'department_id', 'position', 'hire_date',
-  'job_level', 'ral_amount', 'monthly_salary', 'iban'];
 
 /** Dipendenti attivi dell'azienda (Employee::getAll(true, $search)). */
 function dipendentiAttivi(ds: DataSource, cid: number, ricerca = '') {
@@ -48,8 +44,7 @@ function dipendentiAttivi(ds: DataSource, cid: number, ricerca = '') {
 }
 
 /**
- * Dashboard di commercialista e consulente del lavoro (accountant/index.php,
- * consulente-lavoro/index.php).
+ * Dashboard del consulente del lavoro (consulente-lavoro/index.php).
  */
 @Injectable()
 export abstract class DashboardEsternoPagina implements Pagina {
@@ -83,36 +78,23 @@ export abstract class DashboardEsternoPagina implements Pagina {
     return vista('Dashboard', V);
   }
 }
-@Injectable() @PaginaPhp('accountant/index') export class DashboardCommercialistaPagina extends DashboardEsternoPagina { readonly ruoli = ['accountant']; }
 @Injectable() @PaginaPhp('consulente-lavoro/index') export class DashboardConsulentePagina extends DashboardEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
 
 /**
- * Anagrafica dipendenti in lettura (accountant/employees.php).
- * Correzione: al commercialista si applica la visibilita' dei campi decisa
- * dall'HR (nel PHP la configurazione esisteva ma non era usata).
+ * Anagrafica dipendenti in lettura (consulente-lavoro/employees.php).
  */
 @Injectable()
 export abstract class DipendentiEsternoPagina implements Pagina {
   abstract readonly ruoli: string[];
-  constructor(protected readonly ds: DataSource, protected readonly visibilita: VisibilitaCampiService) {}
+  constructor(protected readonly ds: DataSource) {}
 
   async dati(c: ContestoPagina): Promise<EsitoPagina> {
     const cid = c.u.companyId!;
     const search = String(c.query.search ?? '');
-    let employees = (await dipendentiAttivi(this.ds, cid, search)).map(({ password_hash, mfa_secret, nfc_uid, ...e }: any) => e);
-    if (c.u.ruolo === 'accountant') {
-      const cfg = await this.visibilita.configurazione(cid);
-      const nascosti = CAMPI_NASCONDIBILI.filter((f) => !(cfg[f] ?? []).includes('accountant'));
-      employees = employees.map((e: any) => {
-        const x = { ...e };
-        for (const f of nascosti) { x[f] = null; if (f === 'department_id') x.department_name = null; }
-        return x;
-      });
-    }
+    const employees = (await dipendentiAttivi(this.ds, cid, search)).map(({ password_hash, mfa_secret, nfc_uid, ...e }: any) => e);
     return vista('Anagrafica dipendenti', { user: { id: c.u.id }, search, employees, __cid: cid });
   }
 }
-@Injectable() @PaginaPhp('accountant/employees') export class DipendentiCommercialistaPagina extends DipendentiEsternoPagina { readonly ruoli = ['accountant']; }
 @Injectable() @PaginaPhp('consulente-lavoro/employees') export class DipendentiConsulentePagina extends DipendentiEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
 
 /** Documenti personali dei dipendenti (accountant/employee-documents.php). */
@@ -156,7 +138,6 @@ export abstract class DocumentiDipendenteEsternoPagina implements Pagina {
     });
   }
 }
-@Injectable() @PaginaPhp('accountant/employee-documents') export class DocumentiDipendenteCommercialistaPagina extends DocumentiDipendenteEsternoPagina { readonly ruoli = ['accountant']; }
 @Injectable() @PaginaPhp('consulente-lavoro/employee-documents') export class DocumentiDipendenteConsulentePagina extends DocumentiDipendenteEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
 
 /**
@@ -267,7 +248,6 @@ export abstract class DocumentiEsternoPagina implements Pagina {
     });
   }
 }
-@Injectable() @PaginaPhp('accountant/documents') export class DocumentiCommercialistaPagina extends DocumentiEsternoPagina { readonly ruoli = ['accountant']; }
 @Injectable() @PaginaPhp('consulente-lavoro/documents') export class DocumentiConsulentePagina extends DocumentiEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
 
 /**
@@ -309,12 +289,9 @@ export abstract class FerieEsternoPagina implements Pagina {
     });
   }
 }
-@Injectable() @PaginaPhp('accountant/leave-requests') export class FerieCommercialistaPagina extends FerieEsternoPagina { readonly ruoli = ['accountant']; }
 @Injectable() @PaginaPhp('consulente-lavoro/leave-requests') export class FerieConsulentePagina extends FerieEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
 
 /** Export presenze (accountant/presenze-export.php): stessa logica della pagina HR. */
-@Injectable() @PaginaPhp('accountant/presenze-export')
-export class PresenzeCommercialistaPagina extends PresenzeExportPagina { override readonly ruoli = ['accountant']; constructor(ds: DataSource, p: PresenzeExportService) { super(ds, p); } }
 @Injectable() @PaginaPhp('consulente-lavoro/presenze-export')
 export class PresenzeConsulentePagina extends PresenzeExportPagina { override readonly ruoli = ['consulente_lavoro']; constructor(ds: DataSource, p: PresenzeExportService) { super(ds, p); } }
 
@@ -324,7 +301,7 @@ const MESSAGGI_PROFILO: Record<string, string> = {
 };
 
 /**
- * Profilo di commercialista, consulente e formatore (accountant/profile.php,
+ * Profilo di consulente e formatore (dal PHP accountant/profile.php,
  * consulente-lavoro/profile.php con l'integrazione Wrike).
  * Correzioni: il formatore apre il suo profilo (nel PHP la pagina lo
  * respingeva); l'errore del database non esce al browser; il token Wrike
@@ -392,7 +369,6 @@ export abstract class ProfiloEsternoPagina implements Pagina {
     return vista('Il mio profilo', V);
   }
 }
-@Injectable() @PaginaPhp('accountant/profile') export class ProfiloCommercialistaPagina extends ProfiloEsternoPagina { readonly ruoli = ['accountant']; }
 @Injectable() @PaginaPhp('consulente-lavoro/profile') export class ProfiloConsulentePagina extends ProfiloEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
 @Injectable() @PaginaPhp('formatore/profile') export class ProfiloFormatorePagina extends ProfiloEsternoPagina { readonly ruoli = ['formatore']; }
 

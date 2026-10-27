@@ -213,7 +213,6 @@ export class FerieService {
       await this.ds.query(`UPDATE leave_requests SET status = 'approved', approved_by = $2, approved_at = CURRENT_TIMESTAMP WHERE id = $1`, [id, ctx.id]);
       await this.registra('leave_request_approved', id, { status: 'pending' }, { status: 'approved' }, ctx);
       await this.esitoAlDipendente(r, 'leave_approved');
-      await this.avvisaCommercialisti(r);
       return { success: true };
     } catch (err: any) {
       this.logger.error(`approvazione non riuscita: ${err?.message ?? err}`);
@@ -317,25 +316,6 @@ export class FerieService {
     }
   }
 
-  /**
-   * Commercialisti avvisati di un'assenza approvata (LeaveRequest::notifyAccountants).
-   * Correzione: solo quelli dell'azienda della richiesta (o collegati), non di altre aziende.
-   */
-  private async avvisaCommercialisti(r: any) {
-    try {
-      const acc = await this.ds.query(
-        `SELECT DISTINCT u.id FROM users u WHERE u.role = 'accountant' AND (u.company_id = $1 OR u.id IN (SELECT user_id FROM user_companies WHERE company_id = $1)) ORDER BY u.id`, [r.company_id]);
-      const tipo = TIPI[r.leave_type] ?? r.leave_type;
-      for (const a of acc) {
-        await this.notifiche.crea(r.company_id, {
-          recipient_type: 'accountant', recipient_id: a.id, type: 'leave_approved', title: `${tipo} Approvata`,
-          message: `${r.first_name} ${r.last_name}: ${tipo} approvata per il ${periodo(r.start_date, r.end_date)}`, link: '/accountant/leave-requests.php',
-        });
-      }
-    } catch (err: any) {
-      this.logger.error(`commercialisti non avvisati: ${err?.message ?? err}`);
-    }
-  }
 
   /** Malattie senza documenti da piu' di N ore (LeaveRequest::sickPendingDocs). */
   async malattieSenzaDocumenti(companyId: number, ore = 24, employeeId?: number) {
@@ -362,8 +342,7 @@ export class FerieService {
     let consentito: boolean;
     if (u.tipo === 'employee') consentito = r.employee_id === u.id;
     else if (r.company_id !== u.companyId) consentito = false;
-    else if (u.ruolo === 'admin_reparto') consentito = r.department_id === u.departmentId;
-    else consentito = ['admin', 'accountant', 'consulente_lavoro'].includes(u.ruolo);
+    else consentito = ['admin', 'consulente_lavoro'].includes(u.ruolo);
     if (!consentito) {
       await this.audit.log('unauthorized_access', u.ruolo, u.id, ctx, null, null, null, { resource: `leave_${quale}`, request_id: requestId }, 'critical');
       return { ok: false, error: 'Accesso non autorizzato' };
@@ -373,22 +352,16 @@ export class FerieService {
   }
 
   /**
-   * Avvisa chi deve approvare: responsabili del reparto e admin dell'azienda.
+   * Avvisa chi deve approvare: gli admin dell'azienda.
    * Correzioni: gli admin senza azienda si avvisano solo se sono davvero
    * globali (o collegati a questa azienda) e arriva una sola push, non due.
    */
   private async avvisaResponsabili(e: any, d: DatiRichiesta): Promise<void> {
     try {
       const destinatari = new Map<string, { id: number; role: string }>();
-      if (e.department_id) {
-        for (const a of await this.ds.query(`SELECT id, role FROM users WHERE department_id = $1 AND role = 'admin_reparto' AND is_active = true ORDER BY name`, [e.department_id])) {
-          destinatari.set(`${a.role}:${a.id}`, a);
-        }
-      }
       for (const a of await this.ds.query(
         `SELECT id, role FROM users u WHERE role = 'admin' AND is_active = true
-           AND (company_id = $1 OR (company_id IS NULL AND (NOT EXISTS (SELECT 1 FROM user_companies x WHERE x.user_id = u.id)
-                                     OR EXISTS (SELECT 1 FROM user_companies y WHERE y.user_id = u.id AND y.company_id = $1))))`, [e.company_id])) {
+           AND (company_id = $1 OR is_global OR EXISTS (SELECT 1 FROM user_companies y WHERE y.user_id = u.id AND y.company_id = $1))`, [e.company_id])) {
         if (!destinatari.has(`admin:${a.id}`)) destinatari.set(`admin:${a.id}`, a);
       }
       const nome = `${e.first_name} ${e.last_name}`;
@@ -397,7 +370,7 @@ export class FerieService {
         await this.notifiche.crea(e.company_id, {
           recipient_type: a.role, recipient_id: a.id, type: 'new_leave_request', title: `Nuova Richiesta ${tipo}`,
           message: `${nome} ha richiesto ${tipo} per il ${periodo(d.start_date, d.end_date)}`,
-          link: a.role === 'admin' ? '/admin/' : '/admin-reparto/leave-requests.php',
+          link: '/admin/',
         });
       }
     } catch (err: any) {

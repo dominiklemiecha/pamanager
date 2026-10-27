@@ -10,10 +10,10 @@ import { NotificheService } from '../../notifiche/notifiche.service';
 import { normalizza } from '../normalizza';
 import { ContestoPagina, json, PaginaPhp, Pagina, vista } from '../pagina';
 
-const ETICHETTE = { admin: 'Amministratori', admin_reparto: 'Admin reparto', accountant: 'Commercialisti', consulente_lavoro: 'Consulenti del lavoro', employee: 'Dipendenti' };
-const SINGOLARI = { admin: 'Amministratore', admin_reparto: 'Admin reparto', accountant: 'Commercialista', consulente_lavoro: 'Consulente del lavoro', employee: 'Dipendente' };
+const ETICHETTE = { admin: 'Amministratori', consulente_lavoro: 'Consulenti del lavoro', employee: 'Dipendenti' };
+const SINGOLARI = { admin: 'Amministratore', consulente_lavoro: 'Consulente del lavoro', employee: 'Dipendente' };
 const URL_CHAT: Record<string, string> = {
-  admin: '/admin/chat.php', admin_reparto: '/admin-reparto/chat.php', accountant: '/accountant/chat.php', consulente_lavoro: '/consulente-lavoro/chat.php', employee: '/employee/chat.php',
+  admin: '/admin/chat.php', consulente_lavoro: '/consulente-lavoro/chat.php', employee: '/employee/chat.php',
 };
 /** Il template guarda solo se c'e' un allegato: il percorso sul server non esce. */
 const senzaPercorso = (m: any) => ({ ...m, attachment_path: m.attachment_path ? '1' : null });
@@ -138,8 +138,6 @@ abstract class ChatStaffPagina implements Pagina {
       const extra = g === 'employee'
         ? await this.ds.query(`SELECT e.id, e.email, e.fiscal_code, d.name AS department_name FROM employees e LEFT JOIN departments d ON d.id = e.department_id WHERE e.id = ANY($1::int[])`, [ids])
         : await senzaIsolamento(() => this.ds.query('SELECT id, username, email FROM users WHERE id = ANY($1::int[])', [ids]));
-      // Per il responsabile di reparto il PHP prendeva i dipendenti da Department::getEmployees (senza nome del reparto)
-      if (g === 'employee' && c.u.ruolo === 'admin_reparto') for (const x of extra) delete x.department_name;
       const per = new Map(extra.map((x: any) => [x.id, x]));
       out[g] = lista.map((x: any) => ({ ...x, ...(per.get(x.id) ?? {}) }));
     }
@@ -198,7 +196,7 @@ abstract class ChatStaffPagina implements Pagina {
       conversations: conversazioni, contacts: contatti, selectedConvId: aperta, selectedMessages: messaggi.map(senzaPercorso), selectedConv: selezionata,
       __isStaff: staff, __convHasEmployee: conDipendente, __extraParticipants: extra, __isThreeWay: extra.length > 0, __inviteCandidates: candidati,
       __senderNames: nomi, groupLabels: ETICHETTE, singularLabels: SINGOLARI, activeContactIds: attivi, sharedFiles: condivisi,
-      __chatLayout: io.tipo === 'admin_reparto' ? 'admin-reparto' : 'admin',
+      __chatLayout: 'admin',
     });
   }
 }
@@ -208,14 +206,5 @@ abstract class ChatStaffPagina implements Pagina {
 export class ChatAdminPagina extends ChatStaffPagina { readonly ruoli = ['admin']; }
 
 @Injectable()
-@PaginaPhp('accountant/chat')
-export class ChatCommercialistaPagina extends ChatStaffPagina { readonly ruoli = ['accountant']; }
-
-@Injectable()
 @PaginaPhp('consulente-lavoro/chat')
 export class ChatConsulentePagina extends ChatStaffPagina { readonly ruoli = ['consulente_lavoro']; }
-
-
-@Injectable()
-@PaginaPhp('admin-reparto/chat')
-export class ChatRepartoPagina extends ChatStaffPagina { readonly ruoli = ['admin_reparto']; }

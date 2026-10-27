@@ -19,7 +19,7 @@ const intero = (v: unknown) => Number.parseInt(String(v ?? ''), 10) || 0;
  * azioni dello script cora-chat.js (stesse risposte del PHP) e file.
  */
 @Controller('chat')
-@Ruoli('employee', 'admin', 'admin_reparto', 'accountant', 'consulente_lavoro')
+@Ruoli('employee', 'admin', 'consulente_lavoro')
 export class ChatController {
   constructor(private readonly chat: ChatService, private readonly realtime: RealtimeService, private readonly azioni: ChatAzioniService) {}
 
@@ -28,7 +28,7 @@ export class ChatController {
   async pagina(@Query('conv') conv: string, @Query('with_admin') conAdmin: string, @Utente() u: UtenteCorrente) {
     const c = this.chat.chi(u);
     // "Scrivi all'HR": chat con un admin dell'azienda (prima chi e' collegato all'azienda).
-    if (conAdmin && ['employee', 'admin_reparto'].includes(c.tipo)) {
+    if (conAdmin && c.tipo === 'employee') {
       const a = await this.chat.adminPerHR(u.companyId!);
       if (a && (await this.chat.puoContattare(u, 'admin', a))) {
         const r = await this.chat.conversazioneDiretta(u, 'admin', a);

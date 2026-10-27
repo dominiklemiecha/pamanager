@@ -16,7 +16,7 @@ import { classiPagine, ContestoPagina, EsitoPagina, Pagina } from './pagina';
 
 
 /** Aree staff con pagine portate dal PHP (stessi indirizzi). */
-export const AREE_STAFF = ['admin', 'admin-reparto', 'accountant', 'consulente-lavoro', 'formatore'];
+export const AREE_STAFF = ['admin', 'consulente-lavoro', 'formatore'];
 
 /** Ricerca della pagina, controllo del ruolo e contesto: comune alle due vie d'accesso. */
 @Injectable()

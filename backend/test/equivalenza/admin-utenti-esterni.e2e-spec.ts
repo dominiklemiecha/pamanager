@@ -1,7 +1,10 @@
 import { mariadb, postgres, ripristina } from './ambiente';
 import { Node, Php } from './clienti';
 
-/** Utenti esterni dell'HR: commercialisti, consulenti del lavoro, responsabili formazione. */
+/**
+ * Utenti esterni dell'HR: consulenti del lavoro e responsabili formazione.
+ * I commercialisti non esistono piu' nel nuovo stack.
+ */
 const PW = 'Prova!Cora2026';
 async function phpEntra(u: string) { const p = new Php(); await p.login(u, PW); return p; }
 async function nodeEntra(u: string) { const n = new Node(); await n.login(u, PW); return n; }
@@ -34,34 +37,39 @@ const id = (fn: typeof mariadb, u: string) => fn(`SELECT id FROM users WHERE use
 beforeAll(() => ripristina());
 
 describe('elenchi', () => {
-  it.each([['accountant'], ['consulente-lavoro'], ['formatori']])('stessi utenti (%s)', async (pag) => {
+  it.each([['consulente-lavoro'], ['formatori']])('stessi utenti (%s)', async (pag) => {
     const [p, n] = await Promise.all([phpEntra('hr.alfa'), nodeEntra('hr.alfa')]);
     const html = (await p.b.chiama(`/admin/${pag}.php`)).testo;
     const nomi = [...html.matchAll(/<div class="username">@([^<]*)</g)].map((m) => m[1]);
     const V = (await n.get(`/pagine/admin/${pag}`)).json.V;
     expect(V.users.map((u: any) => u.username)).toEqual(nomi);
   });
+
+  it('correzione: nessuna pagina dei commercialisti', async () => {
+    const n = await nodeEntra('hr.alfa');
+    expect((await n.get('/pagine/admin/accountant')).status).toBe(404);
+  });
 });
 
-describe('ciclo di vita di un commercialista', () => {
+describe('ciclo di vita di un consulente del lavoro', () => {
   it('creazione con password scelta, modifica, disattivazione, eliminazione', async () => {
     const [p, n] = await Promise.all([phpEntra('hr.alfa'), nodeEntra('hr.alfa')]);
     const crea: Array<[string, string]> = [['action', 'create'], ['username', 'studio.verdi'], ['name', 'Studio Verdi'], ['email', 'verdi@studio.test'],
       ['password', 'Commercialista!2026'], ['company_ids[]', '1']];
-    const a = await phpPost(p, '/admin/accountant.php', crea);
-    expect(a.redirect).toMatch(/^\/admin\/accountant\.php\?message=created&email=(ok|fail)$/);
-    expect((await nodePost(n, '/pagine/admin/accountant', crea)).redirect).toMatch(/^\/admin\/accountant\.php\?message=created&email=(ok|fail)$/);
+    const a = await phpPost(p, '/admin/consulente-lavoro.php', crea);
+    expect(a.redirect).toMatch(/^\/admin\/consulente-lavoro\.php\?message=created&email=(ok|fail)$/);
+    expect((await nodePost(n, '/pagine/admin/consulente-lavoro', crea)).redirect).toMatch(/^\/admin\/consulente-lavoro\.php\?message=created&email=(ok|fail)$/);
     expect(utente(postgres, 'studio.verdi')).toEqual(utente(mariadb, 'studio.verdi'));
     expect(collegamenti(postgres, 'studio.verdi')).toEqual(collegamenti(mariadb, 'studio.verdi'));
     expect((await new Node().login('studio.verdi', 'Commercialista!2026')).esito).toBe('ok');
 
     const mod = (fn: typeof mariadb): Array<[string, string]> => [['action', 'update'], ['id', id(fn, 'studio.verdi')], ['username', 'studio.verdi'],
       ['name', 'Studio Verdi & Associati'], ['email', 'info@verdi.test'], ['company_ids[]', '1']];
-    expect(await nodePost(n, '/pagine/admin/accountant', mod(postgres))).toEqual(await phpPost(p, '/admin/accountant.php', mod(mariadb)));
+    expect(await nodePost(n, '/pagine/admin/consulente-lavoro', mod(postgres))).toEqual(await phpPost(p, '/admin/consulente-lavoro.php', mod(mariadb)));
     expect(utente(postgres, 'studio.verdi')).toEqual(utente(mariadb, 'studio.verdi'));
 
     const del = (fn: typeof mariadb): Array<[string, string]> => [['action', 'delete'], ['id', id(fn, 'studio.verdi')]];
-    expect(await nodePost(n, '/pagine/admin/accountant', del(postgres))).toEqual(await phpPost(p, '/admin/accountant.php', del(mariadb)));
+    expect(await nodePost(n, '/pagine/admin/consulente-lavoro', del(postgres))).toEqual(await phpPost(p, '/admin/consulente-lavoro.php', del(mariadb)));
     expect(id(postgres, 'studio.verdi')).toBe(id(mariadb, 'studio.verdi'));
   });
 
@@ -73,9 +81,9 @@ describe('ciclo di vita di un commercialista', () => {
       [['action', 'create'], ['username', 'studio.nuovo'], ['name', 'X'], ['email', 'hr.alfa@cora.test'], ['password', 'Valida!Password2026']],
       [['action', 'create'], ['username', 'hr.alfa'], ['name', 'X'], ['email', 'nuovo@x.test'], ['password', 'Valida!Password2026']],
     ] as Array<Array<[string, string]>>) {
-      const a = await phpPost(p, '/admin/accountant.php', c);
+      const a = await phpPost(p, '/admin/consulente-lavoro.php', c);
       expect(a.error).not.toBe('');
-      expect(await nodePost(n, '/pagine/admin/accountant', c)).toEqual(a);
+      expect(await nodePost(n, '/pagine/admin/consulente-lavoro', c)).toEqual(a);
     }
   });
 
@@ -106,7 +114,7 @@ describe('correzioni di sicurezza', () => {
     const n = await nodeEntra('hr.alfa');
     for (const u of ['connecteed', 'hr.beta', 'hr.alfa', 'giulia.ferraresi']) {
       for (const action of ['update', 'delete', 'reset_password', 'toggle_active']) {
-        const r = await nodePost(n, '/pagine/admin/accountant', [['action', action], ['id', String(id(postgres, u) ?? 999999)], ['username', 'preso'], ['name', 'Preso'], ['email', 'preso@x.test']]);
+        const r = await nodePost(n, '/pagine/admin/consulente-lavoro', [['action', action], ['id', String(id(postgres, u) ?? 999999)], ['username', 'preso'], ['name', 'Preso'], ['email', 'preso@x.test']]);
         expect(r).toEqual({ message: '', error: 'Utente non trovato' });
       }
     }
@@ -116,7 +124,7 @@ describe('correzioni di sicurezza', () => {
 
   it('collegamenti solo alle aziende gestite', async () => {
     const n = await nodeEntra('hr.alfa');
-    await nodePost(n, '/pagine/admin/accountant', [['action', 'create'], ['username', 'studio.furbo'], ['name', 'Furbo'], ['email', 'furbo@x.test'],
+    await nodePost(n, '/pagine/admin/consulente-lavoro', [['action', 'create'], ['username', 'studio.furbo'], ['name', 'Furbo'], ['email', 'furbo@x.test'],
       ['password', 'Commercialista!2026'], ['company_ids[]', '1'], ['company_ids[]', '2']]);
     expect(collegamenti(postgres, 'studio.furbo')).toEqual(['1']);
   });

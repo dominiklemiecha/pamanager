@@ -51,7 +51,7 @@ describe('apertura della dashboard', () => {
   });
 
   it('solo per l\'HR', async () => {
-    const n = await nodeEntra('studio.commercialista');
+    const n = await nodeEntra('studio.consulente');
     expect((await n.get('/pagine/admin/index')).status).toBe(403);
     const d = await nodeEntra('giulia.ferraresi');
     expect((await d.get('/pagine/admin/index')).status).toBe(403);
@@ -59,14 +59,15 @@ describe('apertura della dashboard', () => {
 });
 
 describe('azioni rapide', () => {
-  it('approvazione: stato, esito al dipendente e ai commercialisti', async () => {
+  it('approvazione: stato ed esito al dipendente', async () => {
     const [p, n] = await Promise.all([phpEntra('hr.alfa'), nodeEntra('hr.alfa')]);
     const a = await phpPost(p, '/admin/index.php', { action: 'quick_approve', id: String(richiesta(mariadb, 'Ferraresi', 'ferie')) });
     const b = await nodePost(n, '/pagine/admin/index', { action: 'quick_approve', id: String(richiesta(postgres, 'Ferraresi', 'ferie')) });
     expect(b).toBe('/admin/index.php');
     expect(a).toBe('/admin/index.php');
     expect(stato(postgres, richiesta(postgres, 'Ferraresi', 'ferie'))).toEqual(stato(mariadb, richiesta(mariadb, 'Ferraresi', 'ferie')));
-    expect(notifiche(postgres, 'leave_approved')).toEqual(notifiche(mariadb, 'leave_approved'));
+    // Correzione: niente commercialisti nel nuovo stack, quindi niente avviso per loro
+    expect(notifiche(postgres, 'leave_approved')).toEqual(notifiche(mariadb, 'leave_approved').filter((r) => r.recipient_type !== 'accountant'));
   });
 
   it('rifiuto con motivo', async () => {

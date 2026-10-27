@@ -5,7 +5,6 @@ import { caricaWidget } from '../cora/CoraShell';
 import { api } from '../services/api';
 import { htmlPiede } from './piede';
 import { htmlTestata } from './testata';
-import { htmlTestataReparto } from './testata-reparto';
 import type { CorniceStaff } from './tipi';
 
 const FONT = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Host+Grotesk:wght@400;500;600;700&display=swap';
@@ -51,7 +50,7 @@ export function StaffShell({ pagina, titolo, cornice, stile, script = [], global
   useTesta({ ...TESTA_CLASSICA, themeColor: '#2563eb' });
   useLayoutEffect(() => { document.title = titolo; }, [titolo]);
 
-  const testata = useMemo(() => (cornice.ruolo === 'admin_reparto' ? htmlTestataReparto : htmlTestata)(cornice, pagina), [cornice, pagina]);
+  const testata = useMemo(() => htmlTestata(cornice, pagina), [cornice, pagina]);
   // La testata va divisa: menu laterale (figlio di .app) e testata (dentro .app-main).
   const [laterale, interno] = useMemo(() => {
     const corpo = testata.slice(testata.indexOf('<div class="app">') + '<div class="app">'.length);

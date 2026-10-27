@@ -4,7 +4,7 @@ import { senzaIsolamento } from '../../common/database/isolamento';
 import { erroriPassword, hashPassword } from '../../common/sicurezza/password';
 import { AuditService, ContestoAudit } from '../audit/audit.service';
 
-export const RUOLI_STAFF = ['admin', 'accountant', 'admin_reparto', 'consulente_lavoro', 'formatore'];
+export const RUOLI_STAFF = ['admin', 'consulente_lavoro', 'formatore'];
 
 export interface DatiUtente {
   username: string;
@@ -49,7 +49,6 @@ export class UtentiService {
       }
       const errori = erroriPassword(password);
       if (errori.length) return { success: false, error: errori.join(' ') };
-      if (d.role === 'admin_reparto' && !d.department_id) return { success: false, error: 'Per admin reparto è obbligatorio specificare un reparto' };
       if (d.department_id) {
         const [rep] = await this.ds.query('SELECT 1 FROM departments WHERE id = $1 AND company_id = $2', [d.department_id, companyId]);
         if (!rep) return { success: false, error: 'Reparto non trovato' };

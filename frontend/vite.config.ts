@@ -52,7 +52,7 @@ export default defineConfig({
       },
       // Pagine staff agli indirizzi del PHP: la navigazione resta alla SPA, le
       // chiamate degli script delle pagine (POST, fetch) vanno al backend.
-      '^/(admin|admin-reparto|accountant|consulente-lavoro|formatore)/[a-z0-9_-]+\\.php': {
+      '^/(admin|consulente-lavoro|formatore)/[a-z0-9_-]+\\.php': {
         target: process.env.VITE_PROXY_TARGET || 'http://localhost:3100',
         changeOrigin: true,
         bypass: (req) => {

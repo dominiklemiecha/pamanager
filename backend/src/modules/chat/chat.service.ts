@@ -17,12 +17,12 @@ import { RealtimeService } from './realtime.service';
 export const MINUTI_MODIFICA = 15;
 const PRESENZA_OFFLINE = 120;
 const PRESENZA_ASSENTE = 300;
-const STAFF = ['admin', 'admin_reparto', 'accountant', 'consulente_lavoro'];
+const STAFF = ['admin', 'consulente_lavoro'];
 export const ETICHETTE_RUOLO: Record<string, string> = {
-  admin: 'HR', admin_reparto: 'Responsabile di reparto', accountant: 'Commercialista', consulente_lavoro: 'Consulente del lavoro', employee: 'Dipendente',
+  admin: 'HR', consulente_lavoro: 'Consulente del lavoro', employee: 'Dipendente',
 };
 const URL_CHAT: Record<string, string> = {
-  admin: '/admin/chat.php', accountant: '/accountant/chat.php', admin_reparto: '/admin-reparto/chat.php',
+  admin: '/admin/chat.php',
   consulente_lavoro: '/consulente-lavoro/chat.php', employee: '/employee/chat.php',
 };
 
@@ -57,7 +57,7 @@ const chiave = (t: string, i: number) => `${t}:${i}`;
  *
  * Correzioni rispetto al PHP:
  *  - si avvia una chat, si crea un gruppo o si aggiunge qualcuno solo tra le
- *    persone dell'azienda corrente (prima admin, commercialisti e consulenti
+ *    persone dell'azienda corrente (prima admin e consulenti
  *    potevano scrivere a chiunque conoscendo l'id, anche di altre aziende);
  *  - gli allegati sono controllati anche nel contenuto, non solo nell'estensione;
  *  - gli errori del database non arrivano piu' al browser.
@@ -246,15 +246,13 @@ export class ChatService {
     if (tipo === 'employee') {
       const [e] = await this.ds.query('SELECT is_active, company_id, department_id FROM employees WHERE id = $1', [id]);
       if (!e || !e.is_active || e.company_id !== u.companyId) return false;
-      if (me.tipo === 'admin_reparto') return !!u.departmentId && e.department_id === u.departmentId;
       return true;
     }
     if (!STAFF.includes(tipo)) return false;
     if (me.tipo === 'employee' && tipo === 'employee') return true;
     const [x] = await this.ds.query(
-      `SELECT u.id FROM users u WHERE u.id = $1 AND u.role = $2 AND (u.company_id = $3
-         OR (u.company_id IS NULL AND (NOT EXISTS (SELECT 1 FROM user_companies a WHERE a.user_id = u.id)
-              OR EXISTS (SELECT 1 FROM user_companies b WHERE b.user_id = u.id AND b.company_id = $3)))
+      `SELECT u.id FROM users u WHERE u.id = $1 AND u.role = $2 AND u.is_active = true AND (u.company_id = $3
+         OR u.is_global
          OR EXISTS (SELECT 1 FROM user_companies c WHERE c.user_id = u.id AND c.company_id = $3))`, [id, tipo, u.companyId]);
     return !!x;
   }
@@ -566,7 +564,7 @@ export class ChatService {
       ? await this.ds.query(`SELECT TRIM(first_name || ' ' || last_name) AS name, email FROM employees WHERE id = $1`, [r.id])
       : await this.ds.query('SELECT name, email FROM users WHERE id = $1', [r.id]);
     if (!d?.email) return;
-    const area = r.tipo === 'employee' ? 'employee' : r.tipo === 'accountant' ? 'accountant' : r.tipo === 'admin_reparto' ? 'admin-reparto' : 'admin';
+    const area = r.tipo === 'employee' ? 'employee' : r.tipo === 'consulente_lavoro' ? 'consulente-lavoro' : 'admin';
     const link = urlPubblico(`/${area}/chat.php`);
     const cosa = interno ? 'una <strong>nota interna</strong> (invisibile al dipendente) da' : 'un nuovo messaggio da';
     const html = `<p>Ciao ${escapeHtml(d.name)},</p><p>Hai ricevuto ${cosa} <strong>${escapeHtml(mittente)}</strong>:</p>`

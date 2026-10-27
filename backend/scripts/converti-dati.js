@@ -49,6 +49,14 @@ const BLOCCO = 1000;
  * Colonne che esistono solo nel nuovo schema: non si copiano e non entrano
  * nell'impronta; a copia finita si riempiono dai dati copiati.
  */
+/**
+ * Ruoli che il nuovo stack non ha piu' (migration RuoliRidotti): gli account si
+ * copiano tali e quali per lo storico e, a copia verificata, si disattivano.
+ * Il vincolo sul ruolo si toglie durante la copia e si rimette dopo.
+ */
+const RUOLI_TOLTI = ['admin_reparto', 'accountant'];
+const VINCOLO_RUOLI = `CHECK ("role" IN ('admin', 'consulente_lavoro', 'formatore') OR ("role" IN ('admin_reparto', 'accountant') AND "is_active" = false))`;
+
 const SOLO_NODE = {
   users: {
     // Admin globale esplicito: nel PHP era "company_id NULL e nessuna azienda collegata".
@@ -120,6 +128,8 @@ async function main() {
       if (rows[0].c) throw new Error(`La tabella di arrivo ${t} non e' vuota: la copia si fa solo su uno schema appena creato`);
     }
   }
+
+  if (!SOLO_VERIFICA) await dst.query('ALTER TABLE "users" DROP CONSTRAINT "users__role__valori"');
 
   const esito = [];
   let errori = 0;
@@ -206,6 +216,9 @@ async function main() {
         console.log(`${t}.${c}: ${r.rowCount} righe impostate`);
       }
     }
+    const tolti = await dst.query(`UPDATE "users" SET "is_active" = false, "department_id" = NULL WHERE "role" = ANY($1::text[])`, [RUOLI_TOLTI]);
+    console.log(`users: ${tolti.rowCount} account di commercialisti e responsabili di reparto disattivati`);
+    await dst.query(`ALTER TABLE "users" ADD CONSTRAINT "users__role__valori" ${VINCOLO_RUOLI}`);
   }
 
   console.log('\nTabella'.padEnd(34) + 'MariaDB'.padStart(9) + 'Postgres'.padStart(10) + '  Esito');

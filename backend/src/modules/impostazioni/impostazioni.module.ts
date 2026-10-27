@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ImpostazioniService, VisibilitaCampiService } from './impostazioni.service';
+import { ImpostazioniService } from './impostazioni.service';
 
-/** Impostazioni per azienda e visibilita' dei campi anagrafici. */
-@Module({ providers: [ImpostazioniService, VisibilitaCampiService], exports: [ImpostazioniService, VisibilitaCampiService] })
+/** Impostazioni per azienda. */
+@Module({ providers: [ImpostazioniService], exports: [ImpostazioniService] })
 export class ImpostazioniModule {}

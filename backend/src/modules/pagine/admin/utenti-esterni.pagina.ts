@@ -27,7 +27,7 @@ interface Ruolo {
 
 /**
  * Gestione degli utenti esterni per ruolo (admin/_user-role-manager.inc.php):
- * commercialisti, consulenti del lavoro, responsabili formazione.
+ * consulenti del lavoro e responsabili formazione.
  *
  * Correzioni: ogni azione vale solo per utenti del ruolo della pagina e
  * visibili all'azienda di lavoro (il PHP modificava, eliminava, reimpostava
@@ -51,7 +51,7 @@ abstract class UtentiEsterniPagina implements Pagina {
   private async elenco(c: ContestoPagina, accessibili: number[]) {
     const cid = c.u.companyId!;
     const acc = accessibili.length ? accessibili : [cid];
-    const condivisi = ['accountant', 'consulente_lavoro'].includes(this.cfg.ROLE);
+    const condivisi = this.cfg.ROLE === 'consulente_lavoro';
     return this.q(
       `SELECT DISTINCT u.id, u.username, u.role, u.name, u.email, u.is_active, u.created_at, u.last_login, u.company_id, u.department_id
          FROM users u WHERE (u.company_id = $1 ${condivisi ? 'OR u.id IN (SELECT user_id FROM user_companies WHERE company_id = ANY($3::int[]))' : ''})
@@ -271,15 +271,6 @@ abstract class UtentiEsterniPagina implements Pagina {
       __aziendeAssegnate: current ? await this.collegamenti(current.id) : [],
     });
   }
-}
-
-@Injectable()
-@PaginaPhp('admin/accountant')
-export class CommercialistiPagina extends UtentiEsterniPagina {
-  protected readonly cfg: Ruolo = {
-    ROLE: 'accountant', LABEL: 'Commercialista', LABEL_PLURAL: 'Commercialisti', SELF: 'accountant.php', MULTI_COMPANY: true,
-    ICON_PATH: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
-  };
 }
 
 @Injectable()

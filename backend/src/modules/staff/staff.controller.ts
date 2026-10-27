@@ -8,7 +8,7 @@ import { StaffService } from './staff.service';
 
 /** Cornice dell'area staff e uscita da un'azienda (auth/leave-tenant.php). */
 @Controller('staff')
-@Ruoli('admin', 'admin_reparto', 'accountant', 'consulente_lavoro', 'formatore')
+@Ruoli('admin', 'consulente_lavoro', 'formatore')
 export class StaffController {
   constructor(private readonly staff: StaffService, private readonly ds: DataSource, private readonly audit: AuditService) {}
 
@@ -17,10 +17,10 @@ export class StaffController {
     return this.staff.cornice(u);
   }
 
-  /** Commercialista o consulente a fine mandato: si toglie da un'azienda (non dall'ultima). */
+  /** Consulente a fine mandato: si toglie da un'azienda (non dall'ultima). */
   @Post('lascia-azienda')
   @HttpCode(200)
-  @Ruoli('accountant', 'consulente_lavoro')
+  @Ruoli('consulente_lavoro')
   async lascia(@Body() b: { azienda?: number }, @Req() req: RichiestaAutenticata, @Utente() u: UtenteCorrente) {
     // "azienda", non company_id: bodyGuard toglie sempre company_id dai corpi.
     const cid = Number(b?.azienda) || 0;

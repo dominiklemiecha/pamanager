@@ -4,7 +4,7 @@ import { mariadb, postgres, ripristina } from './ambiente';
 import { Node, Php } from './clienti';
 import { php } from './php-cli';
 
-/** Pagine di commercialista e consulente del lavoro (public/accountant, public/consulente-lavoro). */
+/** Pagine del consulente del lavoro (public/consulente-lavoro). */
 const PW = 'Prova!Cora2026';
 async function phpEntra(u: string) { const p = new Php(); await p.login(u, PW); return p; }
 async function nodeEntra(u: string) { const n = new Node(); await n.login(u, PW); return n; }
@@ -71,16 +71,16 @@ describe('lettura delle buste paga', () => {
 
 describe('buste paga e documenti', () => {
   it('caricamento massivo: analisi e conferma con saldi', async () => {
-    const [p, n] = await Promise.all([phpEntra('studio.commercialista'), nodeEntra('studio.commercialista')]);
+    const [p, n] = await Promise.all([phpEntra('studio.consulente'), nodeEntra('studio.consulente')]);
     const cf = mariadb(`SELECT fiscal_code FROM employees WHERE last_name = 'Ferraresi'`)[0].fiscal_code;
     const pdf = await bustaPdf(cf, 'SETTEMBRE 2026');
     const file: Allegato[] = [{ campo: 'files[]', nome: 'busta_settembre.pdf', dati: pdf, tipo: 'application/pdf' }, { campo: 'files[]', nome: 'note.txt', dati: Buffer.from('x'), tipo: 'text/plain' }];
-    const a = (await phpPost(p, '/accountant/documents.php', [['action', 'bulk_analyze']], file)).json;
-    const b = (await nodePost(n, '/accountant/documents.php', [['action', 'bulk_analyze']], file)).json;
+    const a = (await phpPost(p, '/consulente-lavoro/documents.php', [['action', 'bulk_analyze']], file)).json;
+    const b = (await nodePost(n, '/consulente-lavoro/documents.php', [['action', 'bulk_analyze']], file)).json;
     const senzaId = (x: any) => x.rows.map(({ staging_id, ...r }: any) => r);
     expect(senzaId(b)).toEqual(senzaId(a));
     const conferma = (j: any): Array<[string, string]> => [['action', 'bulk_commit'], ['rows', JSON.stringify([{ ...j.rows[0], apply_balance: 1 }])]];
-    expect((await nodePost(n, '/accountant/documents.php', conferma(b))).json).toEqual((await phpPost(p, '/accountant/documents.php', conferma(a))).json);
+    expect((await nodePost(n, '/consulente-lavoro/documents.php', conferma(b))).json).toEqual((await phpPost(p, '/consulente-lavoro/documents.php', conferma(a))).json);
     const doc = (fn: typeof mariadb) => fn(`SELECT d.type, d.title, d.month, d.year FROM documents d JOIN employees e ON e.id = d.employee_id WHERE e.last_name = 'Ferraresi' AND d.title = 'Busta paga 09/2026'`);
     expect(doc(postgres)).toEqual(doc(mariadb));
     const saldo = (fn: typeof mariadb) => fn(`SELECT b.year, b.leave_type, b.manual_used, b.notes FROM employee_leave_balances b JOIN employees e ON e.id = b.employee_id
@@ -89,21 +89,21 @@ describe('buste paga e documenti', () => {
   });
 
   it('caricamento singolo e stesso errore senza file', async () => {
-    const [p, n] = await Promise.all([phpEntra('studio.commercialista'), nodeEntra('studio.commercialista')]);
+    const [p, n] = await Promise.all([phpEntra('studio.consulente'), nodeEntra('studio.consulente')]);
     const pdf = await bustaPdf('XXXXXX00X00X000X', 'OTTOBRE 2026');
     const c = (fn: typeof mariadb): Array<[string, string]> => [['action', 'upload'], ['employee_id', fn(`SELECT id FROM employees WHERE last_name = 'Bellandi'`)[0].id], ['type', 'cud'], ['title', ''], ['description', ''], ['period', '2026-02']];
-    expect((await nodePost(n, '/accountant/documents.php', c(postgres))).error).toBe((await phpPost(p, '/accountant/documents.php', c(mariadb))).error);
+    expect((await nodePost(n, '/consulente-lavoro/documents.php', c(postgres))).error).toBe((await phpPost(p, '/consulente-lavoro/documents.php', c(mariadb))).error);
     const f: Allegato[] = [{ campo: 'document', nome: 'cu.pdf', dati: pdf, tipo: 'application/pdf' }];
-    expect((await nodePost(n, '/accountant/documents.php', c(postgres), f)).redirect).toBe((await phpPost(p, '/accountant/documents.php', c(mariadb), f)).redirect);
+    expect((await nodePost(n, '/consulente-lavoro/documents.php', c(postgres), f)).redirect).toBe((await phpPost(p, '/consulente-lavoro/documents.php', c(mariadb), f)).redirect);
     const doc = (fn: typeof mariadb) => fn(`SELECT d.type, d.title, d.month, d.year FROM documents d JOIN employees e ON e.id = d.employee_id WHERE e.last_name = 'Bellandi' AND d.type = 'cud'`);
     expect(doc(postgres)).toEqual(doc(mariadb));
   });
 
   it("correzione: documento di un'altra azienda non eliminabile", async () => {
-    const n = await nodeEntra('studio.commercialista');
+    const n = await nodeEntra('studio.consulente');
     const altro = postgres(`SELECT d.id FROM documents d WHERE d.company_id = 2 LIMIT 1`)[0]?.id;
     if (!altro) return;
-    const b = await nodePost(n, '/accountant/documents.php', [['action', 'delete'], ['document_id', altro]]);
+    const b = await nodePost(n, '/consulente-lavoro/documents.php', [['action', 'delete'], ['document_id', altro]]);
     expect(b.error).toBe('Documento non trovato');
     expect(postgres(`SELECT COUNT(*) AS n FROM documents WHERE id = ${altro}`)[0].n).toBe('1');
   });

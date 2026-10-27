@@ -89,7 +89,7 @@ describe('elenchi', () => {
   });
 
   it('solo per l\'HR', async () => {
-    expect((await (await nodeEntra('studio.commercialista')).get(API)).status).toBe(403);
+    expect((await (await nodeEntra('studio.consulente')).get(API)).status).toBe(403);
     expect((await (await nodeEntra('giulia.ferraresi')).get(API)).status).toBe(403);
   });
 
@@ -109,7 +109,8 @@ describe('azioni sulle richieste', () => {
     expect(a).toEqual({ redirect: '/admin/leave-requests.php?message=approved' });
     expect(b).toEqual(a);
     expect(riga(postgres, richiesta(postgres, 'Montanari', 'ferie'))).toEqual(riga(mariadb, richiesta(mariadb, 'Montanari', 'ferie')));
-    expect(notifiche(postgres, 'leave_approved')).toEqual(notifiche(mariadb, 'leave_approved'));
+    // Correzione: niente commercialisti nel nuovo stack, quindi niente avviso per loro
+    expect(notifiche(postgres, 'leave_approved')).toEqual(notifiche(mariadb, 'leave_approved').filter((r) => r.recipient_type !== 'accountant'));
   });
 
   it('seconda approvazione: errore nella pagina', async () => {

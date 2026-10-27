@@ -480,7 +480,7 @@ export class AttestatiService {
   }
 
   /** ZIP con gli attestati del corso (o delle assegnazioni indicate). */
-  async zip(courseId: number, ids: number[], reparto: number | null, cid: number): Promise<{ nome: string; dati: Buffer } | { errore: string }> {
+  async zip(courseId: number, ids: number[], cid: number): Promise<{ nome: string; dati: Buffer } | { errore: string }> {
     const [c] = await this.ds.query('SELECT title FROM academy_courses WHERE id = $1 AND company_id = $2', [courseId, cid]);
     if (!c) return { errore: 'Corso non trovato' };
     const p: unknown[] = [cid, courseId];
@@ -488,7 +488,6 @@ export class AttestatiService {
                  JOIN employees e ON e.id = a.employee_id WHERE ce.company_id = $1 AND a.course_id = $2`;
     const scelti = ids.filter((x) => x !== 0);
     if (scelti.length) { p.push(scelti); sql += ` AND a.id = ANY($${p.length}::int[])`; }
-    if (reparto !== null) { p.push(reparto); sql += ` AND e.department_id = $${p.length}`; }
     const righe = await this.ds.query(`${sql} ORDER BY ce.id`, p);
     if (!righe.length) return { errore: 'Nessun attestato da scaricare' };
     const z = new JSZip();
@@ -517,7 +516,7 @@ export class AttestatiService {
     const eventi = await senzaIsolamento(() => this.ds.query(
       `SELECT ev.event, ev.actor_type, ev.ip_address, to_char(ev.created_at AT TIME ZONE 'Europe/Rome', 'YYYY-MM-DD HH24:MI:SS') AS created_at, ev.details, m.title AS material_title
          FROM academy_events ev LEFT JOIN academy_materials m ON m.id = ev.material_id WHERE ev.company_id = $1 AND ev.assignment_id = $2 ORDER BY ev.id`, [c.company_id, c.assignment_id]));
-    const attori: Record<string, string> = { employee: 'Dipendente', admin: 'HR', consulente_lavoro: 'Consulente del lavoro', admin_reparto: 'Responsabile reparto', formatore: 'Responsabile formazione', system: 'Sistema' };
+    const attori: Record<string, string> = { employee: 'Dipendente', admin: 'HR', consulente_lavoro: 'Consulente del lavoro', formatore: 'Responsabile formazione', system: 'Sistema' };
     const oscura = (ip: string | null) => {
       if (!ip) return '';
       if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip.replace(/\.\d+$/, '.***');

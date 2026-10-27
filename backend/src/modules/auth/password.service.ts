@@ -156,15 +156,9 @@ export class PasswordService {
   }
 
   /** Password temporanea (Auth::adminResetPassword), cambio obbligatorio al prossimo accesso. */
-  async reimpostaDaAdmin(tipo: string, id: number, companyId: number, veroGlobale: boolean, ctx: ContestoAudit & { id: number; tipo?: string }, reparto: number | null = null): Promise<{ ok: true; password: string } | { ok: false; errore: string }> {
-    let ammesso: boolean;
-    if (reparto !== null) {
-      ammesso = tipo === 'employee' && (await this.ds.query('SELECT 1 FROM employees WHERE id = $1 AND department_id = $2 AND company_id = $3 AND is_active = true', [id, reparto, companyId])).length > 0;
-      if (!ammesso) return { ok: false, errore: 'Dipendente non trovato nel tuo reparto' };
-    } else {
-      const { users, employees } = await this.accountReimpostabili(companyId, veroGlobale);
-      ammesso = tipo === 'employee' ? employees.some((e: any) => e.id === id) : ['admin', 'accountant'].includes(tipo) && users.some((u: any) => u.id === id && u.role === tipo);
-    }
+  async reimpostaDaAdmin(tipo: string, id: number, companyId: number, veroGlobale: boolean, ctx: ContestoAudit & { id: number; tipo?: string }): Promise<{ ok: true; password: string } | { ok: false; errore: string }> {
+    const { users, employees } = await this.accountReimpostabili(companyId, veroGlobale);
+    const ammesso = tipo === 'employee' ? employees.some((e: any) => e.id === id) : tipo === 'admin' && users.some((u: any) => u.id === id && u.role === tipo);
     if (!ammesso) return { ok: false, errore: 'Utente non trovato' };
     const tabella = tipo === 'employee' ? 'employees' : 'users';
     const password = passwordTemporanea();
@@ -181,14 +175,7 @@ export class PasswordService {
   }
 
   /** Richiesta di recupero di un account dell'azienda (stesso perimetro di countPendingResetRequests, senza admin di altre aziende). */
-  private async richiestaDellAzienda(id: number, companyId: number, veroGlobale: boolean, reparto: number | null = null) {
-    if (reparto !== null) {
-      // Responsabile di reparto: solo dipendenti del suo reparto (e della sua azienda)
-      const [r] = await senzaIsolamento(() => this.ds.query(
-        `SELECT prr.* FROM password_reset_requests prr JOIN employees e ON prr.user_type = 'employee' AND prr.user_id = e.id
-          WHERE prr.id = $1 AND e.department_id = $2 AND e.company_id = $3`, [id, reparto, companyId]));
-      return r ?? null;
-    }
+  private async richiestaDellAzienda(id: number, companyId: number, veroGlobale: boolean) {
     const [r] = await senzaIsolamento(() => this.ds.query(
       `SELECT prr.* FROM password_reset_requests prr
          LEFT JOIN users u ON prr.user_type <> 'employee' AND prr.user_id = u.id
@@ -199,8 +186,8 @@ export class PasswordService {
   }
 
   /** Approvazione di una richiesta: link valido 24 ore (Auth::approveResetRequest). */
-  async approvaRichiesta(id: number, companyId: number, veroGlobale: boolean, ctx: ContestoAudit & { id: number; tipo?: string }, reparto: number | null = null): Promise<{ ok: true; link: string } | { ok: false; errore: string }> {
-    const r = await this.richiestaDellAzienda(id, companyId, veroGlobale, reparto);
+  async approvaRichiesta(id: number, companyId: number, veroGlobale: boolean, ctx: ContestoAudit & { id: number; tipo?: string }): Promise<{ ok: true; link: string } | { ok: false; errore: string }> {
+    const r = await this.richiestaDellAzienda(id, companyId, veroGlobale);
     if (!r || r.status !== 'pending') return { ok: false, errore: 'Richiesta non trovata' };
     const token = randomBytes(32).toString('hex');
     try {
@@ -219,8 +206,8 @@ export class PasswordService {
     }
   }
 
-  async rifiutaRichiesta(id: number, companyId: number, veroGlobale: boolean, note: string, ctx: ContestoAudit & { id: number; tipo?: string }, reparto: number | null = null): Promise<{ ok: true } | { ok: false; errore: string }> {
-    if (!(await this.richiestaDellAzienda(id, companyId, veroGlobale, reparto))) return { ok: false, errore: 'Richiesta non trovata' };
+  async rifiutaRichiesta(id: number, companyId: number, veroGlobale: boolean, note: string, ctx: ContestoAudit & { id: number; tipo?: string }): Promise<{ ok: true } | { ok: false; errore: string }> {
+    if (!(await this.richiestaDellAzienda(id, companyId, veroGlobale))) return { ok: false, errore: 'Richiesta non trovata' };
     await senzaIsolamento(() => this.ds.query(
       `UPDATE password_reset_requests SET status = 'rejected', resolved_by = $2, resolved_at = CURRENT_TIMESTAMP, notes = $3 WHERE id = $1`, [id, ctx.id, note]));
     await this.audit.log('password_reset_rejected', ctx.tipo ?? 'admin', ctx.id, ctx, 'password_reset_requests', id);

@@ -20,8 +20,6 @@ describe('login: stessi esiti', () => {
     ['dipendente con maiuscole diverse', 'Giulia.Ferraresi', PW],
     ['dipendente per email', 'marco.bellandi@esempio.test', PW],
     ['admin di azienda', 'hr.alfa', PW],
-    ['responsabile di reparto', 'resp.commerciale', PW],
-    ['commercialista', 'studio.commercialista', PW],
     ['consulente del lavoro', 'studio.consulente', PW],
     ['formatore', 'formatore.alfa', PW],
     ['admin globale', 'connecteed', PW],
@@ -33,6 +31,13 @@ describe('login: stessi esiti', () => {
     const { php, node } = await entrambi(username, password);
     expect(node).toEqual(php);
   });
+
+  it.each([['responsabile di reparto', 'resp.commerciale'], ['commercialista', 'studio.commercialista']])(
+    'correzione: ruolo tolto nel nuovo stack (%s), account disattivato', async (_n, username) => {
+      const { php, node } = await entrambi(username, PW);
+      expect(php.esito).toBe('ok');
+      expect(node.esito).not.toBe('ok');
+    });
 
   it('dipendente per codice fiscale scritto in minuscolo', async () => {
     const [cf] = mariadb("SELECT fiscal_code FROM employees WHERE username = 'sara.montanari'");

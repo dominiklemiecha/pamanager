@@ -8,7 +8,7 @@ import { codiceTotp } from '../../src/common/sicurezza/totp';
  * database, non solo il codice HTTP. Solo dati sintetici.
  *
  * Aziende: 1 = Alfa, 2 = Beta. Staff: hr.alfa (admin Alfa), hr.beta (admin Beta),
- * resp.commerciale (reparto Alfa), studio.commercialista e studio.consulente
+ * studio.consulente
  * (Alfa + Beta), formatore.alfa, connecteed (admin globale).
  */
 const PW = 'Prova!Cora2026';
@@ -31,19 +31,17 @@ describe('SEC-AZ: cambio azienda (confine tra tenant)', () => {
     expect(postgres("SELECT DISTINCT selected_company_id FROM auth_sessions s JOIN users u ON u.id = s.subject_id AND s.subject_type='user' WHERE u.username='hr.alfa'")).toEqual([{ selected_company_id: '1' }]);
   });
 
-  it('commercialista collegato ad Alfa e Beta puo passare a Beta, non a un id inesistente', async () => {
-    const n = await entra('studio.commercialista');
+  it('consulente collegato ad Alfa e Beta puo passare a Beta, non a un id inesistente', async () => {
+    const n = await entra('studio.consulente');
     expect((await n.post('/auth/azienda', { azienda: 2 })).status).toBe(200);
     expect((await n.get('/auth/aziende')).json.corrente).toBe(2);
     expect((await n.post('/auth/azienda', { azienda: 999 })).status).toBe(403);
     expect((await n.get('/auth/aziende')).json.corrente).toBe(2);
   });
 
-  it('responsabile di reparto e formatore non cambiano azienda', async () => {
-    for (const u of ['resp.commerciale', 'formatore.alfa']) {
-      const n = await entra(u);
-      expect((await n.post('/auth/azienda', { azienda: 2 })).status).toBe(403);
-    }
+  it('il formatore non cambia azienda', async () => {
+    const n = await entra('formatore.alfa');
+    expect((await n.post('/auth/azienda', { azienda: 2 })).status).toBe(403);
   });
 
   it('dipendente: nessun accesso alle API dello staff', async () => {
@@ -68,7 +66,7 @@ describe('SEC-AZ: cambio azienda (confine tra tenant)', () => {
   it('azienda disattivata: non selezionabile e scompare dalle accessibili', async () => {
     postgres('UPDATE companies SET is_active = false WHERE id = 2');
     try {
-      const n = await entra('studio.commercialista');
+      const n = await entra('studio.consulente');
       expect((await n.post('/auth/azienda', { azienda: 2 })).status).toBe(403);
       expect((await n.get('/auth/aziende')).json.accessibili).toEqual([1]);
     } finally {
@@ -137,7 +135,7 @@ describe('SEC-SESS: sessioni', () => {
 
   it('ruolo cambiato nel database: la sessione col vecchio ruolo non vale piu', async () => {
     const n = await entra('formatore.alfa');
-    postgres("UPDATE users SET role = 'accountant' WHERE username = 'formatore.alfa'");
+    postgres("UPDATE users SET role = 'consulente_lavoro' WHERE username = 'formatore.alfa'");
     try {
       expect((await n.get('/auth/aziende')).status).toBe(401);
     } finally {
@@ -148,7 +146,7 @@ describe('SEC-SESS: sessioni', () => {
 
 describe('SEC-CSRF', () => {
   it('header diverso dal cookie: 403 e nessuna modifica', async () => {
-    const n = await entra('studio.commercialista');
+    const n = await entra('studio.consulente');
     const r = await n.b.chiama('/api/v1/auth/azienda', { metodo: 'POST', corpo: JSON.stringify({ azienda: 2 }), tipo: 'application/json', header: { 'X-CSRF-Token': 'falso' } });
     expect(r.status).toBe(403);
     expect((await n.get('/auth/aziende')).json.corrente).toBe(1);

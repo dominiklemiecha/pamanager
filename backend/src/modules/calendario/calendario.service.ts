@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import type { UtenteCorrente } from '../auth/auth.types';
 import { ContattiService } from '../contatti/contatti.service';
 
-export const TIPI = ['admin', 'admin_reparto', 'employee', 'accountant', 'consulente_lavoro'];
+export const TIPI = ['admin', 'employee', 'consulente_lavoro'];
 type Esito = { success: boolean; error?: string; [k: string]: unknown };
 interface Partecipante { user_type: string; user_id: number }
 
@@ -64,11 +64,11 @@ export class CalendarioService {
     return e ?? null;
   }
 
-  /** Il creatore, o admin / responsabile di reparto della stessa azienda. */
+  /** Il creatore, o un admin della stessa azienda. */
   puoGestire(ev: any, u: UtenteCorrente): boolean {
     const tipo = this.tipo(u);
     if (String(ev.owner_type).toLowerCase() === tipo.toLowerCase() && ev.owner_id === u.id) return true;
-    if (!['admin', 'admin_reparto'].includes(tipo)) return false;
+    if (tipo !== 'admin') return false;
     return ev.company_id === u.companyId;
   }
 

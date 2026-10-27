@@ -44,7 +44,9 @@ describe('elenco degli account', () => {
     const V = (await n.get(API)).json.V;
     expect(V.employees.map((e: any) => e.name)).toEqual(dip.map((e: any) => e.name));
     expect(ut.some((u: any) => u.username === 'connecteed')).toBe(true);
-    expect(V.users.map((u: any) => u.username)).toEqual(ut.filter((u: any) => u.username !== 'connecteed').map((u: any) => u.username));
+    // Correzione: responsabili di reparto e commercialisti non esistono piu' (account disattivati)
+    const tolti = ['connecteed', 'resp.commerciale', 'studio.commercialista'];
+    expect(V.users.map((u: any) => u.username)).toEqual(ut.filter((u: any) => !tolti.includes(u.username)).map((u: any) => u.username));
   });
 });
 

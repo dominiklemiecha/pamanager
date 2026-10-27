@@ -121,7 +121,7 @@ export class AcademyService {
       `SELECT u.id, u.role, u.name, u.username, u.email FROM users u
         WHERE u.is_active = true AND u.role IN ('admin', 'consulente_lavoro', 'formatore')
           AND (u.company_id = $1 OR EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = $1)
-               OR (u.role = 'admin' AND u.company_id IS NULL AND NOT EXISTS (SELECT 1 FROM user_companies uc2 WHERE uc2.user_id = u.id)))
+               OR u.is_global)
         ORDER BY u.id`, [companyId]);
   }
 
@@ -200,15 +200,14 @@ export class AcademyService {
     return { ok: true as const, percorso, nome };
   }
 
-  /** Attestato per lo staff: stessa azienda, il responsabile di reparto solo il suo reparto. */
-  async attestatoStaff(certId: number, ruolo: string, reparto: number | null, companyId: number) {
+  /** Attestato per lo staff della stessa azienda. */
+  async attestatoStaff(certId: number, ruolo: string, companyId: number) {
     const [c] = await this.ds.query(
-      `SELECT ce.number, ce.file_path, e.department_id, e.first_name, e.last_name FROM academy_certificates ce
+      `SELECT ce.number, ce.file_path, e.first_name, e.last_name FROM academy_certificates ce
          JOIN academy_assignments a ON a.id = ce.assignment_id JOIN employees e ON e.id = a.employee_id WHERE ce.id = $1 AND ce.company_id = $2`, [certId, companyId]);
     const percorso = c ? fileSicuro(c.file_path) : null;
     if (!c || !percorso) return { ok: false as const, errore: 'Attestato non trovato' };
-    if (!['admin', 'consulente_lavoro', 'admin_reparto', 'formatore'].includes(ruolo)) return { ok: false as const, errore: 'Accesso non autorizzato' };
-    if (ruolo === 'admin_reparto' && c.department_id !== (reparto ?? -1)) return { ok: false as const, errore: 'Accesso non autorizzato' };
+    if (!['admin', 'consulente_lavoro', 'formatore'].includes(ruolo)) return { ok: false as const, errore: 'Accesso non autorizzato' };
     const nome = `attestato_${c.number}_${c.last_name}_${c.first_name}`.replace(/[^A-Za-z0-9_-]/g, '_') + '.pdf';
     return { ok: true as const, percorso, nome };
   }

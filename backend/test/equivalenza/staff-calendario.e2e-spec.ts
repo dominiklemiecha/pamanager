@@ -1,7 +1,7 @@
 import { mariadb, postgres, ripristina } from './ambiente';
 import { Node, Php } from './clienti';
 
-/** Calendario dello staff (admin/calendar.php, accountant/calendar.php): azioni dello script come HR o commercialista. */
+/** Calendario dello staff (admin/calendar.php, consulente-lavoro/calendar.php): azioni dello script come HR o consulente. */
 const PW = 'Prova!Cora2026';
 
 async function phpAzione(p: Php, pagina: string, campi: Record<string, string>) {
@@ -21,7 +21,7 @@ const inviti = (fn: typeof mariadb) => fn(`SELECT p.user_type, p.status, e.title
 
 beforeAll(() => ripristina());
 
-it.each([['hr.alfa', '/admin/calendar.php'], ['studio.commercialista', '/accountant/calendar.php']])('%s crea un evento con un invitato', async (u, pagina) => {
+it.each([['hr.alfa', '/admin/calendar.php'], ['studio.consulente', '/consulente-lavoro/calendar.php']])('%s crea un evento con un invitato', async (u, pagina) => {
   const p = new Php(); await p.login(u, PW);
   const n = new Node(); await n.login(u, PW);
   const giulia = (fn: typeof mariadb) => fn(`SELECT id FROM employees WHERE last_name = 'Ferraresi'`)[0].id;

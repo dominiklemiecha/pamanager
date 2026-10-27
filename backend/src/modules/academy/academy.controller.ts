@@ -66,7 +66,7 @@ export class AcademyDipendenteController {
  * Le richieste Range per i video le gestisce sendFile.
  */
 @Controller()
-@Ruoli('employee', 'admin', 'consulente_lavoro', 'admin_reparto', 'formatore')
+@Ruoli('employee', 'admin', 'consulente_lavoro', 'formatore')
 export class AcademyFileController {
   constructor(private readonly academy: AcademyService, private readonly audit: AuditService, private readonly attestati: AttestatiService) {}
 
@@ -101,7 +101,7 @@ export class AcademyFileController {
       const id = Number.parseInt(cert, 10) || 0;
       const r = dipendente
         ? await this.academy.attestatoDipendente(id, u.id, u.companyId!, attore(req, u))
-        : await this.academy.attestatoStaff(id, u.ruolo, u.departmentId ?? null, u.companyId!);
+        : await this.academy.attestatoStaff(id, u.ruolo, u.companyId!);
       if (!r.ok) { testo(403, r.errore); return; }
       this.invia(res, r.percorso, 'application/pdf', r.nome, !dl);
       return;

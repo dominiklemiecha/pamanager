@@ -27,7 +27,7 @@ const TIPI_MATERIALI: Record<string, string> = {
 };
 export const MATERIALE_MAX = 200 * 1024 * 1024;
 const ORA = (c: string) => `to_char(${c} AT TIME ZONE 'Europe/Rome', 'YYYY-MM-DD HH24:MI:SS')`;
-const ATTORI: Record<string, string> = { admin: 'HR', consulente_lavoro: 'Consulente', admin_reparto: 'Resp. reparto', accountant: 'Commercialista', formatore: 'Resp. formazione' };
+const ATTORI: Record<string, string> = { admin: 'HR', consulente_lavoro: 'Consulente', formatore: 'Resp. formazione' };
 const dmy = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 const dmyhms = (d: string) => `${dmy(d)} ${d.slice(11, 19)}`;
 const taglia = (s: string, n: number) => [...s].slice(0, n).join('');
@@ -53,19 +53,16 @@ export function etichettaAttore(ev: Record<string, any>): string {
 export class AcademyStaffService {
   constructor(private readonly ds: DataSource, private readonly academy: AcademyService) {}
 
-  corsi(cid: number, reparto: number | null) {
-    const p: unknown[] = [cid];
-    let filtro = '';
-    if (reparto !== null) { p.push(reparto); filtro = ' AND aa.employee_id IN (SELECT id FROM employees WHERE department_id = $2)'; }
+  corsi(cid: number) {
     return this.ds.query(
       `SELECT c.*, (SELECT COUNT(*) FROM academy_materials m WHERE m.course_id = c.id)::int AS material_count,
               COUNT(aa.id)::int AS assigned_count, COUNT(aa.completed_at)::int AS completed_count,
               COUNT(*) FILTER (WHERE aa.started_at IS NOT NULL AND aa.completed_at IS NULL)::int AS in_progress_count,
               (SELECT COUNT(*) FROM academy_certificates ce JOIN academy_assignments a2 ON a2.id = ce.assignment_id WHERE a2.course_id = c.id)::int AS certificate_count,
               COUNT(*) FILTER (WHERE aa.completed_at IS NOT NULL AND NOT EXISTS (SELECT 1 FROM academy_certificates c3 WHERE c3.assignment_id = aa.id))::int AS to_generate_count
-         FROM academy_courses c LEFT JOIN academy_assignments aa ON aa.course_id = c.id${filtro}
+         FROM academy_courses c LEFT JOIN academy_assignments aa ON aa.course_id = c.id
         WHERE c.company_id = $1 GROUP BY c.id
-        ORDER BY CASE c.status WHEN 'published' THEN 1 WHEN 'draft' THEN 2 WHEN 'archived' THEN 3 ELSE 0 END, c.created_at DESC, c.id DESC`, p);
+        ORDER BY CASE c.status WHEN 'published' THEN 1 WHEN 'draft' THEN 2 WHEN 'archived' THEN 3 ELSE 0 END, c.created_at DESC, c.id DESC`, [cid]);
   }
 
   async corso(id: number, cid: number) {
@@ -263,17 +260,15 @@ export class AcademyStaffService {
     return { success: true };
   }
 
-  assegnazioni(courseId: number, cid: number, reparto: number | null) {
-    const p: unknown[] = [courseId, cid];
-    if (reparto !== null) p.push(reparto);
+  assegnazioni(courseId: number, cid: number) {
     return this.ds.query(
       `SELECT a.*, e.first_name, e.last_name, e.fiscal_code, e.is_active, d.name AS department_name,
               (SELECT COUNT(*) FROM academy_material_views v JOIN academy_materials m ON m.id = v.material_id WHERE v.assignment_id = a.id AND m.course_id = $1)::int AS opened_count,
               ce.id AS certificate_id, ce.number AS certificate_number, ce.issued_at AS certificate_issued_at
          FROM academy_assignments a JOIN employees e ON e.id = a.employee_id LEFT JOIN departments d ON d.id = e.department_id
          LEFT JOIN academy_certificates ce ON ce.assignment_id = a.id
-        WHERE a.course_id = $1 AND a.company_id = $2${reparto !== null ? ' AND e.department_id = $3' : ''}
-        ORDER BY e.last_name, e.first_name, a.id`, p);
+        WHERE a.course_id = $1 AND a.company_id = $2
+        ORDER BY e.last_name, e.first_name, a.id`, [courseId, cid]);
   }
 
   async notificheInCoda(courseId: number, cid: number): Promise<number> {
@@ -322,7 +317,7 @@ export class AcademyStaffService {
   }
 
   /** Eventi del registro con nomi leggibili (Academy::getEvents). */
-  eventi(cid: number, corso: number | null, assegnazione: number | null, reparto: number | null) {
+  eventi(cid: number, corso: number | null, assegnazione: number | null) {
     const p: unknown[] = [cid];
     let sql = `SELECT ev.id, ev.company_id, ev.course_id, ev.assignment_id, ev.employee_id, ev.material_id, ev.event, ev.actor_type, ev.actor_id, ev.details,
                       ev.ip_address, ev.user_agent, ${ORA('ev.created_at')} AS created_at, ev.prev_hash, ev.hash,
@@ -332,7 +327,6 @@ export class AcademyStaffService {
                 WHERE ev.company_id = $1`;
     if (corso !== null) { p.push(corso); sql += ` AND ev.course_id = $${p.length}`; }
     if (assegnazione !== null) { p.push(assegnazione); sql += ` AND ev.assignment_id = $${p.length}`; }
-    if (reparto !== null) { p.push(reparto); sql += ` AND e.department_id = $${p.length}`; }
     return this.ds.query(`${sql} ORDER BY ev.id`, p);
   }
 

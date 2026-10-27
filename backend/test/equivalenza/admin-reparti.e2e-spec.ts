@@ -1,7 +1,11 @@
 import { mariadb, postgres, ripristina } from './ambiente';
 import { Node, Php } from './clienti';
 
-/** Reparti (admin/departments.php e admin/department-detail.php). */
+/**
+ * Reparti (admin/departments.php e admin/department-detail.php).
+ * Correzione: nel nuovo stack non ci sono i responsabili di reparto, quindi
+ * niente contatore "Admin", niente sezione responsabili e niente creazione.
+ */
 const PW = 'Prova!Cora2026';
 
 async function phpEntra(u: string) { const p = new Php(); await p.login(u, PW); return p; }
@@ -35,8 +39,10 @@ describe('elenco e modifica', () => {
     const nomi = [...html.matchAll(/class="dp-name">([^<]*)</g)].map((m) => decodifica(m[1]));
     const V = (await n.get('/pagine/admin/departments')).json.V;
     expect(V.departments.map((d: any) => d.name)).toEqual(nomi);
+    // Il PHP mostra due contatori per reparto: dipendenti e responsabili
     const conta = [...html.matchAll(/class="dp-stat-v">(\d+)</g)].map((m) => Number(m[1]));
-    expect(V.departments.flatMap((d: any) => [d.employee_count, d.admin_count])).toEqual(conta);
+    expect(V.departments.map((d: any) => d.employee_count)).toEqual(conta.filter((_x, i) => i % 2 === 0));
+    expect(V.departments.every((d: any) => !('admin_count' in d))).toBe(true);
   });
 
   it('creazione, poi doppione ed errori', async () => {
@@ -81,12 +87,15 @@ describe('dettaglio del reparto', () => {
   const pag = (fn: typeof mariadb) => `/admin/department-detail.php?id=${rep(fn, 'Commerciale')}`;
   const api = (fn: typeof mariadb) => `/pagine/admin/department-detail?id=${rep(fn, 'Commerciale')}`;
 
-  it('stessi dipendenti, responsabili e disponibili', async () => {
+  it('stessi dipendenti e disponibili (senza responsabili)', async () => {
     const [p, n] = await Promise.all([phpEntra('hr.alfa'), nodeEntra('hr.alfa')]);
     const html = (await p.b.chiama(pag(mariadb))).testo;
     const V = (await n.get(api(postgres))).json.V;
-    const nomi = [...html.matchAll(/<div class="name">([^<]*)</g)].map((m) => decodifica(m[1]));
-    expect([...V.deptAdmins.map((a: any) => a.name), ...V.deptEmployees.map((e: any) => `${e.last_name} ${e.first_name}`)]).toEqual(nomi);
+    const responsabili = mariadb(`SELECT COUNT(*) AS n FROM users WHERE department_id = ${rep(mariadb, 'Commerciale')} AND role = 'admin_reparto' AND is_active = 1`)[0].n;
+    expect(Number(responsabili)).toBeGreaterThan(0);
+    const nomi = [...html.matchAll(/<div class="name">([^<]*)</g)].map((m) => decodifica(m[1])).slice(Number(responsabili));
+    expect(V.deptAdmins).toBeUndefined();
+    expect(V.deptEmployees.map((e: any) => `${e.last_name} ${e.first_name}`)).toEqual(nomi);
     const opzioni = [...html.matchAll(/<option value="(\d+)">/g)].length;
     expect(V.unassignedEmployees.length).toBe(opzioni);
     expect(JSON.stringify(V)).not.toMatch(/password_hash|\$argon2|\$2y\$/);
@@ -104,37 +113,18 @@ describe('dettaglio del reparto', () => {
     expect(dove(postgres)).toBe(dove(mariadb));
   });
 
-  it('nuovo responsabile, poi rimosso', async () => {
-    const [p, n] = await Promise.all([phpEntra('hr.alfa'), nodeEntra('hr.alfa')]);
+  it('correzione: niente creazione o rimozione di responsabili', async () => {
+    const n = await nodeEntra('hr.alfa');
     const campi = { action: 'create_admin', admin_username: 'resp.nuovo', admin_password: 'Responsabile!2026', admin_name: 'Nuovo Responsabile', admin_email: 'resp.nuovo@cora.test' };
-    const a = await phpPost(p, pag(mariadb), campi);
-    expect(a.redirect).toMatch(/message=admin_created$/);
-    expect(await nodePost(n, api(postgres), campi)).toEqual({ redirect: a.redirect!.replace(/id=\d+/, `id=${rep(postgres, 'Commerciale')}`) });
-    expect((await new Node().login('resp.nuovo', 'Responsabile!2026')).esito).toBe('ok');
-    const utente = (fn: typeof mariadb) => fn(`SELECT role, company_id, department_id IS NULL AS senza FROM users WHERE username = 'resp.nuovo'`)
-      .map((r) => ({ ...r, senza: ['1', 't'].includes(r.senza) }))[0];
-    expect(utente(postgres)).toEqual(utente(mariadb));
-    // doppione
-    expect(await nodePost(n, api(postgres), campi)).toEqual(await phpPost(p, pag(mariadb), campi));
-    const uid = (fn: typeof mariadb) => fn(`SELECT id FROM users WHERE username = 'resp.nuovo'`)[0].id;
-    const b = await phpPost(p, pag(mariadb), { action: 'remove_admin', user_id: uid(mariadb) });
-    expect(await nodePost(n, api(postgres), { action: 'remove_admin', user_id: uid(postgres) })).toEqual({ redirect: b.redirect!.replace(/id=\d+/, `id=${rep(postgres, 'Commerciale')}`) });
-    expect(utente(postgres)).toEqual(utente(mariadb));
-    // Correzione: il PHP lasciava l'account attivo da commercialista (accesso a tutta l'azienda)
-    expect(mariadb(`SELECT is_active FROM users WHERE username = 'resp.nuovo'`)[0].is_active).toBe('1');
-    expect(postgres(`SELECT is_active FROM users WHERE username = 'resp.nuovo'`)[0].is_active).toBe('f');
-    expect((await new Node().login('resp.nuovo', 'Responsabile!2026')).esito).not.toBe('ok');
+    expect(await nodePost(n, api(postgres), campi)).toEqual({ error: '' });
+    expect(postgres(`SELECT COUNT(*) AS n FROM users WHERE username = 'resp.nuovo'`)[0].n).toBe('0');
+    const id = postgres(`SELECT id FROM users WHERE username = 'studio.consulente'`)[0].id;
+    expect(await nodePost(n, api(postgres), { action: 'remove_admin', user_id: id })).toEqual({ error: '' });
+    expect(postgres(`SELECT role, is_active FROM users WHERE username = 'studio.consulente'`)[0]).toEqual({ role: 'consulente_lavoro', is_active: 't' });
   });
 
-  it('correzione: password sotto la politica comune e utenti di altri non toccabili', async () => {
+  it('correzione: dipendenti di altre aziende non assegnabili', async () => {
     const n = await nodeEntra('hr.alfa');
-    const debole = await nodePost(n, api(postgres), { action: 'create_admin', admin_username: 'resp.corto', admin_password: 'Corta!26', admin_name: 'Corto' });
-    expect(debole.error).toMatch(/almeno 12 caratteri/);
-    for (const u of ['connecteed', 'hr.beta', 'studio.commercialista']) {
-      const id = postgres(`SELECT id FROM users WHERE username = '${u}'`)[0].id;
-      expect(await nodePost(n, api(postgres), { action: 'remove_admin', user_id: id })).toEqual({ error: 'Utente non trovato' });
-    }
-    expect(postgres(`SELECT role FROM users WHERE username = 'connecteed'`)[0].role).toBe('admin');
     const altro = postgres(`SELECT id FROM employees WHERE last_name = 'Morselli'`)[0].id;
     expect(await nodePost(n, api(postgres), { action: 'assign_employee', employee_id: altro })).toEqual({ error: 'Dipendente non trovato' });
   });

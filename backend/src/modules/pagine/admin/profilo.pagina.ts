@@ -23,7 +23,7 @@ const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61
 @Injectable()
 @PaginaPhp('admin/profile')
 export class ProfiloStaffPagina implements Pagina {
-  readonly ruoli = ['admin', 'accountant', 'consulente_lavoro'];
+  readonly ruoli = ['admin', 'consulente_lavoro'];
   constructor(private readonly ds: DataSource, private readonly profilo: ProfiloService, private readonly password: PasswordService) {}
 
   async azione(c: ContestoPagina, corpo: Record<string, string>, file: Record<string, FileCaricato[]>) {

@@ -36,6 +36,19 @@ UTENTI_ESTERNI = [
     (r"\$assignedCompanyIds = \$current \? Tenant::getUserCompanyIds\(\(int\)\$current\['id'\]\) : \[\];", "$assignedCompanyIds = $__aziendeAssegnate;"),
 ]
 
+# Il nuovo stack non ha responsabili di reparto ne' commercialisti: via le loro opzioni e sezioni dai template.
+# Niente piu' visibilita' dei campi (serviva solo per il commercialista): via i chip dal modulo.
+SENZA_VISIBILITA = [
+    (r" <\?php \$renderVisChip\('[a-z_]+'\); \?>", ""),
+]
+SENZA_RESP_REPARTI = [
+    (r" && \$dept\['admin_count'\] == 0", ""),
+    (r'\s*<div class="dp-stat">\s*<div class="dp-stat-ic">\s*<svg[^>]*><path d="M12 22s8-4[^<]*/></svg>\s*</div>.*?<span class="dp-stat-l">Admin</span>\s*</div>\s*</div>', ""),
+]
+SENZA_RESP_DETTAGLIO = [
+    (r'\s*<div class="banner-stat">\s*<span class="banner-stat-value"><\?= count\(\$deptAdmins\) \?></span>\s*<span class="banner-stat-label">Admin</span>\s*</div>', ""),
+    (r"<!-- Sezione Admin -->.*?(?=<!-- Sezione Dipendenti -->)", ""),
+]
 # Il template parte dalla configurazione di visibilita' (le closure prima dell'header servono al template).
 INIZIO_DIPENDENTI = "$visibilityConfig = FieldVisibility::getConfig();\n"
 DIPENDENTI = [
@@ -44,7 +57,7 @@ DIPENDENTI = [
     (r'Database::fetchOne\("SELECT buoni_pasto_enabled, [^"]*", \[\$__wdCompId\]\)', "$__bpCompDb"),
     (r'Database::fetchOne\("SELECT default_ccnl_id FROM companies WHERE id = \?", \[[^;]*?\]\)', "$__defaultCcnlDb"),
     (r'Database::fetchAll\("SELECT id, name FROM departments WHERE company_id = \? AND is_active = TRUE ORDER BY name", \[\(int\)\$employee\[\'company_id\'\]\]\)', "$__deptsInlineDb"),
-]
+] + SENZA_VISIBILITA
 
 ASSUNZIONI = [
     (r'Database::fetchAll\("SELECT id, name FROM departments WHERE company_id = \? AND is_active = TRUE ORDER BY name", \[[^;]*?\]\)', "$__deptsDb"),
@@ -56,17 +69,6 @@ ACADEMY = [
     (r"\$course = null;\s*if \(\$courseId > 0\).*?include __DIR__ \. \(\$readOnly \? '/header-admin-reparto\.php' : '/header-admin\.php'\);", ""),
 ]
 FOOTER_INCLUDE = "<?php include __DIR__ . '/footer-admin.php'; ?>"
-
-HEADER_REPARTO = "include dirname(__DIR__) . '/includes/header-admin-reparto.php';\n?>"
-HEADER_REPARTO_PHP = "include dirname(__DIR__) . '/includes/header-admin-reparto.php';\n"
-# Dipendenti del reparto in tutta la pagina. Correzione: nel PHP il widget heatmap sovrascriveva
-# $employees e la lista dopo la heatmap andava in errore a meta' (pagina troncata).
-REPARTO_DASHBOARD = [
-    (r'\$employees\b', '$__deptEmployees'),
-]
-REPARTO_FERIE = [
-    (r"try \{\s*\$__sickLate = array_values\(array_filter\(.*?\} catch \(Throwable \$e\) \{ \$__sickLate = \[\]; \}", ""),
-]
 
 # Consulente: elenco delle richieste e costante del logo Wrike (dichiarata prima dell'header nel PHP).
 CONSULENTE_ASSUNZIONI = [
@@ -96,12 +98,11 @@ PAGINE = [
     ('admin/door-log.php', 'pagine/admin/door-log', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
     ('admin/profile.php', 'pagine/admin/profile', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
     ('admin/password-resets.php', 'pagine/admin/password-resets', HEADER_ADMIN_PHP, FOOTER_ADMIN, []),
-    ('admin/departments.php', 'pagine/admin/departments', HEADER_ADMIN, FOOTER_ADMIN, []),
-    ('admin/department-detail.php', 'pagine/admin/department-detail', HEADER_ADMIN, FOOTER_ADMIN, []),
+    ('admin/departments.php', 'pagine/admin/departments', HEADER_ADMIN, FOOTER_ADMIN, SENZA_RESP_REPARTI),
+    ('admin/department-detail.php', 'pagine/admin/department-detail', HEADER_ADMIN, FOOTER_ADMIN, SENZA_RESP_DETTAGLIO),
     ('admin/companies.php', 'pagine/admin/companies', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/communications.php', 'pagine/admin/communications', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/documenti-aziendali.php', 'pagine/admin/documenti-aziendali', HEADER_ADMIN, FOOTER_ADMIN, []),
-    ('admin/field-visibility.php', 'pagine/admin/field-visibility', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/presenze-export.php', 'pagine/admin/presenze-export', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('admin/attendance.php', 'pagine/admin/attendance', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('includes/_chat-page.inc.php', 'pagine/staff/chat', "include __DIR__ . '/header-' . $__chatLayout . '.php';\n?>", "<?php\n$__chatFooter", []),
@@ -109,18 +110,10 @@ PAGINE = [
     ('admin/hire-requests.php', 'pagine/admin/hire-requests', HEADER_ADMIN_PHP, FOOTER_ADMIN, ASSUNZIONI),
     ('includes/_academy-staff.inc.php', 'pagine/staff/academy', INIZIO_ACADEMY, FOOTER_INCLUDE, ACADEMY),
     ('includes/_academy-templates.inc.php', 'pagine/staff/academy-templates', "include __DIR__ . '/header-admin.php';\n?>", FOOTER_INCLUDE, []),
-    ('admin-reparto/index.php', 'pagine/reparto/index', HEADER_REPARTO, FOOTER_ADMIN, REPARTO_DASHBOARD),
-    ('admin-reparto/employees.php', 'pagine/reparto/employees', HEADER_REPARTO, FOOTER_ADMIN, []),
-    ('admin-reparto/leave-requests.php', 'pagine/reparto/leave-requests', HEADER_REPARTO_PHP, FOOTER_ADMIN, REPARTO_FERIE),
-    ('admin-reparto/communications.php', 'pagine/reparto/communications', HEADER_REPARTO, FOOTER_ADMIN, []),
-    ('admin-reparto/password-resets.php', 'pagine/reparto/password-resets', HEADER_REPARTO, FOOTER_ADMIN, []),
-    ('admin-reparto/employee-documents.php', 'pagine/reparto/employee-documents', HEADER_REPARTO, FOOTER_ADMIN, []),
-    ('accountant/index.php', 'pagine/esterni/index-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('consulente-lavoro/index.php', 'pagine/esterni/index-consulente', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('accountant/employees.php', 'pagine/esterni/employees', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('accountant/employee-documents.php', 'pagine/esterni/employee-documents', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('accountant/documents.php', 'pagine/esterni/documents', HEADER_ADMIN, FOOTER_ADMIN, []),
-    ('accountant/leave-requests.php', 'pagine/esterni/leave-requests-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('consulente-lavoro/leave-requests.php', 'pagine/esterni/leave-requests-consulente', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('accountant/presenze-export.php', 'pagine/esterni/presenze-export', HEADER_ADMIN, FOOTER_ADMIN, []),
     ('accountant/profile.php', 'pagine/esterni/profile-accountant', HEADER_ADMIN, FOOTER_ADMIN, []),

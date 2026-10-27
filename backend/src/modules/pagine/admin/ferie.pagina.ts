@@ -173,8 +173,7 @@ export class FerieAdminPagina implements Pagina {
       requests = await this.ds.query(`${sql} ORDER BY CASE WHEN lr.status = 'pending' AND lr.leave_type = 'malattia' AND ${DOC_MANCANTI} THEN 0 ELSE 1 END, lr.created_at DESC`, p);
     }
     const departments = await this.ds.query(
-      `SELECT d.*, (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.is_active = true) AS employee_count,
-              (SELECT COUNT(*) FROM users u WHERE u.department_id = d.id AND u.role = 'admin_reparto' AND u.is_active = true) AS admin_count
+      `SELECT d.*, (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.is_active = true) AS employee_count
          FROM departments d WHERE d.company_id = $1 AND d.is_active = true ORDER BY d.name ASC`, [cid]);
 
     const oggi = oggiRoma();

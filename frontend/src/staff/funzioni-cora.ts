@@ -60,7 +60,6 @@ P.estendi('FieldVisibility::FIELDS', () => P.assoc([
   ['hire_date', 'Data assunzione'], ['job_level', 'Livello'], ['ral_amount', 'RAL annua'], ['monthly_salary', 'Retribuzione mensile'], ['iban', 'IBAN'],
   ['medical_certs', 'Certificati medici'],
 ]));
-P.estendi('FieldVisibility::ROLES', () => P.assoc([['admin', 'Amministratore'], ['accountant', 'Commercialista'], ['admin_reparto', 'Admin reparto']]));
 
 // Scheda dipendente: dati calcolati dal backend (variabili __* della pagina).
 const daV = (chiave: string) => (...a: any[]) => a[a.length - 1]?.V?.[chiave] ?? null;
@@ -194,7 +193,7 @@ P.estendi('Academy::statusOf', (a: any, scadenza: any) => {
   if (P.t(scadenza) && P.s(scadenza) < oggi) return 'overdue';
   return P.t(P.g(a, 'started_at')) ? 'in_progress' : 'not_started';
 });
-const ATTORI_ACADEMY: Record<string, string> = { admin: 'HR', consulente_lavoro: 'Consulente', admin_reparto: 'Resp. reparto', accountant: 'Commercialista', formatore: 'Resp. formazione' };
+const ATTORI_ACADEMY: Record<string, string> = { admin: 'HR', consulente_lavoro: 'Consulente', formatore: 'Resp. formazione' };
 P.estendi('Academy::actorLabel', (ev: any) => {
   const tipo = P.s(P.g(ev, 'actor_type'));
   if (tipo === 'employee') return `${P.s(P.g(ev, 'first_name'))} ${P.s(P.g(ev, 'last_name'))}`.trim() || `Dipendente #${P.s(P.g(ev, 'actor_id'))}`;
@@ -203,8 +202,6 @@ P.estendi('Academy::actorLabel', (ev: any) => {
   return (ATTORI_ACADEMY[tipo] ?? tipo) + (P.t(u) ? ` (${P.s(u)})` : '');
 });
 
-/** Area del responsabile di reparto. */
-P.estendi('LeaveRequest::countPendingByDepartment', daV('__pendingCountDept'));
 const GIORNI_IT = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 /** getItalianDate (helpers/validation.php): "Lunedì 26 Ottobre 2026", ora di Roma. */
 P.estendi('getItalianDate', (...a: any[]) => {
@@ -214,13 +211,13 @@ P.estendi('getItalianDate', (...a: any[]) => {
   return `${GIORNI_IT[x.getUTCDay()]} ${x.getUTCDate()} ${MESI_IT[x.getUTCMonth() + 1]} ${x.getUTCFullYear()}`;
 });
 
-/** Commercialista e consulente del lavoro. */
+/** Consulente del lavoro. */
 P.estendi('Document::TYPES', () => P.assoc([['payslip', 'Busta Paga'], ['cud', 'CUD/CU'], ['other', 'Altro']]));
 /** Notification::url: link interni ricondotti all'area giusta, esterni lasciati com'erano. */
 P.estendi('Notification::url', (l: any) => {
   const link = P.s(l).trim();
   if (link === '') return '';
-  const m = /\/(employee|admin|admin-reparto|accountant|consulente-lavoro|superadmin)\/.*$/.exec(link);
+  const m = /\/(employee|admin|consulente-lavoro|superadmin)\/.*$/.exec(link);
   if (m) return m[0];
   if (/^https?:\/\//i.test(link)) return link;
   return `/${link.replace(/^\/+/, '')}`;

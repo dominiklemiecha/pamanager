@@ -34,6 +34,8 @@ for (const caso of CASI.filter((c) => c.nome.includes(filtro))) {
       await page.mouse.move(1, 1);
       await page.waitForLoadState('networkidle');
       if (caso.azione) await caso.azione(page, lato);
+      // Il nuovo stack non ha i commercialisti: nel menu dell'HR del PHP la voce si toglie.
+      if (lato === 'php') await page.evaluate(() => document.querySelectorAll('a.nav-item[href$="/admin/accountant.php"]').forEach((a) => a.remove()));
       await page.mouse.move(1, 1);
       await page.waitForTimeout(caso.attesa ?? 600);
       // Il cursore lampeggiante nei campi non conta come differenza.

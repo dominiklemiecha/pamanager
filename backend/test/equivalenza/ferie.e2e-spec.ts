@@ -49,9 +49,10 @@ describe('nuova richiesta: stessi esiti e stesse righe', () => {
     expect(norm(ULTIMA(postgres))).toEqual(norm(ULTIMA(mariadb)));
   });
 
-  it('notifiche agli stessi responsabili con lo stesso testo', () => {
+  it('notifiche agli stessi admin con lo stesso testo', () => {
     const q = (fn: typeof mariadb) => fn(`SELECT recipient_type, recipient_id, type, title, message, link FROM notifications WHERE type = 'new_leave_request' ORDER BY recipient_type, recipient_id, id`);
-    expect(q(postgres)).toEqual(q(mariadb));
+    // Correzione: niente responsabili di reparto nel nuovo stack, quindi niente avviso per loro
+    expect(q(postgres)).toEqual(q(mariadb).filter((r) => r.recipient_type !== 'admin_reparto'));
   });
 
   const errori: Array<[string, Record<string, string>]> = [

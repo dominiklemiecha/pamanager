@@ -8,7 +8,7 @@ import { ChatModule } from '../chat/chat.module';
 import { AnagraficaModule } from '../anagrafica/anagrafica.module';
 import { AssunzioniModule } from '../assunzioni/assunzioni.module';
 import { WrikeModule } from '../wrike/wrike.module';
-import { AssunzioniConsulentePagina, DashboardCommercialistaPagina, DashboardConsulentePagina, DipendentiCommercialistaPagina, DipendentiConsulentePagina, DocumentiCommercialistaPagina, DocumentiConsulentePagina, DocumentiDipendenteCommercialistaPagina, DocumentiDipendenteConsulentePagina, FerieCommercialistaPagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeCommercialistaPagina, PresenzeConsulentePagina, ProfiloCommercialistaPagina, ProfiloConsulentePagina, ProfiloFormatorePagina } from './esterni/esterni.pagina';
+import { AssunzioniConsulentePagina, DashboardConsulentePagina, DipendentiConsulentePagina, DocumentiConsulentePagina, DocumentiDipendenteConsulentePagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeConsulentePagina, ProfiloConsulentePagina, ProfiloFormatorePagina } from './esterni/esterni.pagina';
 import { ContattiModule } from '../contatti/contatti.module';
 import { PresenzeModule } from '../presenze/presenze.module';
 import { ProfiloModule } from '../profilo/profilo.module';
@@ -20,12 +20,10 @@ import { DecisioneProvaPagina } from './admin/decisione-prova.pagina';
 import { AziendePagina } from './admin/aziende.pagina';
 import { ComunicazioniAdminPagina, ComunicazioniUploadPagina } from './admin/comunicazioni.pagina';
 import { DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina } from './admin/documenti-aziendali.pagina';
-import { VisibilitaCampiPagina } from './admin/visibilita-campi.pagina';
 import { PresenzeExportPagina } from './admin/presenze-export.pagina';
 import { TimbratureAdminPagina } from './admin/timbrature.pagina';
-import { CommercialistiPagina, ConsulentiPagina, FormatoriPagina } from './admin/utenti-esterni.pagina';
-import { ChatAdminPagina, ChatCommercialistaPagina, ChatConsulentePagina, ChatRepartoPagina } from './staff/chat.pagina';
-import { AcademyRepartoPagina, ComunicazioniRepartoPagina, DashboardRepartoPagina, DipendentiRepartoPagina, DocumentiRepartoPagina, FerieRepartoPagina, PasswordRepartoPagina } from './reparto/reparto.pagina';
+import { ConsulentiPagina, FormatoriPagina } from './admin/utenti-esterni.pagina';
+import { ChatAdminPagina, ChatConsulentePagina } from './staff/chat.pagina';
 import { DipendentiPagina } from './admin/dipendenti.pagina';
 import { AssunzioniPagina } from './admin/assunzioni.pagina';
 import { AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina } from './staff/academy.pagina';
@@ -44,11 +42,10 @@ import { HeatmapService } from './widget/heatmap.service';
   providers: [MotorePagine, HeatmapService, DashboardAdminPagina, DecisioneProvaPagina, FerieAdminPagina,
     OrarioLavorativoPagina, TimbratureImpostazioniPagina, BuoniPastoPagina, PortaImpostazioniPagina, PortaLogPagina, SmtpPagina, ProfiloStaffPagina, PasswordResetPagina,
     RepartiService, RepartiPagina, RepartoDettaglioPagina, AziendePagina, ComunicazioniAdminPagina, ComunicazioniUploadPagina,
-    DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, VisibilitaCampiPagina, PresenzeExportPagina, TimbratureAdminPagina,
-    CommercialistiPagina, ConsulentiPagina, FormatoriPagina,
-    ChatAdminPagina, ChatCommercialistaPagina, ChatConsulentePagina, DipendentiPagina, AssunzioniPagina,
+    DocumentiAziendaliPagina, DocumentiDipendenteAdminPagina, PresenzeExportPagina, TimbratureAdminPagina,
+    ConsulentiPagina, FormatoriPagina,
+    ChatAdminPagina, ChatConsulentePagina, DipendentiPagina, AssunzioniPagina,
     AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina,
-    ChatRepartoPagina, AcademyRepartoPagina, ComunicazioniRepartoPagina, DashboardRepartoPagina, DipendentiRepartoPagina, DocumentiRepartoPagina, FerieRepartoPagina, PasswordRepartoPagina,
-    AssunzioniConsulentePagina, DashboardCommercialistaPagina, DashboardConsulentePagina, DipendentiCommercialistaPagina, DipendentiConsulentePagina, DocumentiCommercialistaPagina, DocumentiConsulentePagina, DocumentiDipendenteCommercialistaPagina, DocumentiDipendenteConsulentePagina, FerieCommercialistaPagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeCommercialistaPagina, PresenzeConsulentePagina, ProfiloCommercialistaPagina, ProfiloConsulentePagina, ProfiloFormatorePagina],
+    AssunzioniConsulentePagina, DashboardConsulentePagina, DipendentiConsulentePagina, DocumentiConsulentePagina, DocumentiDipendenteConsulentePagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeConsulentePagina, ProfiloConsulentePagina, ProfiloFormatorePagina],
 })
 export class PagineModule {}

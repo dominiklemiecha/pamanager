@@ -93,7 +93,7 @@ export class CompatController {
    * Nominatim; gli errori restano { error } con codice 200 come nel PHP.
    */
   @Get('lookup.php')
-  @Ruoli('admin', 'accountant', 'admin_reparto', 'consulente_lavoro', 'formatore')
+  @Ruoli('admin', 'consulente_lavoro', 'formatore')
   async ricerca(@Query('action') azione = '', @Query('cf') cf = '', @Query('q') q = '') {
     if (azione === 'cf') {
       const v = String(cf).trim();

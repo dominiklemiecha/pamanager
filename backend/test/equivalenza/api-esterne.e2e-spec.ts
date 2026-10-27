@@ -58,26 +58,26 @@ describe('API a token per il CRM', () => {
   });
 
   it('correzione: account con verifica in due passaggi senza token', async () => {
-    postgres(`UPDATE users SET mfa_enabled = true WHERE username = 'studio.commercialista'`);
-    const b = await login(NODE_URL, 'studio.commercialista');
-    postgres(`UPDATE users SET mfa_enabled = false WHERE username = 'studio.commercialista'`);
+    postgres(`UPDATE users SET mfa_enabled = true WHERE username = 'studio.consulente'`);
+    const b = await login(NODE_URL, 'studio.consulente');
+    postgres(`UPDATE users SET mfa_enabled = false WHERE username = 'studio.consulente'`);
     expect(b.status).toBe(403);
   });
 
   it('correzione: rinnovo e presenze col ruolo attuale, rinnovo limitato a 24 ore', async () => {
-    const t = (await login(NODE_URL, 'studio.commercialista')).corpo.token;
+    const t = (await login(NODE_URL, 'studio.consulente')).corpo.token;
     const rinnova = (tok: string) => json(NODE_URL, '/api/auth.php', { method: 'POST', body: JSON.stringify({ action: 'refresh' }), headers: { Authorization: `Bearer ${tok}` } });
     const r = await rinnova(t);
     expect(r.status).toBe(200);
     const corpo = (tok: string) => JSON.parse(Buffer.from(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
     expect(corpo(r.corpo.token).orig_iat).toBe(corpo(t).iat);
-    const ruolo = postgres(`SELECT role FROM users WHERE username = 'studio.commercialista'`)[0].role;
-    postgres(`UPDATE users SET role = 'formatore' WHERE username = 'studio.commercialista'`);
+    const ruolo = postgres(`SELECT role FROM users WHERE username = 'studio.consulente'`)[0].role;
+    postgres(`UPDATE users SET role = 'formatore' WHERE username = 'studio.consulente'`);
     try {
       expect((await json(NODE_URL, '/api/attendance.php', { headers: { Authorization: `Bearer ${r.corpo.token}` } })).status).toBe(403);
       expect((await rinnova(r.corpo.token)).status).toBe(403);
     } finally {
-      postgres(`UPDATE users SET role = '${ruolo}' WHERE username = 'studio.commercialista'`);
+      postgres(`UPDATE users SET role = '${ruolo}' WHERE username = 'studio.consulente'`);
     }
   });
 });

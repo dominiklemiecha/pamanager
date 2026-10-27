@@ -73,7 +73,7 @@ server {
     location = /employee/contract-pdf.php {
         proxy_pass ${BACKEND_URL};
     }
-    location ~ ^/(admin|admin-reparto|accountant|consulente-lavoro|formatore)/[a-z0-9_-]+\.php$ {
+    location ~ ^/(admin|consulente-lavoro|formatore)/[a-z0-9_-]+\.php$ {
         if ($staff_spa) {
             rewrite ^ /index.html last;
         }

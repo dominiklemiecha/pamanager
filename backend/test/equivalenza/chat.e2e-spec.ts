@@ -77,7 +77,8 @@ describe('pagina', () => {
       const scarto = Math.abs(Date.parse(c.lastMessageAt) - Date.parse(a.conversations[i].lastMessageAt));
       expect([0, 3600000]).toContain(Number.isNaN(scarto) ? 0 : scarto);
     });
-    expect(b.contacts).toEqual(a.contacts);
+    // Correzione: responsabili di reparto e commercialisti non esistono piu' nel nuovo stack
+    expect(b.contacts).toEqual(a.contacts.filter((x: any) => !/^(admin_reparto|accountant):/.test(x.id)));
   });
 
   it('aprendo una chat si legge: stesso conteggio dopo', async () => {

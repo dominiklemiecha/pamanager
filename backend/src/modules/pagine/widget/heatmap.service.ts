@@ -15,7 +15,7 @@ export interface OpzioniHeatmap {
   scopeToggle: boolean;
   mioReparto: number | null;
   scopePredefinito: 'mine' | 'all';
-  /** Ruolo di chi guarda (la causale L.104 la vedono solo HR e commercialista). */
+  /** Ruolo di chi guarda (la causale L.104 la vede solo l'HR). */
   ruolo: string;
   employeeId: number;
 }
@@ -82,7 +82,7 @@ export class HeatmapService {
       days, dayLabels, dayIsWorking, dayHolidayName, rangeLabel, employees, deptMap, leavesByEmp,
       leaveTypeLabels: { ferie: 'Ferie', permesso: 'Permesso', malattia: 'Malattia', permesso_104: 'Permesso L.104', congedo_parentale: 'Congedo Parentale', smart_working: 'Smart working', altro: 'Assenza' },
       __hmCurrentRole: o.ruolo, __hmCurrentEmpId: o.ruolo === 'employee' ? o.employeeId : 0,
-      __hmMaskL104: !['admin', 'accountant'].includes(o.ruolo),
+      __hmMaskL104: o.ruolo !== 'admin',
     };
   }
 }

@@ -186,13 +186,6 @@ describe('attestati e registro', () => {
     expect(pdf.dati.subarray(0, 5).toString()).toBe('%PDF-');
   });
 
-  it('il responsabile di reparto e\' in sola lettura', async () => {
-    const n = await nodeEntra('resp.commerciale');
-    const b = await nodePost(n, '/admin-reparto/academy.php', [['action', 'save_course'], ['title', 'Abusivo']]);
-    expect([403, 404]).toContain(b.status);
-    expect(corsoId(postgres, 'Abusivo')).toBeUndefined();
-  });
-
   it('correzione: messaggio libero nell\'indirizzo non mostrato', async () => {
     const n = await nodeEntra('hr.alfa');
     expect((await n.get('/pagine/admin/academy?ok=Clicca+qui+per+il+bonus')).json.V.okMessage).toBe('');
