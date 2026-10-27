@@ -395,3 +395,54 @@ a.hr-persona:hover strong { text-decoration: underline; text-underline-offset: 3
 .cora-body a.cora-btn-secondary { color: var(--cora-ink); }
 .cora-modal-h > .hr-reparto-h { flex-direction: row; align-items: center; gap: 12px; }
 .cora-modal-h > .hr-reparto-h .hr-reparto-lettera { width: 48px; height: 48px; font-size: 18px; }
+
+/* ---------- Ferie e permessi (Figma 920:7415) ---------- */
+.hr-card-testa { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.hr-card-testa h2 { font-size: 20px; font-weight: 500; color: var(--cora-ink); }
+.hr-tenue { font-size: 13px; color: var(--cora-ink-3); }
+.hr-filtri { display: flex; gap: 4px; flex-wrap: wrap; }
+.hr-tab-ferie .hr-riga { grid-template-columns: minmax(200px, 260px) minmax(110px, 150px) minmax(160px, 1.3fr) 90px minmax(110px, 140px) 100px 32px 84px; }
+.hr-tab-ferie .hr-intestazione { margin-top: 4px; }
+.hr-tipo { font-size: 14px; }
+.hr-nota-riga { display: block; margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--cora-error); }
+.hr-check { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--cora-ink); cursor: pointer; }
+.hr-check input { width: 18px; height: 18px; accent-color: var(--cora-ink); }
+select.cora-input { appearance: auto; }
+
+/* ---------- Archivio (Figma 920:7762, 920:8094, 920:8497) ---------- */
+.hr-tab-comunicazioni .hr-riga { grid-template-columns: minmax(220px, 1.4fr) 110px 110px 110px minmax(140px, 180px) 120px 32px; }
+.hr-tab-documenti .hr-riga { grid-template-columns: minmax(220px, 1.4fr) 170px 140px 120px 110px 32px; }
+.hr-icona-riga {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cora-surface-soft);
+}
+.hr-icona-riga svg { width: 18px; height: 18px; }
+.hr-icona-riga.is-file { background: var(--cora-accent-soft); }
+.hr-letture { display: flex; flex-direction: column; gap: 6px; }
+.hr-letture small { font-size: 12px; color: var(--cora-ink); }
+.hr-avviso {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px;
+    background: var(--cora-warning-soft); color: var(--cora-warning); font-size: 13px;
+}
+.hr-avviso svg { width: 16px; height: 16px; flex-shrink: 0; }
+.hr-drop {
+    display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 24px 16px;
+    border: 1.5px dashed var(--cora-line); border-radius: 12px; background: var(--cora-surface); cursor: pointer;
+    font: inherit; font-size: 14px; color: var(--cora-ink-2);
+}
+.hr-drop:hover, .hr-drop.has-file { border-color: var(--cora-accent); }
+.hr-drop b { color: var(--cora-accent-ink); font-weight: 600; }
+.hr-drop small { font-size: 12px; color: var(--cora-ink-3); }
+.hr-drop-ic {
+    width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cora-accent-soft);
+}
+.hr-drop-ic svg { width: 18px; height: 18px; }
+.hr-nota {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px;
+    background: var(--cora-surface-soft); font-size: 12px; color: var(--cora-ink-2);
+}
+.hr-nota svg { width: 16px; height: 16px; flex-shrink: 0; }
+@media (max-width: 1100px) {
+    .hr-tab-ferie .hr-riga, .hr-tab-comunicazioni .hr-riga, .hr-tab-documenti .hr-riga { min-width: 980px; }
+}

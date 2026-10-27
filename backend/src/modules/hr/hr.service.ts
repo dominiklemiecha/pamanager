@@ -6,6 +6,8 @@ import { senzaIsolamento } from '../../common/database/isolamento';
 import type { UtenteCorrente } from '../auth/auth.types';
 import { STATI as STATI_ASSUNZIONE } from '../assunzioni/assunzioni.service';
 import { TIPI } from '../ferie/ferie.service';
+import { ComunicazioniAdminService } from '../comunicazioni/comunicazioni-admin.service';
+import { DocumentiPersonaliService } from '../documenti/documenti-personali.service';
 import { NotificheService } from '../notifiche/notifiche.service';
 import { compleanni } from '../pagine/widget/compleanni';
 import { HeatmapService } from '../pagine/widget/heatmap.service';
@@ -36,7 +38,8 @@ function statoAssenza(tipo: string): StatoGiorno {
 @Injectable()
 export class HrService {
   constructor(private readonly ds: DataSource, private readonly staff: StaffService, private readonly notifiche: NotificheService,
-    private readonly heatmap: HeatmapService, private readonly prova: ProvaService) {}
+    private readonly heatmap: HeatmapService, private readonly prova: ProvaService,
+    private readonly comunicazioniAdmin: ComunicazioniAdminService, private readonly personali: DocumentiPersonaliService) {}
 
   /** Vista Cora attiva per l'HR (HR_CORA_UI=1). */
   attiva(): boolean {
@@ -270,6 +273,72 @@ export class HrService {
         dipendenti: dip.filter((e: any) => e.department_id === r.id).map(persona),
       })),
       dipendenti: dip.map(persona),
+    };
+  }
+
+  /** Ferie e permessi (admin/leave-requests.php): in attesa e storico, con quanto serve per crearne una. */
+  async ferie(cid: number) {
+    const [az] = await this.ds.query('SELECT working_days FROM companies WHERE id = $1', [cid]);
+    const lavorativi = String(az?.working_days ?? 'mon,tue,wed,thu,fri').split(',').map((x) => x.trim()).filter(Boolean);
+    const righe = await this.ds.query(
+      `SELECT lr.id, lr.leave_type, lr.status, lr.start_date::text AS start_date, lr.end_date::text AS end_date, lr.is_full_day,
+              to_char(lr.start_time, 'HH24:MI') AS start_time, to_char(lr.end_time, 'HH24:MI') AS end_time, lr.created_at,
+              lr.attachment_path IS NOT NULL AS allegato, lr.certificate_path IS NOT NULL AS certificato, lr.protocol_number, lr.certificate_waived,
+              e.id AS employee_id, e.first_name, e.last_name, e.email, e.photo_path, e.department_id
+         FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
+        WHERE lr.company_id = $1 ORDER BY lr.created_at DESC, lr.id DESC LIMIT 300`, [cid]);
+    const minuti = (a: string | null, b: string | null) => {
+      if (!a || !b) return 0;
+      const [h1, m1] = a.split(':').map(Number);
+      const [h2, m2] = b.split(':').map(Number);
+      return Math.max(0, h2 * 60 + m2 - (h1 * 60 + m1));
+    };
+    const richieste = righe.map((r: any) => {
+      const intera = r.is_full_day !== false;
+      const giorni = contaGiorniLavorativi(r.start_date, r.end_date, lavorativi);
+      const min = intera ? 0 : minuti(r.start_time, r.end_time);
+      return {
+        id: r.id, tipo: r.leave_type, etichetta: TIPI[r.leave_type] ?? r.leave_type, stato: r.status,
+        da: r.start_date, a: r.end_date, giornata: intera, oraDa: r.start_time, oraA: r.end_time,
+        durata: intera ? `${giorni} giorn${giorni === 1 ? 'o' : 'i'}` : `${Math.floor(min / 60)}${min % 60 ? `h ${min % 60}m` : ` or${Math.floor(min / 60) === 1 ? 'a' : 'e'}`}`,
+        inviata: iso(r.created_at), allegato: !!r.allegato, certificato: !!r.certificato,
+        documentiMancanti: r.leave_type === 'malattia' && r.status === 'pending' && (!r.protocol_number || (!r.certificato && !r.certificate_waived)),
+        dipendente: { id: r.employee_id, nome: r.first_name, cognome: r.last_name, email: r.email ?? '', foto: foto(r.photo_path), repartoId: r.department_id },
+      };
+    });
+    const reparti = await this.ds.query('SELECT id, name FROM departments WHERE company_id = $1 ORDER BY name', [cid]);
+    const dipendenti = (await this.ds.query(
+      'SELECT id, first_name, last_name FROM employees WHERE company_id = $1 AND is_active = true ORDER BY last_name, first_name', [cid]))
+      .map((e: any) => ({ id: e.id, nome: e.first_name, cognome: e.last_name }));
+    return { richieste, reparti, dipendenti, tipi: Object.entries(TIPI).map(([k, v]) => ({ valore: k, etichetta: v })) };
+  }
+
+  /** Comunicazioni (admin/communications.php, elenco) con letture e stato. */
+  async comunicazioni(cid: number) {
+    const oggi = oggiRoma();
+    const righe = await this.comunicazioniAdmin.elenco(cid);
+    return righe.map((c: any) => {
+      const pub = c.publish_date ? String(c.publish_date instanceof Date ? c.publish_date.toISOString() : c.publish_date).slice(0, 10) : null;
+      const scad = c.expire_date ? String(c.expire_date instanceof Date ? c.expire_date.toISOString() : c.expire_date).slice(0, 10) : null;
+      const stato = !c.is_published ? 'bozza' : scad && scad < oggi ? 'scaduta' : pub && pub > oggi ? 'programmata' : 'pubblicata';
+      return {
+        id: c.id, titolo: c.title, priorita: c.priority, pubblicazione: pub, scadenza: scad, stato,
+        letture: c.read_count, destinatari: c.total_employees, reparto: c.is_global ? '' : (c.department_name ?? ''),
+      };
+    });
+  }
+
+  /** Documenti aziendali (admin/documenti-aziendali.php): una riga per distribuzione. */
+  async documentiAziendali(cid: number) {
+    const [{ n }] = await this.ds.query('SELECT COUNT(*)::int AS n FROM employees WHERE company_id = $1 AND is_active = true', [cid]);
+    const gruppi = await this.personali.gruppi(cid);
+    return {
+      attivi: n,
+      documenti: gruppi.map((g: any) => ({
+        gruppo: g.bulk_group, nome: g.name, file: g.original_name, caricato: iso(g.created_at), caricatoDa: g.uploaded_by_name,
+        destinatari: g.employee_count, scaricati: g.downloaded_count, scadenza: g.expires_on ? String(g.expires_on instanceof Date ? g.expires_on.toISOString() : g.expires_on).slice(0, 10) : null,
+        visibile: !!g.visible_to_employee, notificheInCoda: g.pending_notifications, campione: g.sample_id,
+      })),
     };
   }
 }

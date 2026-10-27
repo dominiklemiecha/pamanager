@@ -3,6 +3,8 @@ import { PaginaSuperadmin } from '../../superadmin/PaginaSuperadmin';
 import { IndiceHr } from '../hr/Indice';
 import { SceltaHr } from '../hr/comune';
 import { AnagraficaHr, AssunzioniHr, PresenzeHr, RepartiHr } from '../hr/Dipendenti';
+import { FerieHr } from '../hr/Ferie';
+import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
 import adminBuoniPasto from '../../php/pagine/admin/buoni-pasto';
@@ -70,7 +72,7 @@ export const rotteStaff = [
   ...['/admin', '/admin/', '/admin/index.php'].map((x) => (
     <Route key={x} path={x} element={<IndiceHr classica={{ render: adminIndex, prepara: conSettimana }} />} />
   )),
-  pagina('/admin/leave-requests.php', adminFerie, { scarica: ['download_attachment', 'download_cert'] }),
+  hr('/admin/leave-requests.php', FerieHr, { render: adminFerie, scarica: ['download_attachment', 'download_cert'] }, (q) => !q.has('classica')),
   pagina('/admin/work-schedule.php', adminOrario),
   pagina('/admin/punch-settings.php', adminTimbrature),
   pagina('/admin/buoni-pasto.php', adminBuoniPasto),
@@ -82,7 +84,7 @@ export const rotteStaff = [
   hr('/admin/departments.php', RepartiHr, { render: adminReparti }, (q) => !q.has('edit') && q.get('action') !== 'new'),
   pagina('/admin/department-detail.php', adminRepartoDettaglio),
   pagina('/admin/companies.php', adminAziende),
-  pagina('/admin/communications.php', adminComunicazioni),
+  hr('/admin/communications.php', ComunicazioniHr, { render: adminComunicazioni }, (q) => !q.has('action')),
   hr('/admin/employees.php', AnagraficaHr, { render: adminDipendenti }, (q) => !q.has('action') && !q.has('id')),
   hr('/admin/hire-requests.php', AssunzioniHr, { render: adminAssunzioni }, (q) => !q.has('action') && !q.has('id')),
   hr('/admin/attendance.php', PresenzeHr, { render: adminTimbratureGiorno }, (q) => !q.has('classica')),
@@ -91,7 +93,7 @@ export const rotteStaff = [
   ...['admin', 'consulente-lavoro'].map((a) => pagina(`/${a}/chat.php`, staffChat, { scarica: ['download_attachment', 'group_avatar'] })),
   ...['admin', 'consulente-lavoro'].map((a) => <Route key={`${a}/calendar`} path={`/${a}/calendar.php`} element={<CalendarioStaff />} />),
   pagina('/admin/presenze-export.php', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),
-  pagina('/admin/documenti-aziendali.php', adminDocumentiAziendali, { scarica: ['download'] }),
+  hr('/admin/documenti-aziendali.php', DocumentiHr, { render: adminDocumentiAziendali, scarica: ['download'] }, (q) => !q.has('classica')),
   ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy.php`, staffAcademy, { scarica: ['export', 'zip'] })),
   ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy-templates.php`, staffModelliAttestato)),
   ...['/consulente-lavoro', '/consulente-lavoro/', '/consulente-lavoro/index.php'].map((x) => pagina(x, esterniIndexConsulente)),

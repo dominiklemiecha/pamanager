@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { ChatModule } from '../chat/chat.module';
+import { ComunicazioniModule } from '../comunicazioni/comunicazioni.module';
+import { DocumentiModule } from '../documenti/documenti.module';
 import { FerieModule } from '../ferie/ferie.module';
 import { NotificheModule } from '../notifiche/notifiche.module';
 import { HeatmapService } from '../pagine/widget/heatmap.service';
@@ -10,7 +12,7 @@ import { HrController } from './hr.controller';
 import { HrService } from './hr.service';
 
 @Module({
-  imports: [AuthModule, StaffModule, NotificheModule, FerieModule, ChatModule, ProvaModule],
+  imports: [AuthModule, StaffModule, NotificheModule, FerieModule, ChatModule, ProvaModule, ComunicazioniModule, DocumentiModule],
   controllers: [HrController],
   providers: [HrService, HeatmapService],
 })

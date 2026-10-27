@@ -50,6 +50,21 @@ export class HrController {
     return this.hr.reparti(u.companyId!);
   }
 
+  @Get('ferie')
+  elencoFerie(@Utente() u: UtenteCorrente) {
+    return this.hr.ferie(u.companyId!);
+  }
+
+  @Get('comunicazioni')
+  comunicazioni(@Utente() u: UtenteCorrente) {
+    return this.hr.comunicazioni(u.companyId!);
+  }
+
+  @Get('documenti-aziendali')
+  documentiAziendali(@Utente() u: UtenteCorrente) {
+    return this.hr.documentiAziendali(u.companyId!);
+  }
+
   /** Approvazione dalla dashboard (quick_approve di admin/index.php). */
   @Post('richieste/:id/approva')
   @HttpCode(200)
