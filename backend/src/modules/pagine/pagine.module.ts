@@ -8,7 +8,7 @@ import { ChatModule } from '../chat/chat.module';
 import { AnagraficaModule } from '../anagrafica/anagrafica.module';
 import { AssunzioniModule } from '../assunzioni/assunzioni.module';
 import { WrikeModule } from '../wrike/wrike.module';
-import { AssunzioniConsulentePagina, DashboardConsulentePagina, DipendentiConsulentePagina, DocumentiConsulentePagina, DocumentiDipendenteConsulentePagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeConsulentePagina, ProfiloConsulentePagina, ProfiloFormatorePagina } from './esterni/esterni.pagina';
+import { AssunzioniConsulentePagina, DashboardConsulentePagina, DipendentiConsulentePagina, DocumentiConsulentePagina, DocumentiAdminPagina, DocumentiDipendenteConsulentePagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeConsulentePagina, ProfiloConsulentePagina, ProfiloFormatorePagina } from './esterni/esterni.pagina';
 import { ContattiModule } from '../contatti/contatti.module';
 import { PresenzeModule } from '../presenze/presenze.module';
 import { ProfiloModule } from '../profilo/profilo.module';
@@ -46,6 +46,6 @@ import { HeatmapService } from './widget/heatmap.service';
     ConsulentiPagina, FormatoriPagina,
     ChatAdminPagina, ChatConsulentePagina, DipendentiPagina, AssunzioniPagina,
     AcademyAdminPagina, AcademyConsulentePagina, AcademyFormatorePagina, ModelliAttestatoAdminPagina, ModelliAttestatoConsulentePagina, ModelliAttestatoFormatorePagina,
-    AssunzioniConsulentePagina, DashboardConsulentePagina, DipendentiConsulentePagina, DocumentiConsulentePagina, DocumentiDipendenteConsulentePagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeConsulentePagina, ProfiloConsulentePagina, ProfiloFormatorePagina],
+    AssunzioniConsulentePagina, DashboardConsulentePagina, DipendentiConsulentePagina, DocumentiConsulentePagina, DocumentiAdminPagina, DocumentiDipendenteConsulentePagina, FerieConsulentePagina, IndiceFormatorePagina, PresenzeConsulentePagina, ProfiloConsulentePagina, ProfiloFormatorePagina],
 })
 export class PagineModule {}

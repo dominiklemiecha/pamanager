@@ -89,7 +89,7 @@ export const rotteStaff = [
   ...['/formatore', '/formatore/', '/formatore/index.php'].map((x) => pagina(x, soloRedirect)),
   ...['consulente-lavoro'].map((a) => pagina(`/${a}/employees.php`, esterniDipendenti)),
   ...['consulente-lavoro'].map((a) => pagina(`/${a}/employee-documents.php`, esterniDocumentiDipendente, { scarica: ['download'] })),
-  ...['consulente-lavoro'].map((a) => pagina(`/${a}/documents.php`, esterniDocumenti)),
+  ...['admin', 'consulente-lavoro'].map((a) => pagina(`/${a}/documents.php`, esterniDocumenti)),
   pagina('/consulente-lavoro/leave-requests.php', esterniFerieConsulente, { scarica: ['download_cert'] }),
   ...['consulente-lavoro'].map((a) => pagina(`/${a}/presenze-export.php`, esterniPresenze, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } })),
   pagina('/formatore/profile.php', esterniProfiloFormatore),

@@ -26,7 +26,7 @@ import { ContestoPagina, EsitoPagina, json, Pagina, PaginaPhp, redirect, vista }
 import { emailStaffOccupata } from '../comune';
 
 const intero = (v: unknown) => Number.parseInt(String(v ?? ''), 10) || 0;
-const AREA: Record<string, string> = { consulente_lavoro: 'consulente-lavoro', formatore: 'formatore' };
+const AREA: Record<string, string> = { admin: 'admin', consulente_lavoro: 'consulente-lavoro', formatore: 'formatore' };
 const area = (c: ContestoPagina) => AREA[c.u.ruolo] ?? 'consulente-lavoro';
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 
@@ -241,7 +241,7 @@ export abstract class DocumentiEsternoPagina implements Pagina {
     let documents = await this.documenti.elenco(cid, m ? Number(m[1]) : null, m ? Number(m[2]) : null, filterType);
     if (filterEmployee) documents = documents.filter((d: any) => d.employee_id === filterEmployee);
     const messaggi: Record<string, string> = { uploaded: 'Documento caricato con successo', deleted: 'Documento eliminato con successo' };
-    return vista('Carica Documenti - Consulente del lavoro', {
+    return vista(c.u.ruolo === 'admin' ? 'Buste paga e documenti' : 'Carica Documenti - Consulente del lavoro', {
       user: { id: c.u.id }, message: messaggi[String(q.message ?? '')] ?? '', error: errore,
       employees: (await dipendentiAttivi(this.ds, cid)).map((x: any) => ({ id: x.id, first_name: x.first_name, last_name: x.last_name, fiscal_code: x.fiscal_code, department_name: x.department_name })),
       filterEmployee, filterType, filterPeriod: String(q.filter_period ?? ''), filterYear: m ? Number(m[1]) : null, filterMonth: m ? Number(m[2]) : null, documents, _GET: q,
@@ -249,6 +249,8 @@ export abstract class DocumentiEsternoPagina implements Pagina {
   }
 }
 @Injectable() @PaginaPhp('consulente-lavoro/documents') export class DocumentiConsulentePagina extends DocumentiEsternoPagina { readonly ruoli = ['consulente_lavoro']; }
+/** Anche l'HR carica le buste paga, singole o in blocco (stessa pagina del consulente). */
+@Injectable() @PaginaPhp('admin/documents') export class DocumentiAdminPagina extends DocumentiEsternoPagina { readonly ruoli = ['admin']; }
 
 /**
  * Ferie e permessi approvati (accountant/leave-requests.php), in lettura.

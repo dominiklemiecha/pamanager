@@ -79,6 +79,10 @@ export default function HomeHr({ cornice }: { cornice: CorniceHr }) {
           <span className="cora-quick-txt"><strong>Nuova assunzione</strong><span>Avvia il flusso con il consulente</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
         </a>
+        <a className="cora-card cora-quick" href="/admin/documents.php">
+          <span className="cora-quick-txt"><strong>Carica busta paga</strong><span>Cedolini e CU del mese</span></span>
+          <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
+        </a>
         <a className="cora-card cora-quick" href="/admin/communications.php?action=new">
           <span className="cora-quick-txt"><strong>Nuovo avviso</strong><span>Invia una comunicazione ai dipendenti</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />

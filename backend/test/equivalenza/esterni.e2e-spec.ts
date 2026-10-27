@@ -88,6 +88,19 @@ describe('buste paga e documenti', () => {
     expect(saldo(postgres)).toEqual(saldo(mariadb));
   });
 
+  it("anche l'HR carica le buste paga in blocco (solo nuovo stack)", async () => {
+    const n = await nodeEntra('hr.alfa');
+    const cf = postgres(`SELECT fiscal_code FROM employees WHERE last_name = 'Gualtieri'`)[0].fiscal_code;
+    const file: Allegato[] = [{ campo: 'files[]', nome: 'busta_agosto.pdf', dati: await bustaPdf(cf, 'AGOSTO 2026'), tipo: 'application/pdf' }];
+    const a = (await nodePost(n, '/admin/documents.php', [['action', 'bulk_analyze']], file)).json;
+    expect(a.rows[0]).toMatchObject({ status: 'ready', month: 8, year: 2026 });
+    const r = (await nodePost(n, '/admin/documents.php', [['action', 'bulk_commit'], ['rows', JSON.stringify([a.rows[0]])]])).json;
+    expect(r).toEqual({ success: true, created: 1, errors: [] });
+    expect(postgres(`SELECT COUNT(*) AS n FROM documents d JOIN employees e ON e.id = d.employee_id WHERE e.last_name = 'Gualtieri' AND d.title = 'Busta paga 08/2026'`)[0].n).toBe('1');
+    const d = await nodeEntra('giulia.ferraresi');
+    expect((await d.get('/pagine/admin/documents')).status).toBe(403);
+  });
+
   it('caricamento singolo e stesso errore senza file', async () => {
     const [p, n] = await Promise.all([phpEntra('studio.consulente'), nodeEntra('studio.consulente')]);
     const pdf = await bustaPdf('XXXXXX00X00X000X', 'OTTOBRE 2026');
