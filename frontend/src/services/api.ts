@@ -26,6 +26,9 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+/** Pagine che richiedono l'accesso (il superadmin ha il suo login e lo gestisce da se'). */
+const AREE_RISERVATE = /^\/(admin|employee(?!\/unsubscribe)|consulente-lavoro|formatore|accountant)(\/|$)/;
+
 // Password temporanea da cambiare: il backend rifiuta tutto il resto, la pagina
 // porta al cambio password (come il redirect di header-employee.php).
 api.interceptors.response.use(undefined, (err) => {
@@ -33,6 +36,14 @@ api.interceptors.response.use(undefined, (err) => {
   if (err?.response?.status === 403 && d?.must_change_password && location.pathname.startsWith('/employee/')
     && location.pathname !== '/employee/change-password') {
     location.replace('/employee/change-password');
+  }
+  // Sessione scaduta (es. computer ripreso dopo ore) su una pagina riservata:
+  // al login e poi di nuovo qui, come il redirect del PHP. Senza, la pagina
+  // restava bianca in attesa di dati che non arrivano.
+  const url = String(err?.config?.url ?? '');
+  if (err?.response?.status === 401 && !url.startsWith('/auth/') && AREE_RISERVATE.test(location.pathname)) {
+    const qui = location.pathname + location.search;
+    location.replace('/auth/login?return=' + encodeURIComponent(qui));
   }
   return Promise.reject(err);
 });
