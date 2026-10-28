@@ -49,18 +49,18 @@
                 if (CORA) {
                     return isMobileLayout()
                         ? 'Dalla barra in basso raggiungi Home, Richieste e Documenti. Il pallino ti avvisa quando c\'è qualcosa di nuovo.'
-                        : 'Dalla barra in basso raggiungi tutte le sezioni: Home, Documenti, Richieste, Avvisi, Academy, Calendario e Chat. Il pallino ti avvisa quando c\'è qualcosa di nuovo.';
+                        : 'Dalla barra in basso raggiungi tutte le sezioni: Home, Documenti, Richieste, Avvisi, Calendario e Chat. Il pallino ti avvisa quando c\'è qualcosa di nuovo.';
                 }
                 return isMobileLayout()
-                    ? 'Dalla barra in basso raggiungi Home, Richieste e Documenti. Con Altro trovi Avvisi, Calendario, Chat, Academy e il tuo profilo.'
-                    : 'Da qui raggiungi tutte le sezioni: Documenti, Ferie e permessi, Comunicazioni, Academy, Calendario e Chat. Il pallino rosso ti avvisa quando c\'è qualcosa di nuovo.';
+                    ? 'Dalla barra in basso raggiungi Home, Richieste e Documenti. Con Altro trovi Avvisi, Calendario, Chat e il tuo profilo.'
+                    : 'Da qui raggiungi tutte le sezioni: Documenti, Ferie e permessi, Comunicazioni, Calendario e Chat. Il pallino rosso ti avvisa quando c\'è qualcosa di nuovo.';
             }
         },
         {
             id: 'more', page: 'index', chapter: 'Home', mobileOnly: true, coraOnly: true,
             target: '.cora-more-box',
             title: 'Altro',
-            body: 'Tocca Altro nella barra per aprire Avvisi, Calendario, Chat, Academy e il tuo profilo.',
+            body: 'Tocca Altro nella barra per aprire Avvisi, Calendario, Chat e il tuo profilo.',
             onEnter: function () { if (window.Cora && Cora.more) Cora.more(true); },
             onExit: function () { if (window.Cora && Cora.more) Cora.more(false); }
         },

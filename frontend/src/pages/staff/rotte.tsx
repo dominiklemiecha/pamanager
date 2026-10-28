@@ -1,4 +1,4 @@
-import { Route } from 'react-router-dom';
+import { Navigate, Route } from 'react-router-dom';
 import { PaginaSuperadmin } from '../../superadmin/PaginaSuperadmin';
 import { IndiceHr } from '../hr/Indice';
 import { SceltaHr } from '../hr/comune';
@@ -101,8 +101,10 @@ export const rotteStaff = [
   ...['admin', 'consulente-lavoro'].map((a) => <Route key={`${a}/calendar`} path={`/${a}/calendar`} element={<CalendarioStaff />} />),
   pagina('/admin/presenze-export', adminPresenzeExport, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }),
   hr('/admin/documenti-aziendali', DocumentiHr, { render: adminDocumentiAziendali, scarica: ['download'] }, (q) => !q.has('classica')),
-  ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy`, staffAcademy, { scarica: ['export', 'zip'] })),
-  ...['admin', 'consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy-templates`, staffModelliAttestato)),
+  // Academy tolta per ora per l'HR: dai vecchi link (notifiche, segnalibri) si torna alla home.
+  ...['/admin/academy', '/admin/academy-templates'].map((x) => <Route key={x} path={x} element={<Navigate to="/admin/" replace />} />),
+  ...['consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy`, staffAcademy, { scarica: ['export', 'zip'] })),
+  ...['consulente-lavoro', 'formatore'].map((a) => pagina(`/${a}/academy-templates`, staffModelliAttestato)),
   ...['/consulente-lavoro', '/consulente-lavoro/'].map((x) => pagina(x, esterniIndexConsulente)),
   ...['/formatore', '/formatore/'].map((x) => pagina(x, soloRedirect)),
   ...['consulente-lavoro'].map((a) => pagina(`/${a}/employees`, esterniDipendenti)),

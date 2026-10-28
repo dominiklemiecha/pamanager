@@ -63,12 +63,12 @@ const DOCK: Array<[string, string, string, string]> = [
   ['documents', 'Documenti', 'dock-documenti.svg', '/employee/documents'],
   ['leave-requests', 'Richieste', 'dock-richieste.svg', '/employee/leave-requests'],
   ['communications', 'Avvisi', 'dock-avvisi.svg', '/employee/communications'],
-  ['academy', 'Academy', 'dock-academy.svg', '/employee/academy'],
+  // Academy tolta per ora (2026-10-28), come per l'HR.
   ['calendar', 'Calendario', 'dock-calendario.svg', '/employee/calendar'],
   ['chat', 'Chat', 'dock-chat.svg', '/employee/chat'],
 ];
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
-const ALTRO = ['communications', 'calendar', 'chat', 'academy'];
+const ALTRO = ['communications', 'calendar', 'chat'];
 
 function segnali(c: Cornice['contatori'], chiave: string): [boolean, number] {
   switch (chiave) {

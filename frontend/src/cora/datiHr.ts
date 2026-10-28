@@ -44,7 +44,6 @@ const DATI_PAGINA: Record<string, string> = {
   '/admin/formatori': '/hr/accessi?ruolo=formatore',
   // Pagine classiche del dock (GET senza effetti: nessuna conversazione aperta)
   '/admin/chat': '/chat',
-  '/admin/academy': '/pagine/admin/academy',
   '/admin/calendar': '/calendario',
 };
 

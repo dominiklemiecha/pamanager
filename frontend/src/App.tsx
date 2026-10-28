@@ -8,7 +8,6 @@ import Login from './pages/auth/Login';
 const Logout = lazy(() => import('./pages/auth/Logout'));
 const MfaVerify = lazy(() => import('./pages/auth/MfaVerify'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
-const Academy = lazy(() => import('./pages/employee/Academy'));
 const Calendario = lazy(() => import('./pages/employee/Calendario'));
 const CambioPassword = lazy(() => import('./pages/employee/CambioPassword'));
 const Chat = lazy(() => import('./pages/employee/Chat'));
@@ -63,7 +62,8 @@ export default function App() {
         <Route path="/employee/profile" element={<Profilo />} />
         <Route path="/employee/calendar" element={<Calendario />} />
         <Route path="/employee/chat" element={<Chat />} />
-        <Route path="/employee/academy" element={<Academy />} />
+        {/* Academy tolta per ora: dai vecchi link si torna alla home. */}
+        <Route path="/employee/academy" element={<Navigate to="/employee/" replace />} />
         <Route path="/employee/contract-sign" element={<ContrattoFirma />} />
         <Route path="/employee/change-password" element={<CambioPassword />} />
         <Route path="/employee/unsubscribe" element={<Disiscrizione />} />

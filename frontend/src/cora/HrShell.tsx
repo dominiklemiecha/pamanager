@@ -47,12 +47,12 @@ const DOCK: Array<[string, string, string, string]> = [
   ['archivio', 'Archivio', 'dock-archivio.svg', '/admin/communications'],
   ['chat', 'Chat', 'dock-chat.svg', '/admin/chat'],
   ['calendario', 'Calendario', 'dock-calendario.svg', '/admin/calendar'],
-  ['academy', 'Academy', 'dock-academy.svg', '/admin/academy'],
+  // Academy tolta per ora (2026-10-28), come per il dipendente.
   ['accessi', 'Accessi esterni', 'dock-accessi.svg', '/admin/consulente-lavoro'],
 ];
 /** Foglio "Altro" del telefono (Figma "Menu mobile · Altro aperto · HR"). */
-const ALTRO = ['archivio', 'accessi', 'chat', 'calendario', 'academy'];
-const SOTTO: Record<string, string> = { archivio: 'Comunicazioni e documenti', accessi: 'Consulenti e formatori', calendario: 'Eventi e riunioni', academy: 'Corsi e attestati' };
+const ALTRO = ['archivio', 'accessi', 'chat', 'calendario'];
+const SOTTO: Record<string, string> = { archivio: 'Comunicazioni e documenti', accessi: 'Consulenti e formatori', calendario: 'Eventi e riunioni' };
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 
 function AnelloModuli() {
