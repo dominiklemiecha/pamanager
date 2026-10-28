@@ -1,4 +1,5 @@
-import { Controller, Get, HttpCode, HttpException, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { oggiRoma } from '../../common/calcoli/php';
 import { Ruoli, Utente } from '../auth/decoratori';
 import type { UtenteCorrente } from '../auth/auth.types';
 import { ChatService } from '../chat/chat.service';
@@ -38,6 +39,21 @@ export class ConsulenteController {
   @Get('caricati-dipendenti')
   caricatiDipendenti(@Utente() u: UtenteCorrente) {
     return this.consulente.caricatiDipendenti(u.companyId!, u.id);
+  }
+
+  @Get('ferie')
+  ferie(@Query('anno') anno: string, @Query('mese') mese: string, @Query('reparto') reparto: string, @Utente() u: UtenteCorrente) {
+    const a = Number.parseInt(anno ?? '', 10) || Number(oggiRoma().slice(0, 4));
+    const m = Number.parseInt(mese ?? '', 10);
+    return this.consulente.ferie(u.companyId!, a, m >= 1 && m <= 12 ? m : null, Number.parseInt(reparto ?? '', 10) || null);
+  }
+
+  @Get('export')
+  riepilogoExport(@Query('anno') anno: string, @Query('mese') mese: string, @Utente() u: UtenteCorrente) {
+    const oggi = oggiRoma();
+    const a = Number.parseInt(anno ?? '', 10);
+    const m = Number.parseInt(mese ?? '', 10);
+    return this.consulente.riepilogoExport(u.companyId!, a >= 2000 && a <= 2100 ? a : Number(oggi.slice(0, 4)), m >= 1 && m <= 12 ? m : Number(oggi.slice(5, 7)));
   }
 
   /** "Contatta HR": chat diretta con l'HR dell'azienda (prima chi e' collegato all'azienda). */

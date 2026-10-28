@@ -36,7 +36,8 @@ interface Dipendente {
 
 export function AnagraficaConsulente({ cornice }: { cornice: CorniceHr }) {
   const [d] = useDati<{ dipendenti: Dipendente[] }>('/consulente/dipendenti');
-  const [cerca, setCerca] = useState('');
+  // ?cerca= arriva da "Vai al dipendente" (Presenze)
+  const [cerca, setCerca] = useState(() => new URLSearchParams(location.search).get('cerca') ?? '');
   const [aperto, setAperto] = useState<number | null>(null);
   const righe = useMemo(() => {
     const q = cerca.trim().toLowerCase();

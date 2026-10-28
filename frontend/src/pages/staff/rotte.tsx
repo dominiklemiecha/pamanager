@@ -11,6 +11,8 @@ import { ChatHr } from '../hr/Chat';
 import HomeConsulente from '../consulente/Home';
 import { AnagraficaConsulente, AssunzioniConsulente } from '../consulente/Dipendenti';
 import { CaricatiConsulente, DocumentiConsulente } from '../consulente/Documenti';
+import { ExportConsulente, FerieConsulente } from '../consulente/Presenze';
+import { ProfiloConsulente } from '../consulente/Profilo';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
 const adminBuoniPasto: Template = { carica: () => import('../../php/pagine/admin/buoni-pasto') };
@@ -116,10 +118,11 @@ export const rotteStaff = [
   hr('/consulente-lavoro/employee-documents', CaricatiConsulente, { render: esterniDocumentiDipendente, scarica: ['download'] }, (q) => !q.has('employee_id')),
   pagina('/admin/documents', esterniDocumenti),
   hr('/consulente-lavoro/documents', DocumentiConsulente, { render: esterniDocumenti }),
-  pagina('/consulente-lavoro/leave-requests', esterniFerieConsulente, { scarica: ['download_cert'] }),
-  ...['consulente-lavoro'].map((a) => pagina(`/${a}/presenze-export`, esterniPresenze, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } })),
+  hr('/consulente-lavoro/leave-requests', FerieConsulente, { render: esterniFerieConsulente, scarica: ['download_cert'] }, (q) => !q.has('download_cert')),
+  hr('/consulente-lavoro/presenze-export', ExportConsulente, { render: esterniPresenze, scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } }, (q) => !q.has('action')),
   pagina('/formatore/profile', esterniProfiloFormatore),
-  pagina('/consulente-lavoro/profile', esterniProfiloConsulente),
+  // Profilo Cora; Wrike (collegamento e cartelle) nella pagina classica (?classica=1).
+  hr('/consulente-lavoro/profile', ProfiloConsulente, { render: esterniProfiloConsulente }, (q) => !q.has('classica')),
   // Elenco Cora; dettaglio, caricamento di prospetti e contratto nella pagina classica.
   hr('/consulente-lavoro/hire-requests', AssunzioniConsulente, { render: esterniAssunzioni, scarica: ['action'] }, (q) => !q.has('id') && !q.has('action')),
   ...['/superadmin', '/superadmin/'].map((x) => <Route key={x} path={x} element={<PaginaSuperadmin quale="index" />} />),

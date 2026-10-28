@@ -844,3 +844,132 @@ select.cora-input { appearance: auto; }
     .cs-anteprima-riga { flex-wrap: wrap; }
     .cs-anteprima-txt { width: auto; flex: 1; }
 }
+
+/* Consulente · Presenze (Figma 983:11061 Export mensile, 983:11309 Ferie e permessi) */
+.cs-export-righe { display: flex; gap: 16px; align-items: flex-start; }
+.cs-export { flex: 1; min-width: 0; padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+.cs-export-h { display: flex; align-items: center; gap: 12px; }
+.cs-export-h .cs-carica-txt strong { font-size: 20px; font-weight: 500; }
+.cs-export-ic { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: var(--cora-success-soft); }
+.cs-export-ic svg { width: 22px; height: 22px; }
+.cs-export-campi { display: flex; align-items: flex-end; gap: 12px; }
+.cs-export-campi .cora-field { margin: 0; }
+.cs-export-mese { flex: 1; min-width: 0; }
+.cs-export-anno { width: 160px; flex-shrink: 0; }
+.cs-scarica-excel { height: 40px; flex-shrink: 0; border-radius: 999px; padding: 0 18px 0 14px; }
+.cs-kpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cs-kpi-voce { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--cora-surface-soft); }
+.cs-kpi-voce > span { font-size: 12px; color: var(--cora-ink-3); }
+.cs-kpi-voce strong { font-size: 18px; font-weight: 500; color: var(--cora-ink); }
+.cs-kpi-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.cs-kpi-voce.is-card { background: var(--cora-surface); border-radius: 16px; padding: 16px; gap: 8px; }
+.cs-kpi-voce.is-card > span { font-size: 13px; color: var(--cora-ink-2); }
+.cs-kpi-voce.is-card .hr-tipo { font-size: 13px; }
+.cs-kpi-voce.is-card strong { font-size: 24px; }
+.cs-in-attesa { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 14px; background: var(--cora-warning-soft); }
+.cs-in-attesa > p { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 14px; font-weight: 600; color: var(--cora-warning); }
+.cs-in-attesa > p svg { width: 18px; height: 18px; flex-shrink: 0; }
+.cs-in-attesa-riga { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--cora-surface); }
+.cs-in-attesa-riga strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); white-space: nowrap; }
+.cs-in-attesa-riga > span:last-child { flex: 1; min-width: 0; font-size: 13px; color: var(--cora-ink-2); }
+.cs-in-attesa .cs-stato-attesa { height: 24px; padding: 0 10px; border-radius: 999px; font-weight: 600; }
+.cs-in-attesa .cs-pillola { align-self: flex-start; }
+.cs-pillola-alta { height: 40px; padding: 0 16px; font-size: 14px; }
+.cs-storico { width: 420px; flex-shrink: 0; padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+.cs-storico h2 { margin: 0 0 4px; font-size: 18px; font-weight: 500; color: var(--cora-ink); }
+.cs-storico-riga { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--cora-surface-soft); }
+.cs-storico-riga .cs-carica-txt strong { font-size: 14px; }
+.cs-storico-riga .cs-carica-txt span { font-size: 12px; }
+.cs-storico-ic { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--cora-surface); }
+.cs-storico-ic svg { width: 17px; height: 17px; }
+.cs-storico-giu { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: var(--cora-surface); }
+.cs-storico-giu svg { width: 15px; height: 15px; }
+
+.cs-filtri-card { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 16px; }
+.cs-filtri-card .cora-field { margin: 0; }
+.cs-ferie-h { gap: 10px; justify-content: flex-start; }
+.cs-ferie-riga { grid-template-columns: minmax(0, 270px) 130px minmax(0, 220px) 110px 140px minmax(0, 1fr) 36px; }
+.cs-persona-cf { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cs-persona-cf > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-persona-cf strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-persona-cf small { font-size: 11px; color: var(--cora-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-iniziali.cs-iniziali-36 { width: 36px; height: 36px; font-size: 12px; }
+.cs-approvata { font-size: 13px; color: var(--cora-ink-3); }
+
+@media (max-width: 1280px) {
+    .cs-ferie-riga { grid-template-columns: minmax(0, 1fr) 120px 170px 90px 120px 100px 36px; }
+    .cs-kpi-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+    .cs-export-righe { flex-direction: column; align-items: stretch; }
+    .cs-storico { width: auto; }
+}
+@media (max-width: 820px) {
+    .cs-export { padding: 20px; }
+    .cs-export-campi { flex-wrap: wrap; }
+    .cs-export-mese { flex: 1 1 100%; }
+    .cs-export-anno { flex: 1; width: auto; }
+    .cs-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cs-kpi-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cs-filtri-card { grid-template-columns: 1fr; }
+    .cs-in-attesa-riga { flex-wrap: wrap; }
+    .cs-ferie-riga { grid-template-columns: minmax(0, 1fr) auto 36px; grid-template-areas: "persona persona menu" "tipo giorni giorni" "periodo stato stato"; }
+    .cs-ferie-riga > .cs-persona-cf { grid-area: persona; }
+    .cs-ferie-riga > .hr-menu { grid-area: menu; }
+    .cs-ferie-riga > [role="cell"]:nth-child(2) { grid-area: tipo; }
+    .cs-ferie-riga > .cs-doc-periodo { grid-area: giorni; justify-self: end; }
+    .cs-ferie-riga > .cs-doc-data { grid-area: periodo; }
+    .cs-ferie-riga > [role="cell"]:nth-child(5) { grid-area: stato; justify-self: end; }
+    .cs-ferie-riga > .cs-approvata { display: none; }
+}
+
+/* Consulente · Il mio profilo (Figma 994:12958) */
+.cs-profilo { display: flex; gap: 16px; align-items: flex-start; }
+.cs-profilo-col { width: 440px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+.cs-profilo-larga { flex: 1; width: auto; min-width: 0; }
+.cs-profilo-riga { display: flex; gap: 16px; align-items: stretch; }
+.cs-profilo-riga > .cs-profilo-card { flex: 1 1 0; min-width: 0; }
+.cs-profilo-card { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.cs-profilo-card h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--cora-ink); }
+.cs-profilo-card.hr-form .cora-field { margin: 0; }
+.cs-profilo-chi { align-items: center; text-align: center; gap: 8px; padding: 28px 24px; }
+.cs-profilo-avatar {
+    display: inline-flex; align-items: center; justify-content: center; width: 112px; height: 112px; margin-bottom: 8px; border-radius: 50%; overflow: hidden;
+    border: 4px solid var(--cora-surface); box-shadow: 0 6px 16px rgba(31, 46, 51, .12); background: var(--cora-accent-soft);
+    color: var(--cora-warning); font-size: 38px; font-weight: 500;
+}
+.cs-profilo-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cs-profilo-chi strong { font-size: 22px; font-weight: 500; color: var(--cora-ink); }
+.cs-profilo-chi > span:last-child { font-size: 14px; color: var(--cora-ink-2); }
+.cs-integrazione { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; background: var(--cora-surface-soft); }
+.cs-integrazione-logo { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; background: var(--cora-ink); }
+.cs-integrazione-logo svg { width: 28px; height: 28px; }
+.cs-integrazione .cs-carica-txt strong { font-size: 15px; }
+.cs-integrazione .cs-carica-txt span { font-size: 12px; white-space: normal; }
+.cs-integrazione .cs-pillola { height: 40px; padding: 0 16px; font-size: 14px; flex-shrink: 0; }
+.cs-password { position: relative; display: block; }
+.cs-password .cora-input { width: 100%; padding-right: 44px; }
+.cs-password > button, .cs-lucchetto {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border: 0; border-radius: 50%; background: none; cursor: pointer;
+}
+.cs-lucchetto { cursor: default; }
+.cs-password svg { width: 16px; height: 16px; }
+.cs-password .cora-input[disabled] { background: var(--cora-surface-soft); color: var(--cora-ink-3); }
+.cs-sessione { border: 1px solid var(--cora-error); }
+.cs-sessione h2 { color: var(--cora-error); }
+.cs-sessione p { margin: 0; font-size: 14px; color: var(--cora-ink-2); }
+.cs-esci {
+    display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px 0 16px; border-radius: 999px;
+    background: var(--cora-error-soft); color: var(--cora-error); font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.cs-esci svg { width: 17px; height: 17px; }
+
+@media (max-width: 1280px) {
+    .cs-profilo { flex-direction: column; align-items: stretch; }
+    .cs-profilo-col { width: auto; }
+}
+@media (max-width: 820px) {
+    .cs-profilo-riga { flex-direction: column; }
+    .cs-profilo-card { padding: 20px; }
+}

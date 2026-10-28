@@ -152,6 +152,85 @@ export class ConsulenteService {
     return { documenti: voci };
   }
 
+  private async lavorativi(cid: number): Promise<string[]> {
+    const [az] = await this.ds.query('SELECT working_days FROM companies WHERE id = $1', [cid]);
+    return String(az?.working_days ?? 'mon,tue,wed,thu,fri').split(',').map((x) => x.trim()).filter(Boolean);
+  }
+
+  /**
+   * Ferie e permessi approvati (consulente-lavoro/leave-requests.php, stessi
+   * filtri: anno e mese d'inizio, reparto dell'azienda), con i giorni lavorativi.
+   */
+  async ferie(cid: number, anno: number, mese: number | null, reparto: number | null) {
+    const lav = await this.lavorativi(cid);
+    const p: unknown[] = [cid, anno];
+    if (mese) p.push(mese);
+    const righe = await this.ds.query(
+      `SELECT lr.id, lr.leave_type, lr.start_date::text AS start_date, lr.end_date::text AS end_date, lr.is_full_day,
+              to_char(lr.start_time, 'HH24:MI') AS start_time, to_char(lr.end_time, 'HH24:MI') AS end_time,
+              lr.protocol_number, lr.certificate_waived, (lr.certificate_path IS NOT NULL) AS certificato, lr.approved_at,
+              e.id AS employee_id, e.first_name, e.last_name, e.fiscal_code, e.photo_path, e.department_id
+         FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id
+        WHERE lr.status = 'approved' AND e.company_id = $1 AND extract(year FROM lr.start_date) = $2${mese ? ' AND extract(month FROM lr.start_date) = $3' : ''}
+        ORDER BY lr.start_date DESC, e.last_name, e.first_name, lr.id DESC`, p);
+    const reparti = await this.ds.query('SELECT id, name FROM departments WHERE company_id = $1 AND is_active = true ORDER BY name ASC', [cid]);
+    return {
+      richieste: righe.filter((r: any) => !reparto || r.department_id === reparto).map((r: any) => ({
+        id: r.id, tipo: r.leave_type, etichetta: TIPI[r.leave_type] ?? r.leave_type, dipendenteId: r.employee_id, nome: r.first_name, cognome: r.last_name,
+        cf: r.fiscal_code ?? '', foto: foto(r.photo_path), da: r.start_date, a: r.end_date, giornata: r.is_full_day !== false,
+        oraDa: r.start_time, oraA: r.end_time, giorni: r.is_full_day !== false ? contaGiorniLavorativi(r.start_date, r.end_date, lav) : 0,
+        protocollo: r.protocol_number ?? '', esonero: !!r.certificate_waived, certificato: !!r.certificato, approvata: iso(r.approved_at),
+      })),
+      reparti: reparti.map((x: any) => ({ id: x.id, nome: x.name })),
+    };
+  }
+
+  /**
+   * Riepilogo dell'export mensile (stesso file di presenze-export.php):
+   * giorni lavorativi di assenza approvati nel mese per tipo, ore dei
+   * permessi a ore, richieste ancora in attesa che l'export non include.
+   */
+  async riepilogoExport(cid: number, anno: number, mese: number) {
+    const lav = await this.lavorativi(cid);
+    const inizio = `${anno}-${String(mese).padStart(2, '0')}-01`;
+    const fine = new Date(Date.UTC(anno, mese, 0)).toISOString().slice(0, 10);
+    const righe = await this.ds.query(
+      `SELECT lr.id, lr.status, lr.leave_type, lr.start_date::text AS start_date, lr.end_date::text AS end_date, lr.is_full_day,
+              to_char(lr.start_time, 'HH24:MI') AS start_time, to_char(lr.end_time, 'HH24:MI') AS end_time, e.first_name, e.last_name
+         FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id
+        WHERE e.company_id = $1 AND lr.status IN ('approved', 'pending') AND lr.start_date <= $3 AND lr.end_date >= $2
+        ORDER BY lr.start_date, lr.id`, [cid, inizio, fine]);
+    const minuti = (a: string | null, b: string | null) => {
+      if (!a || !b) return 0;
+      const m = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+      return Math.max(0, m(b) - m(a));
+    };
+    const somme: Record<'ferie' | 'permessi' | 'malattia' | 'smart', { giorni: number; minuti: number }> = {
+      ferie: { giorni: 0, minuti: 0 }, permessi: { giorni: 0, minuti: 0 }, malattia: { giorni: 0, minuti: 0 }, smart: { giorni: 0, minuti: 0 },
+    };
+    const gruppo = (t: string) => (t === 'ferie' ? 'ferie' : t === 'permesso' || t === 'permesso_104' ? 'permessi' : t === 'malattia' ? 'malattia' : t === 'smart_working' ? 'smart' : null);
+    let giorni = 0;
+    for (const r of righe.filter((x: any) => x.status === 'approved')) {
+      const da = r.start_date < inizio ? inizio : r.start_date;
+      const a = r.end_date > fine ? fine : r.end_date;
+      const g = r.is_full_day !== false ? contaGiorniLavorativi(da, a, lav) : 0;
+      const k = gruppo(r.leave_type);
+      if (k !== 'smart') giorni += g;
+      if (!k) continue;
+      somme[k].giorni += g;
+      if (r.is_full_day === false) somme[k].minuti += minuti(r.start_time, r.end_time);
+    }
+    const [att] = await this.ds.query('SELECT COUNT(*)::int AS n FROM employees WHERE company_id = $1 AND is_active = true', [cid]);
+    return {
+      anno, mese, attivi: att.n, giorni, somme,
+      inAttesa: righe.filter((x: any) => x.status === 'pending').map((r: any) => ({
+        id: r.id, tipo: r.leave_type, etichetta: TIPI[r.leave_type] ?? r.leave_type, nome: r.first_name, cognome: r.last_name,
+        da: r.start_date, a: r.end_date, giornata: r.is_full_day !== false, oraDa: r.start_time, oraA: r.end_time,
+        giorni: r.is_full_day !== false ? contaGiorniLavorativi(r.start_date, r.end_date, lav) : 0,
+      })),
+    };
+  }
+
   async home(u: UtenteCorrente) {
     const cid = u.companyId!;
     const oggi = oggiRoma();
