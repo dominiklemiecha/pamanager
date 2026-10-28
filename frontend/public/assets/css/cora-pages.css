@@ -117,6 +117,10 @@
     display: flex; align-items: center; gap: 16px; padding: 20px 32px;
     transition: box-shadow .2s ease, transform .2s ease;
 }
+/* Nastro delle azioni rapide: sul desktop non esiste, le schede restano accanto alle presenze */
+.cora-quick-nastro { display: contents; }
+.con-presenze .cora-presence { order: 1; }
+.con-presenze .cora-quick-dopo { order: 2; }
 .cora-quick:hover { box-shadow: 0 10px 24px -12px rgba(31, 46, 51, .25); transform: translateY(-1px); }
 .cora-quick-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .cora-quick-txt strong { font-size: 18px; font-weight: 500; color: var(--cora-ink); }
@@ -233,14 +237,9 @@ i.is-absent { background: var(--cora-error); }
     .cora-bday-close { grid-column: 2; grid-row: 1; position: relative; }
     .cora-body .cora-bday-cta { grid-column: 1 / -1; grid-row: 2; position: relative; justify-content: center; }
 
-    .cora-home-saldi {
-        flex-wrap: nowrap; gap: 12px;
-        margin: 0 -16px; padding: 0 16px;
-        overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px;
-        scrollbar-width: none;
-    }
-    .cora-home-saldi::-webkit-scrollbar { display: none; }
-    .cora-home-saldi .cora-saldo { flex: 0 0 304px; padding: 24px; gap: 20px; scroll-snap-align: start; }
+    /* Ferie e permessi uno sotto l'altro (Figma 1193:2, 1068:28373) */
+    .cora-home-saldi { flex-direction: column; flex-wrap: nowrap; gap: 12px; }
+    .cora-home-saldi .cora-saldo { flex: none; width: 100%; padding: 24px; gap: 20px; }
     .cora-saldo-body { flex-direction: column; align-items: stretch; gap: 14px; }
     .cora-donut, .cora-donut > svg { width: 150px; height: 150px; }
     .cora-donut { align-self: center; }
@@ -258,6 +257,12 @@ i.is-absent { background: var(--cora-error); }
     }
     .cora-home-actions::-webkit-scrollbar { display: none; }
     .cora-home-actions .cora-quick { flex: 0 0 300px; height: 100px; padding: 20px 24px; scroll-snap-align: start; }
+    .cora-home-actions.con-presenze { flex-direction: column; margin: 0; padding: 0; overflow: visible; }
+    .con-presenze .cora-quick-nastro {
+        display: flex; gap: 12px; margin: 0 -16px; padding: 0 16px;
+        overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+    }
+    .con-presenze .cora-quick-nastro::-webkit-scrollbar { display: none; }
     .cora-presence { order: 3; width: 100%; padding: 20px; gap: 20px; }
     .cora-presence-body { flex-direction: column; align-items: flex-start; gap: 16px; }
     .cora-presence-count { flex-direction: row; gap: 16px; }
@@ -853,3 +858,33 @@ i.is-absent { background: var(--cora-error); }
 
 /* Sessione come nel Figma (994:12949): titolo, testo e pulsante uno sotto l'altro */
 .cora-session-txt { display: flex; flex-direction: column; gap: 12px; }
+
+/* Dipendente sul telefono (Figma 1193:3): KPI che scorrono, richieste come schede con etichette */
+@media (max-width: 640px) {
+    .cora-stats {
+        flex-wrap: nowrap; gap: 12px; margin: 0 -16px; padding: 0 16px;
+        overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+    }
+    .cora-stats::-webkit-scrollbar { display: none; }
+    .cora-stats .cora-stat, .cora-stats .cora-stat:last-child { flex: 0 0 200px; scroll-snap-align: start; }
+
+    .cora-table { gap: 12px; }
+    .cora-tr:not(.cora-th) {
+        display: grid; grid-template-columns: minmax(0, 1fr) 18px; align-items: center; gap: 8px 12px;
+        padding: 16px; border: 1px solid var(--cora-line); border-radius: 14px;
+    }
+    .cora-tr:not(.cora-th)[hidden] { display: none; }
+    .cora-tr:not(.cora-th):hover { background: var(--cora-surface); }
+    .cora-tr > .c-type { grid-row: 1; grid-column: 1; width: auto; }
+    .cora-tr > .c-chev { display: block; grid-row: 1; grid-column: 2; align-self: start; }
+    .cora-tr > [data-l] {
+        grid-column: 1 / -1; display: grid; grid-template-columns: 106px minmax(0, 1fr); gap: 12px; align-items: center;
+        width: auto; order: 0; padding-left: 0; font-size: 14px;
+    }
+    .cora-tr > [data-l]::before { content: attr(data-l); font-size: 13px; font-weight: 400; color: var(--cora-ink-3); }
+    .cora-tr > [data-l] > * { justify-self: start; }
+}
+@media (max-width: 640px) {
+    /* Filtro anno dei documenti: largo quanto il testo, a sinistra */
+    .cora-topbar-actions > form.cora-select { flex: 0 0 auto; }
+}

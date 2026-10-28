@@ -198,11 +198,18 @@ function HomeContenuto(props: {
         })}
       </section>
 
-      <section className="cora-home-row cora-home-actions cora-reveal" style={{ '--i': 1 } as React.CSSProperties} data-tour="quick-actions">
-        <a className="cora-card cora-quick" href="/employee/leave-requests?new=ferie">
-          <span className="cora-quick-txt"><strong>Richiedi ferie</strong><span>Crea una nuova richiesta</span></span>
-          <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
-        </a>
+      <section className="cora-home-row cora-home-actions con-presenze cora-reveal" style={{ '--i': 1 } as React.CSSProperties} data-tour="quick-actions">
+        {/* Sul telefono le azioni rapide scorrono in un nastro e le presenze vanno sotto (Figma 1193:3) */}
+        <div className="cora-quick-nastro">
+          <a className="cora-card cora-quick" href="/employee/leave-requests?new=ferie">
+            <span className="cora-quick-txt"><strong>Richiedi ferie</strong><span>Crea una nuova richiesta</span></span>
+            <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
+          </a>
+          <a className="cora-card cora-quick cora-quick-dopo" href="/employee/leave-requests?new=permesso">
+            <span className="cora-quick-txt"><strong>Richiedi permesso</strong><span>Ore o intera giornata</span></span>
+            <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
+          </a>
+        </div>
         <div className="cora-card cora-presence">
           <div className="cora-card-h">
             <h2>Presenze di oggi</h2>
@@ -223,10 +230,6 @@ function HomeContenuto(props: {
             </div>
           </div>
         </div>
-        <a className="cora-card cora-quick" href="/employee/leave-requests?new=permesso">
-          <span className="cora-quick-txt"><strong>Richiedi permesso</strong><span>Ore o intera giornata</span></span>
-          <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
-        </a>
       </section>
 
       <section ref={props.liste} className="cora-home-row cora-home-lists cora-reveal" style={{ '--i': 2 } as React.CSSProperties}>

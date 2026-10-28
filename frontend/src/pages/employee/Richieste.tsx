@@ -143,10 +143,10 @@ export default function Richieste() {
                       <i className={`cora-type-dot is-${COLORE[r.leave_type] ?? 'altro'}`} />
                       <span><strong>{etichetta(r.leave_type)}</strong><small>{sotto}</small></span>
                     </span>
-                    <span className="c-period">{periodo(r)}</span>
-                    <span className="c-dur">{durata(r)}</span>
-                    <span className="c-status"><span className={`cora-status is-${r.status}`}>{STATO[r.status] ?? r.status}</span></span>
-                    <span className="c-sent">Inviata il {c.g}/{c.m} - {c.ore}:{c.min}</span>
+                    <span className="c-period" data-l="Periodo">{periodo(r)}</span>
+                    <span className="c-dur" data-l="Durata">{durata(r)}</span>
+                    <span className="c-status" data-l="Stato"><span className={`cora-status is-${r.status}`}>{STATO[r.status] ?? r.status}</span></span>
+                    <span className="c-sent" data-l="Inviata">Inviata il {c.g}/{c.m} - {c.ore}:{c.min}</span>
                     <span className="c-chev"><I n="ic-chev-r-light.svg" /></span>
                   </button>
                 );
