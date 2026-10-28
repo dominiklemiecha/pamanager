@@ -193,7 +193,6 @@
     .hr-presenze, .hr-richieste, .hr-settimana, .hr-attivita { padding: 20px; }
     .hr-presenze .cora-saldo-body { flex-direction: column; gap: 20px; align-items: stretch; }
     .hr-presenze .cora-donut { align-self: center; }
-    .cora-hr .cora-quick { flex: 1 1 100%; padding: 18px 20px; }
 }
 .hr-more-esci .cora-more-label { color: var(--cora-error); }
 
@@ -407,7 +406,10 @@ a.hr-persona:hover strong { text-decoration: underline; text-underline-offset: 3
 .hr-nota-riga { display: block; margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--cora-error); }
 .hr-check { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--cora-ink); cursor: pointer; }
 .hr-check input { width: 18px; height: 18px; accent-color: var(--cora-ink); }
-select.cora-input { appearance: auto; }
+select.cora-input {
+    appearance: none; padding-right: 40px; cursor: pointer;
+    background: var(--cora-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 16 16'%3E%3Cpath stroke='%234F5C59' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.33' d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 14px center;
+}
 
 /* ---------- Archivio (Figma 920:7762, 920:8094, 920:8497) ---------- */
 .hr-tab-comunicazioni .hr-riga { grid-template-columns: minmax(220px, 1.4fr) 110px 110px 110px minmax(140px, 180px) 120px 32px; }
@@ -972,4 +974,48 @@ select.cora-input { appearance: auto; }
 @media (max-width: 820px) {
     .cs-profilo-riga { flex-direction: column; }
     .cs-profilo-card { padding: 20px; }
+}
+
+/* Consulente sul telefono (Figma 1193:5) */
+.cs-sessione .cs-esci { color: var(--cora-error); }
+@media (max-width: 640px) {
+    /* Righe delle tabelle come schede: titolo e menu in alto, poi "etichetta  valore" */
+    .cs-doc-riga.cs-scheda-m {
+        grid-template-columns: minmax(0, 1fr) 36px; grid-template-areas: none;
+        gap: 10px 12px; padding: 16px; border-radius: 14px;
+    }
+    .cs-doc-riga.cs-scheda-m > *, .cs-doc-riga.cs-scheda-m > [role] { grid-area: auto; justify-self: stretch; }
+    .cs-doc-riga.cs-scheda-m > [role]:first-child { grid-row: 1; grid-column: 1; }
+    .cs-doc-riga.cs-scheda-m > .hr-menu { grid-row: 1; grid-column: 2; justify-self: end; }
+    .cs-doc-riga.cs-scheda-m > [data-l][role] {
+        grid-column: 1 / -1; display: grid; grid-template-columns: 106px minmax(0, 1fr); gap: 12px; align-items: center;
+        font-size: 14px;
+    }
+    .cs-doc-riga.cs-scheda-m > [data-l]::before { content: attr(data-l); font-size: 13px; font-weight: 400; color: var(--cora-ink-3); line-height: 1.2; }
+    .cs-doc-riga.cs-scheda-m > [data-l] > * { justify-self: start; }
+    .cs-doc-nome { align-items: center; }
+
+    /* KPI di Ferie e permessi in un nastro che scorre */
+    .cs-kpi-6 {
+        display: flex; gap: 12px; margin: 16px -16px; padding: 0 16px;
+        overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+    }
+    .cs-kpi-6::-webkit-scrollbar { display: none; }
+    .cs-kpi-6 .cs-kpi-voce { flex: 0 0 186px; scroll-snap-align: start; }
+
+    /* Dashboard: titolo su una riga, conteggio e "Vedi tutte" sotto */
+    .cs-attesa .cora-card-h { flex-wrap: wrap; row-gap: 10px; }
+    .cs-attesa .cora-card-h h2 { flex: 1 1 100%; }
+    .cs-attesa .cora-card-h .cora-see-all { margin-left: auto; }
+
+    /* Export: nome, stato e periodo uno sotto l'altro */
+    .cs-in-attesa-riga { flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; }
+
+    /* Anagrafica e assunzioni: testi interi, fasi in colonna */
+    .cs-accordion-txt > span:last-child { white-space: normal; }
+    .cs-assunzione-h { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .cs-assunzione-h .cs-accordion-txt { width: 100%; }
+    .cs-assunzione-h .cs-stato { align-self: stretch; }
+    .cs-fasi { grid-template-columns: 1fr; row-gap: 12px; }
+    .cs-assunzione .cs-azioni { flex-direction: column; align-items: flex-start; }
 }

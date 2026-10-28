@@ -98,12 +98,12 @@ export function DocumentiConsulente({ cornice }: { cornice: CorniceHr }) {
           </div>
           {!righe.length && <div className="hr-vuoto">Nessun documento</div>}
           {righe.map((x) => (
-            <div key={x.id} className="cs-doc-riga" role="row">
+            <div key={x.id} className="cs-doc-riga cs-scheda-m" role="row">
               <span className="cs-doc-nome" role="cell"><span className="cs-doc-ic"><S n="ic-file-orange.svg" /></span>{x.titolo}</span>
-              <span className="cs-doc-data" role="cell">{dataOra(x.caricato)}</span>
-              <span className="cs-doc-dip" role="cell">{nome(x.nome)} {nome(x.cognome)}</span>
-              <span className="cs-doc-periodo" role="cell">{periodo(x)}</span>
-              <span className="cs-doc-letto" role="cell">{x.letto ? `Sì - ${giornoMese(x.letto)}` : 'Non ancora'}</span>
+              <span className="cs-doc-data" role="cell" data-l="Caricato il">{dataOra(x.caricato)}</span>
+              <span className="cs-doc-dip" role="cell" data-l="Dipendente">{nome(x.nome)} {nome(x.cognome)}</span>
+              <span className="cs-doc-periodo" role="cell" data-l="Periodo">{periodo(x)}</span>
+              <span className="cs-doc-letto" role="cell" data-l="Letto dal dipendente">{x.letto ? `Sì - ${giornoMese(x.letto)}` : 'Non ancora'}</span>
               <MenuRiga voci={[
                 { etichetta: 'Visualizza', icona: 'ic-eye.svg', href: `/api/download.php?id=${x.id}&inline=1`, nuova: true },
                 { etichetta: 'Scarica', icona: 'ic-down.svg', href: `/api/download.php?id=${x.id}` },
@@ -332,12 +332,12 @@ export function CaricatiConsulente({ cornice }: { cornice: CorniceHr }) {
           </div>
           {!righe.length && <div className="hr-vuoto">Nessun documento dai dipendenti</div>}
           {righe.map((x) => (
-            <div key={x.chiave} className="cs-doc-riga" role="row">
+            <div key={x.chiave} className="cs-doc-riga cs-scheda-m" role="row">
               <span className="cs-doc-nome" role="cell"><span className="cs-doc-ic"><S n="ic-file-orange.svg" /></span>{x.titolo}</span>
-              <span className="cs-doc-data" role="cell">{x.caricato ? dataOra(x.caricato) : '—'}</span>
-              <span className="cs-doc-dip" role="cell">{nome(x.cognome)} {nome(x.nome)}</span>
-              <span className="cs-doc-periodo" role="cell">{x.categoria}</span>
-              <span className="cs-doc-letto" role="cell">{x.collegato.tipo === 'malattia' && x.collegato.da && x.collegato.a ? `Malattia ${intervallo(x.collegato.da, x.collegato.a)}` : 'Assunzione'}</span>
+              <span className="cs-doc-data" role="cell" data-l="Caricato il">{x.caricato ? dataOra(x.caricato) : '—'}</span>
+              <span className="cs-doc-dip" role="cell" data-l="Dipendente">{nome(x.cognome)} {nome(x.nome)}</span>
+              <span className="cs-doc-periodo" role="cell" data-l="Categoria">{x.categoria}</span>
+              <span className="cs-doc-letto" role="cell" data-l="Collegato a">{x.collegato.tipo === 'malattia' && x.collegato.da && x.collegato.a ? `Malattia ${intervallo(x.collegato.da, x.collegato.a)}` : 'Assunzione'}</span>
               <MenuRiga voci={[
                 { etichetta: 'Scarica', icona: 'ic-down.svg', href: x.file },
                 { etichetta: 'Vai alla voce collegata', icona: 'ic-link.svg', href: x.voce },

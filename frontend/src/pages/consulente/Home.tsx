@@ -71,7 +71,7 @@ export default function HomeConsulente({ cornice }: { cornice: CorniceHr }) {
         <BustePaga d={d} meseNome={meseNome} />
         <InAttesa d={d} />
       </section>
-      <section className="cora-home-row cora-reveal" style={{ '--i': 2 } as React.CSSProperties}>
+      <section className="cora-home-row cora-home-actions cora-reveal" style={{ '--i': 2 } as React.CSSProperties}>
         <a className="cora-card cora-quick" href={`${BASE}/documents`}>
           <span className="cora-quick-txt"><strong>Carica documenti</strong><span>Buste paga, CU e altri documenti</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />

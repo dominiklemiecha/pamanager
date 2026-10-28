@@ -179,16 +179,16 @@ export function FerieConsulente({ cornice }: { cornice: CorniceHr }) {
           </div>
           {!righe.length && <div className="hr-vuoto">Nessuna richiesta approvata nel periodo</div>}
           {righe.map((r) => (
-            <div key={r.id} className="cs-doc-riga cs-ferie-riga" role="row">
+            <div key={r.id} className="cs-doc-riga cs-ferie-riga cs-scheda-m" role="row">
               <span className="cs-persona-cf" role="cell">
                 <Volto p={{ id: r.dipendenteId, nome: r.nome, cognome: r.cognome, foto: r.foto }} classe="cs-iniziali cs-iniziali-36" />
                 <span><strong>{nome(r.cognome)} {nome(r.nome)}</strong><small>{r.tipo === 'malattia' && r.protocollo ? `${r.protocollo}${r.esonero ? ' - Esonero' : ''}` : r.cf}</small></span>
               </span>
-              <span role="cell"><span className={`hr-tipo is-${r.tipo}`}>{r.etichetta}</span></span>
-              <span className="cs-doc-data" role="cell">{periodo(r.da, r.a, true)}{!r.giornata && r.oraDa && r.oraA ? ` · ${r.oraDa} – ${r.oraA}` : ''}</span>
-              <span className="cs-doc-periodo" role="cell">{r.giornata ? giorni(r.giorni) : 'A ore'}</span>
-              <span role="cell"><span className="cs-attivo"><i />Approvata</span></span>
-              <span className="cs-doc-letto cs-approvata" role="cell">{dataIt(r.approvata)}</span>
+              <span role="cell" data-l="Tipo"><span className={`hr-tipo is-${r.tipo}`}>{r.etichetta}</span></span>
+              <span className="cs-doc-data" role="cell" data-l="Periodo">{periodo(r.da, r.a, true)}{!r.giornata && r.oraDa && r.oraA ? ` · ${r.oraDa} – ${r.oraA}` : ''}</span>
+              <span className="cs-doc-periodo" role="cell" data-l="Giorni">{r.giornata ? giorni(r.giorni) : 'A ore'}</span>
+              <span role="cell" data-l="Stato"><span className="cs-attivo"><i />Approvata</span></span>
+              <span className="cs-doc-letto cs-approvata" role="cell" data-l="Approvata il">{dataIt(r.approvata)}</span>
               <MenuRiga voci={[
                 ...(r.certificato ? [{ etichetta: 'Scarica certificato', icona: 'ic-down.svg', href: `/api/v1/pagine/consulente-lavoro/leave-requests?download_cert=${r.id}` }] : []),
                 { etichetta: 'Vai al dipendente', icona: 'ic-user.svg', href: `${BASE}/employees?cerca=${encodeURIComponent(`${r.cognome} ${r.nome}`)}` },

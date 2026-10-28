@@ -77,7 +77,7 @@ export default function HomeHr({ cornice }: { cornice: CorniceHr }) {
         <PresenzeOggi d={d} />
         <Richieste d={d} aggiorna={(r) => setD({ ...d, ...r })} />
       </section>
-      <section className="cora-home-row cora-reveal" style={{ '--i': 2 } as React.CSSProperties}>
+      <section className="cora-home-row cora-home-actions cora-reveal" style={{ '--i': 2 } as React.CSSProperties}>
         <a className="cora-card cora-quick" href="/admin/hire-requests?action=new">
           <span className="cora-quick-txt"><strong>Nuova assunzione</strong><span>Avvia il flusso con il consulente</span></span>
           <span className="cora-quick-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
