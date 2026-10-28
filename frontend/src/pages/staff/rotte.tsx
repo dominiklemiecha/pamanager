@@ -9,6 +9,7 @@ import { BuoniPastoHr, OrarioHr, ProfiloHr, ResetPasswordHr, TimbratureImpostazi
 import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
 import { ChatHr } from '../hr/Chat';
 import HomeConsulente from '../consulente/Home';
+import { AnagraficaConsulente, AssunzioniConsulente } from '../consulente/Dipendenti';
 import type { CorniceHr } from '../../cora/HrShell';
 import { P } from '../../php/runtime';
 const adminBuoniPasto: Template = { carica: () => import('../../php/pagine/admin/buoni-pasto') };
@@ -109,14 +110,15 @@ export const rotteStaff = [
   // Consulente: dashboard Cora (CONSULENTE_CORA_UI), altrimenti quella classica.
   ...['/consulente-lavoro', '/consulente-lavoro/'].map((x) => hr(x, HomeConsulente, { render: esterniIndexConsulente })),
   ...['/formatore', '/formatore/'].map((x) => pagina(x, soloRedirect)),
-  ...['consulente-lavoro'].map((a) => pagina(`/${a}/employees`, esterniDipendenti)),
+  hr('/consulente-lavoro/employees', AnagraficaConsulente, { render: esterniDipendenti }),
   ...['consulente-lavoro'].map((a) => pagina(`/${a}/employee-documents`, esterniDocumentiDipendente, { scarica: ['download'] })),
   ...['admin', 'consulente-lavoro'].map((a) => pagina(`/${a}/documents`, esterniDocumenti)),
   pagina('/consulente-lavoro/leave-requests', esterniFerieConsulente, { scarica: ['download_cert'] }),
   ...['consulente-lavoro'].map((a) => pagina(`/${a}/presenze-export`, esterniPresenze, { scarica: ['action'], prepara: (V) => { V.now = P.nuovo('DateTime', [V.now]); } })),
   pagina('/formatore/profile', esterniProfiloFormatore),
   pagina('/consulente-lavoro/profile', esterniProfiloConsulente),
-  pagina('/consulente-lavoro/hire-requests', esterniAssunzioni, { scarica: ['action'] }),
+  // Elenco Cora; dettaglio, caricamento di prospetti e contratto nella pagina classica.
+  hr('/consulente-lavoro/hire-requests', AssunzioniConsulente, { render: esterniAssunzioni, scarica: ['action'] }, (q) => !q.has('id') && !q.has('action')),
   ...['/superadmin', '/superadmin/'].map((x) => <Route key={x} path={x} element={<PaginaSuperadmin quale="index" />} />),
   <Route key="sa-login" path="/superadmin/login" element={<PaginaSuperadmin quale="login" />} />,
   <Route key="sa-totp" path="/superadmin/totp" element={<PaginaSuperadmin quale="totp" />} />,

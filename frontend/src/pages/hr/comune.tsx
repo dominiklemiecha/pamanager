@@ -81,7 +81,8 @@ export async function inviaPagina(pagina: string, campi: Record<string, string |
 /** Intestazione delle sezioni (titolo, sottomenu a pillole e azioni a destra). */
 export function SezioneHr({ cornice, pagina, titolo, sottotitolo, schede, attiva, azioni, children }: {
   cornice: CorniceHr; pagina: string; titolo: string; sottotitolo: string;
-  schede?: Array<[string, string]>; attiva?: string; azioni?: ReactNode; children: ReactNode;
+  /** Etichetta, indirizzo e (facoltativo) numero di cose da fare. */
+  schede?: Array<[string, string, number?]>; attiva?: string; azioni?: ReactNode; children: ReactNode;
 }) {
   return (
     <HrShell pagina={pagina} titolo={titolo} cornice={cornice}>
@@ -92,8 +93,10 @@ export function SezioneHr({ cornice, pagina, titolo, sottotitolo, schede, attiva
         <div className="hr-sottomenu cora-reveal" style={{ '--i': 1 } as React.CSSProperties}>
           {schede && (
             <nav className="hr-schede" aria-label={titolo}>
-              {schede.map(([etichetta, href]) => (
-                <a key={href} href={href} className={'cora-tab' + (attiva === etichetta ? ' is-active' : '')} aria-current={attiva === etichetta ? 'page' : undefined}>{etichetta}</a>
+              {schede.map(([etichetta, href, n]) => (
+                <a key={href} href={href} className={'cora-tab' + (attiva === etichetta ? ' is-active' : '')} aria-current={attiva === etichetta ? 'page' : undefined}>
+                  {etichetta}{!!n && <span className="hr-scheda-n">{n > 9 ? '9+' : n}</span>}
+                </a>
               ))}
             </nav>
           )}

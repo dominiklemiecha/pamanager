@@ -20,6 +20,16 @@ export class ConsulenteController {
     return this.consulente.home(u);
   }
 
+  @Get('dipendenti')
+  dipendenti(@Utente() u: UtenteCorrente) {
+    return this.consulente.dipendenti(u.companyId!);
+  }
+
+  @Get('assunzioni')
+  assunzioni(@Utente() u: UtenteCorrente) {
+    return this.consulente.assunzioni(u.companyId!, u.id);
+  }
+
   /** "Contatta HR": chat diretta con l'HR dell'azienda (prima chi e' collegato all'azienda). */
   @Post('chat-hr')
   @HttpCode(200)

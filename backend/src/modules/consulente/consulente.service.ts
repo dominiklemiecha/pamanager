@@ -43,6 +43,57 @@ export class ConsulenteService {
     };
   }
 
+  /**
+   * Anagrafica in sola lettura (consulente-lavoro/employees.php): dipendenti
+   * attivi con gli stessi campi della pagina PHP, scelti uno per uno.
+   */
+  async dipendenti(cid: number) {
+    const righe = await this.ds.query(
+      `SELECT e.id, e.first_name, e.last_name, e.photo_path, e.fiscal_code, e.birth_date::text AS birth_date, e.address, e.email, e.phone,
+              e.hire_date::text AS hire_date, e.job_level, e.position, e.ral_amount, e.monthly_salary, e.iban, d.name AS department_name
+         FROM employees e LEFT JOIN departments d ON d.id = e.department_id
+        WHERE e.company_id = $1 AND e.is_active = true ORDER BY e.last_name ASC, e.first_name ASC, e.id ASC`, [cid]);
+    const numero = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
+    return {
+      dipendenti: righe.map((e: any) => ({
+        id: e.id, nome: e.first_name, cognome: e.last_name, foto: foto(e.photo_path), cf: e.fiscal_code ?? '',
+        nascita: e.birth_date ?? null, indirizzo: e.address ?? '', email: e.email ?? '', telefono: e.phone ?? '',
+        assunzione: e.hire_date ?? null, livello: e.job_level ?? '', posizione: e.position ?? '', reparto: e.department_name ?? '',
+        ral: numero(e.ral_amount), mensile: numero(e.monthly_salary), iban: e.iban ?? '',
+      })),
+    };
+  }
+
+  /**
+   * Richieste di assunzione visibili al consulente (stesso filtro di
+   * AssunzioniService.elencoConsulente: sue o senza consulente, mai bozze),
+   * con le fasi del Figma: richiesta HR, prospetto, approvazione, firma.
+   */
+  async assunzioni(cid: number, uid: number) {
+    const righe = await this.ds.query(
+      `SELECT hr.id, hr.status, hr.employee_first_name, hr.employee_last_name, hr.role_description, hr.start_date::text AS start_date,
+              hr.end_date::text AS end_date, hr.contract_indeterminato, hr.contract_determinato, hr.contract_apprendistato, hr.contract_tirocinio,
+              hr.contract_agevolata, hr.last_sent_at, hr.created_at, hr.decided_at,
+              (SELECT f.id FROM hire_request_files f WHERE f.hire_request_id = hr.id AND f.category = 'prospect' ORDER BY f.uploaded_at DESC, f.id DESC LIMIT 1) AS prospetto_id,
+              (SELECT max(f.uploaded_at) FROM hire_request_files f WHERE f.hire_request_id = hr.id AND f.category = 'prospect') AS prospetto_il,
+              (SELECT max(f.uploaded_at) FROM hire_request_files f WHERE f.hire_request_id = hr.id AND f.category = 'contract') AS contratto_il
+         FROM hire_requests hr
+        WHERE hr.company_id = $1 AND hr.status <> 'draft' AND (hr.assigned_consulente_user_id = $2 OR hr.assigned_consulente_user_id IS NULL)
+        ORDER BY hr.created_at DESC, hr.id DESC`, [cid, uid]);
+    const contratto = (r: any) => [
+      r.contract_indeterminato && 'Tempo indeterminato', r.contract_determinato && 'Tempo determinato', r.contract_apprendistato && 'Apprendistato',
+      r.contract_tirocinio && 'Tirocinio/Stage', r.contract_agevolata && 'Agevolata',
+    ].filter(Boolean).join(', ');
+    return {
+      assunzioni: righe.map((r: any) => ({
+        id: r.id, stato: r.status, nome: r.employee_first_name ?? '', cognome: r.employee_last_name ?? '',
+        ruolo: r.role_description ?? '', contratto: contratto(r), inizio: r.start_date ?? null, fine: r.end_date ?? null,
+        ricevuta: iso(r.last_sent_at ?? r.created_at), prospettoId: r.prospetto_id ?? null, prospettoIl: iso(r.prospetto_il),
+        decisa: iso(r.decided_at), contrattoIl: iso(r.contratto_il),
+      })),
+    };
+  }
+
   async home(u: UtenteCorrente) {
     const cid = u.companyId!;
     const oggi = oggiRoma();
