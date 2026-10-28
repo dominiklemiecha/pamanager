@@ -13,7 +13,8 @@ import { SCHEDE as SCHEDE_PROFILO } from './Profilo';
  * moduli, chat, academy...): stessa barra in alto, stesse schede e stesso
  * dock delle pagine Cora. `pagina` e' la voce del dock, `attiva` la scheda.
  */
-const SEZIONI: Record<string, { pagina: string; titolo: string; schede?: Array<[string, string]>; attiva?: string }> = {
+type Sezione = { pagina: string; titolo: string; schede?: Array<[string, string]>; attiva?: string };
+const SEZIONI: Record<string, Sezione> = {
   employees: { pagina: 'dipendenti', titolo: 'Dipendenti', schede: SCHEDE_DIPENDENTI, attiva: 'Anagrafica' },
   'hire-requests': { pagina: 'dipendenti', titolo: 'Dipendenti', schede: SCHEDE_DIPENDENTI, attiva: 'Assunzioni' },
   attendance: { pagina: 'dipendenti', titolo: 'Dipendenti', schede: SCHEDE_DIPENDENTI, attiva: 'Presenze' },
@@ -38,6 +39,25 @@ const SEZIONI: Record<string, { pagina: string; titolo: string; schede?: Array<[
   academy: { pagina: 'academy', titolo: 'Academy' },
   'academy-templates': { pagina: 'academy', titolo: 'Academy' },
   companies: { pagina: '', titolo: 'Aziende' },
+};
+
+/** Consulente del lavoro: voci del dock e schede del Figma (sezione 3). */
+const C = '/consulente-lavoro';
+const SCHEDE_DIP_CONSULENTE: Array<[string, string]> = [['Anagrafica', `${C}/employees`], ['Assunzioni', `${C}/hire-requests`]];
+const SCHEDE_DOC_CONSULENTE: Array<[string, string]> = [['Buste paga e CU', `${C}/documents`], ['Caricati dai dipendenti', `${C}/employee-documents`]];
+const SCHEDE_PRES_CONSULENTE: Array<[string, string]> = [['Export mensile', `${C}/presenze-export`], ['Ferie e permessi', `${C}/leave-requests`]];
+const SEZIONI_CONSULENTE: Record<string, Sezione> = {
+  employees: { pagina: 'dipendenti', titolo: 'Dipendenti', schede: SCHEDE_DIP_CONSULENTE, attiva: 'Anagrafica' },
+  'hire-requests': { pagina: 'dipendenti', titolo: 'Dipendenti', schede: SCHEDE_DIP_CONSULENTE, attiva: 'Assunzioni' },
+  documents: { pagina: 'documenti', titolo: 'Documenti', schede: SCHEDE_DOC_CONSULENTE, attiva: 'Buste paga e CU' },
+  'employee-documents': { pagina: 'documenti', titolo: 'Documenti', schede: SCHEDE_DOC_CONSULENTE, attiva: 'Caricati dai dipendenti' },
+  'presenze-export': { pagina: 'presenze', titolo: 'Presenze', schede: SCHEDE_PRES_CONSULENTE, attiva: 'Export mensile' },
+  'leave-requests': { pagina: 'presenze', titolo: 'Presenze', schede: SCHEDE_PRES_CONSULENTE, attiva: 'Ferie e permessi' },
+  profile: { pagina: 'profilo', titolo: 'Profilo' },
+  chat: { pagina: 'chat', titolo: 'Chat' },
+  calendar: { pagina: '', titolo: 'Calendario' },
+  academy: { pagina: '', titolo: 'Academy' },
+  'academy-templates': { pagina: '', titolo: 'Academy' },
 };
 
 /** Blu del vecchio tema scritti a mano nei template (stili e attributi style) e colori Cora corrispondenti. */
@@ -66,7 +86,7 @@ export function CorniceClassicaHr({ file, titolo, cornice, corniceHr, stile, scr
   useRisorseStaff({ cornice, stile, script, globali });
   useCss('/assets/css/cora-hr-classica.css');
   useClasseBody('hr-classica-body');
-  const s = SEZIONI[file] ?? { pagina: '', titolo };
+  const s = (cornice.area === 'consulente-lavoro' ? SEZIONI_CONSULENTE : SEZIONI)[file] ?? { pagina: '', titolo };
   return (
     <SezioneHr cornice={corniceHr} pagina={s.pagina} titolo={s.titolo} sottotitolo={titolo.toLowerCase() !== s.titolo.toLowerCase() ? titolo : ''} schede={s.schede} attiva={s.attiva}>
       <div className="hr-classica">{children}</div>

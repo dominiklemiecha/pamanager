@@ -27,7 +27,7 @@ function Calendario() {
     return pronti ? pronti.then((data) => ({ data })) : api.get('/calendario', { params: { view: q.get('view') ?? undefined, d: q.get('d') ?? undefined } });
   }, [q]);
   const cornice = useCorniceStaff(dati);
-  const hrArea = location.pathname.startsWith('/admin/');
+  const hrArea = /^\/(admin|consulente-lavoro)\//.test(location.pathname);
   const corniceHr = useCorniceHr(hrArea);
   const [d, setD] = useState<DatiCalendario | null>(null);
   useEffect(() => {
@@ -36,7 +36,7 @@ function Calendario() {
   const html = useMemo(() => (d ? htmlGriglia(d, false) + '\n\n<!-- Modal Add/Detail Event -->\n' + htmlModale(htmlContatti(d)) : ''), [d]);
   if (!cornice || !d) return null;
   const globali = { CORA_CAL: d.chiamante };
-  if (hrArea && cornice.ruolo === 'admin') {
+  if (hrArea && ['admin', 'consulente_lavoro'].includes(cornice.ruolo)) {
     if (!corniceHr) return null;
     // HR con la vista Cora: stesso calendario dentro la cornice Cora.
     if (corniceHr.coraHr) {

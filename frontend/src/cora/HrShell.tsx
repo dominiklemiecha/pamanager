@@ -39,30 +39,79 @@ const TESTA_CORA = {
   ],
 };
 
-/** Voci del dock: solo pagine che esistono gia' per l'HR. */
-const DOCK: Array<[string, string, string, string]> = [
-  ['index', 'Home', 'dock-home.svg', '/admin/'],
-  ['dipendenti', 'Dipendenti', 'dock-dipendenti.svg', '/admin/employees'],
-  ['ferie', 'Ferie', 'dock-ferie.svg', '/admin/leave-requests'],
-  ['archivio', 'Archivio', 'dock-archivio.svg', '/admin/communications'],
-  ['chat', 'Chat', 'dock-chat.svg', '/admin/chat'],
-  ['calendario', 'Calendario', 'dock-calendario.svg', '/admin/calendar'],
-  // Academy tolta per ora (2026-10-28), come per il dipendente.
-  ['accessi', 'Accessi esterni', 'dock-accessi.svg', '/admin/consulente-lavoro'],
-];
-/** Foglio "Altro" del telefono (Figma "Menu mobile · Altro aperto · HR"). */
-const ALTRO = ['archivio', 'accessi', 'chat', 'calendario'];
-const SOTTO: Record<string, string> = { archivio: 'Comunicazioni e documenti', accessi: 'Consulenti e formatori', calendario: 'Eventi e riunioni' };
+/**
+ * Aree con la vista Cora nella stessa cornice: HR (sezione 2 del Figma) e
+ * consulente del lavoro (sezione 3). Cambiano voci del dock, barra del
+ * telefono, foglio "Altro" e indirizzi di home e profilo.
+ */
+interface AreaCora {
+  home: string;
+  profilo: string;
+  /** Sottotitolo del profilo nel foglio "Altro". */
+  profiloSotto: string;
+  /** Dati della cornice. */
+  api: string;
+  dock: Array<[string, string, string, string]>;
+  /** Barra del telefono: voci del dock, "cora" (anello) e "altro". */
+  tabbar: string[];
+  /** Foglio "Altro" del telefono, con i sottotitoli. */
+  altro: string[];
+  sotto: Record<string, string>;
+  /** Voci larghe nel dock (etichetta lunga). */
+  larghe: string[];
+}
+
+const AREE: Record<'admin' | 'consulente-lavoro', AreaCora> = {
+  admin: {
+    home: '/admin/', profilo: '/admin/profile', profiloSotto: 'Profilo e configurazione', api: '/hr/cornice',
+    dock: [
+      ['index', 'Home', 'dock-home.svg', '/admin/'],
+      ['dipendenti', 'Dipendenti', 'dock-dipendenti.svg', '/admin/employees'],
+      ['ferie', 'Ferie', 'dock-ferie.svg', '/admin/leave-requests'],
+      ['archivio', 'Archivio', 'dock-archivio.svg', '/admin/communications'],
+      ['chat', 'Chat', 'dock-chat.svg', '/admin/chat'],
+      ['calendario', 'Calendario', 'dock-calendario.svg', '/admin/calendar'],
+      // Academy tolta per ora (2026-10-28), come per il dipendente.
+      ['accessi', 'Accessi esterni', 'dock-accessi.svg', '/admin/consulente-lavoro'],
+    ],
+    tabbar: ['index', 'dipendenti', 'cora', 'ferie', 'altro'],
+    // Figma "Menu mobile · Altro aperto · HR"
+    altro: ['archivio', 'accessi', 'chat', 'calendario'],
+    sotto: { archivio: 'Comunicazioni e documenti', accessi: 'Consulenti e formatori', calendario: 'Eventi e riunioni' },
+    larghe: ['accessi'],
+  },
+  // Figma "Dashboard Consulente lavoro" e "Menu mobile · Altro aperto · Consulente"
+  'consulente-lavoro': {
+    home: '/consulente-lavoro/', profilo: '/consulente-lavoro/profile', profiloSotto: 'Il mio profilo', api: '/consulente/cornice',
+    dock: [
+      ['index', 'Home', 'dock-home.svg', '/consulente-lavoro/'],
+      ['documenti', 'Documenti', 'dock-documenti.svg', '/consulente-lavoro/documents'],
+      ['presenze', 'Presenze', 'dock-presenze.svg', '/consulente-lavoro/presenze-export'],
+      ['dipendenti', 'Dipendenti', 'dock-dipendenti.svg', '/consulente-lavoro/employees'],
+      ['chat', 'Chat', 'dock-chat.svg', '/consulente-lavoro/chat'],
+    ],
+    tabbar: ['index', 'documenti', 'cora', 'presenze', 'altro'],
+    altro: ['dipendenti', 'chat'],
+    sotto: { dipendenti: 'Anagrafica e assunzioni' },
+    larghe: [],
+  },
+};
+
+/** Area della cornice (HR se non riconosciuta). */
+export const areaDi = (c: CorniceStaff | null | undefined): AreaCora => AREE[c?.area === 'consulente-lavoro' ? 'consulente-lavoro' : 'admin'];
+/** Area dell'indirizzo corrente, per sapere quale cornice chiedere prima di averla. */
+const areaDaIndirizzo = (): AreaCora => AREE[location.pathname.startsWith('/consulente-lavoro') ? 'consulente-lavoro' : 'admin'];
+
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 
-function AnelloModuli() {
+function AnelloModuli({ home }: { home: string }) {
   return (
     <div className="cora-modules" aria-hidden="true">
       {MODULI.map(([nome, tipo], i) => {
         const stile = { '--a': `${-90 + i * (360 / MODULI.length)}deg` } as React.CSSProperties;
         const interno = (<><S n={`mod-${tipo}.svg`} c="cora-module-ic" /><span className="cora-module-name">{nome}</span></>);
         return tipo === 'cora'
-          ? <a key={nome} href="/admin/" className={`cora-module is-${tipo}`} style={stile}>{interno}</a>
+          ? <a key={nome} href={home} className={`cora-module is-${tipo}`} style={stile}>{interno}</a>
           : <span key={nome} className={`cora-module is-${tipo}`} style={stile}>{interno}</span>;
       })}
     </div>
@@ -169,9 +218,10 @@ function Campanella({ cornice }: { cornice: CorniceHr }) {
 
 /** Barra in alto dell'HR. */
 export function HrTopbar({ titolo, sottotitolo = '', centro, azioni, cornice }: { titolo: string; sottotitolo?: ReactNode; centro?: ReactNode; azioni?: ReactNode; cornice: CorniceHr }) {
+  const area = areaDi(cornice);
   return (
     <header className="cora-topbar">
-      <a href="/admin/" className="cora-topbar-logo" aria-label="Cora · Home" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-mobile.svg') }} />
+      <a href={area.home} className="cora-topbar-logo" aria-label="Cora · Home" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-mobile.svg') }} />
       <div className="cora-topbar-title">
         <h1>{titolo}</h1>
         {sottotitolo !== '' && <p>{sottotitolo}</p>}
@@ -180,7 +230,7 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, azioni, cornice }: 
       <div className="cora-topbar-actions">{azioni}<SelettoreAzienda c={cornice} /></div>
       <div className="cora-topbar-user">
         <Campanella cornice={cornice} />
-        <a href="/admin/profile" className="cora-avatar hr-avatar" title={cornice.nome}>
+        <a href={area.profilo} className="cora-avatar hr-avatar" title={cornice.nome}>
           {cornice.foto ? <img src={cornice.foto} alt="" decoding="async" /> : <span>{cornice.iniziali}</span>}
         </a>
       </div>
@@ -189,13 +239,13 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, azioni, cornice }: 
 }
 
 /** Anello dei moduli (voce Cora del dock e della barra del telefono). */
-function VoceModuli({ classe, bottone }: { classe: string; bottone: (p: { 'aria-expanded': boolean; onClick: () => void }) => ReactNode }) {
+function VoceModuli({ classe, home, bottone }: { classe: string; home: string; bottone: (p: { 'aria-expanded': boolean; onClick: () => void }) => ReactNode }) {
   const [aperto, setAperto] = useState(false);
   useChiudiFuori(aperto, '.cora-dock-cora', () => setAperto(false));
   return (
     <div className={classe + (aperto ? ' is-open' : '')}>
       {bottone({ 'aria-expanded': aperto, onClick: () => setAperto(!aperto) })}
-      <AnelloModuli />
+      <AnelloModuli home={home} />
     </div>
   );
 }
@@ -263,8 +313,9 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
   }, []);
   // Dati delle pagine pronti prima del clic: a browser libero quelli del dock,
   // al passaggio del mouse (o al tocco) quelli del link.
+  const area = areaDi(cornice);
   useEffect(() => {
-    precaricaDock();
+    if (cornice.area === 'admin') precaricaDock();
     const sopra = (e: Event) => {
       const a = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
       if (a) precaricaPagina(a.href);
@@ -285,11 +336,11 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
       </div>
       <nav className="cora-dock hr-dock" aria-label="Menu principale">
         <div className="cora-dock-items" ref={dock}>
-          {DOCK.map(([k, label, icona, href]) => {
+          {area.dock.map(([k, label, icona, href]) => {
             const attivo = pagina === k;
             const n = badge(k);
             return (
-              <a key={k} className={'cora-dock-item' + (attivo ? ' is-active' : '') + (k === 'accessi' ? ' is-wide' : '')} href={href} aria-current={attivo ? 'page' : undefined}>
+              <a key={k} className={'cora-dock-item' + (attivo ? ' is-active' : '') + (area.larghe.includes(k) ? ' is-wide' : '')} href={href} aria-current={attivo ? 'page' : undefined}>
                 <S n={icona} t c="cora-dock-icon" />
                 <span className="cora-dock-label">{label}</span>
                 {n > 0 && <span className="cora-dock-badge">{n > 9 ? '9+' : n}</span>}
@@ -298,7 +349,7 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
           })}
         </div>
         <span className="cora-dock-sep" aria-hidden="true" />
-        <VoceModuli classe="cora-dock-cora" bottone={(p) => (
+        <VoceModuli classe="cora-dock-cora" home={area.home} bottone={(p) => (
           <button type="button" className="cora-dock-item" aria-label="Moduli Cora" {...p}>
             <S n="dock-cora.svg" c="cora-dock-icon cora-dock-logo" />
             <span className="cora-dock-label">Cora</span>
@@ -306,16 +357,16 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
         )} />
       </nav>
       <nav className="cora-tabbar" aria-label="Menu principale">
-        {(['index', 'dipendenti', 'cora', 'ferie', 'altro'] as const).map((k) => {
+        {area.tabbar.map((k) => {
           if (k === 'cora') {
             return (
-              <VoceModuli key={k} classe="cora-tabbar-cora cora-dock-cora" bottone={(p) => (
+              <VoceModuli key={k} classe="cora-tabbar-cora cora-dock-cora" home={area.home} bottone={(p) => (
                 <button type="button" className="cora-tabbar-btn" aria-label="Moduli Cora" {...p} dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
               )} />
             );
           }
           if (k === 'altro') {
-            const attivo = ALTRO.includes(pagina) || pagina === 'profilo';
+            const attivo = area.altro.includes(pagina) || pagina === 'profilo';
             return (
               <button key={k} type="button" className={'cora-dock-item' + (attivo ? ' is-active' : '')} aria-haspopup="dialog" aria-expanded={altroVisibile} onClick={() => setAltro(!altroVisibile)}>
                 <S n="dock-altro.svg" t c="cora-dock-icon" />
@@ -324,7 +375,7 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
               </button>
             );
           }
-          const [, label, icona, href] = DOCK.find((v) => v[0] === k)!;
+          const [, label, icona, href] = area.dock.find((v) => v[0] === k)!;
           const attivo = pagina === k;
           return (
             <a key={k} className={'cora-dock-item' + (attivo ? ' is-active' : '')} href={href} aria-current={attivo ? 'page' : undefined}>
@@ -341,15 +392,15 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
         <div className="cora-more-box" role="dialog" aria-modal="true" aria-label="Altre sezioni">
           <div className="cora-more-grip" aria-hidden="true" />
           <h2 className="hr-more-titolo">Altro</h2>
-          {ALTRO.map((k) => {
-            const [, label, icona, href] = DOCK.find((v) => v[0] === k)!;
+          {area.altro.map((k) => {
+            const [, label, icona, href] = area.dock.find((v) => v[0] === k)!;
             const chat = k === 'chat' ? cornice.contatori.chat : 0;
             return (
               <a key={k} className={'cora-more-item' + (pagina === k ? ' is-active' : '')} href={href} aria-current={pagina === k ? 'page' : undefined}>
                 <span className="cora-more-ic"><I n={icona} t /></span>
                 <span className="hr-more-txt">
                   <span className="cora-more-label">{label}</span>
-                  <span className="hr-more-sub">{k === 'chat' ? (chat > 0 ? `${chat} messagg${chat === 1 ? 'io' : 'i'} non lett${chat === 1 ? 'o' : 'i'}` : 'Nessun messaggio non letto') : SOTTO[k]}</span>
+                  <span className="hr-more-sub">{k === 'chat' ? (chat > 0 ? `${chat} messagg${chat === 1 ? 'io' : 'i'} non lett${chat === 1 ? 'o' : 'i'}` : 'Nessun messaggio non letto') : area.sotto[k]}</span>
                 </span>
                 {chat > 0 && <span className="cora-more-dot" />}
                 <S n="ic-chev-r.svg" c="cora-more-chev" />
@@ -357,9 +408,9 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
             );
           })}
           <span className="hr-more-sep" aria-hidden="true" />
-          <a className={'cora-more-item' + (pagina === 'profilo' ? ' is-active' : '')} href="/admin/profile">
+          <a className={'cora-more-item' + (pagina === 'profilo' ? ' is-active' : '')} href={area.profilo}>
             <span className="cora-more-ic"><span className="cora-avatar">{cornice.foto ? <img src={cornice.foto} alt="" /> : cornice.iniziali}</span></span>
-            <span className="hr-more-txt"><span className="cora-more-label">{cornice.nome}</span><span className="hr-more-sub">Profilo e configurazione</span></span>
+            <span className="hr-more-txt"><span className="cora-more-label">{cornice.nome}</span><span className="hr-more-sub">{area.profiloSotto}</span></span>
             <S n="ic-chev-r.svg" c="cora-more-chev" />
           </a>
           <a className="cora-more-item hr-more-esci" href="/auth/logout">
@@ -377,11 +428,16 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
 /** Ultima cornice ricevuta: la pagina successiva si disegna subito e intanto la aggiorna. */
 let cache: CorniceHr | null = null;
 
-/** Dati della cornice HR; null solo alla prima apertura, finche' non arrivano. */
+/**
+ * Dati della cornice Cora dell'area dell'indirizzo (HR o consulente); null
+ * solo alla prima apertura, finche' non arrivano.
+ */
 export function useCorniceHr(attiva = true): CorniceHr | null {
-  const [c, setC] = useState<CorniceHr | null>(attiva ? cache : null);
+  const percorso = areaDaIndirizzo().api;
+  const valida = cache && areaDi(cache).api === percorso ? cache : null;
+  const [c, setC] = useState<CorniceHr | null>(attiva ? valida : null);
   useEffect(() => {
-    if (attiva) api.get('/hr/cornice').then((r) => { cache = r.data; setC(r.data); }).catch(() => undefined);
-  }, [attiva]);
+    if (attiva) api.get(percorso).then((r) => { cache = r.data; setC(r.data); }).catch(() => undefined);
+  }, [attiva, percorso]);
   return c;
 }

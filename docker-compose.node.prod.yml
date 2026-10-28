@@ -66,6 +66,8 @@ services:
       GIPHY_API_KEY: ${GIPHY_API_KEY:-}
       # Vista Cora dell'HR (Figma "Modulo Cora · HR"): 1 = attiva, vuoto = interfaccia classica
       HR_CORA_UI: ${HR_CORA_UI:-}
+      # Vista Cora del consulente del lavoro (Figma sezione 3): 1 = attiva, vuoto = interfaccia classica
+      CONSULENTE_CORA_UI: ${CONSULENTE_CORA_UI:-}
       # Credenziali del vecchio MySQL: solo per leggere i token Wrike cifrati dal PHP.
       LEGACY_DB_PASSWORD: ${LEGACY_DB_PASSWORD:-}
       LEGACY_DB_NAME: ${LEGACY_DB_NAME:-}

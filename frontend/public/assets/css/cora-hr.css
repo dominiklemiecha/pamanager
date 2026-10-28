@@ -548,3 +548,98 @@ select.cora-input { appearance: auto; }
 .hr-url code { font-family: var(--cora-font); }
 .hr-azienda-gestisci { color: var(--cora-ink-2); text-decoration: none; border-top: 1px solid var(--cora-line); }
 .hr-azienda-gestisci:first-child { border-top: 0; }
+
+/* ============================================================
+ * Consulente del lavoro (Figma "Dashboard Consulente lavoro", 744:973):
+ * stessa cornice dell'HR, pezzi propri della dashboard.
+ * ============================================================ */
+.cora-body button.cora-bday-cta { border: 0; cursor: pointer; font-family: inherit; }
+
+.cs-buste { justify-content: flex-start; gap: 40px; }
+.cs-attesa { gap: 12px; }
+.cs-avviso {
+    display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; border-radius: 8px;
+    background: var(--cora-warning-soft); color: var(--cora-warning); font-size: 12px; font-weight: 500;
+}
+.cs-avviso svg { width: 18px; height: 18px; flex-shrink: 0; }
+.cs-stato-attesa {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 5px 12px; border-radius: 8px;
+    background: var(--cora-warning-soft); color: var(--cora-warning); font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+.cs-stato-attesa i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cs-contatta { width: 100%; height: 36px; margin-top: auto; gap: 8px; border-radius: 8px; justify-content: center; }
+.cs-contatta svg { width: 16px; height: 16px; }
+.cs-contatta svg [stroke] { stroke: currentColor; }
+
+.cs-riga-documenti { align-items: stretch; }
+.cs-documenti { flex: 1; min-width: 0; padding: 24px; display: flex; flex-direction: column; gap: 8px; }
+.cs-tabella { display: flex; flex-direction: column; gap: 8px; }
+.cs-riga {
+    display: grid; grid-template-columns: 220px 130px 190px 120px minmax(0, 1fr) 36px; gap: 12px; align-items: center;
+    padding: 10px 12px; border-radius: 16px; background: var(--cora-surface-soft);
+}
+.cs-riga.cs-intestazione { padding: 8px 12px; background: none; font-size: 12px; color: var(--cora-ink-3); }
+.cs-persona { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 15px; color: var(--cora-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-persona .hr-volto { width: 36px; height: 36px; font-size: 12px; }
+.cs-tipo {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px;
+    background: var(--cora-accent-soft); color: var(--cora-warning); font-size: 12px; white-space: nowrap;
+}
+.cs-tipo svg { width: 13px; height: 13px; }
+.cs-titolo { font-size: 14px; color: var(--cora-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-periodo { font-size: 14px; color: var(--cora-ink-2); white-space: nowrap; }
+.cs-quando { font-size: 13px; color: var(--cora-ink-3); white-space: nowrap; }
+.cs-scarica { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; }
+.cs-scarica:hover { background: var(--cora-surface); }
+.cs-scarica svg { width: 16px; height: 16px; }
+
+.cs-notifiche { width: 480px; flex-shrink: 0; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+.cs-nuove {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 8px;
+    background: var(--cora-error-soft); color: var(--cora-error); font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+.cs-nuove i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cs-notifiche-righe { display: flex; flex-direction: column; gap: 12px; }
+.cs-notifica {
+    display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 12px; border-radius: 16px;
+    background: var(--cora-surface-soft); color: inherit; text-decoration: none;
+}
+.cs-notifica-ic {
+    display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0;
+    border-radius: 8px; background: var(--cora-surface);
+}
+.cs-notifica-ic svg { width: 20px; height: 20px; }
+.cs-notifica-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cs-notifica-txt strong { font-size: 15px; font-weight: 500; color: var(--cora-ink); }
+.cs-notifica-txt span { font-size: 13px; color: var(--cora-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-notifica.is-nuova .cs-notifica-txt strong::after {
+    content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; vertical-align: middle; border-radius: 50%; background: var(--cora-error);
+}
+
+@media (max-width: 1280px) {
+    .cs-riga { grid-template-columns: 190px 110px minmax(0, 1fr) 110px 100px 36px; }
+}
+@media (max-width: 1100px) {
+    .cs-riga-documenti { flex-wrap: wrap; }
+    .cs-notifiche { width: 100%; }
+}
+@media (max-width: 820px) {
+    .cs-documenti, .cs-notifiche { padding: 20px; }
+    /* Figma mobile: il tipo va sotto il nome, che resta intero */
+    .cs-attesa .hr-richiesta-txt > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+}
+/* Telefono (Figma "Consulente · Mobile · Dashboard"): i documenti diventano schede */
+@media (max-width: 820px) {
+    .cs-riga.cs-intestazione { display: none; }
+    .cs-riga {
+        grid-template-columns: minmax(0, 1fr) 36px; grid-template-areas: "persona scarica" "titolo titolo" "tipo tipo" "periodo quando";
+        gap: 8px; padding: 16px; background: var(--cora-surface); border: 1px solid var(--cora-line);
+    }
+    .cs-riga > .cs-persona { grid-area: persona; }
+    .cs-riga > .cs-scarica { grid-area: scarica; }
+    .cs-riga > .cs-titolo { grid-area: titolo; font-size: 15px; }
+    .cs-riga > [role="cell"]:nth-child(2) { grid-area: tipo; }
+    .cs-riga > .cs-periodo { grid-area: periodo; font-size: 13px; }
+    .cs-riga > .cs-quando { grid-area: quando; justify-self: end; }
+    .cs-quando::before { content: 'Caricato il '; }
+}

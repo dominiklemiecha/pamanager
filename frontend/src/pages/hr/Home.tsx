@@ -42,19 +42,19 @@ function intervalloSettimana(a: string, b: string) {
   return `${x.getUTCDate()} ${MESI[x.getUTCMonth() + 1]} – ${y.getUTCDate()} ${MESI[y.getUTCMonth() + 1]}`;
 }
 /** "14 – 15 nov · 2 giorni", "3 ott · 09:00 – 13:00" */
-function periodo(r: DatiHome['richieste'][number]) {
+export function periodo(r: DatiHome['richieste'][number]) {
   if (!r.giornata && r.oraDa && r.oraA) return `${dataBreve(r.da, false)} · ${r.oraDa} – ${r.oraA}`;
   const tratto = r.da === r.a ? dataBreve(r.da, false)
     : r.da.slice(0, 7) === r.a.slice(0, 7) ? `${Number(r.da.slice(8, 10))} – ${dataBreve(r.a, false)}` : `${dataBreve(r.da, false)} – ${dataBreve(r.a, false)}`;
   return `${tratto} · ${r.giorni} giorn${r.giorni === 1 ? 'o' : 'i'}`;
 }
-function ora() {
+export function ora() {
   const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
   return h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
 }
 const toast = toastCora;
 
-function Volto({ p, classe = 'hr-volto' }: { p: Persona; classe?: string }) {
+export function Volto({ p, classe = 'hr-volto' }: { p: Persona; classe?: string }) {
   return <span className={classe}>{p.foto ? <img src={p.foto} alt="" loading="lazy" /> : iniziali(p.nome, p.cognome)}</span>;
 }
 
@@ -99,8 +99,11 @@ export default function HomeHr({ cornice }: { cornice: CorniceHr }) {
   );
 }
 
-/** Banner dei compleanni di oggi; si chiude per la giornata (come nella vista dipendente). */
-function Compleanni({ persone }: { persone: Persona[] }) {
+/**
+ * Banner dei compleanni di oggi; si chiude per la giornata (come nella vista dipendente).
+ * `auguri`: apre la chat con il festeggiato; senza, porta alla chat dell'HR.
+ */
+export function Compleanni({ persone, auguri }: { persone: Persona[]; auguri?: (p: Persona) => void }) {
   const chiave = 'cora-bday-' + new Date().toISOString().slice(0, 10);
   const [chiuso, setChiuso] = useState(() => { try { return !!localStorage.getItem(chiave); } catch { return false; } });
   if (!persone.length || chiuso) return null;
@@ -114,7 +117,9 @@ function Compleanni({ persone }: { persone: Persona[] }) {
         <span className="cora-bday-text">Oggi è il compleanno di {nomi.join(', ')}{ultimo}</span>
       </span>
       <span className="cora-bday-actions">
-        <a className="cora-bday-cta" href="/admin/chat">Fai gli auguri</a>
+        {auguri
+          ? <button type="button" className="cora-bday-cta" onClick={() => auguri(persone[0])}>Fai gli auguri</button>
+          : <a className="cora-bday-cta" href="/admin/chat">Fai gli auguri</a>}
         <button type="button" className="cora-bday-close" aria-label="Chiudi" onClick={() => { setChiuso(true); try { localStorage.setItem(chiave, '1'); } catch { /* niente */ } }}
           dangerouslySetInnerHTML={{ __html: svgCora('ic-x.svg') }} />
       </span>

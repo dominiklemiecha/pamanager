@@ -92,7 +92,7 @@ function PaginaStaffDi({ render, prepara, scarica = [] }: { render: Template; pr
   }, [indirizzo]);
   const cornice = useCorniceStaff(dati);
   // HR con la vista Cora: anche le pagine classiche stanno nella cornice Cora.
-  const hrArea = /^\/admin(\/|$)/.test(percorso);
+  const hrArea = /^\/(admin|consulente-lavoro)(\/|$)/.test(percorso);
   const corniceHr = useCorniceHr(hrArea);
   const [stato, setStato] = useState<{ titolo: string; V: any } | null>(null);
 
@@ -212,7 +212,7 @@ function PaginaStaffDi({ render, prepara, scarica = [] }: { render: Template; pr
   const htmlCora = useMemo(() => ricolora(html), [html]);
   if (!cornice || !stato || !fn) return null;
   const pagina = percorso.split('/').pop()?.replace(/\.php$/, '') || 'index';
-  if (hrArea && cornice.ruolo === 'admin') {
+  if (hrArea && ['admin', 'consulente_lavoro'].includes(cornice.ruolo)) {
     if (!corniceHr) return null;
     if (corniceHr.coraHr) {
       return (
