@@ -178,7 +178,7 @@ export function AssunzioniConsulente({ cornice }: { cornice: CorniceHr }) {
                   </a>
                 )}
                 {a.prospettoId
-                  ? <a className="cs-pillola" href={`${BASE}/hire-requests?action=file&id=${a.id}&file_id=${a.prospettoId}`} target="_blank" rel="noopener"><S n="ic-eye.svg" />Vedi prospetto</a>
+                  ? <a className="cs-pillola" href={`/api/v1/pagine/consulente-lavoro/hire-requests?action=file&id=${a.id}&file_id=${a.prospettoId}`} target="_blank" rel="noopener"><S n="ic-eye.svg" />Vedi prospetto</a>
                   : <a className="cs-pillola" href={dettaglio}><S n="ic-eye.svg" />Vedi richiesta HR</a>}
                 <button type="button" className="cs-pillola" onClick={() => scrivi('/consulente/chat-hr')}><S n="ic-chat.svg" />Scrivi all’HR</button>
               </div>

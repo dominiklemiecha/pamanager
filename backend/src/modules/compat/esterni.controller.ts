@@ -30,9 +30,12 @@ export class EsterniController {
     return { ip: req.ip ?? null, userAgent: String(req.headers['user-agent'] ?? ''), sessioneId: u.sessioneId };
   }
 
-  /** Download di busta paga / CU / documento (Document::download, con filigrana sui PDF). */
+  /**
+   * Download di busta paga / CU / documento (Document::download, con filigrana sui PDF).
+   * `inline=1`: stesso file aperto nel browser ("Visualizza" della vista Cora).
+   */
   @Get('api/download.php')
-  async scarica(@Query('id') id: string, @Req() req: RichiestaAutenticata, @Res() res: Response, @Utente() u: UtenteCorrente) {
+  async scarica(@Query('id') id: string, @Query('inline') inline: string, @Req() req: RichiestaAutenticata, @Res() res: Response, @Utente() u: UtenteCorrente) {
     const n = Number.parseInt(String(id ?? ''), 10) || 0;
     if (!n) { res.status(400).json({ error: 'ID documento non specificato' }); return; }
     const r = await this.documenti.scaricaBusta(n, u, this.ctx(req, u));
@@ -40,7 +43,8 @@ export class EsterniController {
       res.status(r.error === 'Accesso non autorizzato' ? 403 : /Limite/.test(r.error) ? 429 : 404).json({ error: r.error });
       return;
     }
-    res.set({ 'Content-Type': r.mime, 'Content-Disposition': `attachment; filename="${r.nome}"`, 'Content-Length': String(r.contenuto.length), 'Cache-Control': 'private, no-store' }).send(r.contenuto);
+    res.set({ 'Content-Type': r.mime, 'Content-Disposition': `${inline === '1' ? 'inline' : 'attachment'}; filename="${r.nome}"`, 'Content-Length': String(r.contenuto.length),
+      'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' }).send(r.contenuto);
   }
 
   /**

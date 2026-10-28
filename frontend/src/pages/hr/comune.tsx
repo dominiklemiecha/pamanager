@@ -135,8 +135,8 @@ export function Modale({ aperta, chiudi, titolo, sottotitolo, larga, intestazion
   );
 }
 
-/** Menu "..." di una riga: voci che portano a pagine o azioni esistenti. */
-export function MenuRiga({ voci }: { voci: Array<{ etichetta: string; href?: string; azione?: () => void; pericolo?: boolean }> }) {
+/** Menu "..." di una riga: voci che portano a pagine o azioni esistenti (icona e nuova scheda facoltative). */
+export function MenuRiga({ voci }: { voci: Array<{ etichetta: string; href?: string; azione?: () => void; pericolo?: boolean; icona?: string; nuova?: boolean }> }) {
   const [aperto, setAperto] = useState(false);
   useEffect(() => {
     if (!aperto) return;
@@ -151,8 +151,8 @@ export function MenuRiga({ voci }: { voci: Array<{ etichetta: string; href?: str
       {aperto && (
         <div className="hr-menu-lista" role="menu">
           {voci.map((v) => v.href
-            ? <a key={v.etichetta} role="menuitem" href={v.href} className={v.pericolo ? 'is-pericolo' : ''}>{v.etichetta}</a>
-            : <button key={v.etichetta} type="button" role="menuitem" className={v.pericolo ? 'is-pericolo' : ''} onClick={v.azione}>{v.etichetta}</button>)}
+            ? <a key={v.etichetta} role="menuitem" href={v.href} className={v.pericolo ? 'is-pericolo' : ''} {...(v.nuova ? { target: '_blank', rel: 'noopener' } : {})}>{v.icona && <S n={v.icona} />}{v.etichetta}</a>
+            : <button key={v.etichetta} type="button" role="menuitem" className={v.pericolo ? 'is-pericolo' : ''} onClick={v.azione}>{v.icona && <S n={v.icona} />}{v.etichetta}</button>)}
         </div>
       )}
     </div>
