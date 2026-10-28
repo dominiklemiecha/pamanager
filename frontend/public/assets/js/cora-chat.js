@@ -133,7 +133,10 @@
     }
     function isTmp(m) { return String(m.id).indexOf('tmp-') === 0; }
 
+    // Dopo l'uscita dalla pagina (app React) le risposte ancora in viaggio non fanno partire altre richieste
+    var uscito = false;
     function post(action, data, files) {
+        if (uscito) return Promise.reject(new Error('Chat chiusa'));
         var fd = new FormData();
         fd.append('action', action);
         fd.append('csrf_token', csrf);
@@ -2006,5 +2009,5 @@
     if (cfg.open && conv(cfg.open)) openConversation(cfg.open);
     window.addEventListener('pagehide', function () { segnalaChatAperta(null); });
     // Uscita dalla pagina senza ricaricare l'app (vista Cora dell'HR): socket chiuso come lasciando la pagina.
-    window.addEventListener('cora:uscita', function () { segnalaChatAperta(null); fermaRealtime(); });
+    window.addEventListener('cora:uscita', function () { segnalaChatAperta(null); fermaRealtime(); uscito = true; });
 })();
