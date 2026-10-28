@@ -166,13 +166,6 @@
 .hr-dock .cora-dock-item.is-wide { width: 88px; }
 
 /* ---------- Foglio "Altro" del telefono ---------- */
-.hr-more-titolo { font-size: 20px; font-weight: 500; padding: 4px 4px 8px; }
-.hr-more-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hr-more-txt .cora-more-label { flex: none; }
-.hr-more-sub { font-size: 12px; color: var(--cora-ink-3); }
-.hr-more-sep { display: block; height: 1px; background: var(--cora-line); margin: 4px 0; }
-.hr-more-esci { color: var(--cora-error); }
-.hr-more-esci .cora-more-ic { background: var(--cora-error-soft); color: var(--cora-error); }
 
 @media (max-width: 1280px) {
     .hr-attivita { width: 400px; }
@@ -194,7 +187,6 @@
     .hr-presenze .cora-saldo-body { flex-direction: column; gap: 20px; align-items: stretch; }
     .hr-presenze .cora-donut { align-self: center; }
 }
-.hr-more-esci .cora-more-label { color: var(--cora-error); }
 
 /* Schermi bassi: il cerchio si riduce come nella vista dipendente */
 @media (min-width: 1101px) and (max-height: 860px) {

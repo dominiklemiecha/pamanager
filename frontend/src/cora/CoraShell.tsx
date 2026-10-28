@@ -81,6 +81,16 @@ function segnali(c: Cornice['contatori'], chiave: string): [boolean, number] {
   }
 }
 
+/** Riga sotto le voci del foglio "Altro" (Figma 1114:19963). */
+function sottoAltro(c: Cornice['contatori'], chiave: string): string {
+  switch (chiave) {
+    case 'communications': return c.comunicazioni > 0 ? `${c.comunicazioni} nuov${c.comunicazioni === 1 ? 'o' : 'i'}` : 'Nessun avviso nuovo';
+    case 'calendar': return c.inviti > 0 ? `${c.inviti} invit${c.inviti === 1 ? 'o' : 'i'} da confermare` : 'Eventi e riunioni';
+    case 'chat': return c.chat > 0 ? `${c.chat} messagg${c.chat === 1 ? 'io' : 'i'} non lett${c.chat === 1 ? 'o' : 'i'}` : 'Nessun messaggio non letto';
+    default: return '';
+  }
+}
+
 /** Barra in alto delle pagine Cora (_topbar.inc.php). */
 export function Topbar({ titolo, sottotitolo = '', azioni, centro, cornice }: { titolo: string; sottotitolo?: string; azioni?: ReactNode; centro?: ReactNode; cornice: Cornice }) {
   return (
@@ -277,24 +287,30 @@ export function CoraShell({ pagina, titolo, css = [], stile, script = [], global
       <div className="cora-more" data-cora-more-sheet hidden>
         <div className="cora-more-box" role="dialog" aria-modal="true" aria-label="Altre sezioni">
           <div className="cora-more-grip" aria-hidden="true" />
-          {[...ALTRO, 'profile'].map((k) => {
-            const v = DOCK.find((d) => d[0] === k);
-            const [label, icona, href] = k === 'profile' ? ['Profilo', '', '/employee/profile'] : [v![1], v![2], v![3]];
+          <h2 className="hr-more-titolo">Altro</h2>
+          {ALTRO.map((k) => {
+            const [, label, icona, href] = DOCK.find((d) => d[0] === k)!;
             const [puntino, numero] = segnali(c, k);
             const attivo = pagina === k;
             return (
               <a key={k} className={'cora-more-item' + (attivo ? ' is-active' : '')} href={href} aria-current={attivo ? 'page' : undefined}>
-                <span className="cora-more-ic">
-                  {k === 'profile'
-                    ? <span className="cora-avatar">{cornice.foto ? <img src={cornice.foto} alt="" /> : iniziali(cornice.nome, cornice.cognome)}</span>
-                    : <I n={icona} t />}
-                </span>
-                <span className="cora-more-label">{label}</span>
-                {numero > 0 ? <span className="cora-dock-badge">{numero > 9 ? '9+' : numero}</span> : puntino ? <span className="cora-more-dot" /> : null}
+                <span className="cora-more-ic"><I n={icona} t /></span>
+                <span className="hr-more-txt"><span className="cora-more-label">{label}</span><span className="hr-more-sub">{sottoAltro(c, k)}</span></span>
+                {(puntino || numero > 0) && <span className="cora-more-dot" />}
                 <S n="ic-chev-r.svg" c="cora-more-chev" />
               </a>
             );
           })}
+          <span className="hr-more-sep" aria-hidden="true" />
+          <a className={'cora-more-item' + (pagina === 'profile' ? ' is-active' : '')} href="/employee/profile" aria-current={pagina === 'profile' ? 'page' : undefined}>
+            <span className="cora-more-ic"><span className="cora-avatar">{cornice.foto ? <img src={cornice.foto} alt="" /> : iniziali(cornice.nome, cornice.cognome)}</span></span>
+            <span className="hr-more-txt"><span className="cora-more-label">{cornice.nome} {cornice.cognome}</span><span className="hr-more-sub">Il mio profilo</span></span>
+            <S n="ic-chev-r.svg" c="cora-more-chev" />
+          </a>
+          <a className="cora-more-item hr-more-esci" href="/auth/logout">
+            <span className="cora-more-ic"><I n="ic-logout.svg" t /></span>
+            <span className="cora-more-label">Esci dall'account</span>
+          </a>
         </div>
       </div>
 

@@ -402,6 +402,15 @@ body.cora-body {
 .cora-more-item .cora-dock-badge { position: static; transform: none; }
 .cora-more-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cora-accent); flex-shrink: 0; }
 .cora-more-chev, .cora-more-chev svg { width: 18px; height: 18px; flex-shrink: 0; }
+/* Foglio "Altro" con titolo, sottotitoli, profilo ed esci (HR, consulente e dipendente) */
+.hr-more-titolo { font-size: 20px; font-weight: 500; padding: 4px 4px 8px; }
+.hr-more-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hr-more-txt .cora-more-label { flex: none; }
+.hr-more-sub { font-size: 12px; color: var(--cora-ink-3); }
+.hr-more-sep { display: block; height: 1px; background: var(--cora-line); margin: 4px 0; }
+.hr-more-esci { color: var(--cora-error); }
+.hr-more-esci .cora-more-ic { background: var(--cora-error-soft); color: var(--cora-error); }
+.hr-more-esci .cora-more-label { color: var(--cora-error); }
 
 @media (max-width: 820px) {
     :root { --cora-dock-space: 0px; }
@@ -452,12 +461,15 @@ body.cora-body {
     .cora-more {
         display: flex; align-items: flex-end;
         position: fixed; inset: 0; z-index: 110;
-        padding: 0 8px max(8px, env(safe-area-inset-bottom));
+        padding: 0;
         background: rgba(8, 8, 8, .32);
         opacity: 0; transition: opacity .2s ease;
     }
     .cora-more[hidden] { display: none; }
     .cora-more.is-open { opacity: 1; }
+    /* Foglio attaccato al fondo, angoli arrotondati solo in alto (Figma 1114:20280) */
+    .cora-more-box { max-width: none; border-radius: 28px 28px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); transform: translateY(100%); }
+    .cora-more-grip { width: 40px; height: 5px; border-radius: 3px; margin: 0 auto 12px; }
 
     .cora-toast-host { left: 16px; right: 16px; }
     .cora-bell-menu { position: fixed; top: 70px; left: 16px; right: 16px; width: auto; }
