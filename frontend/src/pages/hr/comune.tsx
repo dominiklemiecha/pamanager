@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { iniziali } from '../../cora/formato';
 import { datoVisto, scaricaDato } from '../../cora/datiHr';
@@ -84,6 +84,15 @@ export function SezioneHr({ cornice, pagina, titolo, sottotitolo, schede, attiva
   /** Etichetta, indirizzo e (facoltativo) numero di cose da fare. */
   schede?: Array<[string, string, number?]>; attiva?: string; azioni?: ReactNode; children: ReactNode;
 }) {
+  // Sul telefono le schede scorrono: quella attiva resta visibile (Figma 1201:6160)
+  const nav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const n = nav.current;
+    const a = n?.querySelector<HTMLElement>('.is-active');
+    if (!n || !a || n.scrollWidth <= n.clientWidth) return;
+    const r = a.getBoundingClientRect();
+    n.scrollLeft += r.left - n.getBoundingClientRect().left - (n.clientWidth - r.width) / 2;
+  }, [attiva]);
   return (
     <HrShell pagina={pagina} titolo={titolo} cornice={cornice}>
       <div className="cora-reveal" style={{ '--i': 0 } as React.CSSProperties}>
@@ -92,7 +101,7 @@ export function SezioneHr({ cornice, pagina, titolo, sottotitolo, schede, attiva
       {(schede || azioni) && (
         <div className="hr-sottomenu cora-reveal" style={{ '--i': 1 } as React.CSSProperties}>
           {schede && (
-            <nav className="hr-schede" aria-label={titolo}>
+            <nav ref={nav} className="hr-schede" aria-label={titolo}>
               {schede.map(([etichetta, href, n]) => (
                 <a key={href} href={href} className={'cora-tab' + (attiva === etichetta ? ' is-active' : '')} aria-current={attiva === etichetta ? 'page' : undefined}>
                   {etichetta}{!!n && <span className="hr-scheda-n">{n > 9 ? '9+' : n}</span>}

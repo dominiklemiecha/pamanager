@@ -62,9 +62,9 @@ export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
                 <Volto p={x} />
                 <span><strong>{nome(x.nome)} {nome(x.cognome)}</strong><small>{x.email || x.username}</small></span>
               </a>
-              <span className="hr-cf">{x.cf || '—'}</span>
-              <span className="hr-forte">{x.reparto || '—'}</span>
-              <span><span className={`hr-badge is-${x.stato}`}><i />{x.etichetta}</span></span>
+              <span data-l="Codice fiscale" className="hr-cf">{x.cf || '—'}</span>
+              <span data-l="Reparto" className="hr-forte">{x.reparto || '—'}</span>
+              <span data-l="Stato"><span className={`hr-badge is-${x.stato}`}><i />{x.etichetta}</span></span>
               <MenuRiga voci={[
                 { etichetta: 'Apri scheda', href: `/admin/employees?action=view&id=${x.id}` },
                 { etichetta: 'Modifica', href: `/admin/employees?action=edit&id=${x.id}` },
@@ -117,9 +117,9 @@ export function AssunzioniHr({ cornice }: { cornice: CorniceHr }) {
                   <Volto p={{ id: a.id, nome: a.nome || '?', cognome: a.cognome, foto: '' }} />
                   <span><strong>{nome(a.nome)} {nome(a.cognome)}</strong><small>{a.ruolo || (a.consulente ? `Consulente: ${a.consulente}` : 'Creata ' + dataBreve(a.creata))}</small></span>
                 </a>
-                <span className="hr-forte">{a.contratto || '—'}</span>
-                <span>{a.inizio ? dataBreve(a.inizio) : '—'}</span>
-                <span><span className={`hr-badge is-${TONO_ASSUNZIONE[a.stato] ?? 'neutro'}`}><i />{a.etichetta}</span></span>
+                <span data-l="Contratto" className="hr-forte">{a.contratto || '—'}</span>
+                <span data-l="Inizio">{a.inizio ? dataBreve(a.inizio) : '—'}</span>
+                <span data-l="Stato"><span className={`hr-badge is-${TONO_ASSUNZIONE[a.stato] ?? 'neutro'}`}><i />{a.etichetta}</span></span>
                 <MenuRiga voci={[{ etichetta: 'Apri richiesta', href: `/admin/hire-requests?id=${a.id}` }]} />
               </div>
             ))}
@@ -224,11 +224,11 @@ export function PresenzeHr({ cornice }: { cornice: CorniceHr }) {
               {righe.map((x) => (
                 <div key={x.id} className="hr-riga">
                   <span className="hr-persona"><Volto p={x} /><span><strong>{nome(x.nome)} {nome(x.cognome)}</strong><small>{x.email}</small></span></span>
-                  <span className="hr-forte">{x.reparto || '—'}</span>
-                  <span><span className={`hr-badge is-p-${x.stato}`}><i />{x.etichetta}</span></span>
-                  <span>{x.entrata ?? '—'}</span>
-                  <span>{x.uscita ?? '—'}</span>
-                  <span className="hr-forte">{durata(x.minuti)}</span>
+                  <span data-l="Reparto" className="hr-forte">{x.reparto || '—'}</span>
+                  <span data-l="Stato"><span className={`hr-badge is-p-${x.stato}`}><i />{x.etichetta}</span></span>
+                  <span data-l="Entrata">{x.entrata ?? '—'}</span>
+                  <span data-l="Uscita">{x.uscita ?? '—'}</span>
+                  <span data-l="Ore" className="hr-forte">{durata(x.minuti)}</span>
                   <MenuRiga voci={[{ etichetta: 'Modifica timbrature', href: `/admin/attendance?d=${d.giorno}&classica=1` }]} />
                 </div>
               ))}

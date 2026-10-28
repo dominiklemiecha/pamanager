@@ -1019,3 +1019,88 @@ select.cora-input {
     .cs-fasi { grid-template-columns: 1fr; row-gap: 12px; }
     .cs-assunzione .cs-azioni { flex-direction: column; align-items: flex-start; }
 }
+
+/* HR sul telefono (Figma 1193:4) */
+@media (max-width: 640px) {
+    /* Dashboard: "Vedi tutte" accanto al titolo, conteggio sotto */
+    .hr-richieste .cora-card-h { flex-wrap: wrap; row-gap: 8px; }
+    .hr-richieste .cora-card-h h2 { flex: 1 1 0; min-width: 60%; }
+    .hr-richieste .cora-card-h .hr-chip { order: 3; }
+    .hr-richiesta-txt > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+    /* Presenze settimanali: navigazione sotto il titolo, giorni su una riga che scorre */
+    .hr-settimana .cora-card-h { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .hr-giorni { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .hr-giorni::-webkit-scrollbar { display: none; }
+    .hr-giorno { flex-shrink: 0; }
+}
+@media (max-width: 640px) {
+    /* Tabelle come schede: persona e menu in alto, poi "etichetta  valore" (Figma 1200:657, 1200:1688, 1201:1974) */
+    .hr-tabella { overflow: visible; gap: 8px; }
+    .hr-tabella .hr-intestazione { display: none; }
+    .hr-tabella .hr-riga {
+        min-width: 0; min-height: 0; grid-template-columns: minmax(0, 1fr) 32px; gap: 10px 12px;
+        padding: 16px; border: 1px solid var(--cora-line); border-radius: 14px;
+    }
+    .hr-tabella .hr-riga:not(.hr-intestazione):hover { background: none; }
+    .hr-riga > :first-child { grid-row: 1; grid-column: 1; }
+    .hr-riga > .hr-menu { grid-row: 1; grid-column: 2; }
+    .hr-riga > [data-l] {
+        grid-column: 1 / -1; display: grid; grid-template-columns: 106px minmax(0, 1fr); gap: 4px 12px; align-items: center;
+        font-size: 14px;
+    }
+    .hr-riga > [data-l]::before { content: attr(data-l); font-size: 13px; font-weight: 400; color: var(--cora-ink-3); }
+    .hr-riga > [data-l] > * { grid-column: 2; justify-self: start; }
+    .hr-riga > [data-l].hr-letture > * { justify-self: stretch; }
+    .hr-riga > span:empty { display: none; }
+    .hr-riga > .hr-richiesta-azioni { grid-column: 1 / -1; justify-self: end; }
+
+    /* Ferie da approvare: schede affiancate che scorrono */
+    .hr-tabella.hr-da-approvare {
+        flex-direction: row; gap: 12px; margin: 0 -16px; padding: 0 16px;
+        overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+    }
+    .hr-da-approvare::-webkit-scrollbar { display: none; }
+    .hr-da-approvare .hr-riga { flex: 0 0 296px; scroll-snap-align: start; }
+}
+@media (max-width: 640px) {
+    .hr-card-testa { flex-wrap: wrap; }
+    .hr-card-testa h2 { flex: 1 1 100%; }
+    .hr-card-testa .hr-tenue { flex: 1 1 100%; font-size: 13px; }
+    .hr-toolbar .hr-filtri { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .hr-toolbar .hr-filtri::-webkit-scrollbar { display: none; }
+    .hr-toolbar .hr-filtri .cora-tab { flex-shrink: 0; }
+    .hr-toolbar > .hr-spazio { display: none; }
+    .hr-toolbar > .hr-select, .hr-toolbar > .cora-btn { flex: 1 1 140px; justify-content: center; }
+}
+@media (max-width: 640px) {
+    /* Pulsanti della sezione affiancati e compatti (Figma 1200:657, 1200:1395) */
+    .hr-azioni { flex-wrap: nowrap; }
+    .hr-azioni .cora-btn { flex: 0 1 auto; height: 40px; padding: 0 14px; font-size: 14px; white-space: nowrap; }
+}
+@media (max-width: 640px) {
+    /* KPI di Presenze in un nastro che scorre (Figma 1200:1688) */
+    .hr-kpi {
+        display: flex; gap: 12px; margin-left: -16px; margin-right: -16px; padding: 0 16px;
+        overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+    }
+    .hr-kpi::-webkit-scrollbar { display: none; }
+    .hr-kpi > * { flex: 0 0 200px; scroll-snap-align: start; }
+}
+@media (max-width: 640px) {
+    .hr-sessione .cora-btn { align-self: flex-start; }
+}
+@media (max-width: 640px) {
+    /* Accessi esterni: una scheda per riga (Figma 1201:3736) */
+    .hr-accessi { grid-template-columns: minmax(0, 1fr); }
+    .hr-accesso { padding: 16px; }
+}
+@media (max-width: 640px) {
+    /* Configurazione (Figma 1201:5523, 1201:6160): URL e Copia affiancati, giorni su una riga, Salva a sinistra */
+    .hr-url { flex-direction: row; align-items: center; }
+    .hr-url code { white-space: normal; word-break: break-all; }
+    .hr-modulo-card .cora-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .hr-modulo-card .cora-chips::-webkit-scrollbar { display: none; }
+    .hr-modulo-card .cora-chip { flex-shrink: 0; }
+    .hr-modulo-card, .hr-modulo-card .cora-field { min-width: 0; max-width: 100%; }
+    .hr-form-azioni { justify-content: flex-start; }
+}

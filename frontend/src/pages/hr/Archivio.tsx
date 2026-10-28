@@ -63,14 +63,14 @@ export function ComunicazioniHr({ cornice }: { cornice: CorniceHr }) {
                   <span className="hr-icona-riga"><S n="ic-mega.svg" /></span>
                   <span><strong>{c.titolo}</strong>{c.reparto && <small>Reparto {c.reparto}</small>}</span>
                 </a>
-                <span><span className={`hr-badge is-${pc}`}><i />{pt}</span></span>
-                <span>{giorno(c.pubblicazione)}</span>
-                <span>{giorno(c.scadenza)}</span>
-                <span className="hr-letture">
+                <span data-l="Priorità"><span className={`hr-badge is-${pc}`}><i />{pt}</span></span>
+                <span data-l="Pubblicazione">{giorno(c.pubblicazione)}</span>
+                <span data-l="Scadenza">{giorno(c.scadenza)}</span>
+                <span data-l="Letture" className="hr-letture">
                   <small>{c.stato === 'bozza' ? '—' : `${c.letture}/${c.destinatari} · ${pct}%`}</small>
                   <span className="hr-barra"><i style={{ width: `${c.stato === 'bozza' ? 0 : pct}%` }} /></span>
                 </span>
-                <span><span className={`hr-badge is-${sc}`}><i />{st}</span></span>
+                <span data-l="Stato"><span className={`hr-badge is-${sc}`}><i />{st}</span></span>
                 <MenuRiga voci={[
                   { etichetta: 'Apri con le letture', href: `/admin/communications?action=view&id=${c.id}` },
                   { etichetta: 'Modifica', href: `/admin/communications?action=edit&id=${c.id}` },
@@ -152,10 +152,10 @@ export function DocumentiHr({ cornice }: { cornice: CorniceHr }) {
               {righe.map((x) => (
                 <div key={x.gruppo} className="hr-riga">
                   <span className="hr-persona"><span className="hr-icona-riga is-file"><S n="ic-file-orange.svg" /></span><span><strong>{x.nome}</strong><small>{x.file}</small></span></span>
-                  <span>{new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(x.caricato)).replace(',', ' ·')}</span>
-                  <span className="hr-forte">{x.destinatari} dipendent{x.destinatari === 1 ? 'e' : 'i'}</span>
-                  <span className="hr-forte">{x.scaricati} / {x.destinatari}</span>
-                  <span>{x.scadenza ? dataBreve(x.scadenza) : '—'}</span>
+                  <span data-l="Caricato il">{new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(x.caricato)).replace(',', ' ·')}</span>
+                  <span data-l="Destinatari" className="hr-forte">{x.destinatari} dipendent{x.destinatari === 1 ? 'e' : 'i'}</span>
+                  <span data-l="Scaricato da" className="hr-forte">{x.scaricati} / {x.destinatari}</span>
+                  <span data-l="Scadenza">{x.scadenza ? dataBreve(x.scadenza) : '—'}</span>
                   <MenuRiga voci={[
                     { etichetta: 'Scarica', href: `/api/v1/pagine/admin/documenti-aziendali?download=${x.campione}` },
                     { etichetta: 'Elimina per tutti', azione: () => elimina(x), pericolo: true },

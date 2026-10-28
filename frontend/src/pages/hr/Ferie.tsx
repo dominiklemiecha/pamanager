@@ -77,14 +77,14 @@ export function FerieHr({ cornice }: { cornice: CorniceHr }) {
   const riga = (r: Richiesta, conAzioni: boolean) => (
     <div key={r.id} className="hr-riga">
       <span className="hr-persona"><Volto p={r.dipendente} /><span><strong>{nome(r.dipendente.nome)} {nome(r.dipendente.cognome)}</strong><small>{r.dipendente.email}</small></span></span>
-      <span className={`hr-tipo is-${r.tipo}`}>{r.etichetta}</span>
-      <span>{periodo(r)}</span>
-      <span className="hr-forte">{r.durata}</span>
-      <span>
+      <span data-l="Tipo"><span className={`hr-tipo is-${r.tipo}`}>{r.etichetta}</span></span>
+      <span data-l="Periodo">{periodo(r)}</span>
+      <span data-l="Durata" className="hr-forte">{r.durata}</span>
+      <span data-l="Stato">
         <span className={`hr-badge is-${TONO[r.stato] ?? 'neutro'}`}><i />{STATI[r.stato] ?? r.stato}</span>
         {r.documentiMancanti && <span className="hr-nota-riga">Documenti mancanti</span>}
       </span>
-      <span className="hr-tenue">{inviata(r.inviata)}</span>
+      <span data-l="Inviata" className="hr-tenue">{inviata(r.inviata)}</span>
       <MenuRiga voci={menu(r)} />
       {conAzioni ? (
         <span className="hr-richiesta-azioni">
@@ -106,7 +106,7 @@ export function FerieHr({ cornice }: { cornice: CorniceHr }) {
           <span className="hr-tenue">Le richieste approvate entrano nel calcolo delle presenze e negli export del consulente</span>
         </div>
         {!inAttesa.length ? <div className="hr-vuoto">Nessuna richiesta in attesa</div> : (
-          <div className="hr-tabella hr-tab-ferie">{inAttesa.map((r) => riga(r, true))}</div>
+          <div className="hr-tabella hr-tab-ferie hr-da-approvare">{inAttesa.map((r) => riga(r, true))}</div>
         )}
       </div>
       <div className="cora-card hr-elenco">
