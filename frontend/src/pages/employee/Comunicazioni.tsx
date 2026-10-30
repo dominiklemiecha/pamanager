@@ -47,6 +47,8 @@ export default function Comunicazioni() {
     return (
       <CoraShell pagina="communications" titolo={aperta.title} cornice={cornice}>
         {q.get('message') === 'ack' && <span data-cora-flash="" data-title="Lettura confermata" data-message="L’HR vedrà che hai letto questa comunicazione." hidden />}
+        {/* Sul telefono la barra con logo, campanella e avatar resta in alto (Figma 1198:2718) */}
+        <div className="cora-solo-tel cora-reveal" style={{ '--i': 0 } as React.CSSProperties}><Topbar titolo={aperta.title} cornice={cornice} /></div>
         <a className="cora-back cora-reveal" style={{ '--i': 0 } as React.CSSProperties} href="/employee/communications"><I n="ic-arr-l.svg" />Torna alle comunicazioni</a>
 
         <article className="cora-card cora-comm cora-reveal" style={{ '--i': 1 } as React.CSSProperties}>

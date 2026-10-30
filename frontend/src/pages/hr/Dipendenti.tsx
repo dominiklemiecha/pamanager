@@ -311,6 +311,7 @@ function ModuloReparto({ reparto, chiudi, salvato }: { reparto: Reparto | 'nuovo
     const err = await azione('admin/departments', {
       action: nuovo ? 'create' : 'update', ...(r ? { department_id: r.id } : {}),
       name: String(f.get('name') ?? ''), code: String(f.get('code') ?? ''), description: String(f.get('description') ?? ''),
+      ...(nuovo ? { is_active: String(f.get('is_active') ?? '1') } : {}),
     });
     setInvio(false);
     if (err) { setErrore(err); return; }
@@ -327,6 +328,12 @@ function ModuloReparto({ reparto, chiudi, salvato }: { reparto: Reparto | 'nuovo
           <input className="cora-input" name="name" required minLength={2} maxLength={100} defaultValue={r?.nome ?? ''} placeholder="Es. Ufficio tecnico" autoFocus /></label>
         <label className="cora-field"><span className="cora-label">Codice<span className="req">*</span></span>
           <input className="cora-input" name="code" required minLength={2} maxLength={20} defaultValue={r?.codice ?? ''} placeholder="Es. TEC" /></label>
+        {/* Stato alla creazione: solo sul telefono (Figma 1200:3145) */}
+        {nuovo && <div className="cora-field hr-stato-reparto"><span className="cora-label">Stato</span>
+          <div className="hr-segmenti">
+            <label><input type="radio" name="is_active" value="1" defaultChecked />Attivo</label>
+            <label><input type="radio" name="is_active" value="0" />Non attivo</label>
+          </div></div>}
         <label className="cora-field"><span className="cora-label">Descrizione (facoltativa)</span>
           <textarea className="cora-input cora-textarea" name="description" defaultValue={r?.descrizione ?? ''} placeholder="Breve descrizione del reparto…" /></label>
         {errore && <p className="hr-errore">{errore}</p>}

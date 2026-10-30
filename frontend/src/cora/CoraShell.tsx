@@ -68,6 +68,8 @@ const DOCK: Array<[string, string, string, string]> = [
   ['chat', 'Chat', 'dock-chat.svg', '/employee/chat'],
 ];
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
+/** Telefono: sette moduli in senso orario da Cora (Figma 1114:19854). */
+export const MODULI_TEL: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Calendario', 'lock'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 const ALTRO = ['communications', 'calendar', 'chat'];
 
 function segnali(c: Cornice['contatori'], chiave: string): [boolean, number] {
@@ -129,11 +131,13 @@ export function Topbar({ titolo, sottotitolo = '', azioni, centro, cornice }: { 
   );
 }
 
-function AnelloModuli() {
+function AnelloModuli({ tel = false }: { tel?: boolean }) {
+  const moduli = tel ? MODULI_TEL : MODULI;
   return (
     <div className="cora-modules" aria-hidden="true">
-      {MODULI.map(([nome, tipo], i) => {
-        const stile = { '--a': `${-90 + i * (360 / MODULI.length)}deg` } as React.CSSProperties;
+      {tel && <div className="cora-modules-didascalia"><strong>Modulo Cora</strong><span>Tocca un modulo per aprirlo</span></div>}
+      {moduli.map(([nome, tipo], i) => {
+        const stile = { '--a': `${-90 + i * (360 / moduli.length)}deg` } as React.CSSProperties;
         const interno = (<><S n={`mod-${tipo}.svg`} c="cora-module-ic" /><span className="cora-module-name">{nome}</span></>);
         return tipo === 'cora'
           ? <a key={nome} href="/employee/" className={`cora-module is-${tipo}`} style={stile}>{interno}</a>
@@ -217,7 +221,7 @@ export function CoraShell({ pagina, titolo, css = [], stile, script = [], global
 
   return (
     <>
-      <div className="cora-app">
+      <div className="cora-app cora-dip">
         <main className="cora-main">
           {classica ? (
             <>
@@ -258,7 +262,7 @@ export function CoraShell({ pagina, titolo, css = [], stile, script = [], global
             return (
               <div key={k} className="cora-tabbar-cora cora-dock-cora" data-cora-modules>
                 <button type="button" className="cora-tabbar-btn" aria-expanded="false" aria-label="Moduli Cora" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
-                <AnelloModuli />
+                <AnelloModuli tel />
               </div>
             );
           }

@@ -47,6 +47,11 @@ export function ProfiloConsulente({ cornice }: { cornice: CorniceHr }) {
       await carica();
     } else toast('Operazione non riuscita', r.errore, 'error');
   };
+  const foto = async (f: File | undefined, rimuovi = false) => {
+    if (!f && !rimuovi) return;
+    const r = await inviaPagina('consulente-lavoro/profile', rimuovi ? { action: 'remove_photo' } : { action: 'upload_photo', photo: f! });
+    if (r.redirect) location.reload(); else toast('Foto non aggiornata', r.errore, 'error');
+  };
   const aziende = cornice.aziende.length;
   const wrike = d.wrike?.token ? (d.wrike.is_active ? 'Collegato' : 'Collegato, in pausa') : 'Non collegato';
   return (
@@ -57,6 +62,13 @@ export function ProfiloConsulente({ cornice }: { cornice: CorniceHr }) {
             <span className="cs-profilo-avatar">{cornice.foto ? <img src={cornice.foto} alt="" /> : cornice.iniziali}</span>
             <strong>{d.user.name}</strong>
             <span>Consulente del lavoro{aziende > 1 ? ` - ${aziende} aziende` : ''}</span>
+            {/* Foto del profilo: solo sul telefono (Figma 1202:6985) */}
+            <div className="cs-profilo-foto">
+              <label className="cs-pillola"><S n="ic-up.svg" />Carica foto
+                <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => foto(e.target.files?.[0])} /></label>
+              {cornice.foto && <button type="button" className="cs-pillola cs-pillola-rossa" onClick={() => foto(undefined, true)}>Rimuovi</button>}
+            </div>
+            <small className="cs-profilo-nota">JPG, PNG o WEBP - max 3 MB</small>
           </div>
           <div className="cora-card cs-profilo-card">
             <h2>Integrazioni</h2>

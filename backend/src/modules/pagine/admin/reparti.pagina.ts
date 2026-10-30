@@ -28,7 +28,7 @@ export class RepartiService {
     return (await this.ds.query(`SELECT 1 FROM departments WHERE ${campo} = $1 AND company_id = $2 AND id <> $3`, [valore, cid, escludi])).length > 0;
   }
 
-  async crea(d: { name: string; code: string; description: string }, cid: number, ctx: Ctx): Promise<Esito> {
+  async crea(d: { name: string; code: string; description: string; attivo?: boolean }, cid: number, ctx: Ctx): Promise<Esito> {
     const nome = String(d.name ?? '').trim();
     if (Buffer.byteLength(nome) < 2) return { success: false, error: 'Nome reparto obbligatorio (min. 2 caratteri)' };
     if (Buffer.byteLength(String(d.code ?? '').trim()) < 2) return { success: false, error: 'Codice reparto obbligatorio (min. 2 caratteri)' };
@@ -38,8 +38,8 @@ export class RepartiService {
     if (await this.esiste('name', nome, cid)) return { success: false, error: 'Nome reparto già esistente' };
     if (await this.esiste('code', codice, cid)) return { success: false, error: 'Codice reparto già esistente' };
     try {
-      const [r] = await this.ds.query(`INSERT INTO departments (company_id, name, code, description, is_active) VALUES ($1, $2, $3, $4, true) RETURNING id`,
-        [cid, nome, codice, String(d.description ?? '').trim() || null]);
+      const [r] = await this.ds.query(`INSERT INTO departments (company_id, name, code, description, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [cid, nome, codice, String(d.description ?? '').trim() || null, d.attivo !== false]);
       await this.audit.log('department_created', ctx.tipo, ctx.id, ctx, 'department', r.id, null, d);
       return { success: true };
     } catch {
@@ -118,7 +118,7 @@ export class RepartiPagina implements Pagina {
   async azione(c: ContestoPagina, corpo: Record<string, string>) {
     const cid = c.u.companyId!;
     const id = Number.parseInt(corpo.department_id ?? '', 10) || 0;
-    const d = { name: corpo.name ?? '', code: corpo.code ?? '', description: corpo.description ?? '' };
+    const d = { name: corpo.name ?? '', code: corpo.code ?? '', description: corpo.description ?? '', attivo: corpo.is_active !== '0' };
     let r: Esito | null = null;
     let fatto = '';
     if (corpo.action === 'create') { r = await this.reparti.crea(d, cid, c.audit); fatto = 'created'; }

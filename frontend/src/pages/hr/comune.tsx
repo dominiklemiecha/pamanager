@@ -84,14 +84,25 @@ export function SezioneHr({ cornice, pagina, titolo, sottotitolo, schede, attiva
   /** Etichetta, indirizzo e (facoltativo) numero di cose da fare. */
   schede?: Array<[string, string, number?]>; attiva?: string; azioni?: ReactNode; children: ReactNode;
 }) {
-  // Sul telefono le schede scorrono: quella attiva resta visibile (Figma 1201:6160)
+  // Sul telefono le schede scorrono il minimo per mostrare intera quella attiva (Figma 1201:5841, 1201:6504)
   const nav = useRef<HTMLElement>(null);
   useEffect(() => {
     const n = nav.current;
     const a = n?.querySelector<HTMLElement>('.is-active');
-    if (!n || !a || n.scrollWidth <= n.clientWidth) return;
-    const r = a.getBoundingClientRect();
-    n.scrollLeft += r.left - n.getBoundingClientRect().left - (n.clientWidth - r.width) / 2;
+    if (!n || !a) return;
+    const mostra = () => {
+      if (n.scrollWidth <= n.clientWidth) return;
+      const r = a.getBoundingClientRect();
+      const b = n.getBoundingClientRect();
+      if (r.right > b.right - 4) n.scrollLeft += r.right - b.right + 4;
+      else if (r.left < b.left + 4) n.scrollLeft -= b.left + 4 - r.left;
+    };
+    mostra();
+    // Di nuovo quando arrivano stili e font (prima le schede possono non traboccare ancora)
+    const ro = new ResizeObserver(mostra);
+    ro.observe(n);
+    ro.observe(a);
+    return () => ro.disconnect();
   }, [attiva]);
   return (
     <HrShell pagina={pagina} titolo={titolo} cornice={cornice}>

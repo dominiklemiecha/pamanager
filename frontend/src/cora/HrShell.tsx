@@ -4,7 +4,7 @@ import { useClasseBody, useCss, useTitolo } from '../componenti/stile';
 import { useTesta } from '../componenti/testa';
 import { api } from '../services/api';
 import type { CorniceStaff } from '../staff/tipi';
-import { caricaWidget } from './CoraShell';
+import { caricaWidget, MODULI_TEL } from './CoraShell';
 import { fa } from './formato';
 import { svgCora } from './svg';
 import { precaricaDock, precaricaPagina } from './datiHr';
@@ -104,11 +104,13 @@ const areaDaIndirizzo = (): AreaCora => AREE[location.pathname.startsWith('/cons
 
 const MODULI: Array<[string, string]> = [['Cora', 'cora'], ['Fase', 'fase'], ['Banche', 'lock'], ['Analytics', 'lock'], ['Chat', 'lock'], ['Academy', 'lock']];
 
-function AnelloModuli({ home }: { home: string }) {
+function AnelloModuli({ home, tel = false }: { home: string; tel?: boolean }) {
+  const moduli = tel ? MODULI_TEL : MODULI;
   return (
     <div className="cora-modules" aria-hidden="true">
-      {MODULI.map(([nome, tipo], i) => {
-        const stile = { '--a': `${-90 + i * (360 / MODULI.length)}deg` } as React.CSSProperties;
+      {tel && <div className="cora-modules-didascalia"><strong>Modulo Cora</strong><span>Tocca un modulo per aprirlo</span></div>}
+      {moduli.map(([nome, tipo], i) => {
+        const stile = { '--a': `${-90 + i * (360 / moduli.length)}deg` } as React.CSSProperties;
         const interno = (<><S n={`mod-${tipo}.svg`} c="cora-module-ic" /><span className="cora-module-name">{nome}</span></>);
         return tipo === 'cora'
           ? <a key={nome} href={home} className={`cora-module is-${tipo}`} style={stile}>{interno}</a>
@@ -239,13 +241,13 @@ export function HrTopbar({ titolo, sottotitolo = '', centro, azioni, cornice }: 
 }
 
 /** Anello dei moduli (voce Cora del dock e della barra del telefono). */
-function VoceModuli({ classe, home, bottone }: { classe: string; home: string; bottone: (p: { 'aria-expanded': boolean; onClick: () => void }) => ReactNode }) {
+function VoceModuli({ classe, home, bottone, tel = false }: { classe: string; home: string; tel?: boolean; bottone: (p: { 'aria-expanded': boolean; onClick: () => void }) => ReactNode }) {
   const [aperto, setAperto] = useState(false);
   useChiudiFuori(aperto, '.cora-dock-cora', () => setAperto(false));
   return (
     <div className={classe + (aperto ? ' is-open' : '')}>
       {bottone({ 'aria-expanded': aperto, onClick: () => setAperto(!aperto) })}
-      <AnelloModuli home={home} />
+      <AnelloModuli home={home} tel={tel} />
     </div>
   );
 }
@@ -360,7 +362,7 @@ export function HrShell({ pagina, titolo, children, cornice }: { pagina: string;
         {area.tabbar.map((k) => {
           if (k === 'cora') {
             return (
-              <VoceModuli key={k} classe="cora-tabbar-cora cora-dock-cora" home={area.home} bottone={(p) => (
+              <VoceModuli key={k} classe="cora-tabbar-cora cora-dock-cora" home={area.home} tel bottone={(p) => (
                 <button type="button" className="cora-tabbar-btn" aria-label="Moduli Cora" {...p} dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />
               )} />
             );

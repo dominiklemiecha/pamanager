@@ -72,7 +72,7 @@ export function AccessiHr({ cornice, ruolo }: { cornice: CorniceHr; ruolo: Ruolo
     <SezioneHr cornice={cornice} pagina="accessi" titolo="Accessi esterni" sottotitolo="Gestisci gli accessi al portale per consulenti del lavoro e formatori."
       schede={SCHEDE} attiva={cfg.plurale}
       azioni={<>
-        {cfg.multi && <button type="button" className="cora-btn cora-btn-secondary" onClick={() => setModale({ tipo: 'esistente' })}><S n="ic-link.svg" />Aggiungi esistente</button>}
+        {cfg.multi && <button type="button" className="cora-btn cora-btn-secondary" onClick={() => setModale({ tipo: 'esistente' })}><S n="ic-link.svg" /><span className="hr-solo-largo">Aggiungi esistente</span><span className="hr-solo-tel">Esistente</span></button>}
         <button type="button" className="cora-btn cora-btn-primary" onClick={() => setModale({ tipo: 'nuovo' })}>{logo}Nuovo {cfg.etichetta}</button>
       </>}>
       <div className="cora-card hr-elenco">
@@ -146,7 +146,9 @@ function ModuloAccesso({ ruolo, tipo, u, aziende, chiudi, fatto }: {
     await fatto(r.password ? { nome: String(f.get('name') ?? ''), password: r.password } : null);
   };
   return (
-    <Modale aperta chiudi={chiudi} titolo={titolo} sottotitolo={sottotitolo}>
+    <Modale aperta chiudi={chiudi} titolo={titolo} sottotitolo={sottotitolo}
+      /* Sul telefono il titolo intero del Figma (1201:4416) */
+      intestazione={tipo === 'nuovo' && cfg.multi ? <div><h2><span className="hr-solo-largo">{titolo}</span><span className="hr-solo-tel">Nuovo consulente del lavoro</span></h2><p>{sottotitolo}</p></div> : undefined}>
       <form className="hr-form" onSubmit={invia2}>
         {tipo === 'esistente' ? (
           <label className="cora-field"><span className="cora-label">Email del consulente<span className="req">*</span></span>

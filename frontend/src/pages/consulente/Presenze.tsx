@@ -53,6 +53,8 @@ export function ExportConsulente({ cornice }: { cornice: CorniceHr }) {
   const [anno, setAnno] = useState(Number(adesso.slice(0, 4)));
   const [mese, setMese] = useState(Number(adesso.slice(5, 7)));
   const [d] = useDati<Riepilogo>(`/consulente/export?anno=${anno}&mese=${mese}`);
+  // Ora del riepilogo, solo sul telefono (Figma 1202:5272)
+  const ora = useMemo(() => new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' }).format(new Date()), [d]);
   // Ultimi quattro mesi chiusi, pronti da scaricare (nessun registro dei download: niente date inventate).
   const storico = useMemo(() => Array.from({ length: 4 }, (_, i) => {
     const x = new Date(Date.UTC(Number(adesso.slice(0, 4)), Number(adesso.slice(5, 7)) - 2 - i, 1));
@@ -68,7 +70,7 @@ export function ExportConsulente({ cornice }: { cornice: CorniceHr }) {
             <span className="cs-export-ic"><S n="ic-sheet-22.svg" /></span>
             <span className="cs-carica-txt">
               <strong>Export presenze di {MESI[mese].toLowerCase()} {anno}</strong>
-              <span>{d ? `${d.attivi} dipendent${d.attivi === 1 ? 'e' : 'i'} - ${giorni(d.giorni)} di assenza approvati` : ' '}</span>
+              <span>{d ? `${d.attivi} dipendent${d.attivi === 1 ? 'e' : 'i'} - ${giorni(d.giorni)} di assenza approvati` : ' '}{d && <i className="cs-solo-tel"> - aggiornato oggi alle {ora}</i>}</span>
             </span>
           </div>
           <div className="cs-export-campi">

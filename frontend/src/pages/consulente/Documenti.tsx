@@ -89,7 +89,9 @@ export function DocumentiConsulente({ cornice }: { cornice: CorniceHr }) {
             <option value="">Tutti i dipendenti</option>
             {d.dipendenti.map((x) => <option key={x.id} value={x.id}>{nome(x.cognome)} {nome(x.nome)}</option>)}
           </select>
-          <input className="cora-input cs-mese" type="month" value={mese} onChange={(e) => setMese(e.target.value)} aria-label="Periodo" />
+          <span className="cs-mese-box" data-vuoto={mese ? undefined : ''}>
+            <input className="cora-input cs-mese" type="month" value={mese} onChange={(e) => setMese(e.target.value)} aria-label="Periodo" />
+          </span>
         </div>
         <div className="cs-doc-tab" role="table" aria-label="Documenti caricati">
           <div className="cs-doc-riga cs-intestazione" role="row">

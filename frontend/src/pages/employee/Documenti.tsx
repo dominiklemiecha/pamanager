@@ -135,6 +135,8 @@ export default function Documenti() {
               <I n="ic-search.svg" />
               <input type="search" placeholder="Cerca un documento" data-cora-search="" aria-label="Cerca un documento" />
             </label>
+            {/* Sul telefono l'anno sta accanto alla ricerca (Figma 1198:1798) */}
+            {selettore && <div className="cora-docs-anno">{selettore}</div>}
           </div>
 
           {([['Da leggere', daLeggere], ['Archivio', archivio]] as const).map(([titolo, elenco]) => elenco.length > 0 && (

@@ -19,8 +19,10 @@ const GIORNI: Array<[string, string]> = [['mon', 'Lun'], ['tue', 'Mar'], ['wed',
 function Sezione({ cornice, scheda, sottotitolo, children }: { cornice: CorniceHr; scheda: string; sottotitolo: string; children: React.ReactNode }) {
   return (
     <SezioneHr cornice={cornice} pagina="profilo" titolo="Profilo e configurazione" sottotitolo={sottotitolo} schede={SCHEDE} attiva={scheda}
-      azioni={scheda !== 'Profilo' ? <span className="hr-tenue">Le impostazioni valgono per {cornice.azienda?.name}</span> : undefined}>
+      azioni={scheda !== 'Profilo' ? <span className="hr-tenue hr-solo-largo">Le impostazioni valgono per {cornice.azienda?.name}</span> : undefined}>
       {children}
+      {/* Sul telefono in fondo, per lasciare le schede del Figma al loro posto */}
+      {scheda !== 'Profilo' && <p className="hr-tenue hr-solo-tel">Le impostazioni valgono per {cornice.azienda?.name}</p>}
     </SezioneHr>
   );
 }
@@ -116,7 +118,7 @@ export function TimbratureImpostazioniHr({ cornice }: { cornice: CorniceHr }) {
     <Sezione cornice={cornice} scheda="Timbrature" sottotitolo="Abilita le timbrature NFC e configura la carta da appoggiare all'ingresso.">
       <div className="hr-config">
         <form className="cora-card hr-modulo-card" onSubmit={salva}>
-          <h2>Timbrature NFC</h2>
+          <h2><span className="hr-solo-tel"><S n="ic-nfc.svg" /></span>Timbrature NFC</h2>
           <div className="hr-opzione">
             <span><strong>Abilita timbrature NFC per {cornice.azienda?.name}</strong><small>Se disattivate, i dipendenti non vedono il pulsante «Timbra entrata/uscita» e l'URL NFC restituisce errore.</small></span>
             <Interruttore name="timbratura_enabled" checked={on} onChange={setAttive} />
@@ -126,7 +128,7 @@ export function TimbratureImpostazioniHr({ cornice }: { cornice: CorniceHr }) {
             <span className="cora-hint">Solo lettere, numeri e trattini: è la parte finale dell'URL NFC.</span></label>
           <div className="cora-field"><span className="cora-label">URL da scrivere sulla carta NTAG215</span>
             <div className="hr-url"><code>{url}</code>
-              <button type="button" className="cora-btn cora-btn-secondary" onClick={() => { navigator.clipboard?.writeText(url); toast('URL copiato'); }}>Copia</button></div></div>
+              <button type="button" className="cora-btn cora-btn-secondary" onClick={() => { navigator.clipboard?.writeText(url); toast('URL copiato'); }}><span className="hr-solo-tel"><S n="ic-copy.svg" /></span>Copia</button></div></div>
           <p className="hr-nota"><S n="ic-info.svg" />Si aggiorna mentre scrivi l'identificativo: salva prima di scriverlo sulla carta.</p>
           {errore && <p className="hr-errore">{errore}</p>}
           <div className="hr-form-azioni"><button type="submit" className="cora-btn cora-btn-primary">{logo}Salva impostazioni</button></div>
@@ -178,7 +180,7 @@ export function ResetPasswordHr({ cornice }: { cornice: CorniceHr }) {
   return (
     <Sezione cornice={cornice} scheda="Reset password" sottotitolo="Reimposta l'accesso di dipendenti e amministratori. Per i consulenti usa Accessi esterni.">
       <div className="cora-card hr-modulo-card">
-        <h2>Reset manuale della password</h2>
+        <h2><span className="hr-solo-tel"><S n="ic-key.svg" /></span>Reset manuale della password</h2>
         <span className="cora-label">Tipo di utente</span>
         <div className="cora-chips">
           {([['employee', 'Dipendente'], ['admin', 'Amministratore']] as const).map(([k, t]) => (
@@ -305,7 +307,7 @@ export function BuoniPastoHr({ cornice }: { cornice: CorniceHr }) {
     <Sezione cornice={cornice} scheda="Buoni pasto" sottotitolo="Regole di maturazione dei ticket restaurant.">
       <div className="hr-config">
         <form className="cora-card hr-modulo-card" onSubmit={salva}>
-          <h2>Buoni pasto</h2>
+          <h2><span className="hr-solo-tel"><S n="ic-ticket.svg" /></span>Buoni pasto</h2>
           <p className="hr-tenue">1 ticket per ogni giorno effettivamente lavorato. Il totale mensile di ogni dipendente compare nell'export presenze del consulente come colonna «Buoni pasto (nr)».</p>
           <div className="hr-opzione">
             <span><strong>Abilita buoni pasto</strong><small>Attiva il conteggio dei ticket per {cornice.azienda?.name}</small></span>

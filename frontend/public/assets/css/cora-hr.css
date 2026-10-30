@@ -757,6 +757,8 @@ select.cora-input {
 .cs-pill:hover { background: var(--cora-surface-soft); }
 .cs-pill.is-active { background: var(--cora-ink); color: var(--cora-surface); }
 .cs-mese { width: 200px; height: 40px; }
+.cs-mese-box { display: contents; }
+.cs-solo-tel { display: none; font-style: normal; }
 .cs-cerca-grigia { width: 360px; background: var(--cora-surface-soft); border-color: transparent; }
 .cs-doc-tab { display: flex; flex-direction: column; }
 .cs-doc-riga {
@@ -934,7 +936,8 @@ select.cora-input {
 }
 .cs-profilo-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .cs-profilo-chi strong { font-size: 22px; font-weight: 500; color: var(--cora-ink); }
-.cs-profilo-chi > span:last-child { font-size: 14px; color: var(--cora-ink-2); }
+.cs-profilo-chi > span:last-of-type { font-size: 14px; color: var(--cora-ink-2); }
+.cs-profilo-foto, .cs-profilo-nota { display: none; }
 .cs-integrazione { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; background: var(--cora-surface-soft); }
 .cs-integrazione-logo { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; background: var(--cora-ink); }
 .cs-integrazione-logo svg { width: 28px; height: 28px; }
@@ -1010,6 +1013,115 @@ select.cora-input {
     .cs-assunzione-h .cs-stato { align-self: stretch; }
     .cs-fasi { grid-template-columns: 1fr; row-gap: 12px; }
     .cs-assunzione .cs-azioni { flex-direction: column; align-items: flex-start; }
+}
+/* Consulente sul telefono: misure dei frame (Figma 1202:3123 ... 1202:6985) */
+@media (max-width: 640px) {
+    /* Blocchi della pagina a 12px come nel Figma */
+    .hr-corpo:has(> .cs-carica-righe, > .cs-doc-card, > .cs-export-righe, > .cs-filtri-card, > .cs-elenco, > .cs-assunzione, > .cs-sola-lettura, > .cs-avviso-largo, > .cs-profilo) { gap: 12px; }
+    .cs-carica-righe, .cs-avviso-largo { margin-bottom: 0; }
+    /* Carica manualmente / Caricamento massivo: testi interi su due righe */
+    .cs-carica { padding: 20px 16px; gap: 16px; }
+    .cs-carica .cs-carica-txt strong { font-size: 17px; line-height: 20px; }
+    .cs-carica .cs-carica-txt span { white-space: normal; line-height: 16px; font-weight: 400; }
+
+    /* Elenco documenti: pillole, poi dipendente e mese affiancati, schede da 14px */
+    .cs-doc-card { padding: 18px 16px; gap: 8px; }
+    .cs-doc-filtri { gap: 12px 8px; margin-bottom: 4px; }
+    .cs-doc-filtri > .cs-pillole, .cs-doc-filtri > .cs-cerca { flex: 1 1 100%; }
+    .cs-doc-filtri > .hr-spazio { display: none; }
+    .cs-doc-filtri > .hr-select, .cs-doc-filtri > .cs-mese-box { flex: 1 1 0; min-width: 0; }
+    .cs-pill { padding: 0 14px; }
+    .cs-doc-riga.cs-scheda-m { gap: 8px 10px; padding: 14px; margin-bottom: 10px; }
+    .cs-doc-riga.cs-scheda-m > [data-l][role] { grid-template-columns: 96px minmax(0, 1fr); gap: 10px; line-height: 17px; }
+    .cs-doc-riga.cs-scheda-m > [data-l]::before { font-size: 12px; font-weight: 500; line-height: 14px; }
+    .cs-doc-riga.cs-scheda-m .cs-doc-nome { line-height: 17px; }
+
+    /* Caricamento massivo: area tratteggiata (Figma 1202:4256) */
+    .cs-drop-riga { height: 48px; border: 1px dashed var(--cora-ink-3); border-radius: 16px; }
+
+    /* Mese vuoto: "Tutti i mesi" al posto dei trattini del browser */
+    .cs-mese-box { position: relative; display: block; }
+    .cs-mese-box .cs-mese { width: 100%; }
+    .cs-mese-box[data-vuoto] .cs-mese::-webkit-datetime-edit { color: transparent; }
+    .cs-mese-box[data-vuoto]::after {
+        content: "Tutti i mesi"; position: absolute; left: 15px; top: 50%; transform: translateY(-50%); pointer-events: none;
+        font-size: 14px; font-weight: 500; color: var(--cora-ink-3);
+    }
+
+    /* Export mensile (Figma 1202:5272) */
+    .cs-export { padding: 18px 16px; gap: 18px; }
+    .cs-export-h { flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; }
+    .cs-export-h .cs-carica-txt strong { line-height: 24px; }
+    .cs-export-h .cs-carica-txt span { white-space: normal; }
+    .cs-solo-tel { display: inline; }
+    .cs-export-campi { gap: 12px; }
+    .cs-export-anno { flex: 0 0 160px; }
+    .cs-export .cora-label, .cs-filtri-card .cora-label { font-size: 12px; color: var(--cora-ink-3); }
+    .cs-kpi-voce { gap: 2px; }
+    .cs-storico { padding: 18px 16px; }
+
+    /* Ferie e permessi (Figma 1202:5623) */
+    .cs-filtri-card { padding: 16px 20px; }
+    .cs-kpi-6 { margin: 0 -16px; }
+    .cs-kpi-6 .cs-kpi-voce { flex: 0 0 200px; padding: 14px 18px; gap: 4px; }
+    .cs-kpi-voce.is-card strong { font-size: 26px; line-height: 32px; }
+    .cs-ferie-h h2 { font-size: 18px; }
+    .cs-ferie-h { flex-wrap: wrap; gap: 8px 10px; }
+    .cs-ferie-h h2 { flex: 1 1 0; min-width: 0; }
+
+    /* Anagrafica (Figma 1202:6165) */
+    .cs-accordion-h { padding: 16px 20px; gap: 14px; }
+    .cs-sola-lettura { margin-bottom: 0; border-radius: 12px; font-size: 13px; }
+    .cs-dettaglio { padding: 20px 16px; gap: 32px; }
+    .cs-azioni { padding: 0 16px 20px; gap: 12px; }
+
+    /* Assunzioni (Figma 1202:6643): avatar, nome e stato in colonna, fasi con barra da 6px */
+    .cs-assunzione { padding: 18px 0 0; }
+    .cs-assunzione-h { gap: 14px; padding: 0 16px 18px; }
+    .cs-assunzione-h .cs-accordion-txt strong { font-size: 17px; }
+    .cs-assunzione-h .cs-stato { padding: 0 10px; height: 24px; font-weight: 600; }
+    .cs-fasi { padding: 0 16px 18px; }
+    .cs-fasi li { gap: 8px; padding-top: 8px; border-top-width: 6px; }
+    .cs-assunzione .cs-azioni { gap: 12px; padding: 0 16px 18px; }
+    .cs-assunzione .cs-pillola { height: 40px; padding: 0 16px; font-size: 14px; }
+    .cs-assunzione .cs-pillola-nera { padding: 0 18px 0 14px; }
+
+    /* Dashboard (Figma 1069:18123): buste paga e richieste in attesa */
+    .cs-buste { padding: 18px 16px; gap: 20px; justify-content: flex-start; }
+    .cs-buste .cora-card-h { margin: 0; }
+    .cs-buste .cora-saldo-body { gap: 12px; }
+    .cs-buste .cora-saldo-rows { gap: 10px; }
+    .cs-attesa.hr-richieste { padding: 18px 16px; }
+    .cs-attesa.hr-richieste .cora-card-h { flex-wrap: wrap; align-items: center; row-gap: 8px; }
+    .cs-attesa.hr-richieste .cora-card-h h2 { flex: 1 1 100%; min-width: 0; }
+    .cs-attesa.hr-richieste .cora-card-h .hr-chip { order: 2; }
+    .cs-attesa.hr-richieste .cora-card-h .cora-see-all { order: 3; margin-left: auto; }
+    .cs-attesa .cs-avviso { align-items: flex-start; line-height: 14px; }
+    .cs-attesa .hr-richiesta { padding: 8px 12px; }
+    .cs-attesa .hr-richiesta-txt { gap: 2px; }
+    .cs-attesa .hr-richiesta-txt > div { gap: 4px; }
+
+    .cs-documenti, .cs-notifiche { padding: 18px 16px; }
+    .cs-tabella { gap: 10px; }
+    .cs-riga { column-gap: 0; row-gap: 10px; padding: 14px; border-radius: 14px; }
+    .cs-riga > .cs-titolo { font-size: 14px; font-weight: 500; }
+    .cs-riga > [role="cell"]:nth-child(2) { margin-top: -4px; }
+    /* Mese e data di caricamento sotto un divisore, sulla stessa riga */
+    .cs-riga { grid-template-areas: "persona scarica" "titolo titolo" "tipo tipo" "periodo periodo"; }
+    .cs-riga > .cs-periodo { padding-top: 10px; border-top: 1px solid var(--cora-line); font-size: 14px; }
+    .cs-riga > .cs-quando { grid-area: periodo; justify-self: end; padding-top: 10px; }
+
+    /* Profilo (Figma 1202:6985) */
+    .cs-profilo-card { padding: 18px 16px; }
+    .cs-profilo-chi { gap: 16px; padding: 18px 16px; }
+    .cs-profilo-avatar { margin-bottom: 0; }
+    .cs-profilo-chi strong { line-height: 27px; }
+    .cs-profilo-chi > span:last-of-type { margin-top: -12px; }
+    .cs-profilo-foto { display: flex; gap: 8px; justify-content: center; }
+    .cs-profilo-foto .cs-pillola { height: 40px; padding: 0 17px; gap: 8px; font-size: 14px; cursor: pointer; }
+    .cs-profilo-foto .cs-pillola svg { width: 16px; height: 16px; }
+    .cs-pillola-rossa { color: var(--cora-error); }
+    .cs-profilo-nota { display: block; font-size: 12px; line-height: 14px; color: var(--cora-ink-3, var(--cora-ink-2)); }
 }
 
 /* HR sul telefono (Figma 1193:4) */
@@ -1095,4 +1207,158 @@ select.cora-input {
     .hr-modulo-card .cora-chip { flex-shrink: 0; }
     .hr-modulo-card, .hr-modulo-card .cora-field { min-width: 0; max-width: 100%; }
     .hr-form-azioni { justify-content: flex-start; }
+}
+
+/* HR sul telefono: misure dei frame Figma 1193:4 (posizioni allineate al Figma) */
+@media (max-width: 640px) {
+    /* Testi con l'interlinea "normal" del Figma (1.2) */
+    .hr-sottomenu, .hr-corpo { line-height: 1.2; }
+    /* Schede e azioni a 12px, come le sezioni sotto */
+    .hr-sottomenu > .hr-spazio { display: none; }
+    /* Elenco: card 16/18, filtri in più affiancati su una riga */
+    .hr-corpo { gap: 12px; }
+    .hr-elenco { padding: 18px 16px; gap: 8px; }
+    .hr-toolbar { gap: 8px; margin-bottom: 0; }
+    .hr-card-testa { margin-bottom: 0; }
+    .hr-card-testa h2 { font-size: 18px; }
+    .hr-toolbar > .cora-btn { flex: 0 0 auto; }
+    .hr-toolbar > .hr-select { flex: 1 1 0; min-width: 0; }
+    /* Schede delle righe: margini 14, etichette di 96px, righe a 8px */
+    .hr-tabella { gap: 10px; }
+    .hr-tabella .hr-riga { padding: 14px; gap: 8px 10px; }
+    .hr-riga > [data-l] { grid-template-columns: 96px minmax(0, 1fr); gap: 0 10px; }
+    .hr-riga > [data-l]::before { font-size: 12px; }
+    .hr-riga > [data-l] .hr-cf { font-size: 13px; }
+}
+@media (max-width: 640px) {
+    .hr-azienda-btn { height: 44px; }
+    .hr-azienda-txt { line-height: 1.2; }
+    /* Presenze (Figma 1200:1688): KPI 16px tra le schede, centrate, valore su una riga */
+    .hr-kpi { gap: 16px; align-items: center; }
+    .hr-kpi .cora-card { gap: 6px; min-height: 0; }
+    .hr-kpi-t { font-size: 14px; }
+    .hr-kpi-v { font-size: 14px; white-space: nowrap; }
+    .hr-kpi-v b { font-size: 28px; }
+    .hr-kpi .hr-barra { height: 6px; }
+    /* Filtri: reparto a tutta larghezza, poi data e Oggi */
+    .hr-elenco:has(.hr-tab-presenze) .hr-toolbar > select.hr-select { order: 1; flex: 1 1 100%; }
+    .hr-elenco:has(.hr-tab-presenze) .hr-toolbar > .hr-data, .hr-elenco:has(.hr-tab-presenze) .hr-toolbar > .cora-tab { order: 2; }
+    .hr-elenco:has(.hr-tab-presenze) .hr-toolbar > .cora-tab { height: 40px; }
+}
+@media (max-width: 640px) {
+    /* Reparti (Figma 1200:2281, Card/Reparto 917:1784) */
+    .hr-reparti { gap: 16px; }
+    .hr-reparto { gap: 16px; padding: 20px; }
+    .hr-reparto-h { gap: 12px; }
+    .hr-reparto-lettera { width: 44px; height: 44px; border-radius: 12px; font-size: 18px; }
+    .hr-reparto-nome strong { font-size: 17px; }
+    .hr-reparto-h .hr-menu, .hr-reparto-h .hr-menu-btn { width: 34px; height: 34px; }
+    .hr-reparto-volti { min-height: 32px; }
+    .hr-reparto-volti .hr-volto-mini { width: 32px; height: 32px; font-size: 11px; margin-left: -8px; }
+    .hr-reparto-volti .hr-volto-mini:first-child { margin-left: 0; }
+    .hr-reparto-f { padding-top: 16px; color: var(--cora-ink); }
+    .hr-reparto-f svg { width: 15px; height: 15px; }
+    .hr-reparto-nuovo { min-height: 136px; }
+}
+/* Testi e icone solo per il telefono o solo per lo schermo largo */
+.hr-solo-tel { display: none; }
+.hr-stato-reparto { display: none; }
+@media (max-width: 640px) {
+    .hr-solo-tel { display: inline-flex; }
+    /* Stato del nuovo reparto: due segmenti (Figma 1200:3145) */
+    .hr-stato-reparto { display: flex; flex-direction: column; gap: 6px; }
+    .hr-segmenti { display: flex; gap: 12px; padding: 4px; border-radius: 14px; background: var(--cora-surface-soft); }
+    .hr-segmenti label { flex: 1 1 0; display: flex; align-items: center; justify-content: center; height: 33px; border-radius: 10px; font-size: 14px; color: var(--cora-ink-2); cursor: pointer; }
+    .hr-segmenti input { position: absolute; opacity: 0; pointer-events: none; }
+    .hr-segmenti label:has(input:checked) { background: var(--cora-surface); color: var(--cora-ink); font-weight: 500; box-shadow: 0 1px 3px rgba(31, 46, 51, .08); }
+    /* Timbrature: passi distanti 16px (Figma 1201:5659) */
+    .hr-passi-lista { gap: 16px; }
+    p.hr-solo-tel { display: block; }
+    .hr-solo-largo { display: none; }
+    .hr-azioni:has(> .hr-solo-largo:only-child) { display: none; }
+
+    /* Fogli: campi a 16px, pulsanti a destra (Figma 1201:4416, 1201:4810); reparto a 18px (1200:2738) */
+    .cora-modal-box > .hr-form { gap: 16px; }
+    .cora-modal-box > .hr-form:has(input[name=code]) { gap: 18px; margin-top: 2px; }
+    .cora-modal-box > .hr-form .cora-textarea { height: 81px; }
+    .cora-modal-box > .hr-form .cora-field:has(input[name=code]) { max-width: 226px; }
+    .cora-modal-box .hr-form-azioni { justify-content: flex-end; gap: 12px; }
+    .cora-modal-box .cora-grid-2 { row-gap: 12px; }
+    .hr-aziende .hr-check { min-height: 20px; line-height: 1.2; }
+    .hr-aziende .hr-check input { margin: 0; }
+
+    /* Configurazione (Figma 1201:5523, 1201:5841, 1201:6160, 1201:6504): card 18/16, titoli 18 con icona */
+    .hr-modulo-card { padding: 18px 16px; gap: 16px; border-radius: 16px; }
+    .hr-modulo-card h2 { font-size: 18px; }
+    .hr-modulo-card .hr-tenue, .hr-nota, .hr-opzione small { font-size: 13px; }
+    .hr-opzione { align-items: flex-start; }
+    .hr-opzione strong { font-size: 15px; }
+    .hr-soglia { margin-top: 0; font-size: 14px; }
+    .hr-soglia .cora-input { width: 100px; }
+    .hr-campo-corto { max-width: none; }
+    .hr-campo-corto .cora-hint { margin-top: 10px; font-size: 12px; }
+    .hr-url { gap: 8px; }
+    .hr-url code { min-height: 44px; padding: 5px 14px; display: flex; align-items: center; font-size: 14px; }
+    .hr-url .cora-btn { flex-shrink: 0; }
+    .hr-url .cora-btn svg { width: 16px; height: 16px; }
+    /* Reset password: Utente a 6px dall'etichetta, pulsante sotto largo quanto il testo */
+    .hr-modulo-card > .cora-label + .hr-riga-campo { margin-top: -10px; }
+    .hr-riga-campo { gap: 12px; align-items: flex-start; }
+    .hr-riga-campo .cora-input { align-self: stretch; flex: none; }
+    /* Orario: gruppi a 16px, titolo-testo-scelte a 8px */
+    .hr-modulo-card:has(.hr-orari) { gap: 8px; }
+    .hr-modulo-card:has(.hr-orari) > h2, .hr-modulo-card:has(.hr-orari) > h2 ~ h2 { font-size: 16px; }
+    .hr-modulo-card:has(.hr-orari) > h2 ~ h2, .hr-modulo-card:has(.hr-orari) > .hr-griglia-campi,
+    .hr-modulo-card:has(.hr-orari) > .hr-form-azioni { margin-top: 8px; }
+    .hr-modulo-card:has(.hr-orari) .hr-griglia-campi { row-gap: 16px; }
+    .hr-griglia-campi .cora-field:first-child { max-width: 200px; }
+    .hr-dove { padding: 11px 14px; }
+}
+@media (max-width: 640px) {
+    /* Profilo (Figma 1201:5192): foto 112, nome 22, ruolo 14, pulsante e nota a 16px */
+    .hr-profilo-foto { padding: 18px 16px; gap: 0; }
+    .hr-profilo-foto > strong { margin-top: 16px; font-size: 22px; line-height: 1.2; }
+    .hr-profilo-foto > strong + small { margin-top: 4px; font-size: 14px; line-height: 1.2; }
+    .hr-profilo-foto > .hr-carica { margin-top: 16px; }
+    .hr-profilo-foto > .hr-link { margin-top: 8px; }
+    .hr-profilo-foto > small:last-child { margin-top: 16px; line-height: 1.2; }
+}
+@media (max-width: 640px) {
+    /* Dashboard HR (Figma 1069:17461): card a 12px, nessuna riga vuota senza compleanni */
+    .cora-topbar-center:empty { display: none; }
+    .hr-oggi, .hr-settimana-riga { gap: 12px; }
+    .hr-presenze { padding: 18px 16px; }
+    .hr-presenze .cora-saldo-body { gap: 12px; }
+    .hr-richieste { padding: 18px 16px; }
+    .hr-richieste .cora-card-h { row-gap: 6px; }
+    .hr-giorno { padding: 6px 8px; }
+    .hr-colleghi { grid-auto-columns: 240px; }
+}
+@media (max-width: 640px) {
+    /* Ferie da approvare (Figma 1200:4327): schede da 288 a 8px, righe in alto anche se una scheda e' piu' alta */
+    .hr-tabella.hr-da-approvare { gap: 8px; }
+    .hr-da-approvare .hr-riga { flex: 0 0 288px; align-content: start; }
+}
+@media (max-width: 640px) {
+    /* Documenti aziendali (Figma 1201:2690): nella scheda solo il titolo */
+    .hr-tab-documenti .hr-persona small { display: none; }
+}
+@media (max-width: 640px) {
+    /* Nuovo documento (Figma 1201:3415): area di caricamento 129px, nota a 12px */
+    .cora-modal-box .hr-drop { padding: 21px 16px; }
+    .cora-modal-box .hr-nota { font-size: 12px; }
+    .cora-modal-box > .hr-form > .hr-check { font-size: 13px; line-height: 1.2; }
+}
+@media (max-width: 640px) {
+    /* Gestisci reparto (Figma 1200:3239): ricerca e Aggiungi sulla stessa riga */
+    .hr-aggiungi { flex-direction: row; align-items: center; gap: 8px; }
+    .hr-aggiungi .hr-combo { flex: 1 1 auto; min-width: 0; }
+    .hr-aggiungi .hr-cerca { height: 44px; }
+    .hr-aggiungi > .cora-btn { flex: 0 0 auto; }
+    .cora-modal-h > .hr-reparto-h .hr-reparto-lettera { width: 46px; height: 46px; }
+}
+@media (max-width: 640px) {
+    .cora-modal-box .hr-drop { border-width: 1px; }
+    .cora-modal-box .hr-drop:not(:hover):not(.has-file) { border-color: var(--cora-ink-3); }
+    .hr-reparto-volti:empty { display: none; }
 }

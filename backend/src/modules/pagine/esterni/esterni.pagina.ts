@@ -11,6 +11,7 @@ import { testoPdf } from '../../../common/file/testo-pdf';
 import { periodoDiProva } from '../../anagrafica/prova-contratto';
 import { AssunzioniService } from '../../assunzioni/assunzioni.service';
 import { PasswordService } from '../../auth/password.service';
+import { ProfiloService } from '../../profilo/profilo.service';
 import { leggiBustaPaga } from '../../documenti/busta-paga';
 import { DocumentiPersonaliService } from '../../documenti/documenti-personali.service';
 import { DocumentiService } from '../../documenti/documenti.service';
@@ -300,6 +301,7 @@ export class PresenzeConsulentePagina extends PresenzeExportPagina { override re
 const MESSAGGI_PROFILO: Record<string, string> = {
   updated: 'Profilo aggiornato.', password: 'Password cambiata.', wrike_connected: 'Wrike collegato! Ora scegli la cartella di destinazione e gli eventi.',
   wrike_saved: 'Impostazioni Wrike salvate.', wrike_disconnected: 'Wrike scollegato.',
+  photo: 'Foto profilo aggiornata.', photo_removed: 'Foto profilo rimossa.',
 };
 
 /**
@@ -312,9 +314,10 @@ const MESSAGGI_PROFILO: Record<string, string> = {
 @Injectable()
 export abstract class ProfiloEsternoPagina implements Pagina {
   abstract readonly ruoli: string[];
-  constructor(protected readonly ds: DataSource, protected readonly password: PasswordService, protected readonly wrike: WrikeService) {}
+  constructor(protected readonly ds: DataSource, protected readonly password: PasswordService, protected readonly wrike: WrikeService,
+    protected readonly profilo: ProfiloService) {}
 
-  async azione(c: ContestoPagina, corpo: Record<string, string>) {
+  async azione(c: ContestoPagina, corpo: Record<string, string>, file: Record<string, FileCaricato[]> = {}) {
     const id = c.u.id;
     const self = `/${area(c)}/profile.php`;
     switch (corpo.action ?? '') {
@@ -328,6 +331,14 @@ export abstract class ProfiloEsternoPagina implements Pagina {
         await senzaIsolamento(() => this.ds.query('UPDATE users SET name = $2, email = $3 WHERE id = $1', [id, nome, email || null]));
         return redirect(`${self}?message=updated`);
       }
+      // Foto del profilo come per lo staff (admin/profile)
+      case 'upload_photo': {
+        const errore = await this.profilo.caricaFotoUtente(id, file.photo?.[0]);
+        return errore ? this.dati(c, errore) : redirect(`${self}?message=photo`);
+      }
+      case 'remove_photo':
+        await this.profilo.rimuoviFotoUtente(id);
+        return redirect(`${self}?message=photo_removed`);
       case 'change_password': {
         const nuova = corpo.new_password ?? '';
         if (nuova !== (corpo.confirm_password ?? '')) return this.dati(c, 'Le password non coincidono');
