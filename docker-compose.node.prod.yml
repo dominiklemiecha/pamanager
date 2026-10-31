@@ -95,7 +95,57 @@ services:
     environment:
       CRM_ORIGIN: ${CONNECTEED_WIDGET_ORIGIN:-https://fase.adichub.com}
 
+  # Copia una tantum dei dati dal PHP di produzione (hr.connecteed.com): database
+  # MariaDB e file. Parte solo con MIGRA_DATI=si, dopo che il backend ha creato
+  # lo schema; rifiuta un database gia' popolato. Legge il vecchio progetto
+  # Dokploy (VECCHIO_PROGETTO) in sola lettura: rete e volumi esterni.
+  # Dopo il passaggio togliere questo servizio e le voci "vecchio_*".
+  migrazione:
+    build:
+      context: .
+      dockerfile: docker/node/backend.Dockerfile
+      target: build
+    restart: "no"
+    depends_on:
+      backend:
+        condition: service_healthy
+    working_dir: /app/backend
+    command: ["sh", "scripts/migra-produzione.sh"]
+    environment:
+      MIGRA_DATI: ${MIGRA_DATI:-no}
+      CONFERMA_PRODUZIONE: si
+      SRC_HOST: db
+      SRC_PORT: 3306
+      SRC_USER: ${VECCHIO_DB_USER:-pamanager}
+      SRC_PASS: ${LEGACY_DB_PASSWORD:-}
+      SRC_DB: ${LEGACY_DB_NAME:-pamanager}
+      DST_HOST: postgres
+      DST_PORT: 5432
+      DST_USER: ${DB_USERNAME:-cora}
+      DST_PASS: ${DB_PASSWORD}
+      DST_DB: ${DB_DATABASE:-cora}
+      TZ: Europe/Rome
+    volumes:
+      - storage:/data/storage
+      - uploads:/data/uploads
+      - vecchio_storage:/vecchio/storage:ro
+      - vecchio_uploads:/vecchio/uploads:ro
+    networks:
+      - default
+      - vecchio
+
+networks:
+  vecchio:
+    external: true
+    name: ${VECCHIO_PROGETTO:-hrmanager-app-u1wiit}_pamanager
+
 volumes:
   pgdata:
   storage:
   uploads:
+  vecchio_storage:
+    external: true
+    name: ${VECCHIO_PROGETTO:-hrmanager-app-u1wiit}_storage
+  vecchio_uploads:
+    external: true
+    name: ${VECCHIO_PROGETTO:-hrmanager-app-u1wiit}_uploads
