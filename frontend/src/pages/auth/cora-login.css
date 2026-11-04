@@ -68,6 +68,10 @@ body {
 .cl-ok svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
 .cl-btn-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .cl-opzioni-sx { justify-content: flex-start; }
+.cl-titolo p strong { color: #080808; font-weight: 600; }
+.cl-requisiti { padding: 12px 14px; border-radius: 8px; background: #fff; border: 1px solid #e8e0d6; font-size: 13px; line-height: 20px; color: #8c8279; }
+.cl-requisiti > span { display: block; margin-bottom: 4px; font-weight: 600; color: #080808; }
+.cl-requisiti ul { margin: 0; padding-left: 18px; }
 
 /* Installazione dell'app (InstallaApp) */
 .pwa-install { margin-top: 0; }

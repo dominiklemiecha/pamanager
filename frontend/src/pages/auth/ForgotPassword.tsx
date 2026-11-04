@@ -90,9 +90,11 @@ export default function ForgotPassword() {
               </>
             )}
 
-            <div className="cl-opzioni cl-opzioni-sx">
-              <a href="/auth/login">← Torna al login</a>
-            </div>
+            {!messaggio && (
+              <div className="cl-opzioni cl-opzioni-sx">
+                <a href="/auth/login">← Torna al login</a>
+              </div>
+            )}
           </div>
         </div>
       </main>
