@@ -8,6 +8,13 @@
 # sovrascrivere quelli gia' presenti.
 set -e
 
+# Dopo la copia: solo le righe cambiate sul PHP da RECUPERA_DA (vedi recupera-modifiche.js).
+if [ "$MIGRA_DATI" = "recupero" ]; then
+  echo "== Recupero delle modifiche fatte sul PHP dopo la copia =="
+  node scripts/recupera-modifiche.js
+  exit 0
+fi
+
 if [ "$MIGRA_DATI" != "si" ]; then
   echo "MIGRA_DATI non impostata a 'si': nessuna copia."
   exit 0
