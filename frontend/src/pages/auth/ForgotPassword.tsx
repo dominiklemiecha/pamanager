@@ -1,26 +1,30 @@
 import { FormEvent, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { messaggioErrore, useSessione } from '../../componenti/sessione';
-import { useClasseBody, useCss, useStile, useTitolo } from '../../componenti/stile';
+import { useStile, useTitolo } from '../../componenti/stile';
+import { TESTA_CLASSICA, useTesta } from '../../componenti/testa';
 import { api } from '../../services/api';
-import css from './forgot-password.css?inline';
+import css from './cora-login.css?inline';
+import { svgCora } from '../../cora/svg';
 
-/** Recupero password (auth/forgot-password.php). */
+/** Recupero password (auth/forgot-password.php) con la grafica Cora del login. */
 export default function ForgotPassword() {
-  useCss('/assets/css/style.css', '/assets/css/theme.css');
   useStile(css);
-  useClasseBody('login-page');
-  useTitolo('Recupero Password - Connecteed HR');
+  useTitolo('Recupero password · Cora');
+  useTesta(TESTA_CLASSICA);
   const sessione = useSessione();
   const [identificativo, setIdentificativo] = useState('');
   const [messaggio, setMessaggio] = useState('');
   const [errore, setErrore] = useState('');
+  const [invio, setInvio] = useState(false);
 
   // Come il PHP: lo staff gia' collegato torna all'area admin.
   if (sessione.utente?.tipo === 'user') return <Navigate to="/admin/" replace />;
 
   async function invia(e: FormEvent) {
     e.preventDefault();
+    if (invio) return;
+    setInvio(true);
     setErrore('');
     try {
       const { data } = await api.post('/auth/recupero', { identificativo });
@@ -28,54 +32,70 @@ export default function ForgotPassword() {
     } catch (err) {
       setErrore(messaggioErrore(err, 'Errore durante la richiesta'));
     }
+    setInvio(false);
   }
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <h1>Connecteed HR</h1>
-          <p>Recupero Password</p>
-        </div>
+    <div className="cl-wrap">
+      <aside className="cl-hero">
+        <h2>Il tuo spazio HR,<br />in un unico posto.</h2>
+        <p>Buste paga, ferie, comunicazioni e pratiche di assunzione: dipendenti, HR e consulente lavorano sullo stesso flusso.</p>
+      </aside>
 
-        {messaggio ? (
-          <>
-            <div className="success-box">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-              </svg>
-              <h3>Controlla la tua email</h3>
-              <p>{messaggio}</p>
+      <main className="cl-lato">
+        <div className="cl-form">
+          <div className="cl-logo" aria-label="Cora" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora.svg') }} />
+          <div className="cl-campi">
+            <div className="cl-titolo">
+              <h1>Recupero password</h1>
+              <p>{messaggio ? 'Controlla la tua email.' : 'Ti mandiamo un link per sceglierne una nuova.'}</p>
             </div>
-            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-              <a href="/auth/login" className="btn btn-primary">Torna al Login</a>
-            </div>
-          </>
-        ) : (
-          <>
-            {errore && <div className="alert alert-error">{errore}</div>}
-            <div className="reset-info">
-              <p>
-                Inserisci il tuo username, email o codice fiscale. Se l'account esiste, riceverai via email un link per reimpostare la password (valido 1 ora).
-              </p>
-            </div>
-            <form method="POST" className="login-form" onSubmit={invia}>
-              <div className="form-group">
-                <label htmlFor="identifier">Username, email o codice fiscale</label>
-                <input type="text" id="identifier" name="identifier" required autoComplete="username" autoFocus
-                  autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                  placeholder="es. mario.rossi, mario@azienda.it o RSSMRA80A01H501U"
-                  value={identificativo} onChange={(e) => setIdentificativo(e.target.value)} />
-              </div>
-              <button type="submit" className="btn btn-primary btn-block">Richiedi Reset Password</button>
-            </form>
-          </>
-        )}
 
-        <div className="login-footer">
-          <a href="/auth/login" className="back-link">Torna al login</a>
+            {messaggio ? (
+              <>
+                <div className="cl-ok" role="status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="8 12.5 11 15.5 16 9.5" /></svg>
+                  <span>{messaggio}</span>
+                </div>
+                <a href="/auth/login" className="cl-btn cl-btn-link">Torna al login</a>
+              </>
+            ) : (
+              <>
+                {errore && (
+                  <div className="cl-errore" role="alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                    <span>{errore}</span>
+                  </div>
+                )}
+
+                <form method="POST" onSubmit={invia} className="cl-campi">
+                  <div className="cl-campo">
+                    <label htmlFor="identifier">Username, email o codice fiscale</label>
+                    <div className="cl-input">
+                      <span className="cl-ic" dangerouslySetInnerHTML={{ __html: svgCora('ic-user.svg') }} />
+                      <input type="text" id="identifier" name="identifier" required autoComplete="username" autoFocus
+                        autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                        placeholder="es. mario.rossi o mario@azienda.it"
+                        value={identificativo} onChange={(e) => setIdentificativo(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="cl-btn" disabled={invio}>Invia il link</button>
+
+                  <div className="cl-info">
+                    <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svgCora('ic-info.svg') }} />
+                    <span>Se l'account esiste, riceverai via email un link per reimpostare la password, valido 1 ora.</span>
+                  </div>
+                </form>
+              </>
+            )}
+
+            <div className="cl-opzioni cl-opzioni-sx">
+              <a href="/auth/login">← Torna al login</a>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
