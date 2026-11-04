@@ -223,10 +223,20 @@ export class HrService {
     const timbrature = await this.ds.query(
       `SELECT employee_id, kind, to_char(punch_at AT TIME ZONE 'Europe/Rome', 'HH24:MI') AS ora, punch_at FROM attendance_punches
         WHERE company_id = $1 AND (punch_at AT TIME ZONE 'Europe/Rome')::date = $2 ORDER BY punch_at, id`, [cid, day]);
-    const assenze = new Map<number, string>();
+    // Assenza approvata del giorno, con fino a quando dura: l'ora di fine per i
+    // permessi a ore, il giorno di rientro per ferie e malattie di piu' giorni.
+    const assenze = new Map<number, { stato: string; etichetta: string }>();
     for (const r of await this.ds.query(
-      `SELECT DISTINCT ON (employee_id) employee_id, leave_type FROM leave_requests WHERE company_id = $1 AND status = 'approved'
-          AND start_date <= $2 AND end_date >= $2 ORDER BY employee_id, id`, [cid, day])) assenze.set(r.employee_id, TIPI[r.leave_type] ?? r.leave_type);
+      `SELECT DISTINCT ON (employee_id) employee_id, leave_type, is_full_day, end_date::text AS end_date,
+              to_char(start_time, 'HH24:MI') AS start_time, to_char(end_time, 'HH24:MI') AS end_time
+         FROM leave_requests WHERE company_id = $1 AND status = 'approved'
+          AND start_date <= $2 AND end_date >= $2 ORDER BY employee_id, id`, [cid, day])) {
+      const tipo = TIPI[r.leave_type] ?? r.leave_type;
+      let etichetta = tipo;
+      if (r.is_full_day === false && r.end_time) etichetta = r.start_time ? `${tipo} ${r.start_time}–${r.end_time}` : `${tipo} fino alle ${r.end_time}`;
+      else if (r.end_date > day) etichetta = `${tipo} fino al ${r.end_date.slice(8, 10)}/${r.end_date.slice(5, 7)}`;
+      assenze.set(r.employee_id, { stato: statoAssenza(r.leave_type), etichetta });
+    }
     const per = new Map<number, any[]>();
     for (const t of timbrature) {
       if (!per.has(t.employee_id)) per.set(t.employee_id, []);
@@ -251,9 +261,10 @@ export class HrService {
       const uscita = dentro ? null : [...lista].reverse().find((t: any) => t.kind === 'out')?.ora ?? null;
       let stato = 'uscito';
       let etichetta = 'Uscito';
-      if (!lista.length) {
-        if (assenze.has(e.id)) { stato = 'assente'; etichetta = assenze.get(e.id)!; } else { stato = 'senza'; etichetta = 'Senza timbratura'; senza++; }
-      } else if (dentro) { stato = 'dentro'; etichetta = 'In sede'; presenti++; }
+      const assenza = assenze.get(e.id);
+      if (dentro) { stato = 'dentro'; etichetta = 'In sede'; presenti++; }
+      else if (assenza) ({ stato, etichetta } = assenza);
+      else if (!lista.length) { stato = 'senza'; etichetta = 'Senza timbratura'; senza++; }
       return {
         id: e.id, nome: e.first_name, cognome: e.last_name, email: e.email ?? '', foto: foto(e.photo_path), repartoId: e.department_id, reparto: e.reparto ?? '',
         stato, etichetta, entrata, uscita, minuti: lista.length ? Math.round(secondi / 60) : null,

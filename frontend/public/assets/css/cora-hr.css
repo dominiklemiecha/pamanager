@@ -223,7 +223,7 @@
 .hr-intestazione { min-height: 0; padding-top: 6px; padding-bottom: 6px; font-size: 12px; color: var(--cora-ink-3); }
 .hr-tab-anagrafica .hr-riga { grid-template-columns: minmax(220px, 360px) minmax(150px, 260px) minmax(110px, 200px) minmax(130px, 1fr) 32px; }
 .hr-tab-assunzioni .hr-riga { grid-template-columns: minmax(220px, 360px) minmax(140px, 260px) minmax(100px, 200px) minmax(150px, 1fr) 32px; }
-.hr-tab-presenze .hr-riga { grid-template-columns: minmax(220px, 300px) minmax(100px, 160px) minmax(140px, 170px) 100px 100px minmax(80px, 1fr) 32px; }
+.hr-tab-presenze .hr-riga { grid-template-columns: minmax(220px, 300px) minmax(100px, 160px) minmax(140px, 220px) 100px 100px minmax(80px, 1fr) 32px; }
 .hr-persona { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .hr-persona > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .hr-persona strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -243,6 +243,12 @@ a.hr-persona:hover strong { text-decoration: underline; text-underline-offset: 3
 .hr-badge.is-occupato, .hr-badge.is-attesa, .hr-badge.is-smart { background: var(--cora-warning-soft); color: var(--cora-warning); }
 .hr-badge.is-errore, .hr-badge.is-p-senza { background: var(--cora-error-soft); color: var(--cora-error); }
 .hr-badge.is-cessato { color: var(--cora-ink-3); }
+/* Presenze: assenza approvata del giorno, col colore del tipo (non e' un'anomalia) */
+.hr-badge.is-p-ferie { background: color-mix(in srgb, var(--cora-type-ferie) 12%, #fff); color: #137783; }
+.hr-badge.is-p-permesso { background: color-mix(in srgb, var(--cora-type-permesso) 10%, #fff); color: var(--cora-type-permesso); }
+.hr-badge.is-p-malattia { background: color-mix(in srgb, var(--cora-type-malattia) 8%, #fff); color: var(--cora-type-malattia); }
+.hr-badge.is-p-smart { background: var(--cora-warning-soft); color: var(--cora-warning); }
+.hr-badge.is-p-assente { background: color-mix(in srgb, var(--cora-type-altro) 14%, #fff); color: #5d6967; }
 
 /* Menu "..." */
 .hr-menu { position: relative; justify-self: end; }
