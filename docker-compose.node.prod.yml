@@ -77,6 +77,11 @@ services:
     volumes:
       - storage:/data/storage
       - uploads:/data/uploads
+    # Nome unico: il frontend sta anche sulla rete di Dokploy, dove altri
+    # progetti possono avere un servizio "backend".
+    networks:
+      default:
+        aliases: [cora-backend]
 
   realtime:
     build:
@@ -84,6 +89,9 @@ services:
     restart: unless-stopped
     environment:
       REALTIME_SECRET: ${REALTIME_SECRET:-}
+    networks:
+      default:
+        aliases: [cora-realtime]
 
   frontend:
     build:
@@ -94,6 +102,8 @@ services:
       - backend
     environment:
       CRM_ORIGIN: ${CONNECTEED_WIDGET_ORIGIN:-https://fase.adichub.com}
+      BACKEND_URL: http://cora-backend:3100
+      REALTIME_URL: http://cora-realtime:3001
 
   # Copia una tantum dei dati dal PHP di produzione (hr.connecteed.com): database
   # MariaDB e file. Parte solo con MIGRA_DATI=si, dopo che il backend ha creato
