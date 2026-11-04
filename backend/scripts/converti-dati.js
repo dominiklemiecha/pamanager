@@ -131,6 +131,8 @@ async function main() {
   const tabelle = (await dst.query(`SELECT table_name FROM information_schema.tables
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'typeorm_migrations' ORDER BY 1`)).rows.map((r) => r.table_name);
 
+  if (!tabelle.includes('users')) throw new Error('Schema di arrivo non creato: il backend deve avviarsi (e applicare le migrazioni) prima della copia');
+
   const [srcTab] = await src.query('SELECT table_name AS t FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = ?', ['BASE TABLE']);
   const nomiSrc = new Set(srcTab.map((r) => r.t));
   const ignorate = [...nomiSrc].filter((t) => !tabelle.includes(t));
