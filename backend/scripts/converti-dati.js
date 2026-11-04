@@ -65,6 +65,17 @@ const SOLO_NODE = {
   },
 };
 
+/**
+ * Colonne di solo storico dove il PHP ha salvato anche JSON non valido (testo
+ * troncato o vuoto): il valore si conserva intero come stringa JSON invece di
+ * bloccare la copia. Altrove il JSON non valido resta un errore.
+ */
+const JSON_COME_TESTO = new Set(['audit_log.old_values', 'audit_log.new_values']);
+function jsonComeSalvato(v, dove) {
+  if (v === null || v === undefined || !JSON_COME_TESTO.has(dove)) return v;
+  try { JSON.parse(v); return v; } catch { return JSON.stringify(v); }
+}
+
 function pad(n) { return String(n).padStart(2, '0'); }
 
 /** Valore MariaDB -> valore da passare a Postgres, secondo il tipo delle due colonne. */
@@ -85,7 +96,10 @@ function converti(v, srcTipo, dstTipo, dove) {
     return v;
   }
   if (dstTipo === 'json') {
-    try { JSON.parse(v); } catch { throw new Error(`${dove}: JSON non valido`); }
+    try { JSON.parse(v); } catch {
+      if (!JSON_COME_TESTO.has(dove)) throw new Error(`${dove}: JSON non valido`);
+      return JSON.stringify(v);
+    }
     return v;
   }
   if (Buffer.isBuffer(v)) return v;
@@ -181,6 +195,7 @@ async function main() {
             v = tipoSrc[c.column_name] === 'timestamp' ? `${v.replace(' ', 'T')}Z` : romaToIso(v);
           }
           if (!daPostgres && c.data_type === 'boolean' && v !== null) v = Number(v);
+          if (!daPostgres && c.data_type === 'json') v = jsonComeSalvato(v, `${t}.${c.column_name}`);
           return normalizza(v, c.data_type);
         }).join('␟') + '\n');
       }
@@ -198,7 +213,8 @@ async function main() {
           let v = tutteSrc[i][c.column_name];
           if (v !== null && c.data_type === 'timestamp with time zone') v = tipoSrc[c.column_name] === 'timestamp' ? `${v.replace(' ', 'T')}Z` : romaToIso(v);
           if (v !== null && c.data_type === 'boolean') v = Number(v);
-          return normalizza(v, c.data_type) !== normalizza(tutteDst[i][c.column_name], c.data_type);
+          if (c.data_type === 'json') v = jsonComeSalvato(v, `${t}.${c.column_name}`);
+          return normalizza(v, c.data_type) !==normalizza(tutteDst[i][c.column_name], c.data_type);
         });
         if (c) {
           console.log(`  ${t}.${c.column_name} riga ${i + 1}: MariaDB=${JSON.stringify(tutteSrc[i][c.column_name])} Postgres=${JSON.stringify(tutteDst[i][c.column_name])}`);
