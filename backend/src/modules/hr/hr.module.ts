@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AnagraficaModule } from '../anagrafica/anagrafica.module';
 import { AuthModule } from '../auth/auth.module';
 import { ChatModule } from '../chat/chat.module';
 import { ComunicazioniModule } from '../comunicazioni/comunicazioni.module';
@@ -13,7 +14,7 @@ import { HrController } from './hr.controller';
 import { HrService } from './hr.service';
 
 @Module({
-  imports: [AuthModule, StaffModule, NotificheModule, FerieModule, ChatModule, ProvaModule, ComunicazioniModule, DocumentiModule, PresenzeModule],
+  imports: [AnagraficaModule, AuthModule, StaffModule, NotificheModule, FerieModule, ChatModule, ProvaModule, ComunicazioniModule, DocumentiModule, PresenzeModule],
   controllers: [HrController],
   providers: [HrService, HeatmapService],
 })

@@ -3,6 +3,7 @@ import { dataBreve, nome } from '../../cora/formato';
 import type { CorniceHr } from '../../cora/HrShell';
 import { svgCora } from '../../cora/svg';
 import { azione, MenuRiga, Modale, S, SCHEDE_DIPENDENTI, SezioneHr, toast, useDati, Volto } from './comune';
+import { ImportAndip } from './ImportAndip';
 
 /* ===================== Anagrafica (Figma 918:5548) ===================== */
 
@@ -12,7 +13,8 @@ interface Dipendente {
 }
 
 export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
-  const [d] = useDati<{ dipendenti: Dipendente[]; reparti: Array<{ id: number; name: string }> }>('/hr/dipendenti');
+  const [d, ricarica] = useDati<{ dipendenti: Dipendente[]; reparti: Array<{ id: number; name: string }> }>('/hr/dipendenti');
+  const [importa, setImporta] = useState(false);
   const [cerca, setCerca] = useState('');
   const [reparto, setReparto] = useState('');
   const [stato, setStato] = useState('attivi');
@@ -33,6 +35,7 @@ export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
     <SezioneHr cornice={cornice} pagina="dipendenti" titolo="Dipendenti" sottotitolo={`Anagrafica, accessi e contatti · ${attivi} dipendent${attivi === 1 ? 'e' : 'i'} attiv${attivi === 1 ? 'o' : 'i'}`}
       schede={SCHEDE_DIPENDENTI} attiva="Anagrafica"
       azioni={<>
+        <button type="button" className="cora-btn cora-btn-secondary hr-solo-largo" onClick={() => setImporta(true)}><S n="ic-up-22.svg" />Importa da TeamSystem</button>
         <a className="cora-btn cora-btn-secondary" href="/admin/employees?action=new"><S n="ic-uplus.svg" />Crea dipendente</a>
         <a className="cora-btn cora-btn-primary" href="/admin/hire-requests?action=new"><span className="hr-btn-logo" dangerouslySetInnerHTML={{ __html: svgCora('logo-cora-white-20.svg') }} />Nuova assunzione</a>
       </>}>
@@ -74,6 +77,7 @@ export function AnagraficaHr({ cornice }: { cornice: CorniceHr }) {
           ))}
         </div>
       </div>
+      <ImportAndip aperta={importa} chiudi={() => setImporta(false)} fatto={ricarica} />
     </SezioneHr>
   );
 }

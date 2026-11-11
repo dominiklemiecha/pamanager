@@ -1368,3 +1368,27 @@ select.cora-input {
     .cora-modal-box .hr-drop:not(:hover):not(.has-file) { border-color: var(--cora-ink-3); }
     .hr-reparto-volti:empty { display: none; }
 }
+
+/* Import anagrafica TeamSystem (ANDIP) */
+.hr-andip-file { align-self: flex-start; cursor: pointer; }
+.hr-andip-nota { margin: 0; font-size: 13px; color: var(--cora-ink-3); }
+.hr-andip-elenco { display: flex; flex-direction: column; gap: 8px; }
+.hr-andip-voce { padding: 10px 12px; border-radius: 12px; background: var(--cora-surface-soft); }
+.hr-andip-testa { display: flex; align-items: center; gap: 10px; }
+.hr-andip-testa input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--cora-accent); }
+.hr-andip-spazio { width: 18px; flex: none; }
+.hr-andip-chi { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.hr-andip-chi strong { font-size: 14px; font-weight: 500; color: var(--cora-ink); }
+.hr-andip-chi small { font-size: 12px; color: var(--cora-ink-3); overflow-wrap: anywhere; }
+.hr-andip-dett { padding: 4px 0 0 28px; font-size: 13px; color: var(--cora-ink-2); overflow-wrap: anywhere; }
+.hr-andip-dett s { color: var(--cora-ink-3); }
+.hr-andip-dett.is-pericolo { color: var(--cora-error); }
+@media (max-width: 640px) {
+    .hr-andip-testa { flex-wrap: wrap; }
+    .hr-andip-testa .hr-badge { margin-left: 28px; }
+}
+.hr-andip-reparto { max-width: 320px; }
+.hr-andip-nuovo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px); gap: 8px; margin-top: 8px; padding-left: 28px; }
+@media (max-width: 640px) {
+    .hr-andip-nuovo { grid-template-columns: 1fr; }
+}

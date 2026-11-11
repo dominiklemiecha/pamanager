@@ -66,4 +66,7 @@ export class Companies {
 
   @Column({ name: 'door_open_duration_ms', type: 'integer' })
   doorOpenDurationMs!: number;
+
+  @Column({ name: 'teamsystem_code', type: 'citext', nullable: true })
+  teamsystemCode!: string | null;
 }

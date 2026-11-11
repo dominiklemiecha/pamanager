@@ -113,18 +113,8 @@ export class AssunzioniService {
   }
 
   /** Username "nome.cognome" libero tra dipendenti e richieste dell'azienda (.2, .3... se preso). */
-  async username(nome: string, cognome: string, cid: number): Promise<string> {
-    const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '') || 'user';
-    const base = `${norm(nome)}.${norm(cognome)}`;
-    let candidato = base;
-    for (let n = 2; n <= 999; n++) {
-      const [preso] = await this.ds.query(
-        `SELECT 1 FROM employees WHERE username = $1 AND company_id = $2 UNION ALL SELECT 1 FROM hire_requests WHERE generated_username = $1 AND company_id = $2 LIMIT 1`,
-        [candidato, cid]);
-      if (!preso) break;
-      candidato = `${base}.${n}`;
-    }
-    return candidato;
+  username(nome: string, cognome: string, cid: number): Promise<string> {
+    return this.anagrafica.usernameLibero(nome, cognome, cid);
   }
 
   /** Consulente del lavoro collegato all'azienda (il primo). */

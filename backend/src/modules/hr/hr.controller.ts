@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpException, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
+import { AndipService } from '../anagrafica/andip.service';
 import { Ruoli, Utente } from '../auth/decoratori';
 import type { RichiestaAutenticata, UtenteCorrente } from '../auth/auth.types';
 import { ChatService } from '../chat/chat.service';
@@ -9,7 +10,8 @@ import { HrService } from './hr.service';
 @Controller('hr')
 @Ruoli('admin')
 export class HrController {
-  constructor(private readonly hr: HrService, private readonly ferie: FerieService, private readonly chat: ChatService) {}
+  constructor(private readonly hr: HrService, private readonly ferie: FerieService, private readonly chat: ChatService,
+    private readonly andip: AndipService) {}
 
   private ctx(u: UtenteCorrente, req: RichiestaAutenticata) {
     return { ip: req.ip ?? null, userAgent: String(req.headers['user-agent'] ?? ''), sessioneId: u.sessioneId, tipo: u.ruolo, id: u.id };
@@ -106,5 +108,27 @@ export class HrController {
     const r = await this.chat.conversazioneDiretta(u, 'employee', id);
     if (!r.success || !r.id) throw new HttpException({ statusCode: 400, message: r.error ?? 'Chat non disponibile' }, 400);
     return { conversazione: r.id };
+  }
+
+  /** Import anagrafica TeamSystem (ANDIP): anteprima delle modifiche, nessuna scrittura. */
+  @Post('andip/anteprima')
+  @HttpCode(200)
+  async andipAnteprima(@Body() b: { contenuto?: string }, @Utente() u: UtenteCorrente) {
+    const r = await this.andip.anteprima(String(b?.contenuto ?? ''), u.companyId!);
+    if (!r.success) throw new HttpException({ statusCode: 400, message: r.error }, 400);
+    const { righe: _righe, ...anteprima } = r;
+    return anteprima;
+  }
+
+  /** Import anagrafica TeamSystem (ANDIP): aggiorna i dipendenti scelti e crea i nuovi scelti (email e reparto dall'HR). */
+  @Post('andip/applica')
+  @HttpCode(200)
+  async andipApplica(@Body() b: { contenuto?: string; scelti?: unknown; nuovi?: unknown }, @Req() req: RichiestaAutenticata, @Utente() u: UtenteCorrente) {
+    const scelti = Array.isArray(b?.scelti) ? b.scelti.map((x) => String(x)) : [];
+    const nuovi = (Array.isArray(b?.nuovi) ? b.nuovi : []).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+      .map((x) => ({ codiceFiscale: String(x.codiceFiscale ?? ''), email: String(x.email ?? ''), repartoId: Number(x.repartoId) || 0 }));
+    const r = await this.andip.applica(String(b?.contenuto ?? ''), scelti, nuovi, u.companyId!, this.ctx(u, req));
+    if (!r.success) throw new HttpException({ statusCode: 400, message: r.error }, 400);
+    return r;
   }
 }

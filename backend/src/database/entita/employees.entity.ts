@@ -168,4 +168,22 @@ export class Employees {
 
   @Column({ name: 'tour_status_at', type: 'timestamptz', nullable: true })
   tourStatusAt!: Date | null;
+
+  @Column({ name: 'matricola', type: 'citext', nullable: true })
+  matricola!: string | null;
+
+  @Column({ name: 'filiale', type: 'integer', nullable: true })
+  filiale!: number | null;
+
+  @Column({ name: 'termination_date', type: 'date', nullable: true })
+  terminationDate!: string | null;
+
+  @Column({ name: 'part_time_percent', type: 'numeric', precision: 5, scale: 2, transformer: numero, nullable: true })
+  partTimePercent!: number | null;
+
+  @Column({ name: 'teamsystem_data', type: 'json', nullable: true })
+  teamsystemData!: string | null;
+
+  @Column({ name: 'teamsystem_imported_at', type: 'timestamptz', nullable: true })
+  teamsystemImportedAt!: Date | null;
 }

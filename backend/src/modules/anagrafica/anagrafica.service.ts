@@ -44,6 +44,21 @@ export class AnagraficaService {
   constructor(private readonly ds: DataSource, private readonly audit: AuditService, private readonly mailer: MailerService,
     private readonly saldi: SaldiService, private readonly sessioni: SessioniService) {}
 
+  /** Username "nome.cognome" libero tra dipendenti e richieste di assunzione dell'azienda (.2, .3... se preso). */
+  async usernameLibero(nome: string, cognome: string, cid: number): Promise<string> {
+    const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '') || 'user';
+    const base = `${norm(nome)}.${norm(cognome)}`;
+    let candidato = base;
+    for (let n = 2; n <= 999; n++) {
+      const [preso] = await this.ds.query(
+        `SELECT 1 FROM employees WHERE username = $1 AND company_id = $2 UNION ALL SELECT 1 FROM hire_requests WHERE generated_username = $1 AND company_id = $2 LIMIT 1`,
+        [candidato, cid]);
+      if (!preso) break;
+      candidato = `${base}.${n}`;
+    }
+    return candidato;
+  }
+
   /** Employee::getById, solo nell'azienda di lavoro. */
   async perId(id: number, cid: number) {
     const [e] = await this.ds.query(
@@ -199,6 +214,25 @@ export class AnagraficaService {
     if ('ral_amount' in d) c.ral_amount = numero(d.ral_amount);
     if ('monthly_salary' in d) c.monthly_salary = numero(d.monthly_salary);
     if ('iban' in d) c.iban = d.iban ? String(d.iban).replace(/\s+/g, '').toUpperCase() : null;
+    // Dati TeamSystem (tracciato ANDIP)
+    if ('matricola' in d) c.matricola = d.matricola ? String(d.matricola).trim().slice(0, 20) : null;
+    if ('filiale' in d) c.filiale = d.filiale === null || d.filiale === '' ? null : Number.parseInt(String(d.filiale), 10) || null;
+    if ('termination_date' in d) {
+      if (d.termination_date && !DATA.test(String(d.termination_date))) return { success: false, error: 'Data non valida' };
+      c.termination_date = d.termination_date || null;
+    }
+    if ('part_time_percent' in d) {
+      const pt = numero(d.part_time_percent);
+      if (pt !== null && (pt <= 0 || pt > 100)) return { success: false, error: 'Percentuale part-time non valida' };
+      c.part_time_percent = pt;
+    }
+    // Record completo dell'ultimo import ANDIP (tutte le colonne)
+    if ('teamsystem_data' in d) {
+      const t = d.teamsystem_data;
+      if (t !== null && (typeof t !== 'object' || Array.isArray(t))) return { success: false, error: 'Dati TeamSystem non validi' };
+      c.teamsystem_data = t === null ? null : JSON.stringify(t);
+      c.teamsystem_imported_at = new Date();
+    }
     if ('nfc_uid' in d) { const uid = String(d.nfc_uid ?? '').replace(/[^0-9A-Fa-f]/g, '').toUpperCase(); c.nfc_uid = uid || null; }
     for (const k of ['working_days', 'hours_per_day', 'smart_working_days', 'buoni_pasto_min_hours_override', 'ferie_year_override', 'permessi_year_override']) {
       if (k in d) c[k] = d[k];

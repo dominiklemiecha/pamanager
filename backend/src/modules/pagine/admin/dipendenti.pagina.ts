@@ -284,6 +284,12 @@ export class DipendentiPagina implements Pagina {
         V.hrAccount = await this.anagrafica.accountHr(id);
         V.__edDocs = await this.personali.perDipendente(id);
         V.__deptsInlineDb = await this.ds.query('SELECT id, name FROM departments WHERE company_id = $1 AND is_active = true ORDER BY name', [cid]);
+        // Ultimo import TeamSystem (ANDIP): tutte le colonne con un valore
+        const ts = e.teamsystem_data && typeof e.teamsystem_data === 'object' ? e.teamsystem_data as Record<string, string> : null;
+        V.__teamsystem = ts ? {
+          importato: e.teamsystem_imported_at ? new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', dateStyle: 'short', timeStyle: 'short' }).format(new Date(e.teamsystem_imported_at)) : '',
+          campi: Object.entries(ts).filter(([, v]) => String(v ?? '').trim() !== '' && v !== '00/00/0000').map(([k, v]) => ({ nome: k, valore: String(v) })),
+        } : null;
       }
     }
     const titolo = action === 'new' ? 'Nuovo Dipendente' : action === 'edit' ? 'Modifica Dipendente' : action === 'view' ? 'Dettaglio Dipendente' : 'Gestione Dipendenti';

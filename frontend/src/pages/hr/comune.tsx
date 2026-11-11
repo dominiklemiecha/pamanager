@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { iniziali } from '../../cora/formato';
 import { datoVisto, scaricaDato } from '../../cora/datiHr';
@@ -142,7 +143,8 @@ export function Modale({ aperta, chiudi, titolo, sottotitolo, larga, intestazion
     return () => { cancelAnimationFrame(r); document.removeEventListener('keydown', esc); };
   }, [aperta, chiudi]);
   if (!aperta) return null;
-  return (
+  // Su body: dentro .cora-main (position fixed) la modale finirebbe sotto il dock.
+  return createPortal(
     <div className={'cora-modal' + (visibile ? ' is-open' : '')} onMouseDown={(e) => { if (e.target === e.currentTarget) chiudi(); }}>
       <div className={'cora-modal-box' + (larga ? '' : ' cora-modal-sm')} role="dialog" aria-modal="true" aria-label={titolo}>
         <div className="cora-modal-h">
@@ -151,7 +153,8 @@ export function Modale({ aperta, chiudi, titolo, sottotitolo, larga, intestazion
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

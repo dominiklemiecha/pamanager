@@ -1830,6 +1830,32 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     </div>
                 </div>
 
+                <!-- ===== Dati TeamSystem (import ANDIP del consulente paghe) ===== -->
+                <?php $__ts = $__teamsystem ?? null; ?>
+                <?php if ($__ts || !empty($employee['matricola'])): ?>
+                <div class="emp-c-card">
+                    <div class="emp-c-card-h"><h3>Dati TeamSystem</h3><span class="hint">Solo admin<?= ($__ts && $__ts['importato']) ? ' · importati il ' . htmlspecialchars($__ts['importato']) : '' ?></span></div>
+                    <div class="emp-c-card-b">
+                        <div class="emp-c-facts emp-c-facts-4">
+                            <div class="fact"><div class="l">Matricola</div><div class="v"><?= !empty($employee['matricola']) ? htmlspecialchars($employee['matricola']) : '<span style="color:var(--muted);">—</span>' ?></div></div>
+                            <div class="fact"><div class="l">Filiale</div><div class="v"><?= ($employee['filiale'] ?? null) !== null ? htmlspecialchars((string)$employee['filiale']) : '<span style="color:var(--muted);">—</span>' ?></div></div>
+                            <div class="fact"><div class="l">% part-time</div><div class="v"><?= !empty($employee['part_time_percent']) ? htmlspecialchars(str_replace('.', ',', rtrim(rtrim((string)$employee['part_time_percent'], '0'), '.'))) . '%' : '<span style="color:var(--muted);">—</span>' ?></div></div>
+                            <div class="fact"><div class="l">Data cessazione</div><div class="v"><?= !empty($employee['termination_date']) ? $fmtDate($employee['termination_date']) : '<span style="color:var(--muted);">—</span>' ?></div></div>
+                        </div>
+                        <?php if ($__ts && !empty($__ts['campi'])): ?>
+                        <details class="emp-ts-tutti" style="margin-top:14px;">
+                            <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);">Tutti i dati del tracciato (<?= count($__ts['campi']) ?> campi con un valore)</summary>
+                            <div class="emp-c-facts emp-c-facts-3" style="margin-top:12px;">
+                                <?php foreach ($__ts['campi'] as $__c): ?>
+                                <div class="fact"><div class="l"><?= htmlspecialchars($__c['nome']) ?></div><div class="v"><?= htmlspecialchars($__c['valore']) ?></div></div>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- ===== Documenti consulente/commercialista (buste, CUD) ===== -->
                 <div class="emp-c-row">
                     <div class="emp-c-card">
