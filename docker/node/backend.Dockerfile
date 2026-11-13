@@ -26,6 +26,7 @@ COPY frontend/package.json frontend/
 RUN npm ci -w backend --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/backend/dist backend/dist
 COPY backend/risorse backend/risorse
+COPY backend/scripts/sposta-dipendente.js backend/scripts/sposta-dipendente.js
 RUN mkdir -p /data/storage /data/uploads && chown -R node:node /data
 USER node
 WORKDIR /app/backend
