@@ -8,6 +8,7 @@ import { prendiPrecaricato } from '../cora/datiHr';
 import { StaffShell, useCorniceStaff } from './StaffShell';
 import { useCorniceHr } from '../cora/HrShell';
 import { CorniceClassicaHr, ricolora } from '../pages/hr/Classica';
+import GestioneGiornate from './GestioneGiornate';
 
 /**
  * Calendario dello staff (admin/calendar.php e delle altre aree): stesso HTML
@@ -42,6 +43,7 @@ function Calendario() {
     if (corniceHr.coraHr) {
       return (
         <CorniceClassicaHr file="calendar" titolo="Calendario" cornice={cornice} corniceHr={corniceHr} stile={ricolora(css)} script={['/assets/js/cora-calendario.js']} globali={globali}>
+          {d.gestisce_giornate && <GestioneGiornate />}
           <div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: ricolora(html) }} />
         </CorniceClassicaHr>
       );
@@ -49,6 +51,7 @@ function Calendario() {
   }
   return (
     <StaffShell pagina="calendar" titolo="Calendario" cornice={cornice} stile={css} script={['/assets/js/cora-calendario.js']} globali={globali}>
+      {d.gestisce_giornate && <GestioneGiornate />}
       <div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: html }} />
     </StaffShell>
   );

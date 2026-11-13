@@ -299,3 +299,11 @@ body.cora-body.cal-dragging .cal-evt.is-dragging { opacity: .4; }
     .cora-body .cal-modal-footer .cal-btn { min-height: 40px; }
     .cora-body #calDeleteBtn { margin-right: 0; }
 }
+
+/* Giornate aziendali e feste (vedi calendario.css, qui solo cio' che la shell Cora sovrascrive) */
+.cora-body .cal-day-head.k-mezza { background: #fbf3df; }
+.cora-body .cal-day-head.k-sw { background: #fff4e4; }
+.cora-body .cal-day-head.k-sede { background: #e6f5ee; }
+.cora-body .cal-day-head.k-mezza .dnum { color: #9a6f12; }
+.cora-body .cal-day-col.is-festa-natale { background: linear-gradient(180deg, #fff3f2, #ffe7e5); }
+.cora-body .fe-avviso { font-family: var(--cora-font); }

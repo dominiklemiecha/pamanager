@@ -13,7 +13,18 @@ export interface Contatto { id: number; name?: string; first_name?: string; last
 export interface DatiCalendario {
   vista: 'week' | 'day'; rif: string; oggi: string; giorni: string[]; festivita: Record<string, string>; etichetta: string;
   prima: string; dopo: string; eventi: Evento[]; contatti: Record<string, Contatto[]>; chiamante: { tipo: string; id: number };
+  /** Giornate decise dall'azienda e avviso del periodo (es. feste di Natale). */
+  giornate?: Record<string, Giornata>; avviso?: Avviso | null; gestisce_giornate?: boolean;
 }
+
+/** Festa del giorno: nazionale, o festivo/chiusura deciso dall'azienda. */
+function festa(d: DatiCalendario, g: string): string {
+  const gg = d.giornate?.[g];
+  if (d.festivita[g]) return d.festivita[g];
+  return gg && (gg.kind === 'festivo' || gg.kind === 'chiusura') ? (gg.label || TIPI[gg.kind].nome) : '';
+}
+
+import { arteFesta, Avviso, Giornata, htmlAvviso, nataleAttivo, TIPI } from './calendario-feste';
 
 const e = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 const iniziale = (s: string | undefined) => [...(s ?? '?')].slice(0, 1).join('').toUpperCase();
@@ -121,14 +132,18 @@ export function htmlGriglia(d: DatiCalendario, cora: boolean): string {
         <div class="cal-time-col" style="height: 56px;"></div>
         <div class="cal-days is-week" style="background: white; min-height: 56px;">
             ${d.giorni.map((g) => {
-    const hd = d.festivita[g];
+    const hd = festa(d, g);
+    const gg = d.giornate?.[g];
+    const altro = gg && !hd ? gg : null;
     return `
-                                <div class="cal-day-head ${g === d.oggi ? 'is-today' : ''} ${hd ? 'is-holiday' : ''}"
-                     ${hd ? `title="Festivita: ${e(hd)}"` : ''}>
+                                <div class="cal-day-head ${g === d.oggi ? 'is-today' : ''} ${hd ? 'is-holiday' : ''} ${altro ? `has-giornata ${TIPI[altro.kind]?.cls ?? ''}` : ''}"
+                     ${hd ? `title="Festivita: ${e(hd)}"` : altro ? `title="${e(altro.label || TIPI[altro.kind]?.nome)}"` : ''}>
                     <div class="dow">${DOW[dow(g)]}</div>
                     <div class="dnum">${+g.slice(8, 10)}</div>
                     ${hd ? `
                         <div class="dholiday">${e(hd)}</div>
+                    ` : ''}${altro ? `
+                        <div class="dgiornata">${e(TIPI[altro.kind]?.nome ?? '')}</div>
                     ` : ''}
                 </div>
             `;
@@ -138,17 +153,24 @@ export function htmlGriglia(d: DatiCalendario, cora: boolean): string {
     ` : '';
   const ora = oraRoma();
   const colonne = d.giorni.map((g) => {
-    const hd = d.festivita[g];
+    const hd = festa(d, g);
+    const gg = d.giornate?.[g];
     const oggi = g === d.oggi;
     const nowMin = ora.h * 60 + ora.m - 7 * 60;
+    const natale = hd && nataleAttivo(d.avviso, g);
     return `
-                <div class="cal-day-col ${oggi ? 'is-today' : ''} ${hd ? 'is-holiday' : ''}" data-day="${e(g)}">
-                    ${hd ? `
-                        <div class="cal-day-holiday-banner" title="Festivita nazionale">
+                <div class="cal-day-col ${oggi ? 'is-today' : ''} ${hd ? 'is-holiday' : ''} ${natale ? 'is-festa-natale' : ''}" data-day="${e(g)}">
+                    ${hd && !natale ? `
+                        <div class="cal-day-holiday-banner" title="${d.festivita[g] ? 'Festivita nazionale' : 'Giornata aziendale'}">
                             <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" aria-hidden="true"><path d="M12 2l2.39 6.96H22l-6.18 4.49 2.36 6.96L12 16.9l-6.18 4.51 2.36-6.96L2 8.96h7.61z"/></svg>
                             <span>${e(hd)}</span>
                         </div>
-                    ` : ''}
+                    ` : ''}${natale ? arteFesta(g, hd) : ''}${!hd && gg ? (gg.kind === 'mezza_giornata' ? `
+                        <div class="cal-giornata-banner ${TIPI[gg.kind].cls}"><span>${e(gg.label || TIPI[gg.kind].nome)}</span></div>
+                        <div class="cal-mezza-fuori"><span>Pomeriggio libero</span></div>
+                    ` : `
+                        <div class="cal-giornata-banner ${TIPI[gg.kind]?.cls ?? ''}"><span>${e(gg.label || TIPI[gg.kind]?.nome)}</span></div>
+                    `) : ''}
                     ${d.eventi.map((ev) => evento(ev, g, palette)).join('')}
 
                     ${oggi && nowMin >= 0 && nowMin <= 14 * 60 ? `
@@ -160,7 +182,8 @@ export function htmlGriglia(d: DatiCalendario, cora: boolean): string {
   const ore = Array.from({ length: 14 }, (_, i) => `
                 <div class="cal-time-slot">${String(7 + i).padStart(2, '0')}:00</div>
             `).join('');
-  return `<div class="cal-wrap">
+  const avviso = d.avviso ? htmlAvviso(d.avviso, d.oggi) : '';
+  return `${avviso}<div class="cal-wrap">
     <div class="cal-sticky-head">
     <div class="cal-toolbar" data-tour="cal-toolbar">
         <div class="cal-nav">

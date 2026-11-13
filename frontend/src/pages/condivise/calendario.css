@@ -858,3 +858,138 @@ body.cal-dragging .cal-evt { cursor: grabbing !important; }
     .cal-modal-footer .cal-btn-danger { order: 4; }
     .cal-modal-footer #calDeleteBtn   { order: 5; }
 }
+
+/* ===================== Giornate aziendali ===================== */
+.cal-day-head.has-giornata .dgiornata {
+    font-size: 10px; font-weight: 700; margin-top: 2px; letter-spacing: .02em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-day-head.k-mezza { background: #fbf3df; }
+.cal-day-head.k-mezza .dgiornata, .cal-day-head.k-mezza .dnum { color: #9a6f12; }
+.cal-day-head.k-sw { background: #fff4e4; }
+.cal-day-head.k-sw .dgiornata { color: #c25a0c; }
+.cal-day-head.k-sede { background: #e6f5ee; }
+.cal-day-head.k-sede .dgiornata { color: #0f7a55; }
+.cal-giornata-banner {
+    position: absolute; top: 4px; left: 4px; right: 4px; z-index: 2; pointer-events: none;
+    padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+}
+.cal-giornata-banner::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.cal-giornata-banner span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-giornata-banner.k-mezza { background: #fbf3df; color: #9a6f12; }
+.cal-giornata-banner.k-sw { background: #fff4e4; color: #c25a0c; }
+.cal-giornata-banner.k-sede { background: #e6f5ee; color: #0f7a55; }
+/* Mezza giornata: pomeriggio (dalle 13:00) tratteggiato */
+.cal-mezza-fuori {
+    position: absolute; left: 0; right: 0; top: calc(var(--cal-hour-h) * 6); bottom: 0; z-index: 1; pointer-events: none;
+    background: repeating-linear-gradient(135deg, rgba(200,150,42,.14) 0 8px, transparent 8px 16px);
+    border-top: 2px dashed #e3c77d; display: flex; justify-content: center; padding-top: 10px;
+}
+.cal-mezza-fuori span { align-self: flex-start; background: #fff; border: 1px solid #ecd9a6; color: #9a6f12; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 3px 10px; }
+
+/* Giorni di festa nel periodo natalizio */
+.cal-day-col.is-festa-natale { background: linear-gradient(180deg, #fff3f2, #ffe7e5); }
+.fe-arte {
+    position: absolute; top: 72px; left: 0; right: 0; z-index: 1; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: #c9123b; padding: 0 6px;
+}
+.fe-arte b { font-size: 13px; font-weight: 700; }
+.fe-arte-a { width: 84px; height: 56px; }
+.fe-arte-b { width: 56px; height: 80px; }
+.fe-arte-c { width: 40px; height: 38px; }
+
+/* ===================== Avviso del periodo (banner) ===================== */
+.fe-avviso {
+    position: relative; overflow: hidden; flex-shrink: 0;
+    border-radius: 20px; margin-bottom: 14px; color: #0f172a;
+    background: #fff; border: 1px solid #e2eae9;
+}
+.fe-avviso.is-natale {
+    color: #fff; border: 0;
+    background: radial-gradient(120% 140% at 0% 0%, #2f7d5f 0%, #1d5c45 45%, #123d2e 100%);
+}
+.fe-fondoneve {
+    position: absolute; inset: 0; pointer-events: none; opacity: .7;
+    background-image: radial-gradient(3px 3px at 30px 40px, #fff 50%, transparent 51%), radial-gradient(2px 2px at 120px 90px, #fff 50%, transparent 51%), radial-gradient(2.5px 2.5px at 200px 20px, #fff 50%, transparent 51%), radial-gradient(2px 2px at 260px 130px, #fff 50%, transparent 51%);
+    background-size: 300px 160px; animation: fe-neve-fondo 16s linear infinite;
+}
+@keyframes fe-neve-fondo { from { background-position: 0 0; } to { background-position: 40px 320px; } }
+.fe-barra { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 14px 18px 0; }
+.fe-kicker { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; flex-shrink: 0; }
+.is-natale .fe-kicker { color: #f4d58d; }
+.fe-riassunto { font-size: 13px; opacity: .85; display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.fe-toggle {
+    margin-left: auto; border: 1px solid currentColor; background: transparent; color: inherit; opacity: .85;
+    border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; flex-shrink: 0;
+}
+.fe-toggle:hover { opacity: 1; }
+.fe-mostra { display: none; }
+.fe-avviso.is-compatto .fe-mostra { display: inline; }
+.fe-avviso.is-compatto .fe-nascondi { display: none; }
+.fe-avviso.is-compatto .fe-riassunto { display: block; }
+.fe-avviso.is-compatto .fe-corpo { display: none; }
+.fe-avviso.is-compatto .fe-barra { padding-bottom: 14px; }
+
+.fe-corpo {
+    position: relative; display: grid; gap: 12px 20px; padding: 8px 18px 18px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+    grid-template-areas: "testa elenco" "scena elenco";
+    grid-template-rows: auto 1fr;
+}
+.fe-testa { grid-area: testa; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+.fe-msg { margin: 0; font-size: 14px; line-height: 1.5; }
+.is-natale .fe-msg { color: #e3f0ea; }
+.fe-ripresa { margin: 0; font-size: 13px; line-height: 1.45; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); }
+.is-semplice .fe-ripresa { background: #f6f8f7; border-color: #e2eae9; }
+.fe-firma { margin: 0; font-size: 12px; opacity: .75; }
+.fe-scena {
+    grid-area: scena; align-self: end; display: block; width: calc(100% + 18px); height: 210px; overflow: visible;
+    margin: 0 0 -18px -18px; pointer-events: none; z-index: 1;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent);
+}
+.fe-vola { animation: fe-vola 7s ease-in-out infinite alternate; }
+@keyframes fe-vola { from { transform: translate(-14px, 8px); } to { transform: translate(14px, -6px); } }
+
+.fe-elenco { grid-area: elenco; position: relative; z-index: 2; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; align-content: start; }
+.fe-gg { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.97); color: #0f172a; border-radius: 14px; padding: 7px 10px 7px 7px; border: 1px solid #edf2f1; }
+.fe-gg.is-passato { opacity: .55; }
+.fe-data { flex-shrink: 0; min-width: 54px; border-radius: 10px; text-align: center; padding: 5px 4px; line-height: 1; }
+.fe-data b { display: block; font-size: 18px; font-weight: 800; }
+.fe-data span { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
+.fe-gg-txt { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.fe-gg-txt > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fe-chip { font-style: normal; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 2px 8px 2px 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.fe-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.k-fest.fe-data, .k-fest.fe-chip { background: #ffedec; color: #c9123b; }
+.k-chiusura.fe-data, .k-chiusura.fe-chip { background: #e7f1ec; color: #1d5c45; }
+.k-mezza.fe-data, .k-mezza.fe-chip { background: #fbf3df; color: #9a6f12; }
+.k-sw.fe-data, .k-sw.fe-chip { background: #fff4e4; color: #c25a0c; }
+.k-sede.fe-data, .k-sede.fe-chip { background: #e6f5ee; color: #0f7a55; }
+
+/* Neve che scende sulla pagina */
+.fe-neve { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
+.fe-fiocco {
+    position: absolute; top: -24px; color: #d4e6f4; line-height: 1; user-select: none; text-shadow: 0 0 3px rgba(80,120,110,.35);
+    animation-name: fe-cade, fe-ondeggia; animation-timing-function: linear, ease-in-out;
+    animation-iteration-count: infinite; animation-direction: normal, alternate;
+}
+@keyframes fe-cade { to { transform: translateY(calc(100vh + 48px)); } }
+@keyframes fe-ondeggia { from { margin-left: -14px; } to { margin-left: 14px; } }
+
+@media (max-width: 900px) {
+    .fe-corpo { grid-template-columns: 1fr; grid-template-areas: "testa" "elenco" "scena"; grid-template-rows: auto; }
+    .fe-scena { width: calc(100% + 36px); margin: 0 -18px -18px; height: 160px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fe-neve { display: none; }
+    .fe-vola, .fe-fondoneve { animation: none; }
+}
+
+/* Con il banner sopra, la griglia tiene un'altezza minima (la pagina scorre). */
+.fe-avviso ~ .cal-wrap { min-height: 620px; }
+/* Colori espliciti: le cornici delle pagine danno un colore proprio ai paragrafi. */
+.fe-avviso.is-natale p.fe-msg { color: #e3f0ea; }
+.fe-avviso.is-natale p.fe-ripresa { color: #f4faf7; }
+.fe-avviso.is-natale p.fe-firma { color: #cfe4da; opacity: 1; }
+.fe-avviso.is-semplice p.fe-msg, .fe-avviso.is-semplice p.fe-ripresa { color: #0f172a; }

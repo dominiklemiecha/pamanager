@@ -6,6 +6,7 @@ import { Ruoli, Utente } from '../auth/decoratori';
 import type { UtenteCorrente } from '../auth/auth.types';
 import { ContattiService } from '../contatti/contatti.service';
 import { CalendarioService } from './calendario.service';
+import { GiornateService } from './giornate.service';
 
 const MESI = ['', 'gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const giorno = (ymd: string, delta: number) => {
@@ -22,7 +23,8 @@ const valida = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Dat
 @Controller('calendario')
 @Ruoli('employee', 'admin', 'consulente_lavoro')
 export class CalendarioController {
-  constructor(private readonly calendario: CalendarioService, private readonly contatti: ContattiService) {}
+  constructor(private readonly calendario: CalendarioService, private readonly contatti: ContattiService,
+    private readonly giornate: GiornateService) {}
 
   @Get()
   async vista(@Query('view') vista: string, @Query('d') d: string, @Utente() u: UtenteCorrente) {
@@ -53,10 +55,35 @@ export class CalendarioController {
     for (const g of giorni) { const n = nomeFestivita(g); if (n) festivita[g] = n; }
     return {
       vista: settimana ? 'week' : 'day', rif, oggi, giorni, festivita, etichetta,
+      giornate: await this.giornate.nellIntervallo(u.companyId, primo, ultimo),
+      avviso: await this.giornate.avvisoAttivo(u.companyId, oggi),
+      gestisce_giornate: u.tipo !== 'employee' && u.ruolo === 'admin',
       prima: giorno(rif, settimana ? -7 : -1), dopo: giorno(rif, settimana ? 7 : 1),
       eventi, contatti: await this.contatti.perUtente(u),
       chiamante: { tipo: u.tipo === 'employee' ? 'employee' : u.ruolo, id: u.id },
     };
+  }
+
+  /** Giornate aziendali e avvisi: elenco per la gestione (solo HR). */
+  @Get('giornate')
+  @Ruoli('admin')
+  elencoGiornate(@Utente() u: UtenteCorrente) {
+    return this.giornate.elenco(u.companyId, oggiRoma());
+  }
+
+  @Post('giornate')
+  @HttpCode(200)
+  @Ruoli('admin')
+  gestisciGiornate(@Body() b: Record<string, unknown>, @Utente() u: UtenteCorrente) {
+    if (!u.companyId) return { success: false, error: 'Seleziona prima un\'azienda' };
+    const id = Number.parseInt(String(b.id ?? ''), 10) || 0;
+    switch (b.action) {
+      case 'save_day': return this.giornate.salvaGiornata(u.companyId, u.id, b);
+      case 'delete_day': return this.giornate.eliminaGiornata(u.companyId, id);
+      case 'save_notice': return this.giornate.salvaAvviso(u.companyId, u.id, b);
+      case 'delete_notice': return this.giornate.eliminaAvviso(u.companyId, id);
+      default: return { success: false, error: 'Azione non valida' };
+    }
   }
 
   /** Azioni dello script del calendario (POST alla pagina nel PHP). */
