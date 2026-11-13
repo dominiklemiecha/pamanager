@@ -414,6 +414,8 @@ include dirname(__DIR__) . '/includes/header-admin.php';
 }
 .cm-btn-primary { background: #0b3aa4; color: white; border-color: #0b3aa4; }
 .cm-btn-primary:hover { background: #0b3aa4; border-color: #0b3aa4; }
+.cm-spin { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; display: inline-block; animation: cm-spin 0.7s linear infinite; }
+@keyframes cm-spin { to { transform: rotate(360deg); } }
 .cm-btn-danger { background: rgba(247,92,108,0.08); color: #f75c6c; border-color: rgba(247,92,108,0.20); }
 .cm-btn-danger:hover { background: #f75c6c; color: white; border-color: #f75c6c; }
 
@@ -964,7 +966,24 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     ed.focus();
                     return;
                 }
+                // Un solo invio: blocca il pulsante e mostra che sta salvando,
+                // altrimenti un doppio clic crea comunicazioni duplicate
+                if (form.dataset.invio === '1') { e.preventDefault(); return; }
+                form.dataset.invio = '1';
                 ta.value = ed.innerHTML.trim();
+                const btn = form.querySelector('button[type="submit"].cm-btn-primary');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                    btn.style.cursor = 'wait';
+                    btn.innerHTML = '<span class="cm-spin"></span> Invio in corso…';
+                }
+            });
+            // Tornando indietro col browser il form torna utilizzabile
+            window.addEventListener('pageshow', () => {
+                form.dataset.invio = '';
+                const btn = form.querySelector('button[type="submit"].cm-btn-primary');
+                if (btn && btn.disabled) location.reload();
             });
 
             // Attachments preview

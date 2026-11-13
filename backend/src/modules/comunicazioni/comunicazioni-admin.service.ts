@@ -104,7 +104,9 @@ export class ComunicazioniAdminService {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
         [cid, String(d.title).trim(), d.content, priorita, d.is_published, pubblica, d.expire_date || null, globale, globale ? null : d.department_id, ctx.id]);
       await this.audit.log('communication_created', ctx.tipo, ctx.id, ctx, 'communication', r.id, null, { ...d });
-      if (d.is_published && pubblica <= oggiRoma()) await this.avvisa(r.id, cid, String(d.title).trim(), d.content, priorita, globale, globale ? null : d.department_id!);
+      // Push ed email partono in background: con molti dipendenti l'invio
+      // richiede minuti e la risposta all'HR non deve aspettarli
+      if (d.is_published && pubblica <= oggiRoma()) void this.avvisa(r.id, cid, String(d.title).trim(), d.content, priorita, globale, globale ? null : d.department_id!);
       return { success: true, id: r.id };
     } catch (e: any) {
       this.logger.error(`creazione comunicazione non riuscita: ${e?.message ?? e}`);
