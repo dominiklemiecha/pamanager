@@ -999,7 +999,10 @@ try {
                         </td>
                         <td data-label="Giorni">
                             <?php if (!$req['is_full_day'] && $req['start_time'] && $req['end_time']):
-                                $__minutes = (int) round(LeaveBalance::effectiveHours($req['start_time'], $req['end_time'], $__lunchS, $__lunchE) * 60);
+                                $__ownLunch = !empty($req['emp_lunch_custom']);
+                                $__minutes = (int) round(LeaveBalance::effectiveHours($req['start_time'], $req['end_time'],
+                                    $__ownLunch ? ($req['emp_lunch_start'] ?? null) : $__lunchS,
+                                    $__ownLunch ? ($req['emp_lunch_end'] ?? null) : $__lunchE) * 60);
                                 $__h = floor($__minutes / 60);
                                 $__m = (int) round($__minutes - $__h * 60);
                                 if ($__m === 60) { $__h++; $__m = 0; }

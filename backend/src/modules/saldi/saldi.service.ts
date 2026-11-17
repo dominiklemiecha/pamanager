@@ -24,6 +24,13 @@ export interface Saldo {
 
 export interface Orario { days: string[]; hours: number; lunch_start: string | null; lunch_end: string | null }
 
+/**
+ * Pausa pranzo valida per il dipendente, in SQL (alias e = employees, c = companies):
+ * la sua se personalizzata, altrimenti quella dell'azienda.
+ */
+export const PAUSA_SQL = `to_char(CASE WHEN e.lunch_break_custom THEN e.lunch_break_start ELSE c.lunch_break_start END, 'HH24:MI') AS pausa_da,
+       to_char(CASE WHEN e.lunch_break_custom THEN e.lunch_break_end ELSE c.lunch_break_end END, 'HH24:MI') AS pausa_a`;
+
 const num = (v: unknown, d = 0): number => (v === null || v === undefined ? d : Number(v));
 
 /**
@@ -113,15 +120,18 @@ export class SaldiService {
   async orario(employeeId: number): Promise<Orario> {
     const [r] = await this.ds.query(
       `SELECT e.working_days AS e_days, e.hours_per_day AS e_hours, c.working_days AS c_days, c.hours_per_day AS c_hours,
-              c.lunch_break_start AS c_lunch_s, c.lunch_break_end AS c_lunch_e
+              c.lunch_break_start AS c_lunch_s, c.lunch_break_end AS c_lunch_e,
+              e.lunch_break_custom AS e_lunch_custom, e.lunch_break_start AS e_lunch_s, e.lunch_break_end AS e_lunch_e
          FROM employees e LEFT JOIN companies c ON c.id = e.company_id WHERE e.id = $1`, [employeeId]);
     if (!r) return { days: ['mon', 'tue', 'wed', 'thu', 'fri'], hours: 8, lunch_start: null, lunch_end: null };
     const csv: string = r.e_days ? r.e_days : (r.c_days ?? 'mon,tue,wed,thu,fri');
+    // Pausa: quella del dipendente se personalizzata (vuota = nessuna pausa), altrimenti dell'azienda.
+    const propria = r.e_lunch_custom === true;
     return {
       days: csv.split(',').map((d) => d.trim()).filter(Boolean),
       hours: r.e_hours !== null ? num(r.e_hours) : num(r.c_hours, 8),
-      lunch_start: r.c_lunch_s ?? null,
-      lunch_end: r.c_lunch_e ?? null,
+      lunch_start: (propria ? r.e_lunch_s : r.c_lunch_s) ?? null,
+      lunch_end: (propria ? r.e_lunch_e : r.c_lunch_e) ?? null,
     };
   }
 

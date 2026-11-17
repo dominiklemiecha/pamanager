@@ -3,6 +3,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { festivitaAnno } from '../../common/calcoli/festivita';
+import { oreEffettive } from '../../common/calcoli/orario';
 import { oggiRoma } from '../../common/calcoli/php';
 import type { FileCaricato } from '../../common/file/caricamenti';
 import { Ruoli, Utente } from '../auth/decoratori';
@@ -29,9 +30,15 @@ export class FerieDipendenteController {
   async elenco(@Utente() u: UtenteCorrente) {
     const anno = Number(oggiRoma().slice(0, 4));
     const s = await this.saldi.perDipendente(u.id, anno);
+    // Ore al giorno dei permessi a ore, tolta la pausa pranzo (come nel saldo).
+    const o = await this.saldi.orario(u.id);
+    const richieste = (await this.ferie.delDipendente(u.id)).map((r: any) => ({
+      ...r, ore_nette: !r.is_full_day && r.start_time && r.end_time ? oreEffettive(r.start_time, r.end_time, o.lunch_start, o.lunch_end) : null,
+    }));
     return {
-      richieste: await this.ferie.delDipendente(u.id),
+      richieste,
       residui: { ferie: s.ferie.residual, permesso: s.permesso.residual },
+      pausa: o.lunch_start && o.lunch_end ? { da: String(o.lunch_start).slice(0, 5), a: String(o.lunch_end).slice(0, 5) } : null,
       malattieSenzaDocumenti: (await this.ferie.malattieSenzaDocumenti(u.companyId, 24, u.id)).length,
       festivita: [...festivitaAnno(anno).keys(), ...festivitaAnno(anno + 1).keys()],
     };

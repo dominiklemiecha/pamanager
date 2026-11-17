@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { contaGiorniLavorativi } from '../../common/calcoli/orario';
+import { contaGiorniLavorativi, oreEffettive } from '../../common/calcoli/orario';
+import { PAUSA_SQL } from '../saldi/saldi.service';
 import { oggiRoma } from '../../common/calcoli/php';
 import { senzaIsolamento } from '../../common/database/isolamento';
 import type { UtenteCorrente } from '../auth/auth.types';
@@ -196,15 +197,13 @@ export class ConsulenteService {
     const fine = new Date(Date.UTC(anno, mese, 0)).toISOString().slice(0, 10);
     const righe = await this.ds.query(
       `SELECT lr.id, lr.status, lr.leave_type, lr.start_date::text AS start_date, lr.end_date::text AS end_date, lr.is_full_day,
-              to_char(lr.start_time, 'HH24:MI') AS start_time, to_char(lr.end_time, 'HH24:MI') AS end_time, e.first_name, e.last_name
-         FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id
+              to_char(lr.start_time, 'HH24:MI') AS start_time, to_char(lr.end_time, 'HH24:MI') AS end_time, e.first_name, e.last_name, ${PAUSA_SQL}
+         FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id LEFT JOIN companies c ON c.id = e.company_id
         WHERE e.company_id = $1 AND lr.status IN ('approved', 'pending') AND lr.start_date <= $3 AND lr.end_date >= $2
         ORDER BY lr.start_date, lr.id`, [cid, inizio, fine]);
-    const minuti = (a: string | null, b: string | null) => {
-      if (!a || !b) return 0;
-      const m = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
-      return Math.max(0, m(b) - m(a));
-    };
+    // Durata del permesso a ore senza la pausa pranzo, come nel saldo.
+    const minuti = (r: any) => (r.start_time && r.end_time
+      ? Math.round(oreEffettive(r.start_time, r.end_time, r.pausa_da, r.pausa_a) * 60) : 0);
     const somme: Record<'ferie' | 'permessi' | 'malattia' | 'smart', { giorni: number; minuti: number }> = {
       ferie: { giorni: 0, minuti: 0 }, permessi: { giorni: 0, minuti: 0 }, malattia: { giorni: 0, minuti: 0 }, smart: { giorni: 0, minuti: 0 },
     };
@@ -218,7 +217,7 @@ export class ConsulenteService {
       if (k !== 'smart') giorni += g;
       if (!k) continue;
       somme[k].giorni += g;
-      if (r.is_full_day === false) somme[k].minuti += minuti(r.start_time, r.end_time);
+      if (r.is_full_day === false) somme[k].minuti += minuti(r);
     }
     const [att] = await this.ds.query('SELECT COUNT(*)::int AS n FROM employees WHERE company_id = $1 AND is_active = true', [cid]);
     return {

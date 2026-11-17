@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { contaGiorniLavorativi } from '../../common/calcoli/orario';
+import { contaGiorniLavorativi, oreEffettive } from '../../common/calcoli/orario';
+import { PAUSA_SQL } from '../saldi/saldi.service';
 import { oggiRoma } from '../../common/calcoli/php';
 import { senzaIsolamento } from '../../common/database/isolamento';
 import type { UtenteCorrente } from '../auth/auth.types';
@@ -298,19 +299,16 @@ export class HrService {
       `SELECT lr.id, lr.leave_type, lr.status, lr.start_date::text AS start_date, lr.end_date::text AS end_date, lr.is_full_day,
               to_char(lr.start_time, 'HH24:MI') AS start_time, to_char(lr.end_time, 'HH24:MI') AS end_time, lr.created_at,
               lr.attachment_path IS NOT NULL AS allegato, lr.certificate_path IS NOT NULL AS certificato, lr.protocol_number, lr.certificate_waived,
-              e.id AS employee_id, e.first_name, e.last_name, e.email, e.photo_path, e.department_id
-         FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
+              e.id AS employee_id, e.first_name, e.last_name, e.email, e.photo_path, e.department_id, ${PAUSA_SQL}
+         FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id LEFT JOIN companies c ON c.id = e.company_id
         WHERE lr.company_id = $1 ORDER BY lr.created_at DESC, lr.id DESC LIMIT 300`, [cid]);
-    const minuti = (a: string | null, b: string | null) => {
-      if (!a || !b) return 0;
-      const [h1, m1] = a.split(':').map(Number);
-      const [h2, m2] = b.split(':').map(Number);
-      return Math.max(0, h2 * 60 + m2 - (h1 * 60 + m1));
-    };
+    // Durata del permesso a ore senza la pausa pranzo, come nel saldo.
+    const minuti = (r: any) => (r.start_time && r.end_time
+      ? Math.round(oreEffettive(r.start_time, r.end_time, r.pausa_da, r.pausa_a) * 60) : 0);
     const richieste = righe.map((r: any) => {
       const intera = r.is_full_day !== false;
       const giorni = contaGiorniLavorativi(r.start_date, r.end_date, lavorativi);
-      const min = intera ? 0 : minuti(r.start_time, r.end_time);
+      const min = intera ? 0 : minuti(r);
       return {
         id: r.id, tipo: r.leave_type, etichetta: TIPI[r.leave_type] ?? r.leave_type, stato: r.status,
         da: r.start_date, a: r.end_date, giornata: intera, oraDa: r.start_time, oraA: r.end_time,

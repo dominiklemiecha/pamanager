@@ -1082,6 +1082,34 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                 </div>
 
                 <?php
+                $__lunchOwn = $action === 'edit' && !empty($employee['lunch_break_custom']);
+                $__lunchCompS = $compDefaults['lunch_start'] ?? '';
+                $__lunchCompE = $compDefaults['lunch_end'] ?? '';
+                $__lunchS = $__lunchOwn ? substr((string) ($employee['lunch_break_start'] ?? ''), 0, 5) : $__lunchCompS;
+                $__lunchE = $__lunchOwn ? substr((string) ($employee['lunch_break_end'] ?? ''), 0, 5) : $__lunchCompE;
+                ?>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="lunch_break_override" value="1" id="lunch_override" <?= $__lunchOwn ? 'checked' : '' ?>>
+                        Pausa pranzo personalizzata
+                    </label>
+                    <small style="color:#94a3b8;">Default azienda: <?= ($__lunchCompS !== '' && $__lunchCompE !== '') ? htmlspecialchars($__lunchCompS . ' - ' . $__lunchCompE) : 'nessuna pausa' ?> · la pausa non viene conteggiata nei permessi a ore</small>
+                </div>
+                <div class="form-group" id="lunch_panel" style="grid-column: 1 / -1; <?= $__lunchOwn ? '' : 'display:none;' ?>">
+                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+                        <div>
+                            <label for="lunch_break_start">Dalle</label>
+                            <input type="time" id="lunch_break_start" name="lunch_break_start" value="<?= htmlspecialchars($__lunchS) ?>" style="max-width:160px;">
+                        </div>
+                        <div>
+                            <label for="lunch_break_end">Alle</label>
+                            <input type="time" id="lunch_break_end" name="lunch_break_end" value="<?= htmlspecialchars($__lunchE) ?>" style="max-width:160px;">
+                        </div>
+                    </div>
+                    <small style="color:#94a3b8;">Lascia vuoti per nessuna pausa.</small>
+                </div>
+
+                <?php
                 $__bpComp = Database::fetchOne("SELECT buoni_pasto_enabled, buoni_pasto_min_hours_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible, smart_working_days FROM companies WHERE id = ?", [$__wdCompId]) ?: [];
                 $__bpCompMin = (float) ($__bpComp['buoni_pasto_min_hours'] ?? 6.0);
                 $__bpCompMinOn = !empty($__bpComp['buoni_pasto_min_hours_enabled']);
@@ -1242,6 +1270,13 @@ include dirname(__DIR__) . '/includes/header-admin.php';
                     if (cb && panel) {
                         cb.addEventListener('change', function() {
                             panel.style.display = cb.checked ? '' : 'none';
+                        });
+                    }
+                    var lunchCb = document.getElementById('lunch_override');
+                    var lunchPanel = document.getElementById('lunch_panel');
+                    if (lunchCb && lunchPanel) {
+                        lunchCb.addEventListener('change', function() {
+                            lunchPanel.style.display = lunchCb.checked ? '' : 'none';
                         });
                     }
                     var swCb = document.getElementById('sw_override');

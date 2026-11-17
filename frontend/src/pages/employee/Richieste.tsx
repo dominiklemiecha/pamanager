@@ -6,11 +6,11 @@ import { svgCora } from '../../cora/svg';
 import { api } from '../../services/api';
 
 interface Richiesta {
-  id: number; leave_type: string; start_date: string; end_date: string; is_full_day: boolean; start_time: string | null; end_time: string | null;
+  id: number; leave_type: string; start_date: string; end_date: string; is_full_day: boolean; start_time: string | null; end_time: string | null; ore_nette?: number | null;
   reason: string | null; notes: string | null; status: string; created_at: string; rejection_reason: string | null;
   protocol_number: string | null; certificate_path: string | null; certificate_waived: boolean | null;
 }
-interface Dati { richieste: Richiesta[]; residui: { ferie: number; permesso: number }; malattieSenzaDocumenti: number; festivita: string[] }
+interface Dati { richieste: Richiesta[]; residui: { ferie: number; permesso: number }; pausa?: { da: string; a: string } | null; malattieSenzaDocumenti: number; festivita: string[] }
 
 const I = ({ n }: { n: string }) => <span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: svgCora(n) }} />;
 const COLORE: Record<string, string> = {
@@ -45,7 +45,9 @@ function durata(r: Richiesta): string {
   const giorni = giorniLunVen(r.start_date, r.end_date);
   if (!r.is_full_day && r.start_time && r.end_time) {
     const min = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) + Number(t.slice(6, 8) || 0) / 60;
-    const h = num(Math.round(Math.max(0, (min(r.end_time) - min(r.start_time)) / 60) * Math.max(1, giorni) * 10) / 10);
+    // ore_nette: calcolate dal server senza la pausa pranzo.
+    const alGiorno = r.ore_nette ?? Math.max(0, (min(r.end_time) - min(r.start_time)) / 60);
+    const h = num(Math.round(alGiorno * Math.max(1, giorni) * 10) / 10);
     return h + (h === '1' ? ' ora' : ' ore');
   }
   return giorni + (giorni === 1 ? ' giorno' : ' giorni');
@@ -81,7 +83,7 @@ export default function Richieste() {
   return (
     <CoraShell pagina="leave-requests" titolo="Ferie e permessi" cornice={cornice}
       script={['/assets/js/cora-pickers.js', '/assets/js/cora-leave.js']}
-      globali={{ CORA_LEAVE: { holidays: d.festivita, residual: { ferie: d.residui.ferie, permesso: d.residui.permesso }, open: (!!precedente && precedente.modulo === 'crea' && !!errore) || q.has('new') } }}>
+      globali={{ CORA_LEAVE: { holidays: d.festivita, residual: { ferie: d.residui.ferie, permesso: d.residui.permesso }, lunch: d.pausa ?? null, open: (!!precedente && precedente.modulo === 'crea' && !!errore) || q.has('new') } }}>
       {flash && <span data-cora-flash data-title={flash[0]} data-message={flash[1]} hidden />}
 
       <div className="cora-reveal" style={{ '--i': 0 } as React.CSSProperties}>

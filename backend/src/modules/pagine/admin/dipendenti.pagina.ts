@@ -66,6 +66,10 @@ export class DipendentiPagina implements Pagina {
       const h = String(corpo.hours_per_day ?? '').trim();
       d.hours_per_day = h === '' ? null : decimale(h);
     } else { d.working_days = null; d.hours_per_day = null; }
+    // Pausa pranzo propria: vuota = nessuna pausa; senza spunta vale quella dell'azienda.
+    d.lunch_break_custom = corpo.lunch_break_override === '1';
+    d.lunch_break_start = d.lunch_break_custom ? String(corpo.lunch_break_start ?? '').trim() || null : null;
+    d.lunch_break_end = d.lunch_break_custom ? String(corpo.lunch_break_end ?? '').trim() || null : null;
     d.smart_working_days = corpo.smart_working_override === '1'
       ? GIORNI.filter((g) => lista(corpo['smart_working_days[]'] ?? corpo.smart_working_days).includes(g)).join(',') : null;
     const bp = String(corpo.buoni_pasto_min_hours_override ?? '').trim();
@@ -252,12 +256,13 @@ export class DipendentiPagina implements Pagina {
     };
     const [az] = await senzaIsolamento(() => this.ds.query(
       `SELECT timbratura_enabled, buoni_pasto_enabled, buoni_pasto_min_hours_enabled, buoni_pasto_min_hours, buoni_pasto_sw_eligible, smart_working_days,
-              default_ccnl_id, working_days, hours_per_day FROM companies WHERE id = $1`, [cid]));
+              default_ccnl_id, working_days, hours_per_day, lunch_break_start, lunch_break_end FROM companies WHERE id = $1`, [cid]));
     V.__timbratureDb = az ? (az.timbratura_enabled ? 1 : 0) : null;
     V.__bpCompDb = az ? { buoni_pasto_enabled: az.buoni_pasto_enabled, buoni_pasto_min_hours_enabled: az.buoni_pasto_min_hours_enabled,
       buoni_pasto_min_hours: az.buoni_pasto_min_hours, buoni_pasto_sw_eligible: az.buoni_pasto_sw_eligible, smart_working_days: az.smart_working_days } : false;
     V.__defaultCcnlDb = az ? { default_ccnl_id: az.default_ccnl_id } : false;
-    V.__compDefaults = { days: String(az?.working_days ?? 'mon,tue,wed,thu,fri').split(',').map((x) => x.trim()).filter(Boolean), hours: az?.hours_per_day != null ? Number(az.hours_per_day) : 8.0 };
+    V.__compDefaults = { days: String(az?.working_days ?? 'mon,tue,wed,thu,fri').split(',').map((x) => x.trim()).filter(Boolean), hours: az?.hours_per_day != null ? Number(az.hours_per_day) : 8.0,
+      lunch_start: az?.lunch_break_start ? String(az.lunch_break_start).slice(0, 5) : '', lunch_end: az?.lunch_break_end ? String(az.lunch_break_end).slice(0, 5) : '' };
     V.__ccnls = await this.saldi.ccnlDisponibili(cid);
 
     if (action === 'list') {

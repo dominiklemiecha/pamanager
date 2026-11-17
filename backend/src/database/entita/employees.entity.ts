@@ -148,6 +148,15 @@ export class Employees {
   @Column({ name: 'hours_per_day', type: 'numeric', precision: 4, scale: 2, transformer: numero, nullable: true })
   hoursPerDay!: number | null;
 
+  @Column({ name: 'lunch_break_custom', type: 'boolean', default: false })
+  lunchBreakCustom!: boolean;
+
+  @Column({ name: 'lunch_break_start', type: 'time', nullable: true })
+  lunchBreakStart!: string | null;
+
+  @Column({ name: 'lunch_break_end', type: 'time', nullable: true })
+  lunchBreakEnd!: string | null;
+
   @Column({ name: 'smart_working_days', type: 'citext', nullable: true })
   smartWorkingDays!: string | null;
 

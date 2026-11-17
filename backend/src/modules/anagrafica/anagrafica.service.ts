@@ -16,6 +16,15 @@ export type Esito = { success: true; id?: number } | { success: false; error: st
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const vuotoNull = (v: unknown) => (v === '' || v === null || v === undefined ? null : v);
+const ORA = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+/** Pausa pranzo del dipendente: orari validi, fine dopo inizio, entrambi o nessuno. */
+function pausaValida(d: Record<string, any>): string | null {
+  const s = d.lunch_break_start ?? null; const e = d.lunch_break_end ?? null;
+  if (!s && !e) return null;
+  if (!s || !e || !ORA.test(String(s)) || !ORA.test(String(e))) return 'Pausa pranzo: indica inizio e fine validi';
+  if (String(e).slice(0, 5) <= String(s).slice(0, 5)) return 'Pausa pranzo: la fine deve essere dopo l\'inizio';
+  return null;
+}
 const numero = (v: unknown) => (v === '' || v === null || v === undefined ? null : Number.parseFloat(String(v).replace(',', '.')) || 0);
 
 /** Codice fiscale italiano con carattere di controllo (Employee::validateFiscalCode). */
@@ -116,6 +125,7 @@ export class AnagraficaService {
     for (const k of ['hire_date', 'birth_date', 'probation_end_date']) {
       if (d[k] && !DATA.test(String(d[k]))) return { success: false, error: 'Data non valida' };
     }
+    if (d.lunch_break_custom) { const err = pausaValida(d); if (err) return { success: false, error: err }; }
     const iban = d.iban ? String(d.iban).replace(/\s+/g, '').toUpperCase() : null;
     let id: number;
     try {
@@ -123,14 +133,15 @@ export class AnagraficaService {
         `INSERT INTO employees (company_id, username, password_hash, fiscal_code, first_name, last_name, email, phone, department_id, position, hire_date,
            probation_end_date, address, birth_date, job_level, ral_amount, monthly_salary, iban, ccnl_id, ferie_year_override, permessi_year_override,
            working_days, hours_per_day, smart_working_days, buoni_pasto_min_hours_override, buoni_pasto_sw_eligible_override, buoni_pasto_excluded,
-           is_active, must_change_password, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,true,true,$28) RETURNING id`,
+           lunch_break_custom, lunch_break_start, lunch_break_end, is_active, must_change_password, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,true,true,$31) RETURNING id`,
         [cid, username, await hashPassword(password), cf, String(d.first_name).trim(), String(d.last_name).trim(), vuotoNull(d.email), vuotoNull(d.phone),
           vuotoNull(d.department_id), vuotoNull(d.position), vuotoNull(d.hire_date), vuotoNull(d.probation_end_date), vuotoNull(d.address), vuotoNull(d.birth_date),
           vuotoNull(d.job_level), numero(d.ral_amount), numero(d.monthly_salary), iban, vuotoNull(d.ccnl_id), numero(d.ferie_year_override),
           numero(d.permessi_year_override), vuotoNull(d.working_days), numero(d.hours_per_day), d.smart_working_days ?? null,
           numero(d.buoni_pasto_min_hours_override), d.buoni_pasto_sw_eligible_override === null || d.buoni_pasto_sw_eligible_override === undefined || d.buoni_pasto_sw_eligible_override === '' ? null : !!Number(d.buoni_pasto_sw_eligible_override),
-          !!d.buoni_pasto_excluded, ctx.id]);
+          !!d.buoni_pasto_excluded, !!d.lunch_break_custom, d.lunch_break_custom ? vuotoNull(d.lunch_break_start) : null,
+          d.lunch_break_custom ? vuotoNull(d.lunch_break_end) : null, ctx.id]);
     } catch (e: any) {
       this.logger.error(`creazione dipendente non riuscita: ${e?.message ?? e}`);
       return { success: false, error: 'Errore durante la creazione del dipendente' };
@@ -239,6 +250,14 @@ export class AnagraficaService {
     }
     if ('buoni_pasto_sw_eligible_override' in d) c.buoni_pasto_sw_eligible_override = d.buoni_pasto_sw_eligible_override === null ? null : !!Number(d.buoni_pasto_sw_eligible_override);
     if ('buoni_pasto_excluded' in d) c.buoni_pasto_excluded = !!d.buoni_pasto_excluded;
+    if ('lunch_break_custom' in d) {
+      c.lunch_break_custom = !!d.lunch_break_custom;
+      if (c.lunch_break_custom) {
+        const err = pausaValida(d);
+        if (err) return { success: false, error: err };
+        c.lunch_break_start = vuotoNull(d.lunch_break_start); c.lunch_break_end = vuotoNull(d.lunch_break_end);
+      } else { c.lunch_break_start = null; c.lunch_break_end = null; }
+    }
     if ('ccnl_id' in d) {
       if (d.ccnl_id && !(await this.ds.query('SELECT 1 FROM ccnl_templates WHERE id = $1 AND (company_id IS NULL OR company_id = $2)', [d.ccnl_id, cid])).length) {
         return { success: false, error: 'CCNL non valido' };

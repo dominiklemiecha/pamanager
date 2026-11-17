@@ -22,6 +22,7 @@ const DOC_MANCANTI = `(lr.protocol_number IS NULL OR lr.protocol_number = ''
   OR ((lr.certificate_path IS NULL OR lr.certificate_path = '') AND COALESCE(lr.certificate_waived, false) = false))`;
 
 const SELEZIONE = `SELECT lr.*, e.first_name, e.last_name, e.fiscal_code, e.photo_path,
+       e.lunch_break_custom AS emp_lunch_custom, e.lunch_break_start AS emp_lunch_start, e.lunch_break_end AS emp_lunch_end,
        d.name AS department_name, d.code AS department_code, u.name AS approved_by_name
   FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id
   LEFT JOIN departments d ON e.department_id = d.id LEFT JOIN users u ON lr.approved_by = u.id

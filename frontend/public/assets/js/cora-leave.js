@@ -58,7 +58,14 @@
         var text;
         if (!isFull()) {
             var a = (startTime.value || '').split(':'), b = (endTime.value || '').split(':');
-            var h = ((+b[0] * 60 + +b[1]) - (+a[0] * 60 + +a[1])) / 60;
+            var sm = +a[0] * 60 + +a[1], em = +b[0] * 60 + +b[1];
+            var h = (em - sm) / 60;
+            // Pausa pranzo (del dipendente o dell'azienda): non conta come permesso.
+            if (cfg.lunch && cfg.lunch.da && cfg.lunch.a) {
+                var la = cfg.lunch.da.split(':'), lb = cfg.lunch.a.split(':');
+                var ls = +la[0] * 60 + +la[1], le = +lb[0] * 60 + +lb[1];
+                if (le > ls) h -= Math.max(0, Math.min(em, le) - Math.max(sm, ls)) / 60;
+            }
             if (!(h > 0)) { info.hidden = true; return; }
             var tot = h * Math.max(1, days);
             text = num(tot) + (tot === 1 ? ' ora' : ' ore');
