@@ -4,6 +4,7 @@ import { IndiceHr } from '../hr/Indice';
 import { SceltaHr } from '../hr/comune';
 import { AnagraficaHr, AssunzioniHr, PresenzeHr, RepartiHr } from '../hr/Dipendenti';
 import { FerieHr } from '../hr/Ferie';
+import { AssunzioniCoraHr, DipendentiHr, usaCoraAssunzioni, usaCoraDipendenti } from '../hr/SchedeDipendente';
 import { AccessiHr } from '../hr/Accessi';
 import { BuoniPastoHr, OrarioHr, ProfiloHr, ResetPasswordHr, TimbratureImpostazioniHr } from '../hr/Profilo';
 import { ComunicazioniHr, DocumentiHr } from '../hr/Archivio';
@@ -93,8 +94,8 @@ export const rotteStaff = [
   pagina('/admin/department-detail', adminRepartoDettaglio),
   pagina('/admin/companies', adminAziende),
   hr('/admin/communications', ComunicazioniHr, { render: adminComunicazioni }, (q) => !q.has('action')),
-  hr('/admin/employees', AnagraficaHr, { render: adminDipendenti }, (q) => !q.has('action') && !q.has('id')),
-  hr('/admin/hire-requests', AssunzioniHr, { render: adminAssunzioni }, (q) => !q.has('action') && !q.has('id')),
+  hr('/admin/employees', ({ cornice }) => <DipendentiHr cornice={cornice} Elenco={AnagraficaHr} />, { render: adminDipendenti }, usaCoraDipendenti),
+  hr('/admin/hire-requests', ({ cornice }) => <AssunzioniCoraHr cornice={cornice} Elenco={AssunzioniHr} />, { render: adminAssunzioni }, usaCoraAssunzioni),
   hr('/admin/attendance', PresenzeHr, { render: adminTimbratureGiorno }, (q) => !q.has('classica')),
   <Route key="/admin/consulente-lavoro" path="/admin/consulente-lavoro" element={<SceltaHr cora={(c) => <AccessiHr cornice={c} ruolo="consulente_lavoro" />}
     classica={{ render: adminUtentiEsterni, prepara: conOspiti }} usaCora={(q) => !q.has('action') && !q.has('id')} />} />,

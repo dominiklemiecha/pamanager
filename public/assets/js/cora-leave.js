@@ -47,10 +47,24 @@
         return (Math.round(n * 10) / 10).toString().replace('.', ',');
     }
 
+    // Permesso a ore: un solo giorno (niente data di fine, coincide con il giorno scelto).
+    var endField = end.closest('.cora-field');
+    var startLabel = start.closest('.cora-field') && start.closest('.cora-field').querySelector('.cora-sublabel');
+    function oneDay() {
+        var solo = !isFull();
+        if (endField) endField.hidden = solo;
+        if (startLabel) startLabel.textContent = solo ? 'Giorno' : 'Inizio';
+        if (solo && start.value && end.value !== start.value) {
+            end.value = start.value;
+            end.dispatchEvent(new Event('cora:set'));
+        }
+    }
+
     function update() {
         var t = typeInput.value;
         if (sick) sick.hidden = t !== 'malattia';
         if (times) times.hidden = isFull();
+        oneDay();
 
         var s = parse(start.value), e = parse(end.value);
         if (!s || !e || e < s) { info.hidden = true; return; }
@@ -114,7 +128,7 @@
 
     function clearPreset() { presets.forEach(function (c) { c.classList.remove('is-selected'); }); }
     start.addEventListener('change', function () {
-        if (start.value && (!end.value || end.value < start.value)) {
+        if (start.value && (!end.value || end.value < start.value || !isFull())) {
             end.value = start.value;
             end.dispatchEvent(new Event('cora:set'));
         }

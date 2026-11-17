@@ -284,6 +284,7 @@ i.is-absent { background: var(--cora-error); }
 .cora-sublabel { font-size: 12px; font-weight: 400; color: var(--cora-ink-3); }
 .cora-hint { font-size: 12px; font-weight: 400; color: var(--cora-ink-3); }
 .cora-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cora-field[hidden] { display: none; }
 .cora-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .cora-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .cora-chip {

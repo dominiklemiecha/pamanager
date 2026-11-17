@@ -76,6 +76,8 @@ export class FerieService {
     if (!d.employee_id) return { success: false, error: 'Dipendente obbligatorio' };
     if (!d.leave_type || !TIPI[d.leave_type] || (daDipendente && !TIPI_DIPENDENTE.includes(d.leave_type))) return { success: false, error: 'Tipo assenza non valido' };
     if (!d.start_date) return { success: false, error: 'Data inizio obbligatoria' };
+    // Permesso a ore: riguarda un solo giorno, la fine coincide con l'inizio.
+    if (d.is_full_day === false) d = { ...d, end_date: d.start_date };
     if (!d.end_date) return { success: false, error: 'Data fine obbligatoria' };
     if (!dataValida(d.start_date) || !dataValida(d.end_date)) return { success: false, error: 'Data non valida' };
     if (d.start_date > d.end_date) return { success: false, error: 'La data di fine deve essere uguale o successiva alla data di inizio' };

@@ -77,6 +77,11 @@ export class DipendentiPagina implements Pagina {
     const sw = String(corpo.buoni_pasto_sw_eligible_override ?? '');
     d.buoni_pasto_sw_eligible_override = sw === '' ? null : Number.parseInt(sw, 10) || 0;
     d.buoni_pasto_excluded = corpo.buoni_pasto_excluded !== undefined ? 1 : 0;
+    // Campi del modulo avanzato (vista Cora): toccati solo se inviati.
+    for (const k of ['matricola', 'filiale', 'termination_date', 'nfc_uid']) {
+      if (corpo[k] !== undefined) d[k] = String(corpo[k]).trim() || null;
+    }
+    if (corpo.part_time_percent !== undefined) d.part_time_percent = String(corpo.part_time_percent).trim() === '' ? null : decimale(corpo.part_time_percent);
     return d;
   }
 
